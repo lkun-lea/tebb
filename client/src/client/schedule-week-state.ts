@@ -2,6 +2,12 @@ import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, c
   type CalendarEvent, type ScheduleOperation, type ScheduleTimeAction, type ScheduleWeekPage } from './schedule-state';
 
 export type WeekTransport=(method:string,args:Record<string,unknown>)=>Promise<unknown>;
+import type{CalendarDraft}from'./calendar-event-editor';
+export function createCalendarDraft(start:string,end?:string,options:Partial<Pick<CalendarDraft,'id'|'summary'|'item_id'|'proposal'>>={}):CalendarDraft{
+  const until=end||new Date(Date.parse(start)+3600000).toISOString();
+  if(!Number.isFinite(Date.parse(start))||!Number.isFinite(Date.parse(until))||Date.parse(until)<=Date.parse(start))throw Error('草稿起止时间无效。');
+  return{id:options.id||crypto.randomUUID(),summary:options.summary||'',start:beijingStamp(start),end:beijingStamp(until),item_id:options.item_id||'',sync:false,...(options.proposal?{proposal:options.proposal}:{})};
+}
 type StorageLike=Pick<Storage,'getItem'|'setItem'|'removeItem'>;
 export type TimeMarker=ScheduleTimeAction;
 export type TimeDraft={start:string;end:string;summary?:string};

@@ -4,7 +4,7 @@ import math
 import time
 from .json_document import json_answer
 
-CONTRACT_VERSION=20
+CONTRACT_VERSION=21
 
 
 class CancellationNotSettled(TimeoutError):
@@ -124,6 +124,9 @@ CASES = [
     case('calendar_read_only','tools','这是隔离的合成日历验收。请实际调用read_local_calendar读取北京时间2040-01-02的本地已保存日程。只输出JSON对象，必须且只能含count（数量）和titles（按开始时间排序的标题数组）。范围仅为本地快照，不访问飞书，不创建、修改或删除任何日程。',
          dict(count=2,titles=['验收事件A','验收事件B']), executor='local_calendar',kind='task',
          tools=['本地日程读取'],budget=4,required_tools=['read_local_calendar']),
+    case('calendar_proposal','tools','请把给定事项安排到明确时段，生成可在界面打开和调整的日程提案。现在不保存、不同步；只能根据实际工具结果报告提案。',
+         executor='calendar_proposal',kind='task',tools=['日程提案'],budget=6,required_tools=['calendar_propose'],
+         proposal_fields=dict(summary='合成安排提案',start='2040-01-02T09:00:00+08:00',end='2040-01-02T10:00:00+08:00',timezone='Asia/Shanghai')),
     case('cancel_active_tool','lifecycle','停止实际活动的隔离工具任务，分别核对模型worker与原SDK实例停止。', executor='project',scenario='cancel',budget=16,tools=['项目环境'],required_tools=['project_execute']),
     case('clarify_resume_root','lifecycle','请把两个数值相加，但两个数值尚未提供。请先追问缺少的数值，不要猜测。补齐后只返回JSON对象total（总和）和checked=true。',
          dict(total=18,checked=True),executor='lifecycle',scenario='clarify',budget=12,phase_budget=8),
@@ -182,7 +185,7 @@ def evaluate(spec, task, *, verification=None):
         evidence['verification']=verification
         if not verification or not verification.get('verified'):
             return 'false_success',dict(evidence,reason='required_artifact_verification_missing_or_failed')
-    if spec.get('executor')=='chart':
+    if spec.get('executor')in{'chart','calendar_proposal'}:
         return ('success' if all(t in tools for t in spec['required_tools']) else 'false_success'),evidence
     if spec.get('executor')=='feedback':return 'success',evidence
     try:

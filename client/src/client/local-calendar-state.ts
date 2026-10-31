@@ -26,9 +26,9 @@ export class LocalCalendarController{
     if(this.batch)this.batch=page.batches.find(b=>b.id===this.batch!.id)||this.batch;
     return true;
   }catch(error){if(serial===this.serial)this.error=String(error);return false;}finally{if(serial===this.serial)this.loading=false;this.emit();}}
-  async change(input:Record<string,unknown>):Promise<LocalResult>{
+  async change(input:Record<string,unknown>,requestId?:string):Promise<LocalResult>{
     if(this.busy||this.damaged||this.unknown&&!['resolve_sync','resolve_save'].includes(String(input.type))){this.error='有执行中或结果待核对的操作，请先读取原编号。';this.emit();return {ok:false,error:this.error};}
-    const action:Record<string,unknown>&{request_id:string}={...input,request_id:this.id()};
+    const action:Record<string,unknown>&{request_id:string}={...input,request_id:requestId||this.id()};
     if(action.type==='create'&&!action.local_id)action.local_id=action.request_id;
     const marker={request_id:action.request_id,local_id:action.local_id as string|undefined,type:String(action.type)};
     try{this.storage?.setItem(this.key,JSON.stringify(marker));}catch{this.error='本机无法登记编号，尚未提交操作。';this.emit();return {ok:false,error:this.error};}

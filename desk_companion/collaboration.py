@@ -22,7 +22,7 @@ COMPANIONS = {
     "research": ("研究员", "阿探", "fox", "好奇、敏锐，喜欢追问为什么；认真核实来源，坦率承认未知。"),
     "writer": ("写作者", "墨墨", "cat", "细腻、有条理，擅长把复杂内容讲清楚，有一点冷幽默。"),
 }
-TOOLS = {"联网搜索", "网页读取", "工作区读取", "文件编辑", "终端", "扩展只读工具", "构建图表", "本地日程读取", "项目环境"}
+TOOLS = {"联网搜索", "网页读取", "工作区读取", "文件编辑", "终端", "扩展只读工具", "构建图表", "本地日程读取", "日程提案", "项目环境"}
 AVATARS = {"spark", "fox", "cat", "owl"}
 
 
@@ -832,6 +832,12 @@ class Collaboration:
                         receipts=run.setdefault('project_receipts',[])
                         receipts.append(data)
                         del receipts[:-40]
+                    elif kind == 'calendar_proposal':
+                        from .calendar_proposals import validate
+                        proposal=validate(data['proposal'],task_id=task['id'])
+                        proposals=run.setdefault('calendar_proposals',[])
+                        if not any(row['id']==proposal['id']for row in proposals):proposals.append(proposal)
+                        del proposals[:-40]
                     elif kind == 'chart_build':
                         builds=run.setdefault('chart_builds',{})
                         old=builds.get(data['draft_id'],{})

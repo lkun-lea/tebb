@@ -58,6 +58,8 @@ class HeadlessApp:
         self.scheduling = SchedulingService(self.work_board)
         self.calendar_reminders=CalendarReminderService.for_work_board(self.work_board)
         self.task_completion=FeishuTaskCompletionService()
+        from ..calendar_proposals import CalendarProposalService
+        self.calendar_proposals=CalendarProposalService(self.work_board,self.scheduling,lambda ident:self.tasks.get(ident))
         from ..feishu_agent import FeishuAgent
         self.feishu_agent = FeishuAgent(self, task_backed=True)
         self._collaboration = None

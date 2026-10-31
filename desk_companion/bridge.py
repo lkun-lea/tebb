@@ -550,6 +550,8 @@ class Bridge:
 
     def calendar_reminder_status(self):return self._host.calendar_reminders.snapshot()
 
+    def read_calendar_proposal(self,task_id,proposal_id):return self._host.calendar_proposals.read(task_id,proposal_id)
+
     def calendar_reminder_scan(self):return self._host.calendar_reminders.tick()
 
     def calendar_reminder_settings(self,enabled):return self._host.calendar_reminders.save_settings(enabled)

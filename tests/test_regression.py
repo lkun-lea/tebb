@@ -58,7 +58,7 @@ class RegressionTests(unittest.TestCase):
         }):
             agent = assistant.build_agent(host)
         names = {tool["function"]["name"] for tool in agent.tools.to_openai_tools()}
-        self.assertTrue({"remember_fact", "forget_fact", "web_search", "create_calendar_event"} <= names)
+        self.assertTrue({"remember_fact", "forget_fact", "web_search", "calendar_propose"} <= names)
         self.assertFalse(any("arknights" in name or name.startswith("maa_") for name in names))
         agent.llm = FakeLLM([{"role": "assistant", "content": "回归正常。"}])
         result = agent.run("打个招呼", run_id="regression")

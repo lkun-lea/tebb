@@ -5,6 +5,9 @@ import { Button, Card, CardBody } from "reend-components";
 import { useBoardActions } from "./board-actions";
 import { PersonalUsagePane } from './usage-center';
 import {ReminderNotice,ReminderSettings}from'./reminders';
+import{CalendarProposalNavigation}from'./calendar-proposal-navigation';
+import{CalendarProposalCards}from'./calendar-proposal';
+import{proposalsFromEvents,type CalendarProposal}from'./calendar-proposal-state';
 import { shouldReloadBoard, type BoardPayload } from "./board";
 import {
   BOARD_FIXTURE,
@@ -124,6 +127,7 @@ export function App() {
   const notebookCreatingRef=useRef(false);
   const [workTarget, setWorkTarget] = useState<{id:string;nonce:number}|null>(null);
   const [calendarTarget, setCalendarTarget] = useState<(ScheduleTarget&{view?:'today'|'week'|'day'})|null>(null);
+  const[chatProposals,setChatProposals]=useState<CalendarProposal[]>([]);
   const [composeRequest, setComposeRequest] = useState<{ id: number; text: string }>();
   const [developerMode, setDeveloperMode] = useState(readDeveloperMode);
   const [agentDebugOpen, setAgentDebugOpen] = useState(false);
@@ -163,6 +167,7 @@ export function App() {
   );
   const [info, setInfo] = useState<BackendInfo | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
+  useEffect(()=>setChatProposals([]),[thread?.sessionId]);
   const [draft, setDraft] = useState("");
   const draftRef = useRef("");
   const historyAt = useRef<number | null>(null);
@@ -622,7 +627,9 @@ export function App() {
       ...thread,
       items: [...thread.items, { role: "user", text: shown }, { role: "pet", text: "" }],
     });
+    setChatProposals([]);
     streamChat(info, text, sent, chips, activeModelId, {
+      onCalendarProposal:data=>setChatProposals(old=>[...old,...proposalsFromEvents([{kind:'calendar_proposal',data}]).filter(row=>!old.some(p=>p.id===row.id))]),
       onStatus: (line) => {
         if (!line) return;
         setStatus("");
@@ -679,9 +686,6 @@ export function App() {
         setStatus("");
         setBusy(false);
         await loadThread(info);
-        if (notes.some((line) => line.includes("在创建日程")) && boardSeen.current && boardClock === null) {
-          await loadBoardSnapshot(false);
-        }
         if (!notes.length && !thinking) return;
         setThread((cur) => {
           if (!cur) return cur;
@@ -1829,6 +1833,7 @@ export function App() {
   return (
     <div className="tebb-workspace relative flex h-full overflow-hidden bg-background text-foreground" data-pane={pane}>
       <ReminderNotice info={info} debug={!!debugKind}/>
+      <CalendarProposalNavigation info={info} onTarget={target=>navigateWorkspace(()=>openCalendar(target))}/>
       {showGuide && info && setupStatus ? <SetupGuide
         info={info} status={setupStatus} modelState={guideModel} configured={!!modelItems.length}
         feishuConnected={feishuLoggedIn(feishu)} modelBusy={settingsBusy || feishuBusy}
@@ -2014,6 +2019,7 @@ export function App() {
                   </Fragment>
                 ))}
                 {compressSplit === shownItems.length ? <ContextSplit covered={shownCovered} /> : null}
+                <CalendarProposalCards info={info} proposals={chatProposals}/>
                 {status ? <div className="text-sm text-muted-foreground" role="status"><LoadingText text={status} active={busy} /></div> : null}
                 {error ? <div data-chat-error className="text-sm text-destructive">{error}</div> : null}
               </div>

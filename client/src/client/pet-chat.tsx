@@ -9,6 +9,8 @@ import { listen } from '@tauri-apps/api/event';
 import { backendInfo, rpc, type BackendInfo } from './api';
 import { runActive, type DemoState } from './chat-prototype-state';
 import { StreamText } from './stream-text';
+import{CalendarProposalCards}from'./calendar-proposal';
+import{proposalTree}from'./calendar-proposal-state';
 import { useAutoGrowInput } from './auto-grow-input';
 import { DraftNotice, ExecutionTree, executionMessage, visibleChatMessage } from './run-progress';
 import { CollaborationSync, loadCollaboration } from './collaboration-sync';
@@ -129,6 +131,7 @@ export function PetChat({ backend }: { backend?: BackendInfo }) {
       {!state && <p className="pet-chat-placeholder">正在连接当前会话…</p>}
       {state && !messages.length && <p className="pet-chat-placeholder">{current?.title || '当前会话'}<br/>可以直接提问，也可以 @ 伙伴安排任务。</p>}
       {messages.map(message => { const run=runs.find(r=>r.id===message.run);return <article key={message.id} className={`pet-chat-message ${message.sender==='user'?'from-user':''}`}><small>{message.sender==='user'?'你':state?.agents.find(a=>a.id===message.sender)?.name || 'tebb'}</small>{message.sender!=='user' && run && <ExecutionTree run={run} runs={runs} agents={state?.agents||[]}/>}{run?.state==='needs_input'&&message.sender!=='user'&&<ClarificationCard key={run.id+':'+run.clarification_version} run={run} busy={busy} onAction={clarify} onText={()=>{setResumeRun(run.id);input.current?.focus();}}/>}{message.sender!=='user'&&<DraftNotice run={run}/>}{(message.sender==='user'||run?.state!=='needs_input')&&<StreamText text={executionMessage(message,runs)} active={!!run && runActive(run) && !!message.text} />}{message.sender!=='user' && run && (runActive(run)||run.state==='needs_input') && <button className="pet-chat-stop" onClick={()=>void stop(run.id)}>停止任务</button>}</article>; })}
+      {runs.filter(run=>!run.parent).map(run=><CalendarProposalCards key={run.id} info={info} proposals={proposalTree(run,runs)}/>)}
       {progress?.enabled && progress.task && <details className="pet-chat-task" open><summary>其他通道 · {progress.task.text}</summary><ol>{progress.task.events?.map((event,index)=><li key={index}><span className="tebb-stream-new">{event}</span></li>)}</ol><StreamText text={progress.task.answer || progress.task.status} active={['running','queued','cancelling'].includes(progress.task.state)} /></details>}
     </div>
     {(error || pollError) && <p className="pet-chat-error" role="alert">{error || pollError}</p>}

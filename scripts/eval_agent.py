@@ -121,6 +121,11 @@ class Fixture(BaseHTTPRequestHandler):
                 actual=json.loads(receipts[-1]['content']);text=actual['text']
                 delta=dict(content=json.dumps(dict(tlds=re.findall(r'\.[a-z]+',text.split('2. 保留TLD\n')[1].split('3.')[0]),
                     example_domains=re.findall(r'example\.(?:com|net|org)',text.split('3. 示例二级域名\n')[1]),citation='[合成来源]('+actual['url']+')')))
+        elif executor=='calendar_proposal':
+            if not receipts:
+                text=json.dumps(request['messages'],ensure_ascii=False);ident=re.search(r'item_id=([A-Za-z0-9_-]+)',text)[1]
+                delta=tool('calendar_propose',{**spec['proposal_fields'],'item_id':ident})
+            else:delta=dict(content='已生成可确认的日程提案，尚未保存或同步。')
         elif executor=='chart':
             if not receipts:
                 source_id=re.search(r'source_id=([a-f0-9]{32})','\n'.join(str(m.get('content','')) for m in request['messages']))[1]
@@ -229,7 +234,7 @@ def main():
             'desk_companion/task_worker.py','desk_companion/collaboration_worker.py',
             'desk_companion/collaboration_llm.py','desk_companion/workflow_worker.py','desk_companion/workflow_nodes.py',
             'desk_companion/local_calendar.py','desk_companion/tebb_tools.py','desk_companion/collaboration.py',
-            'desk_companion/agent_eval_tools.py','desk_companion/agent_eval_lifecycle.py','scripts/eval_fixture_worker.py',
+            'desk_companion/agent_eval_tools.py','desk_companion/agent_eval_lifecycle.py','desk_companion/calendar_proposals.py','scripts/eval_fixture_worker.py',
             'desk_companion/research_tools.py','desk_companion/readonly_research.py','desk_companion/agent_eval_research.py','scripts/eval_readonly_worker.py',
             'desk_companion/agent_eval_projects.py','scripts/eval_project_host.py','scripts/eval_project_fixture.py',
             'desk_companion/project_environments.py','desk_companion/project_environment_store.py','desk_companion/resource_lock.py','desk_companion/project_operations.py',

@@ -1,7 +1,8 @@
 import type { CalendarEvent, SchedulePage } from './schedule-state';
 import { UiButton, UiFeedback, UiField } from './ui-controls';
+import type{CalendarProposal}from'./calendar-proposal-state';
 
-export type CalendarDraft={id:string;summary:string;start:string;end:string;item_id:string;sync:boolean;existing?:CalendarEvent};
+export type CalendarDraft={id:string;summary:string;start:string;end:string;item_id:string;sync:boolean;existing?:CalendarEvent;proposal?:CalendarProposal};
 export function CalendarEventEditor({value,items,busy,blocked,error,onChange,onSave,onClose}:{value:CalendarDraft;items:SchedulePage['items'];busy:boolean;blocked:boolean;error:string;
   onChange:(value:CalendarDraft)=>void;onSave:()=>void;onClose:()=>void}){
   const synced=value.existing?.sync_state==='synced'||!!value.existing?.remote;

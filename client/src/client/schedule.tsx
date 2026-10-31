@@ -6,7 +6,7 @@ import { ScheduleController, absoluteTime, beijingDay, beijingStamp, eventHealth
   type CalendarEvent, type ScheduleAction, type SchedulePage, type ScheduleTransport } from './schedule-state';
 import './schedule.css';
 
-export type ScheduleTarget={item_id?:string;calendar_id?:string;event_id?:string;day?:string;create?:boolean};
+export type ScheduleTarget={item_id?:string;calendar_id?:string;event_id?:string;day?:string;create?:boolean;proposal?:import('./calendar-proposal-state').CalendarProposal};
 type Draft={summary:string;start:string;end:string};
 type Props={info:BackendInfo|null;debug?:boolean;transport?:ScheduleTransport;target:ScheduleTarget;onClose:()=>void;onReturn:(id:string)=>void;onWeek?:(target:ScheduleTarget)=>void;onChange:()=>void};
 const blank=(title:string,day:string):Draft=>{const start=day===beijingDay()?beijingStamp(new Date(Math.ceil((Date.now()+30*60000)/300000)*300000).toISOString()):day+'T09:00';return {summary:title,start,end:beijingStamp(new Date(new Date(absoluteTime(start)).getTime()+3600000).toISOString())};};

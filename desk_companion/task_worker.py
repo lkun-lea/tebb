@@ -91,6 +91,10 @@ def main():
                     try:raw=json.loads(raw)
                     except (ValueError,TypeError):pass
                 actual_receipts.append(dict(tool=kw['tool_name'],call_id=str(kw['step_id']),arguments=kw['input'],result=raw,read_only=host.agent.tools.get(kw['tool_name']).isReadOnly,status=kw['status']))
+                if kw['tool_name']=='calendar_propose':
+                    from .calendar_proposals import task_event
+                    proposal=task_event(raw,request['task_id'],kw['step_id'])
+                    if proposal:emit('calendar_proposal',proposal)
                 if kw['tool_name']in{'web_fetch','web_search','github_repository'}and isinstance(raw,dict):
                     from .web_sources import evidence_sources
                     actual_sources.extend(evidence_sources([raw]))
@@ -146,9 +150,7 @@ def main():
                 try:task_budgets.current().tool(tool.isReadOnly,name)
                 except task_budgets.BudgetExceeded as exc:
                     return dict(ok=False,error=exc.public_message,budget_denied=True,operation=dict(state='not_started'))
-                # Calendar writes own a cross-process board lease and short cache lock.
-                # Do not retain the global write lock across their remote IO.
-                if tool.isReadOnly or name == 'create_calendar_event':
+                if tool.isReadOnly:
                     output = invoke_tool(name,original,name,arguments)
                     task_budgets.record_progress(name,args,output)
                     archive.record(name, output)

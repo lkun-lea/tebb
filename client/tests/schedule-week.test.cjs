@@ -160,7 +160,7 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
   const item={id:'work-192',title:'准备项目环境',version:4,archived:false};
   const Calendar=React.forwardRef((props,ref)=>{React.useImperativeHandle(ref,()=>({getApi:()=>({changeView(){},updateSize(){}})}));return React.createElement('div');});
   const Week=load('schedule-week.tsx',{'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,
-    './schedule-week.css':{},'./calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
+    './calendar-proposal-state':load('calendar-proposal-state.ts'),'./schedule-week.css':{},'./calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
     './calendar-event-editor':{CalendarEventEditor:props=>{editor=props;return React.createElement('div',{'data-editor':true});}},
     './workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:props=>{drag=props;return React.createElement('div',{},props.children);},CalendarDragContent:({children})=>children},
@@ -190,6 +190,13 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
   const localId=editor.value.id;await act(async()=>editor.onSave());
   assert.equal(writes.length,1);assert.equal(writes[0].type,'create');assert.equal(writes[0].local_id,localId);assert.equal(writes[0].item_id,item.id);assert.equal(writes[0].summary,item.title);
   assert.equal(item.version,4);assert.equal(view.root.findAllByProps({'data-editor':true}).length,0);
+  const proposal={kind:'calendar_proposal',version:1,id:'a'.repeat(32),save_request_id:'b'.repeat(32),source:{task_id:'actual-task',run_id:'actual-run'},summary:'模型提案',start:time('14:00'),end:time('15:00'),item_id:item.id,timezone:'Asia/Shanghai'};
+  await act(async()=>view.update(React.createElement(Week,{...props,target:{day,proposal}})));
+  assert.equal(editor.value.summary,proposal.summary);assert.equal(editor.value.item_id,item.id);assert.equal(editor.value.start,day+'T14:00');assert.equal(writes.length,1);
+  act(()=>editor.onClose());assert.equal(writes.length,1);assert.equal(view.root.findAllByProps({'data-editor':true}).length,0);
+  await act(async()=>view.update(React.createElement(Week,{...props,target:{day,proposal}})));
+  assert.equal(view.root.findAllByProps({'data-editor':true}).length,1,'an explicit reopen must mount a live editor');
+  await act(async()=>editor.onSave());assert.equal(writes.length,2);assert.equal(writes[1].request_id,proposal.save_request_id);assert.equal(writes[1].local_id,proposal.id);assert.equal(writes[1].item_id,item.id);
   await act(async()=>view.update(React.createElement(Week,{...props,view:'month'})));assert.equal(view.root.findAllByProps({'data-items':true}).length,0);
   await act(async()=>view.unmount());
 });
@@ -200,7 +207,7 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   const listeners=new Map();global.document={addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)};
   let calendarProps,closed=false,writes=0;
   const Calendar=React.forwardRef((props,ref)=>{calendarProps=props;React.useImperativeHandle(ref,()=>({getApi:()=>({changeView(){},updateSize(){}})}));return React.createElement('div',{'data-calendar-stub':true});});
-  const Week=load('schedule-week.tsx',{'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,'./schedule-week.css':{},
+  const Week=load('schedule-week.tsx',{'./calendar-proposal-state':load('calendar-proposal-state.ts'),'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,'./schedule-week.css':{},
     './calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
     './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:({children})=>React.createElement('div',{},children),CalendarDragContent:({children})=>React.createElement('div',{},children)},

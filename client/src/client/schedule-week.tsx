@@ -13,7 +13,7 @@ import { DateTimeField } from './datetime-field';
 import { usePageActive } from './page-stack';
 import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, calendarWeekStart, eventHealth, eventTime,
   type CalendarEvent } from './schedule-state';
-import { ScheduleWeekController, dragTimeDraft, pointerTimeDraft, minutesInDay, overlappingEvents, timeEditable, validTimeDraft,
+import { ScheduleWeekController, createCalendarDraft, dragTimeDraft, pointerTimeDraft, minutesInDay, overlappingEvents, timeEditable, validTimeDraft,
   type TimeDraft, type WeekTransport } from './schedule-week-state';
 import type { ScheduleTarget } from './schedule';
 import { LocalCalendarController, type SyncBatch } from './local-calendar-state';
@@ -21,6 +21,7 @@ import { CalendarEventEditor, type CalendarDraft } from './calendar-event-editor
 import { CalendarDragSurface, CalendarDragContent, type CalendarDragSource, type CalendarItem } from './calendar-drag';
 import { CalendarItemSource } from './calendar-item-source';
 import { WorkspaceDialog } from './workspace-dialog';
+import{calendarProposal}from'./calendar-proposal-state';
 import type { DragStartEvent } from '@dnd-kit/core';
 import './schedule-week.css';
 import './calendar-interaction.css';
@@ -83,6 +84,10 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   useEffect(()=>local.subscribe(redraw),[local]);
   useEffect(()=>{if(active)void local.read();},[active,local,revision]);
   useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
+  useEffect(()=>{if(!target.proposal)return;try{
+    const proposal=calendarProposal(target.proposal);if(draft?.proposal?.id===proposal.id)return;
+    guard(()=>{setDetailsOpen(false);setForm(null);setDraftError('');setDay(beijingDay(proposal.start));setDraft(createCalendarDraft(proposal.start,proposal.end,{id:proposal.id,summary:proposal.summary,item_id:proposal.item_id,proposal}));});
+  }catch(error){setDraftError(String(error));}},[target]);
   useEffect(()=>{if(!active)return;controller.setPeriod(view==='month'?'month':'week');let live=true;void(async()=>{await controller.read(day);if(live)await controller.read(day,true);})();
     const timer=window.setInterval(()=>{if(!controller.loading)void controller.read(day);},5000);return()=>{live=false;window.clearInterval(timer);};},[active,controller,monday,view,day.slice(0,7)]);
   useEffect(()=>{if(active&&revision!==undefined)void controller.read(day);},[active,controller,revision]);
@@ -193,7 +198,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     sync_state:'local' as const,edit_checked_at:new Date().toISOString()};}catch{return null;}},[draft]);
   function pulse(){if(reduce)return;window.requestAnimationFrame?.(()=>{root.current?.querySelector<HTMLElement>('.sw-draft')?.animate?.([{transform:'translateY(0)'},{transform:'translateY(-4px)'},{transform:'translateY(0)'}],{duration:260,easing:'ease-out'});});}
   function beginDraft(start:string,end?:string,source?:CalendarItem){guard(()=>{setDetailsOpen(false);setForm(null);setDraftError('');
-    setDraft({id:crypto.randomUUID(),summary:source?.title||'',start:beijingStamp(start),end:beijingStamp(end||new Date(Date.parse(start)+3600000).toISOString()),item_id:source?source.id:target.item_id||'',sync:false});pulse();});}
+    setDraft(createCalendarDraft(start,end,{summary:source?.title||'',item_id:source?source.id:target.item_id||''}));pulse();});}
   function arrangeItem(source:CalendarItem){
     if(itemDraftBlocked||source.archived)return;
     beginDraft(day+'T09:00:00+08:00',undefined,source);
@@ -221,7 +226,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         if(!await apply(existing,{start,end,summary:draft.summary}))return false;await local.read();current=local.page.events.find(e=>e.local_id===existing.local_id)||existing;
       }
       const result=await local.change({type:current?'update':'create',local_id:current?.local_id||draft.id,version:current?.local_version,
-        summary:draft.summary,start:current?.remote?current.start:start,end:current?.remote?current.end:end,item_id:draft.item_id});
+        summary:draft.summary,start:current?.remote?current.start:start,end:current?.remote?current.end:end,item_id:draft.item_id},!current?draft.proposal?.save_request_id:undefined);
       if(!result.ok||!result.event){setDraftError(result.error||'本地保存未完整确认，请先读取核对。');return false;}
       current=result.event;setDraft(previous=>previous?{...previous,existing:current}:previous);
       if(draft.sync&&current.sync_state!=='synced'){

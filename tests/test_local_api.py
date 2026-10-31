@@ -353,22 +353,32 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 if messages[0]['content'].startswith('反馈审阅协议'):
                     material=json.loads(messages[1]['content'])['materials']
                     row=next(m for m in material if m['level']=='actual_receipt')
-                    value=dict(requirements=[dict(requirement='共享RPC实际保存日程',dimension='task_acceptance',status='supported',
-                        reason='受控服务回执；实际数据由下面的日程读取断言独立核对',evidence=[dict(source_id=row['id'],quote=row['segments'][0][:500])])])
+                    value=dict(requirements=[dict(requirement='结构化日程提案尚未保存',dimension='task_acceptance',status='supported',
+                        reason='受控提案回执；下方独立核对零写入与明确确认',evidence=[dict(source_id=row['id'],quote=row['segments'][0][:500])])])
                     return dict(message=dict(content=json.dumps(value)),usage={})
                 if model.calls==1:
-                    return dict(message=dict(role='assistant',content='',tool_calls=[dict(id='calendar-call',type='function',function=dict(name='calendar_change',arguments=json.dumps(dict(action=dict(type='create',summary='学习安排',start=START,end=END,item_id='')))))]),usage={})
+                    return dict(message=dict(role='assistant',content='',tool_calls=[dict(id='calendar-call',type='function',function=dict(name='calendar_propose',arguments=json.dumps(dict(summary='学习安排',start=START,end=END,item_id=''))))]),usage={})
                 receipt=json.loads(next(m['content'] for m in reversed(messages) if m['role']=='tool'))
                 if not receipt.get('ok'):raise AssertionError(receipt)
-                return dict(message=dict(content='日程已保存到本地。'),usage={})
-        request=dict(kind='task',role=root['agent_config'],collab_run=root['id'],collab_path=str(self.host.collaboration.path),
+                return dict(message=dict(content='已生成日程提案，尚未保存。'),usage={})
+        request=dict(task_id=root['task'],kind='task',role=root['agent_config'],collab_run=root['id'],collab_path=str(self.host.collaboration.path),
             text=root['input'],context=[],workspace=root['workspace'],model_id=MODEL['id'],budget=3)
-        with self.host.turn_lock:
+        from desk_companion.agent_debug import context as debug_context
+        with self.host.turn_lock,debug_context(task_id=root['task'],collab_run=root['id']):
             await asyncio.wait_for(asyncio.to_thread(execute,request,lambda k,d:events.append((k,d)),Model()),15)
         self.assertTrue(any(k=='tool_end' and d.get('status')=='success' for k,d in events))
         page=await self.notebook_rpc('load_schedule_month',day=DAY,refresh=True)
-        event=next(e for e in page['events'] if e['summary']=='学习安排')
-        self.assertEqual(event['sync_state'],'local');self.assertEqual(self.host.scheduling.calendar.creates,[])
+        self.assertFalse(any(e['summary']=='学习安排'for e in page['events']));self.assertEqual(self.host.scheduling.calendar.creates,[])
+        proposal=next(data['proposal']for kind,data in events if kind=='calendar_proposal')
+        denied=await self.notebook_rpc('tebb_operation',run_id=root['id'],tool='calendar_change',args=dict(_call_id='blocked-create',action=dict(type='create',summary='禁止旁路',start=START,end=END)))
+        self.assertFalse(denied['ok']);self.assertIn('calendar_propose',denied['error'])
+        self.host.calendar_proposals.task_lookup=lambda ident:dict(id=root['task'],events=[dict(kind=k,data=d)for k,d in events])
+        preview=await self.notebook_rpc('read_calendar_proposal',task_id=root['task'],proposal_id=proposal['id']);self.assertEqual(preview['state'],'proposed')
+        action=dict(type='create',request_id=proposal['save_request_id'],local_id=proposal['id'],summary=proposal['summary'],start=proposal['start'],end=proposal['end'],item_id='')
+        saved=await self.notebook_rpc('change_local_calendar',action=action);self.assertTrue(saved['ok'],saved)
+        self.assertEqual((await self.notebook_rpc('read_calendar_proposal',task_id=root['task'],proposal_id=proposal['id']))['state'],'saved')
+        self.assertTrue((await self.notebook_rpc('change_local_calendar',action=action))['ok'])
+        local=await self.notebook_rpc('load_local_calendar');self.assertEqual(sum(e['local_id']==proposal['id']for e in local['events']),1)
         result=await self.notebook_rpc('tebb_operation',run_id=root['id'],tool='automation_save',args=dict(_call_id='auto-one',payload=dict(name='每日学习',action='tebb_task',goal='整理学习计划',cadence='daily',weekdays=[],hour=9,minute=0,enabled=False)))
         self.assertTrue(result['ok'],result)
         refused=await self.notebook_rpc('tebb_operation',run_id='missing',tool='calendar_change',args=dict(_call_id='nope',action=dict(type='delete')))

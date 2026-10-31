@@ -13,7 +13,7 @@ TOOL_STATUS = {
     "save_video_summary": "正在将视频总结保存到飞书文档。",
     "get_today_agenda": "在看今天的日程…",
     "get_open_tasks": "在看未完成的待办…",
-    "create_calendar_event": "在创建日程…",
+    "calendar_propose": "在准备日程提案…",
     "web_search": "正在搜索网络来源，核实最新信息。",
     "remember_fact": "正在保存你明确要求记住的内容。",
     "forget_fact": "正在删除你指定的记忆。",

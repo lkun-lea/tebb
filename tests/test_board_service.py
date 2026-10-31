@@ -11,7 +11,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from desk_companion import board_data as b, feishu_tools
+from desk_companion import board_data as b
 from desk_companion.board_service import BoardService
 
 
@@ -260,7 +260,7 @@ class BoardServiceTests(BoardFixture):
         self.assertEqual(process.stdout.readline().strip(), 'ready')
         self.assertTrue(self.service.load_board()['ok'])
         self.assertEqual(self.service.load_board(True)['stage'], 'admission')
-        self.assertIn('看板正在更新', feishu_tools.create_calendar_event(dict(summary='title', start=START, end=END)))
+        self.assertEqual(self.service.create_agenda('title',START,END)['stage'],'admission')
         b.save_today_fields(summary='while child is working')
         process.kill(); process.communicate(timeout=10)
         self.assertTrue(self.service.load_board(True)['ok'])
@@ -282,13 +282,13 @@ with patch.object(b,'today_date',return_value=sys.argv[1]):
         self.assertEqual((snap['summary'], snap['doc_url']), ('14', '14'))
         self.assertEqual(snap['agenda'], AGENDA)
 
-    def test_chat_tool_reports_confirmed_remote_then_cache_failure(self):
+    def test_manual_create_reports_confirmed_remote_then_cache_failure(self):
         self.seed()
         with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
-            result = feishu_tools.create_calendar_event(dict(summary='title', start=START, end=END))
-        self.assertIn('已成功', result)
-        self.assertIn('cache_save', result)
-        self.assertIn('title', result)
+            result = self.service.create_agenda('title',START,END)
+        self.assertEqual(result['remote_state'],'confirmed')
+        self.assertEqual(result['stage'],'cache_save')
+        self.assertEqual(result['summary'],'title')
 
     def test_no_gui_subprocess_exercises_four_entries_and_tool(self):
         code = '''
@@ -300,7 +300,7 @@ from tests.test_board_service import BoardServiceTests
 suite=unittest.TestSuite(BoardServiceTests(n) for n in (
  'test_four_entries_preserve_normal_contract_and_remote_side_effects',
  'test_refresh_merges_latest_summary_link_and_preserves_failed_section_errors',
- 'test_chat_tool_reports_confirmed_remote_then_cache_failure'))
+ 'test_manual_create_reports_confirmed_remote_then_cache_failure'))
 assert unittest.TextTestRunner().run(suite).wasSuccessful()
 assert_no_gui()
 '''
@@ -308,7 +308,7 @@ assert_no_gui()
         out, err = child.communicate(timeout=25)
         self.assertEqual(child.returncode, 0, out+err)
 
-    def test_actual_task_calendar_tool_uses_board_lease_without_global_write_lock(self):
+    def test_actual_task_calendar_proposal_does_not_take_network_or_global_write_lease(self):
         from desk_companion.resource_lock import WRITES
         from desk_companion import state
         settings = state.load_state(0, 0)
@@ -328,28 +328,17 @@ assert_no_gui()
                 time.sleep(.01)
             with WRITES.hold(blocking=False):
                 b.save_today_fields(summary='parallel') if b.today_path().exists() else None
-            self.assertEqual(self.service.create_agenda('other', START, END)['stage'], 'admission')
+            with b.calendar_operation():pass
             (self.root / 'calendar.go').touch()
             out, err = child.communicate(timeout=20)
             self.assertEqual(child.returncode, 0, err)
             events = [json.loads(line) for line in out.splitlines()]
             self.assertFalse([e for e in events if e['kind'] == 'failure'], out+err)
             started = next(e for e in events if e['kind'] == 'tool_start')
-            self.assertEqual(started['data']['tool'], 'create_calendar_event')
-            self.assertFalse(started['data']['read_only'])
-            completed = next(e for e in events if e['kind'] == 'tool_end')
-            self.assertIn('worker-event', str(completed['data']['result']))
-            # Same write fingerprint remains guarded before the self-managed-lock branch.
-            (self.root / 'calendar.ready').unlink()
-            request['completed_writes'] = [started['data']['fingerprint']]
-            resumed = subprocess.run([sys.executable, '-u', 'tests/board_worker_fixture.py'],
-                input=json.dumps(request), capture_output=True, text=True, encoding='utf-8',
-                timeout=25, env={**os.environ, 'PYTHONUTF8': '1'})
-            self.assertEqual(resumed.returncode, 0, resumed.stderr)
-            self.assertFalse((self.root / 'calendar.ready').exists())
-            resumed_events = [json.loads(line) for line in resumed.stdout.splitlines()]
-            ended = next(e for e in resumed_events if e['kind'] == 'tool_end')
-            self.assertIn('不再重复执行', str(ended['data']['result']))
+            self.assertEqual(started['data']['tool'],'calendar_propose');self.assertTrue(started['data']['read_only'])
+            proposal=next(e['data']['proposal']for e in events if e['kind']=='calendar_proposal')
+            self.assertEqual(proposal['summary'],'calendar fixture');self.assertEqual(proposal['start'],'2040-01-02T09:00:00+08:00')
+            self.assertTrue(proposal['source']['task_id'])
         finally:
             if child.poll() is None:
                 child.kill()

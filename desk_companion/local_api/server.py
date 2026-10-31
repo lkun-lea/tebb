@@ -26,6 +26,7 @@ from .host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
+    'read_calendar_proposal',
     'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
     'task_completion_prepare','task_completion_confirm','task_completion_status','task_completion_inspect',
     "load_work_board", "change_work_item", "tebb_operation", "project_operation", "project_environments_ui", "check_automation_execution",
@@ -186,7 +187,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
                       "summarize_notebook",
                       "load_knowledge", "save_knowledge", "download_knowledge", "delete_model",
                       "add_knowledge", "delete_knowledge", "rebuild_knowledge", "ask_knowledge", "material_operation",
-                      "load_board", "create_agenda", "delete_agenda", "delete_task",
+                      "load_board", "create_agenda", "delete_agenda", "delete_task", "read_calendar_proposal",
                       "generate_week_review", "write_today_summary_doc", "write_week_review_doc",
                       "list_automation_jobs", "save_automation_job", "delete_automation_job", "run_automation_job", "automation_workflow",
                       "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
@@ -284,8 +285,8 @@ async def _handle_chat(ws, msg: dict) -> None:
                 )
 
             def callback(kind, data):
-                if kind in {"token", "status", "think", "knowledge", "done", "error"}:
-                    if kind == "knowledge":
+                if kind in {"token", "status", "think", "knowledge", "calendar_proposal", "done", "error"}:
+                    if kind in {"knowledge","calendar_proposal"}:
                         data = json.dumps(data, ensure_ascii=False)
                     loop.call_soon_threadsafe(queue.put_nowait, (kind, data))
             task_id = HOST.tasks.submit(str(msg.get("text", "")), session_id,

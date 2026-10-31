@@ -57,6 +57,15 @@ def prepare(spec, workspace, run_id, *, fixture):
                 summary=name,start=f'{day}T{hour:02}:00:00+08:00',end=f'{day}T{hour+1:02}:00:00+08:00',item_id=''))
             if not result['ok']:raise ValueError('synthetic local calendar setup failed')
         context.update(calendar=calendar,before=calendar_digest(calendar))
+    elif executor=='calendar_proposal':
+        from .work_board import WorkBoardService
+        from .scheduling import SchedulingService
+        board=WorkBoardService(path=workspace);made=board.change(dict(type='create',request_id=uuid.uuid4().hex,fields=dict(title='合成提案来源事项')))
+        if not made.get('ok'):raise ValueError('synthetic proposal item setup failed')
+        item_id=made['receipt']['item_id'];service=SchedulingService(board);fields={**spec['proposal_fields'],'item_id':item_id}
+        page=service.load_week(fields['start'][:10],False)
+        context.update(calendar=service.local,scheduling=service,board=board,fields=fields,before=calendar_digest(service.local),before_links=page['links'],
+            before_items=board.load()['items'],prompt=spec['prompt']+'\n仅使用以下合成信息：'+json.dumps(fields,ensure_ascii=False)+'\nitem_id='+item_id)
     elif executor=='public_source':
         url=FIXTURE_URL if fixture else PUBLIC_URL
         context.update(source_url=url,prompt=spec['prompt']+'\n唯一指定来源：'+url)
@@ -157,6 +166,15 @@ def verify(spec, task, context):
             after=calendar_digest(context['calendar'])
             proof.update(before_sha256=context['before'],after_sha256=after)
             if context['before']!=after:raise ValueError('readonly_calendar_changed')
+        elif executor=='calendar_proposal':
+            from .calendar_proposals import validate
+            proposals=[validate(event['data']['proposal'],task_id=task['id'])for event in task.get('events',[])if event.get('kind')=='calendar_proposal']
+            matched=[proposal for proposal in proposals if all(proposal.get(key)==value for key,value in context['fields'].items())]
+            after=calendar_digest(context['calendar']);page=context['scheduling'].load_week(context['fields']['start'][:10],False)
+            proof.update(before_sha256=context['before'],after_sha256=after,calendar_unchanged=context['before']==after,
+                associations_unchanged=page['links']==context['before_links'],items_unchanged=context['board'].load()['items']==context['before_items'],
+                calendar_count_before_confirmation=len(context['calendar'].load()['events']),proposal=matched[0]if matched else None,ui_confirmation='not_exercised_by_model_case')
+            if not matched or not proof['calendar_unchanged']or not proof['associations_unchanged']or not proof['items_unchanged']:raise ValueError('calendar_proposal_missing_or_wrote_before_confirmation')
         elif executor=='public_source':
             proof.update(source_proof(spec,task,context))
         elif executor=='chart':

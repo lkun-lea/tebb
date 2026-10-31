@@ -28,8 +28,8 @@ class EvalVerdictTests(unittest.TestCase):
         self.assertEqual(wait_task(Queue(),'task',0),(dict(state='succeeded'),False))
 
     def test_named_cases_have_explicit_conditions_and_separate_cancellation_scopes(self):
-        self.assertEqual(len(CASES),33)
-        self.assertEqual(len({c['id'] for c in CASES}),33)
+        self.assertEqual(len(CASES),34)
+        self.assertEqual(len({c['id'] for c in CASES}),34)
         self.assertEqual({c['research_mode']for c in CASES if c.get('scenario')=='readonly'},{'serial','legacy_parallel','atlas_parallel'})
         self.assertTrue(all('expected_state' in c and 'prerequisite' in c for c in CASES))
 
@@ -38,6 +38,14 @@ class EvalVerdictTests(unittest.TestCase):
         verdict,evidence=evaluate(spec,dict(state='succeeded',answer='我已经完成了。',events=[]))
         self.assertEqual(verdict,'false_success')
         self.assertEqual(evidence['reason'],'answer_is_not_required_json')
+
+    def test_calendar_proposal_needs_tool_receipt_and_independent_state_verification(self):
+        spec=next(case for case in CASES if case['id']=='calendar_proposal')
+        task=dict(state='succeeded',answer='提案已就绪。',events=[])
+        self.assertEqual(evaluate(spec,task,verification=dict(verified=True))[0],'false_success')
+        task['events']=[dict(kind='tool_end',data=dict(tool='calendar_propose',status='success'))]
+        self.assertEqual(evaluate(spec,task)[0],'false_success')
+        self.assertEqual(evaluate(spec,task,verification=dict(verified=True))[0],'success')
 
     def test_expected_json_and_required_tool_receipt_are_both_required(self):
         spec=dict(CASES[0],required_tools=['read'])

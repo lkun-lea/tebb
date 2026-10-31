@@ -37,8 +37,8 @@ elif r['text']=='archive_timeout':
  emit('tool_start',dict(tool='archive_video_notes',read_only=False))
  time.sleep(10)
 elif r['text']=='tool':
- emit('tool_start',dict(tool='create_calendar_event',step='s1'))
- emit('tool_end',dict(tool='create_calendar_event',step='s1',status='success'))
+ emit('tool_start',dict(tool='synthetic_write',step='s1'))
+ emit('tool_end',dict(tool='synthetic_write',step='s1',status='success'))
 elif r['text']=='command_wait':
  emit('tool_start',dict(tool='workspace_run',phase_timeout=1))
  time.sleep(.5)
@@ -407,7 +407,7 @@ class TaskTests(unittest.TestCase):
         resumed = self.manager.resume(task["id"], "请继续")
         with self.manager.db() as db:
             payload = json.loads(db.execute("SELECT request FROM tasks WHERE id=?", (resumed,)).fetchone()[0])
-        self.assertIn("create_calendar_event", payload["resume_note"])
+        self.assertIn("synthetic_write", payload["resume_note"])
         self.assertIn("不可盲目重做", payload["resume_note"])
         self.manager.wait(resumed)
         with self.manager.db() as db:

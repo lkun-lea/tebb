@@ -238,7 +238,7 @@ pnpm build
 
 服务入口为 `BoardService().load_board(refresh=False)`、`create_agenda(summary,start,end)`、`delete_agenda(event_id)`、`delete_task(guid)`；RPC 沿用同名参数、外层派发和内层业务两层 `ok`。调试时指定临时 `DESK_COMPANION_DATA_DIR`，替换 `board_data._run_lark/fetch_board`，不能直接运行真实飞书修改。时间沿用带时区的 ISO 字符串及东八区今日规则。新建写当前用户的主日历；删除日程仍真实删除并通知参会人，删除待办仍真实删除，均非隐藏或标记完成。创建不要求已有今日缓存；无缓存时正常返回 `snapshot=null`，非今日日程仍可创建并提示今日页可能不显示。远端可提供的 event_id 会保留，但不要求 CLI 一定返回该字段。
 
-当天缓存命中立即可读；刷新、缺少当天缓存的加载、创建与删除共同取得跨进程看板操作资源，冲突即 `stage=admission`，不排队。共享助手回复、笔记生成、压缩及其他任务仍可继续，看板不修改 conversation.running。飞书等待不持 HOST.turn_lock、WRITES 或缓存存储锁；真实 worker 的 create_calendar_event 继续是写工具，保留 completed_writes 指纹检查，但由看板资源保护，不再额外持全局写锁。其他写工具的全局保护不变。桌宠、自动化首次/跨日加载也可能立即返回看板忙碌；当天缓存命中不受影响。
+当天缓存命中立即可读；刷新、缺少当天缓存的加载、创建与删除共同取得跨进程看板操作资源，冲突即 `stage=admission`，不排队。共享助手回复、笔记生成、压缩及其他任务仍可继续，看板不修改 conversation.running。飞书等待不持 HOST.turn_lock、WRITES 或缓存存储锁；Agent 日程安排改用只读 calendar_propose；提案只写入原任务事件，明确保存由现有日程表单与回执接续，详见 CALENDAR_PROPOSALS。其他写工具的全局保护不变。桌宠、自动化首次/跨日加载也可能立即返回看板忙碌；当天缓存命中不受影响。
 
 today.json 所有读改写复用 ResourceLock 与原子替换。刷新仅合并日程/待办，日程变更仅合并日程，待办变更仅合并待办；提交时读取最新摘要、摘要时间、文档链接和无关分区。save_today_fields 只占短时存储锁，可与远端等待并行。单侧查询失败保留该侧明确错误，另一侧照常保留；失败不会被当成“没有安排”，也不拿旧列表冒充新查询。换日创建新快照不继承昨天的摘要/链接；跨午夜旧响应不落盘，远端修改已完成仍明确报告，重新加载核对。共同保护仅约束这些应用入口，不承诺串行化用户在飞书或其他应用中独立进行的修改。
 
@@ -561,3 +561,7 @@ python -m unittest tests.test_tasks tests.test_execution_flow tests.test_collabo
 ## 会前提醒和飞书完成回执（#9）
 
 新增 `calendar_reminder_status/scan/settings/claim/ack` 和 `task_completion_prepare/confirm/status/inspect`，沿认证 RPC 且独立于模型 turn_lock。先读扫描、候选和投递／确认记录；完成任务先准备原 GUID 与核实身份的预览，明确确认后才调用 shortcut。未知回执按原 request_id 只读核对，换号停止，observed_done 不替换原未知执行结果；缓存失败保留远端事实。参数、状态所有权、隔离命令和验收边界见 [REMINDERS](REMINDERS.md)。
+
+## 日程提案验收（#213）
+
+只读工具 calendar_propose 返回的规范协议必须出现在原任务 calendar_proposal 事件中。认证 read_calendar_proposal(task_id,proposal_id) 重读该任务、来源事项与固定 save_request_id；proposed/saved/consumed/unconfirmed/blocked 各自明确。打开与核对都无日程写入，只有共享表单明确保存才走原本地日程入口。统一 eval 的 calendar_proposal 用例核对真实工具及确认前日程/关联/事项不变；它单独标注未执行UI确认，必须另外操作同一份实际提案及共用表单。协议、调试步骤与真实样本边界见 CALENDAR_PROPOSALS。

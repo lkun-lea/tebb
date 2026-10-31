@@ -14,6 +14,7 @@ export type DemoRun = { id: string; conversation: string; agent: string; title: 
   chart_builds?:Record<string,ChartDraftView>;
   feedback_check?:FeedbackReport;
   task_budget?:TaskBudget|null;
+  calendar_proposals?:import('./calendar-proposal-state').CalendarProposal[];
   project_receipts?: {tool:string;call_id:string;ok:boolean;error?:string;log_id?:string;service_ready?:boolean;
     environment:{id?:string;repository?:string;state?:string};operation:{id?:string;kind?:string;state?:string;stage?:string};service:{id?:string;state?:string;url?:string;log_id?:string}}[];
   changes?: { path: string; diff: string }[]; checks?: { command: string; state: string; exit_code: number | null; output: string; stale?: boolean; diff_limited?: boolean }[];

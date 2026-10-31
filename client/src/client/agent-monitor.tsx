@@ -4,6 +4,8 @@ import { rpc, type BackendInfo, type ChatItem } from "./api";
 import { Markdown } from "./Markdown";
 import { TaskVideos } from "./video";
 import { TaskBudgetView,type TaskBudget } from './task-budget';
+import{CalendarProposalCards}from'./calendar-proposal';
+import{proposalsFromEvents}from'./calendar-proposal-state';
 
 type Settings = { parallel: number; call_timeout: number; task_timeout: number; pet_progress: boolean };
 type Event = { seq: number; kind: string; ts: number; data: string | { tool?: string; status?: string; duration_ms?: number; message?: string } };
@@ -103,6 +105,7 @@ export function AgentMonitor({ info, debug = false }: { info: BackendInfo | null
           {(detail.events || []).filter(e => !["token", "think", "done"].includes(e.kind)).map(e => <li key={e.seq}>
             {new Date(e.ts * 1000).toLocaleTimeString()} · {typeof e.data === "string" ? e.data : e.kind === "task_budget" ? "更新整个目标的任务预算" : e.kind === "failure" ? e.data.message || "任务失败" : e.data.tool ? `${e.kind === "tool_start" ? "调用" : "返回"} ${e.data.tool} ${e.data.status || ""} ${e.data.duration_ms !== undefined ? `${e.data.duration_ms}ms` : ""}` : e.kind === "llm_start" ? "开始调用模型" : "模型返回"}
           </li>)}</ol></details>
+        <CalendarProposalCards info={info} proposals={proposalsFromEvents(detail.events||[])}/>
         <details><summary className="cursor-pointer text-sm">本会话聊天记录（{history.length} 条）</summary><div className="mt-3 max-h-80 overflow-auto space-y-3">
           {history.map((item, i) => <div key={i} className="rounded-lg bg-white/5 p-3"><p className="mb-1 text-xs text-white/40">{item.role === "user" ? "博士" : "凯尔希"}</p><Markdown text={item.text} /></div>)}
         </div></details>

@@ -210,6 +210,9 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
     from . import project_workspace as project
     from .local_sources import get as get_source, read_page
     extra = {}
+    if kind=='task'and'日程提案'in role.get('tools',[]):
+        from .calendar_proposals import tool_spec
+        extra['calendar_propose']=tool_spec(request['collab_path'])
     if kind=='task' and '本地日程读取' in role.get('tools',[]):
         from .tebb_tools import local_calendar_spec
         extra['read_local_calendar'] = local_calendar_spec(request['collab_path'])
@@ -372,6 +375,10 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
             result = extra_call(name, arguments)
             from .task_budgets import record_progress
             record_progress(name,arguments,result)
+            if name=='calendar_propose':
+                from .calendar_proposals import task_event
+                proposal=task_event(result,request['task_id'],call_id)
+                if proposal:emit('calendar_proposal',proposal)
             if name in TOOL_OPERATIONS:
                 from .project_receipts import receipt,preview_source,checkout_source
                 emit('project_receipt',receipt(name,call_id,arguments,result))

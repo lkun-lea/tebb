@@ -51,6 +51,7 @@ export type StreamHandlers = {
   onDone: (answer: string) => void;
   onError: (message: string) => void;
   onKnowledge?: (trace: ChatItem["knowledge"]) => void;
+  onCalendarProposal?:(event:unknown)=>void;
 };
 
 export type ChatChips = { skills: string[]; cli: string[]; github: string; attachments?: string[] };
@@ -144,6 +145,7 @@ export function streamChat(
     else if (msg.type === "think") handlers.onThink(msg.data || "");
     else if (msg.type === "status") handlers.onStatus(msg.data || "");
     else if (msg.type === "knowledge") handlers.onKnowledge?.(JSON.parse(msg.data || "null"));
+    else if (msg.type === "calendar_proposal") handlers.onCalendarProposal?.(JSON.parse(msg.data||'null'));
     else if (msg.type === "done") {
       handlers.onDone(msg.data || "");
       ws.close();

@@ -21,7 +21,8 @@ def execute(host,run_id,tool,args):
         if tool=='calendar_change':
             action=args['action'];action['request_id']='tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50]
             kind=action.get('type')
-            if kind in {'create','update','sync','resolve_delete'}:return host.scheduling.local.change(action)
+            if kind=='create':raise ValueError('新建安排请使用calendar_propose生成提案，由用户打开日程草稿并明确保存。')
+            if kind in {'update','sync','resolve_delete'}:return host.scheduling.local.change(action)
             return host.scheduling.change(action)
         if tool=='automation_list':return host.automation.list_automation_jobs()
         if tool=='automation_save':
