@@ -202,10 +202,21 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(failed['state'],'failed')
         self.assertEqual(failed['answer'],'保留片段')
     def test_chart_failure_or_timeout_keeps_pre_correction_text_without_success(self):
+        clock=self.controlled_clock();original=self.manager.event;advance={'enabled':False}
+        def event(task,kind,data,**kwargs):
+            result=original(task,kind,data,**kwargs)
+            # Advance only after the real worker has entered the chart call.
+            # Process launch and SQLite writes are not the timeout under test.
+            if advance['enabled']and kind=='tool_start'and data.get('tool')=='build_chart':clock['offset']=40
+            return result
+        self.manager.event=event
         for text,state in [('chart_failure','failed'),('chart_timeout','timed_out')]:
-            task=self.manager.wait(self.manager.submit(text,text,channel='collaboration',workflow='collaboration',requires_charts=True,task_limits=dict(call_timeout=.4,task_timeout=.8)))
-            self.assertEqual(task['state'],state)
-            self.assertEqual(task['answer'],'保留片段')
+            with self.subTest(text=text):
+                clock['offset']=0;advance['enabled']=state=='timed_out'
+                task=self.manager.wait(self.manager.submit(text,text,channel='collaboration',workflow='collaboration',requires_charts=True,task_limits=dict(call_timeout=30,task_timeout=60)))
+                self.assertEqual(task['state'],state)
+                self.assertEqual(task['answer'],'保留片段')
+                if state=='timed_out':self.assertEqual(next(e['data']for e in task['events']if e['kind']=='timeout_phase'),dict(stage='tool_start',scope='call'))
 
     def test_failed_standby_falls_back_to_a_cold_worker(self):
         self.manager.shutdown()
