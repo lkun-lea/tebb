@@ -27,6 +27,8 @@ from ..state import load_state
 from ..weekly_review import WeeklyReviewService
 from ..work_board import WorkBoardService
 from ..scheduling import SchedulingService
+from ..calendar_reminders import CalendarReminderService
+from ..feishu_task_completion import FeishuTaskCompletionService
 
 
 class HeadlessApp:
@@ -54,6 +56,8 @@ class HeadlessApp:
         self.bridge = Bridge(self)
         self.work_board = WorkBoardService()
         self.scheduling = SchedulingService(self.work_board)
+        self.calendar_reminders=CalendarReminderService.for_work_board(self.work_board)
+        self.task_completion=FeishuTaskCompletionService()
         from ..feishu_agent import FeishuAgent
         self.feishu_agent = FeishuAgent(self, task_backed=True)
         self._collaboration = None

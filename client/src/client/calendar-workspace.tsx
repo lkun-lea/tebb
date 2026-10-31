@@ -7,6 +7,7 @@ import { demoWorkTransport } from './work-board-state';
 import { Markdown } from './Markdown';
 import { WorkspaceDialog } from './workspace-dialog';
 import './work-board.css';
+import {TaskCompletionPanel}from'./task-completion';
 const ScheduleWeekPane=lazy(()=>import('./schedule-week').then(module=>({default:module.ScheduleWeekPane})));
 type Props={info:BackendInfo|null;data:BoardPayload|null;loading:boolean;loadError?:string;debug:boolean;onRefresh:()=>void;
   deleting?:boolean;taskErrors?:Record<string,string>;onDeleteTask?:(id:string)=>void;
@@ -34,7 +35,7 @@ export function CalendarWorkspace(props:Props){
     {panel==='tasks'&&<WorkspaceDialog title="飞书待办" onClose={()=>setPanel(null)}><button type="button" disabled={props.loading} onClick={props.onRefresh}>刷新待办</button>
       {props.loadError&&<p role="alert">{props.loadError}</p>}{tasks?.taskError&&<p role="alert">{tasks.taskError}</p>}
       {!tasks&&<p>正在读取待办；读取失败可重新刷新。</p>}{tasks?.taskEmpty&&<p>今天没有待处理的飞书待办。</p>}
-      {tasks?.tasks.map(task=><section className="sw-sync-row" key={task.guid}><strong>{task.title}</strong><span>{task.when}</span>{task.guid&&<button type="button" disabled={props.deleting} onClick={()=>{if(window.confirm('真实删除此飞书待办？这不是标记完成。'))props.onDeleteTask?.(task.guid);}}>删除待办</button>}{props.taskErrors?.[task.guid]&&<p role="alert">{props.taskErrors[task.guid]}</p>}</section>)}
+      <TaskCompletionPanel info={props.info} debug={props.debug} tasks={tasks?.tasks||[]} onRefresh={props.onRefresh} deleting={props.deleting} taskErrors={props.taskErrors} onDeleteTask={props.onDeleteTask}/>
     </WorkspaceDialog>}
     {panel==='review'&&<WorkspaceDialog title="本周复盘" onClose={()=>{if(!reviewBusy)setPanel(null);}}>{reviewText?<Markdown text={reviewText}/>:<p>尚无已生成的复盘。</p>}
       <div className="sc-actions"><button type="button" disabled={reviewBusy||props.debug||!props.info} onClick={()=>void reviewCall('generate_week_review')}>{reviewBusy?'处理中…':'生成本周复盘'}</button><button type="button" disabled={reviewBusy||props.debug||!props.info||!reviewText} onClick={()=>void reviewCall('write_today_summary_doc')}>新建飞书文档</button></div>{reviewError&&<p role="status">{reviewError}</p>}{props.debug&&<p>隔离演示不调用模型或发布飞书文档。</p>}

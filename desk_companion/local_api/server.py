@@ -26,6 +26,8 @@ from .host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
+    'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
+    'task_completion_prepare','task_completion_confirm','task_completion_status','task_completion_inspect',
     "load_work_board", "change_work_item", "tebb_operation", "project_operation", "project_environments_ui", "check_automation_execution",
     "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event",
     "load_local_calendar", "change_local_calendar", "calendar_sync_step",
@@ -177,7 +179,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             from ..agent_debug import context
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
-        if method.startswith(("terminal_","project_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
+        if method.startswith(("terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
                       "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
                       "export_notebook_markdown", "export_notebook_feishu", "open_notebook_file",
                       "reveal_notebook_file", "delete_notebook_file",
@@ -363,12 +365,15 @@ async def _handle_notebook(ws, msg: dict) -> None:
 
 async def scheduled_jobs(host, shutdown):
     """无头客户端也驱动本地定时器，不依赖旧宠物窗口 tick。"""
-    while not shutdown.is_set():
-        await asyncio.to_thread(host.automation.tick)
-        try:
-            await asyncio.wait_for(shutdown.wait(), 5)
-        except asyncio.TimeoutError:
-            pass
+    async def periodic(action):
+        while not shutdown.is_set():
+            try:await asyncio.to_thread(action)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning('后台定时扫描未完成：%s',type(exc).__name__)
+            try:await asyncio.wait_for(shutdown.wait(),5)
+            except asyncio.TimeoutError:pass
+    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick))
 
 
 async def main() -> None:
@@ -401,6 +406,7 @@ async def main() -> None:
                 project_cleanup=asyncio.create_task(asyncio.to_thread(HOST._project_environments.shutdown))
     finally:
         SHUTDOWN.set()
+        HOST.calendar_reminders.stop()
         if project_cleanup is None and HOST._project_environments is not None:
             HOST._project_environments.closed=True
             project_cleanup=asyncio.create_task(asyncio.to_thread(HOST._project_environments.shutdown))

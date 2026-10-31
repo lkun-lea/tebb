@@ -548,6 +548,24 @@ class Bridge:
     def load_board(self, refresh: bool = False) -> dict:
         return self._host.board_service.load_board(bool(refresh))
 
+    def calendar_reminder_status(self):return self._host.calendar_reminders.snapshot()
+
+    def calendar_reminder_scan(self):return self._host.calendar_reminders.tick()
+
+    def calendar_reminder_settings(self,enabled):return self._host.calendar_reminders.save_settings(enabled)
+
+    def calendar_reminder_claim(self,consumer_id,known_ids):return self._host.calendar_reminders.claim(consumer_id,known_ids)
+
+    def calendar_reminder_ack(self,consumer_id,ids):return self._host.calendar_reminders.acknowledge(consumer_id,ids)
+
+    def task_completion_prepare(self,guid,request_id):return self._host.task_completion.prepare(guid,request_id)
+
+    def task_completion_confirm(self,request_id):return self._host.task_completion.complete(request_id)
+
+    def task_completion_status(self,request_id=''):return self._host.task_completion.status(request_id)
+
+    def task_completion_inspect(self,request_id):return self._host.task_completion.inspect(request_id)
+
     def delete_agenda(self, event_id: str) -> dict:
         return self._host.board_service.delete_agenda(event_id)
 

@@ -64,16 +64,19 @@ def instance_rows(data):
 
 
 class CalendarAdapter:
-    def __init__(self, run=None):
+    def __init__(self, run=None, *, timeout_cap=None, cancelled=None):
         if run is None:
             from .feishu_tools import _run_lark
             run = _run_lark
         self.run = run
+        self.timeout_cap=timeout_cap
+        self.cancelled=cancelled
 
     def _call(self, args, timeout=20):
         from .feishu_access import NotConnected
+        if self.cancelled and self.cancelled():raise CalendarError('后台日历读取已停止。','cancelled')
         try:
-            raw = self.run(['calendar', *args, '--as', 'user'], timeout=timeout)
+            raw = self.run(['calendar', *args, '--as', 'user'], timeout=min(timeout,self.timeout_cap)if self.timeout_cap else timeout)
             env = json.loads(raw)
             if env.get('ok') is True and isinstance(env.get('data'), dict):
                 return env['data']

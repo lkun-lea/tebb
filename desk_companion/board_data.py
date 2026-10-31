@@ -188,6 +188,32 @@ def _write_today_file(snap: dict) -> None:
                 change_state='unconfirmed', stage='cache_save', cache_state='unconfirmed') from exc
 
 
+def visible_task_context(guid):
+    """Read an existing visible row without fetching or creating a board."""
+    with _STORE:
+        day=today_date();cached=_read_today_file()
+        if cached is None or cached['date']!=day or not cached['tasks']['ok']:
+            raise RuntimeError('请先刷新今天的飞书待办，再核对完成操作。')
+        row=next((row for row in cached['tasks']['items']if isinstance(row,dict)and row.get('guid')==guid),None)
+        if row is None:raise RuntimeError('此待办不在当前可见列表，请重新刷新。')
+        return dict(date=day,fetched_at=cached['fetched_at'],task=dict(row))
+
+
+def cache_completed_task(context):
+    """CAS one confirmed completion; the caller owns calendar_operation."""
+    with _STORE:
+        _assert_day(context['date']);cached=_read_today_file()
+        if cached is None or cached['date']!=context['date']or cached['fetched_at']!=context['fetched_at']or not cached['tasks']['ok']:
+            raise RuntimeError('可见待办快照已变化，请刷新核对；不重复远端完成。')
+        target=context['task'];rows=cached['tasks']['items']
+        current=next((row for row in rows if isinstance(row,dict)and row.get('guid')==target['guid']),None)
+        if current is None:return dict(ok=True,already_absent=True)
+        if current!=target:raise RuntimeError('待办内容已变化，请刷新核对。')
+        cached['tasks']=dict(cached['tasks'],items=[row for row in rows if not isinstance(row,dict)or row.get('guid')!=target['guid']])
+        _write_today_file(cached)
+        return dict(ok=True,already_absent=False)
+
+
 def _validate_today(raw, path: Path) -> dict:
     if not isinstance(raw, dict):
         raise RuntimeError(f"{path} 根节点必须是对象。删掉该文件后点刷新。")

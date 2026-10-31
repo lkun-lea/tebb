@@ -557,3 +557,7 @@ python -m unittest tests.test_tasks tests.test_execution_flow tests.test_collabo
 仍先判断目标就绪，缺项进入原needs_input；就绪后由可信用户约束进入plan，即使模型建议direct。run提供requested_strategy、strategy_source、适用的requested_assignees，原建议保留在调用记录；伙伴计划遗漏时在任何子任务创建前失败。查原run、父子关系、task、call、实际来源、feedback_check与task_budget，不能把计划文本当回执。补充不改变策略，取消/等待/恢复保持同根及原预算。旧失败任务不自动补派。
 
 隔离验证沿`scripts/eval_agent.py`的readonly_serial、readonly_legacy_parallel、readonly_atlas_parallel案例，契约v19；实际根预算从公开run投影采集。命令和真实模型有限队列见[READONLY_RESEARCH](READONLY_RESEARCH.md)，决策见[ADR0035](adr/0035-explicit-collaboration-strategy.md)。普通自动自然语言路由仍依赖模型判断，这个入口不承诺任意文本必定被正确拆分。
+
+## 会前提醒和飞书完成回执（#9）
+
+新增 `calendar_reminder_status/scan/settings/claim/ack` 和 `task_completion_prepare/confirm/status/inspect`，沿认证 RPC 且独立于模型 turn_lock。先读扫描、候选和投递／确认记录；完成任务先准备原 GUID 与核实身份的预览，明确确认后才调用 shortcut。未知回执按原 request_id 只读核对，换号停止，observed_done 不替换原未知执行结果；缓存失败保留远端事实。参数、状态所有权、隔离命令和验收边界见 [REMINDERS](REMINDERS.md)。

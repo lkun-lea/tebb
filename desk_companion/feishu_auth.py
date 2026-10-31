@@ -19,7 +19,7 @@ class DocumentCreationError(RuntimeError):
         self.document_id = document_id
 
 
-def feishu_status() -> dict:
+def feishu_status(*,timeout=None) -> dict:
     from .feishu_access import connected
     try:
         _lark_bin()
@@ -34,7 +34,7 @@ def feishu_status() -> dict:
             "login_error": _login_error,
         }
     try:
-        raw = _run_lark(["auth", "status", "--json", "--verify"])
+        raw = _run_lark(["auth", "status", "--json", "--verify"],**({}if timeout is None else{'timeout':timeout}))
     except RuntimeError as exc:
         return {
             "ok": False,
@@ -92,6 +92,10 @@ def feishu_status() -> dict:
         "connected": profile_connected,
         "logged_in": logged_in and profile_connected,
         "user_name": str(name),
+        "user_open_id": str(user.get('openId')or''),
+        "user_verified": user.get('verified')is True,
+        "app_id": str(data.get('appId')or''),
+        "brand": str(data.get('brand')or''),
         "identity": str(data.get("identity") or env.get("identity") or ""),
         "has_calendar": "calendar:" in lower or "calendar." in lower,
         "has_task": "task:" in lower or "task." in lower,
@@ -103,6 +107,25 @@ def feishu_status() -> dict:
         "login_error": _login_error,
         "login_busy": _login_busy,
     }
+
+
+def verified_user_identity() -> dict:
+    """A bounded verified account fact, never a bearer credential."""
+    from .feishu_access import require_connection
+    require_connection()
+    status=feishu_status(timeout=20)
+    if(not status.get('ok')or not status.get('logged_in')or status.get('identity')!='user'
+        or status.get('verified')is not True or status.get('user_verified')is not True
+        or not all(isinstance(status.get(key),str)and 0<len(status[key])<=200 for key in('app_id','brand','user_open_id'))):
+        raise RuntimeError('飞书用户身份尚未通过完整核实，请连接当前用户并刷新待办。')
+    return dict(identity='user',app_id=status['app_id'],brand=status['brand'],open_id=status['user_open_id'],
+        user_name=str(status.get('user_name')or'')[:200],verified=True)
+
+
+def same_user_identity(left,right):
+    keys=('identity','app_id','brand','open_id')
+    return(isinstance(left,dict)and isinstance(right,dict)and left.get('verified')is True and right.get('verified')is True
+        and all(isinstance(left.get(key),str)and bool(left[key])and left[key]==right.get(key)for key in keys))
 
 
 def _first_json(raw: str) -> str:

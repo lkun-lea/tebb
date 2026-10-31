@@ -1,0 +1,16 @@
+.reminder-notice{position:fixed;right:1rem;bottom:1rem;z-index:70;width:min(340px,calc(100vw - 2rem));max-height:45vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--background));color:hsl(var(--foreground));padding:14px;box-shadow:0 8px 30px #0005}
+.reminder-notice section{display:flex;gap:12px;align-items:center;padding-top:10px}
+.reminder-notice p{margin:0;flex:1;overflow-wrap:anywhere}
+.reminder-notice button{flex-shrink:0;border:1px solid currentColor;border-radius:5px;padding:4px 10px}
+.reminder-settings{margin:16px 0;padding:16px;border:1px solid hsl(var(--border));border-radius:8px}
+.reminder-settings h2{font-size:16px;margin-bottom:10px}
+.reminder-settings p{font-size:13px;line-height:1.7;margin:8px 0}
+.reminder-settings label{display:flex;gap:8px;align-items:center}
+.reminder-settings button{border:1px solid currentColor;border-radius:5px;padding:5px 10px}
+.reminder-settings details{margin-top:10px;overflow-wrap:anywhere}
+.task-completion-confirm{margin-top:14px;padding:14px;border:1px solid hsl(var(--border));border-radius:8px}
+.task-completion-confirm legend{padding:0 5px}
+.task-completion-confirm p{margin:8px 0;overflow-wrap:anywhere}
+.task-completion-confirm button{margin:4px 8px 4px 0}
+.task-completion-history{margin-top:14px;max-height:240px;overflow:auto}
+.task-completion-history button{display:block;margin-top:8px;text-align:left}

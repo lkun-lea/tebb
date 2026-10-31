@@ -4,6 +4,7 @@ import { Fragment, lazy, Suspense, useEffect, useRef, useState, type CSSProperti
 import { Button, Card, CardBody } from "reend-components";
 import { useBoardActions } from "./board-actions";
 import { PersonalUsagePane } from './usage-center';
+import {ReminderNotice,ReminderSettings}from'./reminders';
 import { shouldReloadBoard, type BoardPayload } from "./board";
 import {
   BOARD_FIXTURE,
@@ -1827,6 +1828,7 @@ export function App() {
 
   return (
     <div className="tebb-workspace relative flex h-full overflow-hidden bg-background text-foreground" data-pane={pane}>
+      <ReminderNotice info={info} debug={!!debugKind}/>
       {showGuide && info && setupStatus ? <SetupGuide
         info={info} status={setupStatus} modelState={guideModel} configured={!!modelItems.length}
         feishuConnected={feishuLoggedIn(feishu)} modelBusy={settingsBusy || feishuBusy}
@@ -2168,6 +2170,7 @@ export function App() {
               className="flex-1 overflow-y-auto px-8 py-6"
             >
               <nav className="workspace-tabs" aria-label="设置分类">{[['assistant','模型与人设'],['connections','连接与网络'],['appearance','界面外观'],['usage','个人使用'],['about','版本与诊断']].map(([id,label])=><button type="button" key={id} aria-pressed={settingsSection===id} onClick={()=>setSettingsSection(id)}>{label}</button>)}</nav>
+              {settingsSection==='assistant'&&<ReminderSettings info={info} debug={!!debugKind}/>}
               <div hidden={settingsSection!=='usage'}><PersonalUsagePane info={info} debug={!!debugKind} visible={settingsSection==='usage'}/></div>
               <div hidden={settingsSection!=='about'}><ReleaseSettings info={info} onShowIntro={releaseIntro.show}/>{developerMode&&<button type="button" className="desk-menu-item" onClick={()=>setAgentDebugOpen(true)}>调用调试</button>}</div>
               <div hidden={settingsSection!=='connections'}><ModelNetworkSettings info={info} debug={!!debugKind}/><SearchSettings info={info} debug={!!debugKind}/><StatusGrid cards={statuses} onOpenFeishu={()=>void openFeishu()}/></div>

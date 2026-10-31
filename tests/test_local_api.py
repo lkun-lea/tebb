@@ -18,6 +18,47 @@ from desk_companion.local_api.host import HeadlessApp
 
 
 class LocalApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reminder_and_completion_rpc_keep_authentication_and_bypass_model_turn_lock(self):
+        from contextlib import nullcontext
+        from datetime import datetime,timedelta
+        import threading
+        from types import SimpleNamespace
+        from desk_companion.calendar_time import TZ
+        from desk_companion.calendar_reminders import CalendarReminderService
+        from desk_companion.feishu_task_completion import FeishuTaskCompletionService
+        from websockets.exceptions import ConnectionClosed
+        now=datetime.now(TZ);guid='b5e165af-3f0d-4708-89bc-c4fd3a69738d';writes=[];cached=[]
+        event=dict(calendar_id='tebb-local',event_id='rpc-reminder',summary='RPC隔离安排',start=(now+timedelta(minutes=5)).isoformat(),end=(now+timedelta(minutes=30)).isoformat(),status='confirmed')
+        source=SimpleNamespace(load_week=lambda day,refresh=False:dict(ok=True,events=[event],events_valid=False))
+        self.host.calendar_reminders=CalendarReminderService(source,path=Path(self.temp.name)/'reminders.json',clock=lambda:now,remote_connected=lambda:False)
+        context=dict(date=now.date().isoformat(),fetched_at=now.isoformat(),task=dict(guid=guid,summary='RPC隔离待办'))
+        board=SimpleNamespace(visible_task_context=lambda value:context,calendar_operation=nullcontext,cache_completed_task=lambda value:cached.append(value))
+        actor=dict(identity='user',verified=True,app_id='isolated-app',brand='feishu',open_id='isolated-user',user_name='隔离用户')
+        def cli(args,timeout):
+            if args[1]=='+complete':writes.append(args);return json.dumps(dict(ok=True,data=dict(status='done',completed_at='2200000000000',already_completed=False)))
+            return json.dumps(dict(ok=True,data=dict(task=dict(guid=guid,summary='RPC隔离待办',completed_at='0'))))
+        self.host.task_completion=FeishuTaskCompletionService(path=Path(self.temp.name)/'completion.json',clock=lambda:now,identity=lambda:actor,cli=cli,board=board)
+        held=threading.Event();release=threading.Event()
+        def hold():
+            with self.host.turn_lock:held.set();release.wait(15)
+        thread=threading.Thread(target=hold);thread.start();self.assertTrue(await asyncio.to_thread(held.wait,3))
+        self.host.conversation.running=True
+        try:
+            scanned=await self.notebook_rpc('calendar_reminder_scan');self.assertTrue(scanned['ok'])
+            claimed=await self.notebook_rpc('calendar_reminder_claim',consumer_id='rpc-window-0001',known_ids=[]);self.assertEqual(len(claimed['reminders']),1)
+            peer=await self.notebook_rpc('calendar_reminder_claim',consumer_id='rpc-window-0002',known_ids=[]);self.assertEqual(peer['reminders'],[])
+            self.assertTrue((await self.notebook_rpc('calendar_reminder_ack',consumer_id='rpc-window-0001',ids=[claimed['reminders'][0]['id']]))['ok'])
+            self.assertTrue((await self.notebook_rpc('calendar_reminder_settings',enabled=False))['ok'])
+            prepared=await self.notebook_rpc('task_completion_prepare',guid=guid,request_id='rpc-request-0001');self.assertEqual(prepared['state'],'prepared');self.assertEqual(writes,[])
+            completed=await self.notebook_rpc('task_completion_confirm',request_id='rpc-request-0001');self.assertEqual(completed['state'],'confirmed')
+            self.assertEqual((await self.notebook_rpc('task_completion_status',request_id='rpc-request-0001'))['remote_state'],'confirmed')
+            self.assertEqual((await self.notebook_rpc('task_completion_inspect',request_id='rpc-request-0001'))['state'],'confirmed')
+            self.assertEqual(len(writes),1);self.assertEqual(len(cached),1);self.assertTrue(self.host.conversation.running)
+            with self.assertRaises(ConnectionClosed):
+                async with connect(self.url.replace('test-token','bad-token'),proxy=None)as ws:
+                    await ws.send(json.dumps(dict(type='rpc',id='unauthorized-reminder',method='calendar_reminder_status')));await asyncio.wait_for(ws.recv(),3)
+        finally:release.set();await asyncio.to_thread(thread.join,5);self.host.conversation.running=False
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

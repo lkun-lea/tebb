@@ -2,6 +2,8 @@
 // 宠物窗：内置矢量小伴 / 可选 Live2D、拖动、任务气泡和右键菜单。
 // 穿透由 Rust 轮询命中区域。拖动期间锁住穿透，避免松手事件被吃掉。
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import {getCurrentWindow}from'@tauri-apps/api/window';
+import {ReminderInbox,reminderText,type ReminderResponse}from'./client/reminders-state';
 import { listen } from "@tauri-apps/api/event";
 import { PetFeedback, type FeedbackProgress, type FeedbackRun } from './pet-feedback';
 import {
@@ -33,9 +35,16 @@ let gesture: Gesture = IDLE;
 let bubble: Bubble = emptyBubble();
 const feedback = new PetFeedback();
 let feedbackBubble = false, chatVisible = false, hasFeedbackSnapshot = false;
+let reminderInbox:ReminderInbox|null=null,reminderBubble=false,shownReminderId='';
 let lastProgress:FeedbackProgress = {enabled:true};
 let lastRuns:FeedbackRun[] = [];
 function refreshFeedback() {
+  const reminder=reminderInbox?.rows[0];
+  if(reminder&&!(bubble.open&&bubble.error&&!feedbackBubble&&!reminderBubble)){
+    reminderBubble=true;feedbackBubble=false;shownReminderId=reminder.id;
+    bubble={open:true,text:`即将开始：${reminderText(reminder)}。点击确认。${reminderInbox?.error?'确认未返回，可再次点击核对。':''}`,error:false,until:0,index:-1};renderBubble();return;
+  }
+  if(reminderBubble){reminderBubble=false;shownReminderId='';bubble=dismissBubble(bubble);renderBubble();}
   if(!hasFeedbackSnapshot)return;
   const value=feedback.update(lastProgress,lastRuns,chatVisible);
   if(value){
@@ -66,7 +75,7 @@ function placeBubble(): void {
 
 function renderBubble(): void {
   bubbleEl.classList.toggle("hidden", !bubble.open);
-  bubbleEl.dataset.kind = bubble.error ? "error" : "line";
+  bubbleEl.dataset.kind = reminderBubble?'reminder':bubble.error ? "error" : "line";
   bubbleEl.textContent = bubble.text;
   if (bubble.open) placeBubble();
   menuControls?.refresh();
@@ -92,6 +101,7 @@ function renderMenu(open: boolean, x = 0, y = 0): void {
 }
 
 function showError(message: string): void {
+  reminderBubble=false;
   feedbackBubble = false;
   bubble = errorBubble(message);
   renderBubble();
@@ -210,7 +220,7 @@ function runMenu(action: string): void {
       },
     },
     hide: { label: "隐藏桌宠", run: () => rust("set_pet_visible", { visible: false }) },
-    close_bubble: { label: "关闭提示", run: async () => { if(feedbackBubble)feedback.dismiss();feedbackBubble=false;bubble = dismissBubble(bubble); renderBubble(); } },
+    close_bubble: { label: "关闭提示", run: async () => { if(reminderBubble&&reminderInbox){await reminderInbox.acknowledge([shownReminderId]);refreshFeedback();return;}if(feedbackBubble)feedback.dismiss();feedbackBubble=false;bubble = dismissBubble(bubble); renderBubble(); } },
     main: { label: "打开主窗口", run: () => rust("show_main") },
     quit: { label: "退出", run: () => rust("quit_app") },
   };
@@ -286,6 +296,9 @@ async function main(): Promise<void> {
     } catch { /* Native visibility is retried by the next user toggle. */ }
   }
   bubbleEl.addEventListener('click',event=>{
+    if(reminderBubble&&reminderInbox&&!window.getSelection()?.toString().trim()){
+      event.stopPropagation();void reminderInbox.acknowledge([shownReminderId]).then(refreshFeedback);return;
+    }
     if(!feedbackBubble||window.getSelection()?.toString().trim())return;
     event.stopPropagation();feedback.dismiss();
     feedbackBubble=false;bubble=dismissBubble(bubble);renderBubble();
@@ -352,6 +365,10 @@ async function main(): Promise<void> {
   await reportHitRegions();
   if (backend) {
     const info = backend;
+    reminderInbox=new ReminderInbox((method,args)=>rpc<ReminderResponse>(info,method,args),'pet_'+crypto.randomUUID(),
+      async()=>isTauri()&&petAvailable&&!(bubble.open&&bubble.error&&!feedbackBubble&&!reminderBubble)&&await getCurrentWindow().isVisible());
+    const pollReminders=async()=>{await reminderInbox!.poll();refreshFeedback();};
+    void pollReminders();setInterval(()=>void pollReminders(),2000);
     let polling = false;
     setInterval(async () => {
       void refreshSkin();
