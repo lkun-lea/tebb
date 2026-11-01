@@ -4,8 +4,12 @@ from openai import OpenAI
 from .execution_context import ExecutionLLM
 
 
+class ConfigurationChanged(ValueError):
+    public_message='模型、容量或输出配置已变化；未发送。请重新预览后发送目标。'
+
+
 class CollaborationLLM:
-    def __init__(self, model, sampling, timeout, client=None, purpose='task'):
+    def __init__(self, model, sampling, timeout, client=None, purpose='task',expected_configuration_revision=None):
         self.model = model
         self.sampling = {**sampling, **({'reasoning_effort': 'low'} if purpose == 'route' else {})}
         self.preserve_reasoning = model['model'].lower().startswith(('glm-4.7', 'glm-5'))
@@ -17,6 +21,7 @@ class CollaborationLLM:
         self.on_progress = None
         self.on_tool_delta = None
         self.on_context = None
+        self.expected_configuration_revision=expected_configuration_revision
 
     def __enter__(self): return self
 
@@ -31,6 +36,11 @@ class CollaborationLLM:
             self.client = None
 
     def chat(self, messages, tools=None, on_delta=None, *, should_cancel=None):
+        if self.expected_configuration_revision:
+            from .execution_context import configuration_revision
+            from .model_catalog import require_item
+            if configuration_revision(require_item(self.model['id']))!=self.expected_configuration_revision:
+                raise ConfigurationChanged(ConfigurationChanged.public_message)
         if self._llm is None:
             if self.client is None:
                 from .model_network import http_client

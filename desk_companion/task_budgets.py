@@ -21,6 +21,7 @@ _ROWS={
     'chart':(12,20,128000,32000,300000,6144),
     'clarify':(6,4,48000,12000,180000,2048),
     'probe':(2,0,4000,4096,90000,2048),
+    'memory_trial':(1,0,64000,4096,90000,4096),
 }
 _SCOPE=ContextVar('task_budget',default=None)
 _PHASE=ContextVar('task_budget_phase',default='work')
@@ -43,6 +44,7 @@ def policy(tier):
 def default_tier(kind='',role=None,workflow=''):
     role=role or{}
     if workflow=='budget_probe':return'probe'
+    if workflow=='memory_trial':return'memory_trial'
     if kind=='clarify_options':return'clarify'
     tools=set(role.get('tools',()))
     if role.get('id')=='coder'or tools&{'项目环境','文件编辑','终端'}:return'coding'
@@ -86,7 +88,7 @@ class Ledger:
         if hard is not None:limits['time_ms']=min(limits['time_ms'],hard)
         ident=uuid.uuid4().hex
         root=dict(id=ident,owner=owner,tier=tier,version=VERSION,status='active',limits=limits,base=limits.copy(),
-            hard_time_ms=hard,finish_reserve=dict(model_calls=0 if tier=='probe'else 2,output_tokens=0 if tier=='probe'else 4096),
+            hard_time_ms=hard,finish_reserve=dict(model_calls=0 if tier in {'probe','memory_trial'}else 2,output_tokens=0 if tier in {'probe','memory_trial'}else 4096),
             calls={},tools=0,progress=[],extensions=[],no_progress=0,
             created=time.time(),spent_ms=0,active_since=None,waiting_user=False,stop_reason=None,tier_decided=False)
         root['prior_usage_unknown']=bool(prior_usage_unknown)

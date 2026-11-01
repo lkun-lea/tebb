@@ -54,7 +54,7 @@ def execute(request, emit, llm=None, search=None, fetch=None):
             from .collaboration_llm import CollaborationLLM
             from .model_catalog import require_item
             from .sampling import parse_sampling
-            with CollaborationLLM(require_item(request['model_id']), parse_sampling(request.get('sampling')), request['limits']['call_timeout'], purpose=request['kind']) as owned:
+            with CollaborationLLM(require_item(request['model_id']), parse_sampling(request.get('sampling')), request['limits']['call_timeout'], purpose=request['kind'],expected_configuration_revision=request.get('configuration_revision')) as owned:
                 return run(owned)
         return run(llm)
 
@@ -66,7 +66,7 @@ def record_usage(request,usage,model,emit):
     append_usage(dict(ts=datetime.now(TZ).isoformat(),model=model,**tokens,total_tokens=sum(tokens.values()),cost_cny=None,run_id=request['collab_run']+':'+uuid.uuid4().hex))
 
 
-def _execute(request, emit, llm=None, search=None, fetch=None):
+def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False):
     from .model_catalog import require_item
     if request['kind']=='clarify_options':
         from .clarification import generate_options
@@ -123,8 +123,6 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
           '不得把计划、开始执行、超时或部分回执说成成功；不明外部写入按原编号查询，不自动重发。')
     if role.get("personality"):
         prompt += "\n表达风格与性格（不得改变任务、权限或事实标准）：" + role["personality"]
-    if role.get("memory"):
-        prompt += "\n你的私有偏好（仅适用于本轮，不自动公开原文）：\n" + role["memory"]
     if role.get('id')=='chart':
         prompt+='\n你是图表助手，专注把当前已有材料组织为可读图表。默认只使用build_chart；不联网、不读项目、不继续委派，资料不够先说明缺项或请求补充，不编数值/来源/关系。任务策略只用direct。每张图先表达核心问题，再选布局，使用真实条件与职责；优先1张清晰图，不把简单图解扩成研究报告。'
     if kind == "route":
@@ -303,6 +301,20 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
         if request.get('stage')=='collect':messages[0]['content']+='当前已是父任务创建的子任务，分工已发生，不再做成员发现或重新委派；只完成本角色收到的具体工作。'
     messages.append(dict(role='user',content='本轮当前任务职责（按本阶段与真实工具范围完成；整体目标保留为背景，不重做其他阶段动作）：\n'+json.dumps(dict(task=request['text'],stage=request.get('stage'),global_goal_reference=request.get('objective',request['text']),members=request.get('members',[]),draft=request.get('draft',''),required_sources=request.get('required_sources',[]),source_topics=request.get('source_topics',[])),ensure_ascii=False)))
 
+    from .context_sources import Message,history_message
+    from .memory_selection import select, inject
+    selection = request.get('memory_snapshot')
+    if selection is None:
+        selection = select(dict(conversation=request.get('conversation',''),partner=role.get('id',''),
+                                project=(request.get('workspace') or {}).get('project_id','')),partner=role)
+    messages[0] = Message(messages[0], 'system')
+    messages[0].selection = selection
+    inject(messages[0], selection)
+    messages[1] = history_message(request.get('context',[]))
+    for index in range(2,len(messages)-1):
+        messages[index] = Message(messages[index], 'materials')
+    messages[-1] = Message(messages[-1], 'current_input', source={'conversation':request.get('conversation','')})
+
     def extra_call(name, arguments):
         from .task_budgets import current
         from .usage_observer import invoke_tool
@@ -339,7 +351,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
 
     def latest_updates():
         nonlocal applied,goal,structured,retained_declaration
-        current = updates(request["collab_path"], request["collab_run"])
+        current = request.get('preview_updates',[]) if preview else updates(request["collab_path"], request["collab_run"])
         if len(current)>applied:
             for ident in selected_materials(request['collab_path'],request['collab_run']).get('attachments', []):
                 source=get_source(ident); allowed_attachments.add(ident)
@@ -456,6 +468,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None):
 
     from .research_tools import ToolOutcome
     from .readonly_research import ReadonlyLoop,eligible_child,READ_TOOLS
+    if preview:
+        return dict(messages=messages, tools=prepare_turn(), selection=selection)
     atlas_loop=None
     requested_atlas=request.get('execution_runtime')=='atlas_readonly'
     if requested_atlas and eligible_child(request):

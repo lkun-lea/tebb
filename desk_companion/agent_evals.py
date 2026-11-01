@@ -4,7 +4,7 @@ import math
 import time
 from .json_document import json_answer
 
-CONTRACT_VERSION=21
+CONTRACT_VERSION=23
 
 
 class CancellationNotSettled(TimeoutError):
@@ -157,6 +157,13 @@ CASES.extend([
 CASES.extend(case('readonly_'+mode,'lifecycle','独立读取两份固定归档文档头部并合并编号、年份与实际引用。',
     executor='lifecycle',scenario='readonly',research_mode=mode,execution_strategy='delegate',budget=16,phase_budget=8)
     for mode in ('serial','legacy_parallel','atlas_parallel'))
+
+
+CASES.extend(case('memory_'+scenario,'memory','仅根据本轮已经提供的生效记忆回答合成记忆代号。只输出一个JSON对象，唯一字段code填写记忆中明确标注的代号值；如果没有提供代号，code必须为字符串unknown。不要推测，不调用工具。',
+    dict(code='Cedar-217' if scenario in {'global','project'} else 'unknown'),executor='memory',scenario=scenario,budget=1)
+    for scenario in ('global','project','foreign_project','disabled'))
+CASES.append(case('memory_trial','memory','仅根据本轮已经提供的生效记忆回答合成记忆代号。只输出一个JSON对象，唯一字段code填写记忆中明确标注的代号值；如果没有提供代号，code必须为字符串unknown。不要推测，不调用工具。',
+    dict(code='Maple-217'),executor='memory',scenario='trial',budget=2))
 
 
 def evaluate(spec, task, *, verification=None):

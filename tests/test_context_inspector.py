@@ -43,11 +43,10 @@ class ContextInspectorTests(unittest.TestCase):
 
     def test_unknown_window_and_missing_tokenizer_never_guess_tokens(self):
         ident=self.call(usage=None)
-        result=inspector.inspect(self.collab,'one',ident,draft='新的问题')
+        result=inspector.inspect(self.collab,'one',ident)
         self.assertIsNone(result['budget']['window']);self.assertIsNone(result['budget']['remaining'])
         self.assertEqual(result['budget']['input_source'],'unavailable')
         self.assertIsNone(result['budget']['input_tokens'])
-        self.assertIsNone(result['budget']['draft_reference']['tokens'])
 
     def test_capacity_snapshot_remains_bound_to_model_endpoint_and_call(self):
         model_capacity.save('m1',10000,2000)

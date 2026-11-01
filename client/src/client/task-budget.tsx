@@ -9,7 +9,7 @@ export type TaskBudget = {
   extensions:{trigger:string;progress:{kind:string;reference:string}[]}[];
   stop_reason:null|{dimension:string;message:string};cost:null|number;
 };
-const tiers:Record<string,string>={simple:'简单',research:'研究',coding:'编码',chart:'图表',clarify:'澄清',probe:'验证'};
+const tiers:Record<string,string>={simple:'简单',research:'研究',coding:'编码',chart:'图表',clarify:'澄清',probe:'验证',memory_trial:'记忆试验'};
 const count=(value:number|null|undefined)=>value==null?'未知':value.toLocaleString();
 
 export function TaskBudgetView({budget}:{budget?:TaskBudget|null}){

@@ -31,7 +31,7 @@ def main():
         from .agent_debug import install
         install({"task_id": request.get("task_id", ""), "session": request["session_id"], "channel": request.get("channel", "desktop"),
                  'model_id':request.get('model_id',''),'collab_run':request.get('collab_run',''),
-                 'conversation':request.get('conversation',''),'phase':request.get('kind','')})
+                 'conversation':request.get('conversation',''),'phase':request.get('kind',''),'origin_call':request.get('original_call','')})
         if request.get('workflow')=='budget_probe':
             from .model_generation import verify
             try:verify(request,emit)
@@ -50,6 +50,13 @@ def main():
                 execute_explanation(request, emit)
             except Exception as exc:
                 emit("failure", {"type": type(exc).__name__, "message": "调用解读失败（" + type(exc).__name__ + "），请检查模型上下文容量或网络。"})
+            return
+        if request.get('workflow')=='memory_trial':
+            from .memory_inspector import execute_trial
+            try:
+                execute_trial(request,emit)
+            except Exception as exc:
+                emit('failure',dict(type=type(exc).__name__,message=getattr(exc,'public_message','记忆试验失败（'+type(exc).__name__+'）；未写回生产记忆。')))
             return
         if request.get("workflow") == "ai_news":
             from .news import execute

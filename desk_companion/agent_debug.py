@@ -75,6 +75,19 @@ def update(call_id, **values):
                    (*values.values(), call_id))
 
 
+def read_metadata(call_id):
+    path=root()/(valid_id(call_id)+'.meta.json')
+    if not path.exists():return {}
+    try:
+        value=json.loads(path.read_text('utf-8'))
+        if not isinstance(value,dict):raise ValueError('metadata object required')
+        if 'capacity' in value and not isinstance(value['capacity'],dict):raise ValueError('capacity object required')
+        if 'sources' in value and not isinstance(value['sources'],dict):raise ValueError('sources object required')
+        return value
+    except (OSError,UnicodeError,ValueError):
+        return dict(metadata_error=True,sources=dict(status='unknown',note='来源元信息不可读；原请求仍按现存内容展示。'))
+
+
 def begin(request, payload):
     call_id = uuid.uuid4().hex
     body = request.content
@@ -83,12 +96,16 @@ def begin(request, payload):
     info = {**_default, **_context.get()}
     url = urlsplit(str(request.url))
     endpoint = url.scheme + "://" + (url.hostname or "") + (":" + str(url.port) if url.port else "") + url.path
-    if info.get('model_id'):
+    if info.get('model_id') or info.get('assembly'):
         from .model_capacity import for_call
         try:
-            meta={key:info[key] for key in ('model_id','collab_run','conversation','phase') if key in info}
-            meta['capacity']=for_call(info['model_id'],str(payload.get('model','')),endpoint)
-            (root()/(call_id+'.meta.json')).write_text(json.dumps(meta,ensure_ascii=False),'utf-8')
+            meta={key:info[key] for key in ('model_id','collab_run','conversation','phase','origin_call') if key in info}
+            if info.get('model_id'):
+                meta['capacity']=for_call(info['model_id'],str(payload.get('model','')),endpoint)
+            from .context_sources import at_boundary
+            meta['sources']=at_boundary(payload,info.get('assembly'))
+            from .video import atomic_write
+            atomic_write(root()/(call_id+'.meta.json'),meta)
         except (OSError,ValueError):pass
     now = time.time()
     with database() as db:
@@ -272,7 +289,9 @@ def listing(channel="", task_id="", before=None):
                "AND (?='' OR task_id=?) AND (? IS NULL OR created<?) ORDER BY created DESC LIMIT 101",
                (channel, channel, task_id, task_id, before, before))]
     for row in rows:
-        row["response_bytes"] = (root() / (row["id"] + ".response.txt")).stat().st_size
+        response_path=root() / (row["id"] + ".response.txt")
+        row["response_bytes"] = response_path.stat().st_size if response_path.is_file() else None
+        row['files_missing']=not response_path.is_file() or not (root()/(row['id']+'.request.json')).is_file()
         refresh(row)
         timing=load_timing(row['id'])
         row['first_text_ms']=(timing or {}).get('marks',{}).get('first_text')
@@ -356,8 +375,7 @@ def detail(call_id):
     if task:
         from .task_budgets import task_view
         task['task_budget']=task_view(info['task_id'])
-    meta_path=root()/(call_id+'.meta.json')
-    meta=json.loads(meta_path.read_text('utf-8')) if meta_path.exists() else {}
+    meta=read_metadata(call_id)
     from .task_budgets import task_view
     return {"ok": True, "call": info, "meta":meta, "request": json.loads(raw_request), "request_raw": raw_request,
             'task_budget':task_view(info['task_id']),

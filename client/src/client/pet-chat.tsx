@@ -144,6 +144,6 @@ export function PetChat({ backend }: { backend?: BackendInfo }) {
         if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send();}
       }}/><footer><div className="pet-chat-compose-actions"><button type="button" aria-label="选择成员" disabled={!cid} title="@ 成员" onClick={()=>insertTrigger('@')}>@</button><button type="button" aria-label="选择技能" disabled={!cid} title="/ Skill" onClick={()=>insertTrigger('/')}>/</button></div><span>{active.length ? <><i className="tebb-stream-cursor" />任务执行中</>:'Enter 发送 · Shift+Enter 换行'}</span><button type="submit" disabled={busy || !cid || !draft.trim()}>发送 ↑</button></footer></form>
     {menu && <><button className="pet-chat-menu-dismiss" aria-label="收起菜单" onClick={()=>setMenu(null)}/><div className="pet-chat-menu" role="menu" style={{left:menu.x,top:menu.y}}><button role="menuitem" onClick={()=>void close()}>关闭对话框</button><small>任务继续，重新打开可恢复</small></div></>}
-    <ContextDebug key={cid} info={info} conversation={cid} draft={draft}/>
+    <ContextDebug key={cid} info={info} conversation={cid} draft={draft} sendOptions={{target:'',mode:'auto',model_id:model,skills,...(resumeRun?{run:resumeRun}:{})}} onSent={text=>{if(text===draft){setDrafts(old=>({...old,[cid]:''}));setSkillMap(old=>({...old,[cid]:[]}));setResumeRun('');setDismissed(true);following.current=true;}}}/>
   </main></ReportAssetProvider>;
 }

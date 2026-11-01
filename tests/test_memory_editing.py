@@ -50,7 +50,7 @@ class MemoryFixture(unittest.TestCase):
 
 class MemoryEditingTests(MemoryFixture):
     def test_fact_contracts_sources_noop_and_cross_session_scope(self):
-        with facts.bind_turn_user('my name is Ada'):
+        with facts.bind_turn_user('remember my name is Ada'):
             self.assertIn('已记下', facts.remember_fact(dict(text='name: Ada', quote='my name is Ada')))
         original = facts.read_facts()[0]
         self.assertTrue(self.editor.update_fact(original['id'], original['text'])['ok'])

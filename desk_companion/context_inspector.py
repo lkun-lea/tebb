@@ -1,7 +1,5 @@
 """Read actual conversation calls at the existing model transport boundary."""
-import json
 import math
-import copy
 
 from . import agent_debug,model_capacity,model_tokenizer
 
@@ -22,8 +20,7 @@ def budget(request,response,capacity):
                 capacity_source=capacity.get('source','unknown'))
 
 
-def inspect(collaboration,conversation,call_id='',before=None,draft=''):
-    if not isinstance(draft,str) or len(draft)>200000:raise ValueError('草稿格式无效。')
+def inspect(collaboration,conversation,call_id='',before=None):
     if before is not None and (type(before) not in (int,float) or not math.isfinite(before)):raise ValueError('游标无效。')
     state=collaboration.snapshot()['state']
     chat=next((c for c in state['conversations'] if c['id']==conversation),None)
@@ -46,25 +43,21 @@ def inspect(collaboration,conversation,call_id='',before=None,draft=''):
     more=len(rows)>100;rows=rows[:100]
     for row in rows:
         run=sessions[row['session']]
-        meta_path=agent_debug.root()/(row['id']+'.meta.json')
-        meta=json.loads(meta_path.read_text('utf-8')) if meta_path.exists() else {}
-        row.update(run_id=run['id'],parent=run.get('parent'),agent=run['agent'],phase=meta.get('phase') or '历史阶段未标注')
+        meta=agent_debug.read_metadata(row['id'])
+        row.update(run_id=run['id'],run_title=run.get('title',''),parent=run.get('parent'),agent=run['agent'],phase=meta.get('phase') or '历史阶段未标注')
     # Prefer latest root execution; a sub-agent's large prompt is not main usage.
     selected=call_id or next((r['id'] for r in rows if not r['parent']),rows[0]['id'] if rows else '')
-    detail=agent_debug.detail(selected) if selected else None
+    try:
+        detail=agent_debug.detail(selected) if selected else None
+    except FileNotFoundError:
+        detail=dict(request=None,request_raw='',response={},meta={},call=dict(state='missing'),missing=True)
     current=None;model_id='';configuration={}
-    if detail:
+    if detail and detail.get('request'):
         run=sessions[detail['call']['session']];model_id=run.get('model_id','')
         configuration=model_capacity.for_call(model_id,detail['call']['model'],detail['call']['endpoint'])
         capacity=detail.get('meta',{}).get('capacity')
         if capacity and (capacity.get('window') or capacity.get('tokenizer_dir')):capacity={**capacity,'source':'captured_config'}
         else:capacity=configuration
         current=budget(detail['request'],detail['response'],capacity)
-        if draft:
-            reference=copy.deepcopy(detail['request'])
-            reference.setdefault('messages',[]).append(dict(role='user',content=draft))
-            current['draft_reference']={**model_tokenizer.count(reference,capacity),
-                'note':'仅对上次请求追加草稿后分词，不是尚未组装的下一次真实请求。'}
-    agents=[dict(id=a['id'],name=a['name'],memory=a.get('memory','')) for a in state['agents'] if a['id'] in chat['members']]
-    return dict(ok=True,items=rows,has_more=more,selected=selected,detail=detail,budget=current,configuration=configuration,model_id=model_id,agents=agents,
+    return dict(ok=True,items=rows,has_more=more,selected=selected,detail=detail,budget=current,configuration=configuration,model_id=model_id,
                 recording=agent_debug.settings()['enabled'],note='请求正文按原样保留；查看不调用模型。没有记录不能还原过去的请求。')

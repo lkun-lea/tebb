@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 EFFORTS = ("low", "high", "max")
+TASK_DEFAULTS = dict(reasoning_effort='low',temperature=.5,top_p=1)
 
 
 def parse_sampling(raw: object) -> dict:

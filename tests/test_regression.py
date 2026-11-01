@@ -78,8 +78,10 @@ class RegressionTests(unittest.TestCase):
             self.assertIn("已记下", facts.remember_fact(args))
         facts.update_user_fact(facts.read_facts()[0]["id"], "我喜欢 TypeScript")
         self.assertEqual(facts.read_facts()[0]["writer"], "user")
-        self.assertIn("已忘掉", facts.forget_fact({"text": "我喜欢 TypeScript"}))
-        self.assertEqual(facts.read_facts(), [])
+        item=facts.read_facts()[0]
+        with facts.bind_turn_user("请忘记这条记忆"):
+            self.assertIn("已停止后续使用", facts.forget_fact(dict(id=item["id"],version=item["version"])))
+        self.assertEqual(facts.read_facts()[0]["state"], "revoked")
 
     def test_context_pack_keeps_originals_and_invalidates_on_delete(self):
         for role, body in [("user", "旧问题"), ("pet", "旧回答"), ("user", "新问题"), ("pet", "新回答")]:

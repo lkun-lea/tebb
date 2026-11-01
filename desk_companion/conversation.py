@@ -61,8 +61,25 @@ class ConversationService:
 
     def run_agent(self, model_message, *, run_id, user_message=None):
         """Return raw output; each entry point retains its accounting/history order."""
-        with bind_turn_user(model_message if user_message is None else user_message):
-            return str(self.agent.run(with_clock(model_message), run_id=run_id))
+        from .memory_selection import bind_scope
+        with bind_turn_user(model_message if user_message is None else user_message), bind_scope(conversation=self.state.session_id):
+            body=with_clock(model_message)
+            from .context_sources import Message,digest
+            llm=getattr(self.agent,'llm',None)
+            provider=getattr(llm,'source_provider',None)
+            if callable(provider):
+                position=len(self.agent.memory.runtime_messages)
+                current=Message(dict(role='user',content=body),'current_input',source={'session':self.state.session_id})
+                def annotated():
+                    rows=list(provider())
+                    if len(rows)>position and digest(rows[position])==digest(current):
+                        rows[position]=current
+                    return rows
+                llm.source_provider=annotated
+            try:
+                return str(self.agent.run(body, run_id=run_id))
+            finally:
+                if callable(provider):llm.source_provider=provider
 
     def try_build_agent(self) -> None:
         from .assistant import build_agent
@@ -148,7 +165,9 @@ class ConversationService:
 
     def inject_prepared(self, current_text: str, *, exclude_user: str | None = None) -> None:
         rows = self.prepare_context(current_text, exclude_user=exclude_user)
-        inject_history(self.agent, rows, persona=self.state.persona)
+        from .memory_selection import bind_scope
+        with bind_scope(conversation=self.state.session_id):
+            inject_history(self.agent, rows, persona=self.state.persona)
 
     def engage_model(self, model_id: str = "") -> None:
         from .model_catalog import activate, require_active

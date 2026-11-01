@@ -29,7 +29,7 @@ test('ordinary composer loads actual context only after opening and never invent
  await act(async()=>button(v,'2. 你的问题user').props.onClick());
  assert(v.root.findAllByType('pre').some(n=>text(n).endsWith('完整请求的末尾"\n}')));
  await act(async()=>button(v,'调用参数').props.onClick());assert(text(v.toJSON()).includes('实际有效参数'));
- await act(async()=>button(v,'记忆').props.onClick());assert(text(v.toJSON()).includes('这位伙伴记住的偏好'));assert.equal(v.root.findByProps({'aria-label':'伙伴记忆内容'}).props.value,'当前偏好');assert(!text(v.toJSON()).includes('旧助手'));assert(!calls.some(c=>c.method==='explain_debug_call'));
+ await act(async()=>button(v,'记忆').props.onClick());assert(text(v.toJSON()).includes('调用检查台'));assert(text(v.toJSON()).includes('不能代替历史记忆'));assert(!text(v.toJSON()).includes('旧助手'));assert(!calls.some(c=>c.method==='explain_debug_call'));
  await act(async()=>v.unmount());
 });
 
@@ -48,12 +48,4 @@ test('capacity editing cannot submit the surrounding chat form',async()=>{
 test('known model capacity with missing usage and tokenizer has no invented progress',async()=>{
  global.window={setInterval:()=>1,clearInterval(){}};const value=inspect();value.budget={...value.budget,window:128000,input_tokens:null,input_source:'unavailable'};
  const load=loader({'./api':{rpc:async()=>value}});const {ContextDebug}=load('context-debug');let v;await act(async()=>{v=create(React.createElement(ContextDebug,{info:{port:1,token:'t'},conversation:'dm-tebb'}));});await act(async()=>button(v,'上下文').props.onClick());assert.equal(v.root.findByProps({role:'progressbar'}).props['aria-valuenow'],undefined);assert(text(v.toJSON()).includes('未取得可靠统计'));await act(async()=>v.unmount());
-});
-
-test('partner memory saves only its own field and uncertain writes require rereading',async()=>{
- global.window={setInterval:()=>1,clearInterval(){}};global.crypto=require('node:crypto').webcrypto;const calls=[];let fail=true;
- const load=loader({'./api':{rpc:async(_i,method,args)=>{calls.push({method,args});if(method==='collaboration_action'&&fail)throw Error('断连');return inspect();}}});const {ContextDebug}=load('context-debug');let v;
- await act(async()=>{v=create(React.createElement(ContextDebug,{info:{port:1,token:'t'},conversation:'dm-tebb'}));});await act(async()=>button(v,'记忆').props.onClick());await act(async()=>button(v,'编辑').props.onClick());await act(async()=>v.root.findByProps({'aria-label':'伙伴记忆内容'}).props.onChange({target:{value:'新偏好'}}));await act(async()=>button(v,'保存修改').props.onClick());
- const action=calls.find(c=>c.method==='collaboration_action').args.action;assert.equal(action.type,'partner_memory');assert.equal(action.memory,'新偏好');assert.equal(action.agent_id,'tebb');assert.equal(action.agent,undefined);assert(button(v,'保存修改').props.disabled);assert.equal(calls.filter(c=>c.method==='collaboration_action').length,1);
- fail=false;await act(async()=>button(v,'重新读取核对').props.onClick());assert.equal(v.root.findByProps({'aria-label':'伙伴记忆内容'}).props.value,'当前偏好');await act(async()=>v.unmount());
 });

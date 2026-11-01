@@ -36,6 +36,16 @@ def _load(directory, signature):
     return PreTrainedTokenizerFast.from_pretrained(directory, local_files_only=True, trust_remote_code=False)
 
 
+def observed_signature(config):
+    directory=config.get('tokenizer_dir')
+    if not directory:return None
+    try:
+        path=Path(directory)
+        return [(name,p.stat().st_size,p.stat().st_mtime_ns) for name in _FILES if (p:=path/name).is_file()]
+    except OSError as exc:
+        return dict(error=type(exc).__name__)
+
+
 def count(request, config):
     result = dict(tokens=None, source='unavailable', note='未绑定匹配模型的 tokenizer。')
     directory = config.get('tokenizer_dir')

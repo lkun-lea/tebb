@@ -26,6 +26,17 @@ class ContextAdmissionError(RuntimeError):
 def _bytes(value):return json.dumps(value,ensure_ascii=False,separators=(',',':')).encode('utf-8')
 
 
+def configuration_revision(model):
+    """Input assembly depends on route, capacity, tokenizer files and output policy."""
+    from . import model_generation
+    from .context_sources import digest
+    endpoint=model['base_url'].rstrip('/')+'/chat/completions'
+    capacity=model_capacity.for_call(model['id'],model['model'],endpoint)
+    return digest(dict(route={k:model[k] for k in ('id','model','base_url')},capacity=capacity,
+                       tokenizer_files=model_tokenizer.observed_signature(capacity),
+                       generation=model_generation.binding(model['id'],model['model'],endpoint)))
+
+
 def _text_bytes(request):
     total=len(_bytes(request.get('tools',[])))
     for message in request.get('messages',[]):
@@ -150,6 +161,7 @@ class ExecutionLLM(LLM):
     def __init__(self,*args,context_model_id='',on_context=None,**kwargs):
         super().__init__(*args,**kwargs)
         self.context_model_id=context_model_id;self.on_context=on_context;self.last_context=None
+        self.source_provider=None
 
     def chat(self,messages,tools=None,on_delta=None,*,options=None,callbacks=None):
         if self._closed:return super().chat(messages,tools,on_delta,options=options,callbacks=callbacks)
@@ -215,7 +227,14 @@ class ExecutionLLM(LLM):
             scope.notice()
         try:
             from .usage_observer import ModelAttempt
-            with ModelAttempt(self.model,self.context_model_id,endpoint,call_id)as observed:
+            from .agent_debug import context
+            from .context_sources import manifest
+            source_messages=prepared['messages']
+            if self.source_provider:
+                from .context_sources import carry
+                source_messages=carry(source_messages,self.source_provider())
+            selection = next((getattr(m,'selection',None) for m in source_messages if getattr(m,'selection',None) is not None),None)
+            with ModelAttempt(self.model,self.context_model_id,endpoint,call_id)as observed, context(assembly=manifest(source_messages,selection)):
                 result=super().chat(prepared['messages'],tools,on_delta,options=options,callbacks=callbacks)
                 observed.returned(result.get('usage'),result.get('finish_reason'))
         except BaseException as exc:

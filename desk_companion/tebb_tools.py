@@ -33,7 +33,11 @@ def specs(request):
     from .facts import bind_turn_user
     def bound(func):
         def invoke(args):
-            with bind_turn_user(request.get('objective',request['text'])):return func(args)
+            from .memory_selection import bind_scope
+            with bind_turn_user(request.get('objective',request['text'])), bind_scope(
+                conversation=request.get('conversation',''),partner=request.get('role',{}).get('id',''),
+                project=(request.get('workspace') or {}).get('project_id','')):
+                return func(args)
         return invoke
     for item in (*video_specs(lambda:'collaboration-'+request.get('session_id',run_id),lambda status:None),LIST_SKILLS_SPEC,READ_SKILL_SPEC,REMEMBER_SPEC,FORGET_SPEC,STATUS_SPEC,ROADMAP_SPEC,RECENT_SPEC,REPOSITORY_SPEC,ERROR_LOG_SPEC,AGENDA_SPEC,TASKS_SPEC):
         out.append(dict(type='function',function={k:item[k] for k in ('name','description','parameters')},implementation=bound(item['func']),read_only=item.get('isReadOnly',True)))

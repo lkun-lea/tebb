@@ -138,7 +138,8 @@ class TaskManager:
             if not 0 < limits["call_timeout"] <= limits["task_timeout"] <= 1800:
                 raise ValueError("任务时限不正确。")
             request.update(text=text, session_id=session, limits=limits)
-            request.setdefault("sampling", {"reasoning_effort": "low", "temperature": .5, "top_p": 1})
+            from .sampling import TASK_DEFAULTS
+            request.setdefault("sampling", dict(TASK_DEFAULTS))
             from .wiki_connection import load_settings as wiki_settings
             request.setdefault("video_archive_config", wiki_settings())
             from .task_budgets import Ledger,default_tier

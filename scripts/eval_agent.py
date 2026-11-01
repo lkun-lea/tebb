@@ -65,6 +65,10 @@ class Fixture(BaseHTTPRequestHandler):
                 if scenario=='incomparable':evidence=[dict(source_id=m['id'],quote=m['segments'][0][:500])for m in material if m['level']=='body']
             delta=dict(content=json.dumps(dict(requirements=[dict(requirement='模拟交付检查',dimension=dimension,status=status,
                 reason='受控模拟审阅，不构成真实语义验收',evidence=evidence)]),ensure_ascii=False))
+        elif executor=='memory':
+            body=json.dumps(request['messages'],ensure_ascii=False)
+            code='Maple-217' if 'Maple-217' in body else 'Cedar-217' if 'Cedar-217' in body else 'unknown'
+            delta=dict(content=json.dumps(dict(code=code)))
         elif executor=='project'and 'start_background_task' in available:
             goal=next(m['content']for m in reversed(request['messages'])if m.get('role')=='user')
             delta=tool('start_background_task',dict(instructions=goal,strategy='direct'))
@@ -223,6 +227,7 @@ def main():
                 source_commit='',semantic_scope='machine-verifiable fixed tasks; not a general capability guarantee')
     import subprocess
     report['source_commit']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    report['source_dirty']=bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],cwd=ROOT,text=True).strip())
     report['root_budget_policy_version']=1
     if research_corpus:report['research_corpus']=research_corpus
     report['verified_output_binding_snapshot']=bool(args.output_limit_bindings)
@@ -234,6 +239,7 @@ def main():
             'desk_companion/task_worker.py','desk_companion/collaboration_worker.py',
             'desk_companion/collaboration_llm.py','desk_companion/workflow_worker.py','desk_companion/workflow_nodes.py',
             'desk_companion/local_calendar.py','desk_companion/tebb_tools.py','desk_companion/collaboration.py',
+            'desk_companion/agent_eval_memory.py','desk_companion/memory_selection.py','desk_companion/memory_inspector.py','desk_companion/context_sources.py','desk_companion/facts.py',
             'desk_companion/agent_eval_tools.py','desk_companion/agent_eval_lifecycle.py','desk_companion/calendar_proposals.py','scripts/eval_fixture_worker.py',
             'desk_companion/research_tools.py','desk_companion/readonly_research.py','desk_companion/agent_eval_research.py','scripts/eval_readonly_worker.py',
             'desk_companion/agent_eval_projects.py','scripts/eval_project_host.py','scripts/eval_project_fixture.py',
@@ -298,6 +304,12 @@ def main():
                     row['task_ids']=task_ids;task_id=task_ids[0]if task_ids else''
                     expired=verification.get('deadline_exceeded',False)
                     row['project_case']=verification
+                elif spec.get('executor')=='memory':
+                    from desk_companion.agent_eval_memory import execute
+                    def progress(value):row.update(value);save()
+                    task,verification,task_ids,calls=execute(spec,profile=profile,workspace=workspace,model_id=model['id'],timeout=args.timeout,command=command,progress=progress)
+                    row['task_ids']=task_ids;task_id=task_ids[0] if task_ids else ''
+                    expired=verification['deadline_exceeded']
                 elif lifecycle:
                     from desk_companion.agent_eval_lifecycle import execute
                     def progress(value):row.update(value);save()
@@ -319,15 +331,15 @@ def main():
                 else:
                     task_id=manager.submit(context['prompt'],'eval-'+run_id,'collaboration',workflow='collaboration',kind=spec.get('kind','chat'),role=dict(id='research',name='验收助手',role='按实际输入完成可验证任务',tools=spec.get('tools',[])),selection=context['selection'],context=context.get('history',[]),members=[],model_id=model['id'],collab_run=run_id,collab_path=str(workspace),budget=spec.get('budget',2),search_budget=0,fetch_budget=spec.get('fetch_budget',0),task_limits=dict(call_timeout=min(args.timeout,90),task_timeout=args.timeout),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),**context.get('request_extra',{}))
                 row['task_id']=task_id;save()
-                if not lifecycle and not project:row['task_ids']=[task_id]
+                if not lifecycle and not project and spec.get('executor')!='memory':row['task_ids']=[task_id]
                 row['stage']='wait'
-                if not lifecycle and not project:task,expired=wait_task(manager,task_id,started+args.timeout)
+                if not lifecycle and not project and spec.get('executor')!='memory':task,expired=wait_task(manager,task_id,started+args.timeout)
                 row['deadline_exceeded']=expired
                 if spec['category']=='workflow':
                     observed=service.operation('get',dict(run_id=run['id']))['run']
                     row['node_states']={k:v['state'] for k,v in observed['receipts'].items()}
                     task={**task,'answer':observed['receipts'].get('ai',{}).get('output',{}).get('text','')}
-                if not lifecycle and not project:verification=verify(spec,task,context)
+                if not lifecycle and not project and spec.get('executor')!='memory':verification=verify(spec,task,context)
                 row['stage']='verify'
                 outcome,evidence=evaluate(spec,task,verification=verification)
                 if expired:outcome='timed_out'
@@ -351,7 +363,7 @@ def main():
             except CancellationNotSettled as exc:
                 row.update(outcome='timed_out',termination=exc.task['state'],deadline_exceeded=True,cancellation_confirmed=False,error_type=type(exc).__name__)
             except Exception as exc:
-                row.update(outcome='failed',error_type=type(exc).__name__)
+                row.update(outcome='failed',error_type=type(exc).__name__,error=str(exc).replace(model['api_key'],'[redacted]'))
             finally:
                 Fixture.release.set()
                 complete=refresh_call_evidence(row,listing,detail)

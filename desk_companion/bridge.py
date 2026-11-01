@@ -65,13 +65,17 @@ class Bridge:
     def load_collaboration(self, since="") -> dict:
         return self._host.collaboration.snapshot(since=since)
 
-    def load_context_debug(self,conversation,call_id='',before=None,draft=''):
+    def load_context_debug(self,conversation,call_id='',before=None):
         from .context_inspector import inspect
-        return inspect(self._host.collaboration,conversation,call_id,before,draft)
+        return inspect(self._host.collaboration,conversation,call_id,before)
 
     def save_context_capacity(self,model_id,window=None,output_reserve=0,tokenizer_dir=None):
         from .model_capacity import save
         return save(model_id,window,output_reserve,tokenizer_dir)
+
+    def memory_debug(self,conversation,action):
+        from .memory_inspector import operate
+        return operate(self._host.collaboration,lambda:self._host.tasks,conversation,action)
 
     def get_report_chart(self,chart_id):
         from .report_charts import public

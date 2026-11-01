@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
+from datetime import datetime, timezone
 import copy
 import hashlib
 import json
@@ -24,6 +25,20 @@ COMPANIONS = {
 }
 TOOLS = {"联网搜索", "网页读取", "工作区读取", "文件编辑", "终端", "扩展只读工具", "构建图表", "本地日程读取", "日程提案", "项目环境"}
 AVATARS = {"spark", "fox", "cat", "owl"}
+
+
+def set_partner_memory(agent,text,state='active',expected=None):
+    from .memory_selection import partner_version
+    if state not in {'active','disabled','revoked'}:
+        raise ValueError('伙伴记忆状态无效。')
+    if expected is not None and expected!=partner_version(agent):
+        raise ValueError('伙伴偏好版本已变化，请重新读取。')
+    if (text,state)==(agent.get('memory',''),agent.get('memory_state','active')):
+        return
+    if agent.get('memory'):
+        agent['memory_versions']=[*agent.get('memory_versions',[]),dict(text=agent['memory'],version=partner_version(agent),
+            state=agent.get('memory_state','active'),updated=agent.get('memory_updated',''))]
+    agent.update(memory=text,memory_state=state,memory_revision=agent.get('memory_revision',0)+1,memory_updated=datetime.now(timezone.utc).isoformat(timespec='seconds'))
 
 
 def parse_route(text):
@@ -285,7 +300,7 @@ class Collaboration:
             if run.get('options_generation'):run['options_generation']={k:v for k,v in run['options_generation'].items() if k in {'state','error','calls'}}
             if not run.get('parent'):
                 run['chain'] = chain_view(run, result['runs'])
-            for key in ("input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs"):
+            for key in ("input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs", "memory_snapshot"):
                 run.pop(key, None)
         catalog = public_catalog()
         result["models"] = [{"id": item["id"], "model": item["model"]} for item in catalog["items"]]
@@ -329,7 +344,7 @@ class Collaboration:
         state["messages"].append(row)
         return row
 
-    def _run(self, state, conversation, agent_id, text, kind="task", parent=None, dependency=None, context=None, model_id=""):
+    def _run(self, state, conversation, agent_id, text, kind="task", parent=None, dependency=None, context=None, model_id="", dry_run=False):
 
         from .model_catalog import require_active, require_item
         agent = copy.deepcopy(next(a for a in state["agents"] if a["id"] == agent_id))
@@ -348,13 +363,18 @@ class Collaboration:
             attempt=0, cursor=0, tool_calls=0, search_calls=0, fetch_calls=0, created=time.time(), context=context, task="")
         from .project_workspace import load
         run["workspace"] = load(conversation.get('project_id',''))
-        from .task_budgets import Ledger,default_tier
+        from .execution_context import configuration_revision
+        run['configuration_revision']=configuration_revision(model)
+        from .memory_selection import select
+        run['memory_snapshot'] = select(dict(project=conversation.get('project_id',''),partner=agent_id,conversation=conversation['id']),partner=agent)
+        if dry_run:
+            state['runs'].append(run)
+            self._message(state,conversation['id'],agent_id,'',run['id'])
+            return run
         owner=next((r for r in state['runs']if r['id']==parent),None)
         from .agent_debug import metadata
         run['usage_channel']=(owner or{}).get('usage_channel')or metadata().get('usage_channel')
         run['budget_id']=owner.get('budget_id')if owner else None
-        if not run['budget_id']:
-            run['budget_id']=Ledger().create('collab:'+run['id'],default_tier(kind,agent),execution_limits(agent_id,agent.get('tools',()))['task_timeout']*1000)
         state["runs"].append(run)
         self._message(state, conversation["id"], agent_id, "", run["id"])
         return run
@@ -430,7 +450,7 @@ class Collaboration:
                 db.execute("INSERT INTO receipts VALUES(?,?)", (client_id, fingerprint))
         return self.snapshot()
 
-    def _apply(self, state, action):
+    def _apply(self, state, action, *, dry_run=False):
         kind = action.get("type")
         conversation = next((c for c in state["conversations"] if c["id"] == action.get("conversation")), None)
         def project_id(default=""):
@@ -623,7 +643,7 @@ class Collaboration:
                 mode = 'message'
             reserved = sum((2 if r["kind"] in {"plan", "route"} else 1) for r in state["runs"] if r["state"] in ACTIVE)
             if reserved + (2 if mode != "message" else 1) > 12: raise ValueError("已有较多待处理工作，请先完成或停止部分任务")
-            run = self._run(state, conversation, target, text, 'chat' if mode=='message' else 'route', context=history, model_id=action.get("model_id", ""))
+            run = self._run(state, conversation, target, text, 'chat' if mode=='message' else 'route', context=history, model_id=action.get("model_id", ""), dry_run=dry_run)
             from .execution_flow import explicit_search
             run['require_execution']=require_delegate or mode=='task' or mode=='auto' and explicit_search(text)
             if require_delegate:run.update(requested_strategy='delegate',strategy_source='explicit'if strategy=='delegate'else'mentions')
@@ -636,6 +656,10 @@ class Collaboration:
             if mode != 'message':
                 run["members"] = [dict(id=a["id"], name=a["name"], role=a["role"], tools=a['tools']) for a in state["agents"] if a["id"] in run['participants'] and a['id'] != target]
             # Keep the user message before the streaming reply.
+            if action.get('preview_revision'):
+                from .memory_inspector import run_revision
+                if action['preview_revision'] != run_revision(run):
+                    raise ValueError('记忆、会话或参数已变化，请重新生成预览；未发送。')
             reply = state["messages"].pop()
             self._message(state, conversation["id"], "user", text, run["id"])
             state["messages"].append(reply)
@@ -694,7 +718,9 @@ class Collaboration:
                 raise ValueError('伙伴不属于当前会话。')
             if not isinstance(memory,str) or len(memory)>2000:
                 raise ValueError('伙伴记忆须为不超过2000字的文本。')
-            agent['memory']=memory
+            if 'expected_memory' in action and agent.get('memory','')!=action['expected_memory']:
+                raise ValueError('伙伴偏好已变化，请重新读取；未覆盖。')
+            set_partner_memory(agent,memory,action.get('memory_state','active'),action.get('expected_version'))
         elif kind == "agent":
             from .model_catalog import require_item
             agent = action.get("agent")
@@ -712,6 +738,12 @@ class Collaboration:
             if not current and len(state["agents"]) >= 8: raise ValueError("当前最多8位 Agent")
             row = dict(id=current["id"] if current else self._id(), name=name, role=agent["role"], memory=agent["memory"], model=agent["model"], tools=agent["tools"], mark=current["mark"] if current else "A", tone=current["tone"] if current else "sage")
             row.update(avatar=agent.get("avatar", (current or {}).get("avatar", "owl")), personality=agent.get("personality", (current or {}).get("personality", "")))
+            if current:
+                row.update({k:copy.deepcopy(v) for k,v in current.items() if k in {'memory_versions','memory_state','memory_revision','memory_updated'}})
+                if current.get('memory','')!=agent['memory']:
+                    previous=copy.deepcopy(current)
+                    set_partner_memory(previous,agent['memory'])
+                    row.update({k:v for k,v in previous.items() if k.startswith('memory')})
             if current: state["agents"][state["agents"].index(current)] = row
             else: state["agents"].append(row)
             dm = next((c for c in state["conversations"] if c["kind"] == "dm" and c["coordinator"] == row["id"]), None)
@@ -788,7 +820,7 @@ class Collaboration:
                     if run.get('workspace', {}).get('primary') and set(run['agent_config']['tools']) & {'文件编辑', '终端'} and any(other['id'] != run['id'] and other['state'] in {'queued','running','cancelling'} and other.get('workspace',{}).get('primary') == run['workspace'].get('primary') and set(other['agent_config']['tools']) & {'文件编辑','终端'} for other in state['runs']):
                         run['status'] = '等待工作目录的编码任务完成'; continue
                     request = dict(workflow="collaboration", collab_path=str(self.path), collab_run=run["id"],conversation=run['conversation'],source_scope=run.get('parent') or run['id'],
-                        role=run["agent_config"], kind=run["kind"], model_id=run["model_id"], context=run["context"], workspace=run.get("workspace"), selection=run.get("selection", {}),
+                        role=run["agent_config"], kind=run["kind"], model_id=run["model_id"], context=run["context"], workspace=run.get("workspace"), selection=run.get("selection", {}), memory_snapshot=run.get('memory_snapshot'),configuration_revision=run.get('configuration_revision'),
                         reference_time=run.get("created",0), supplemented_at=run.get("supplemented_at"), members=run.get("members", []), requested_strategy=run.get('requested_strategy','auto'), requested_assignees=run.get('requested_assignees',[]), require_execution=run.get('require_execution',False), applied=run["applied"], draft=run.get("parent_draft", ""), budget=max(0, call_budget(run['agent'],run['kind'],run.get('agent_config',{}).get('tools',()))-phase_calls(run)),
                         objective=run.get('objective',run['input']),parent_run=run.get('parent'),stage=run.get('stage','collect'),required_sources=run.get('required_sources',[]),requires_charts=run.get('requires_charts',False),
                         search_budget=max(0, run.get('search_limit',2)-run.get("search_calls",0)),fetch_budget=max(0,run.get('fetch_limit',4)-run.get("fetch_calls",0)),
