@@ -1,0 +1,11 @@
+{
+  "repository": "lkun-lea/tebb-skills",
+  "commit": "858741099931d8118049cc6339e5de9b6bc4a3c0",
+  "files": {
+    "LICENSE": "d2a72fdb9074f5405d84491c422baf2a7923c8f9c405da55dac36911892190a3",
+    "skills/feishu-doc-writing/SKILL.md": "b99cabac80349111f8f25851fd7da33ded8082585cf8e6b1a18030aff28f60fd",
+    "skills/github-repo-summary/SKILL.md": "82df6c5af829b6b61e257bbf5a12d8158ebc92e51cc7cbe641185c2f1a2e527c",
+    "skills/weekly-retro/SKILL.md": "835c30575ccea7a064d3caf3349aef9b258e1c1c8404dfdfaf5379ffb82ae7f8",
+    "skills/workflow-builder/SKILL.md": "1afb99c4641f9b8fa96f91060c2465fe865834c5635e958440d1eb7e0ebdc4b9"
+  }
+}

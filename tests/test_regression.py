@@ -175,7 +175,7 @@ class RegressionTests(unittest.TestCase):
 
     def test_skills_still_available(self):
         skills = skill_catalog.list_skills()
-        self.assertEqual({item["id"] for item in skills}, {"weekly-retro", "feishu-doc-writing", "github-repo-summary"})
+        self.assertTrue({"weekly-retro", "feishu-doc-writing", "github-repo-summary","workflow-builder"} <= {item["id"] for item in skills})
         self.assertTrue(all(item["body"].strip() for item in skills))
 
     def test_legacy_entry_resources_remain(self):

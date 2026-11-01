@@ -11,7 +11,7 @@
 PowerShell，在仓库根目录运行（output 必须是新的绝对目录）：
 
 ```powershell
-python scripts/prepare_runtime.py --atlas ../Atlas --output C:/Build/tebb-runtime
+python scripts/prepare_runtime.py --atlas ../Atlas --skills ../tebb-skills --output C:/Build/tebb-runtime
 python -m unittest discover -s tests -v
 cd client
 pnpm install --frozen-lockfile
@@ -68,3 +68,5 @@ python -m unittest discover -s tests -p test_atlas_runtime.py -v
 通知失败不回滚已发布版本，Actions 明确报失败。在 Actions → Release to Feishu → Run workflow，填写相同正式 tag，默认 reconcile=auto。若 pending 回执因权限不足无法自动核实，先人工检查群：确认存在卡片选择 confirmed_sent（只登记回执）；确认不存在才选择 confirmed_absent（补发）。其他状态不接受人工核实选项，避免把未经核实的失败当成成功。
 
 本地无副作用预览：`python scripts/notify_release.py --dry-run`。手动执行发送或核实时需要相同 Secrets 对应环境变量、`GH_TOKEN`（该仓库 contents:write），以及 `--tag vX.Y.Z`。不要把密钥放入命令参数或提交记录。
+
+官方技能通过 skills-source.json 固定独立 tebb-skills 提交；候选构建checkout该提交，只导出清单中的正文和LICENSE，provenance包含skills_repository和skills_commit。不得复制本机整个skills目录。冻结旧发布资产保持原样。

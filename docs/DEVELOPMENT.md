@@ -17,11 +17,13 @@
 需要 Python 3.11+、Node / pnpm、Rust、Tauri 的 Windows 构建依赖和 Atlas 源码。Atlas 仓库已公开，开发与发布仍固定到正式提交；CI 不需要额外 Atlas 读取凭据。普通体验可使用 Windows 便携版。
 
 ```powershell
-git clone https://github.com/liukun158959-beep/tebb.git
+git clone https://github.com/lkun-lea/tebb.git
 cd tebb
 $atlasSource = 'E:\path\to\Atlas'
 python -m pip install -e $atlasSource
 python -m pip install -e .
+git clone https://github.com/lkun-lea/tebb-skills.git ../tebb-skills
+python scripts/prepare_skills.py --source ../tebb-skills
 cd client
 pnpm install
 pnpm tauri dev
@@ -167,3 +169,12 @@ cargo check --locked
 ## 统一记忆与调用检查台（#217）
 
 当前聊天记忆入口为调用检查台，替换固定伙伴偏好弹窗及上次请求追加草稿的参考逻辑。领域选择复用 facts.py / memory_selection.py，检查、预览、试验及清理入口为 memory_inspector.py；Bridge 只分发 memory_debug，试验复用既有任务进程和调用追踪。首调用预览必须携带原输入框的模型、技能、附件和采样选项，并校验配置指纹；严禁用当前伙伴配置补造历史。完整协议、隔离命令、数据边界和验收见 [记忆重整](MEMORY_REDESIGN.md)。
+
+
+## 官方技能源码与自定义技能
+
+[tebb-skills](https://github.com/lkun-lea/tebb-skills) 单独管理官方内容，主仓 `skills-source.json` 是唯一固定提交及 SHA-256 清单。`skills/` 是显式准备的生成目录，同时允许本机自定义技能；不再在两个仓库独立维护正文。准备仅从固定 Git 对象导出，不采集工作树改动/未跟踪内容，不启动时联网，不将目录内的个人文件复制到发布包。
+
+`python scripts/prepare_skills.py --source ../tebb-skills` 可重复执行同一版本。发现正文编辑或其他版本时明确拒绝；请先备份自定义内容，导出到一个新目录（`--output <新目录>`）核对再自行替换，不自动覆盖用户技能。三个原有技能ID保留，另提供workflow-builder；Skill不能替伙伴扩权。发布构建也须提供 `prepare_runtime.py --skills <checkout>`，使用同一导出函数与许可，provenance记录实际提交。
+
+工作流、AI能力和调试接口见[工作流](WORKFLOWS.md)及[本批边界](WORKFLOW_EVOLUTION.md)。产品UI仍为中文，README提供中英切换。

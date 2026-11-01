@@ -4,9 +4,33 @@ from __future__ import annotations
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parents[1] / "skills"
+DEFAULT_SKILLS_DIR=SKILLS_DIR
+
+
+def validate_source_manifest(value):
+    import re
+    if not isinstance(value,dict) or value.get('repository')!='lkun-lea/tebb-skills' or not re.fullmatch('[a-f0-9]{40}',value.get('commit','')):raise ValueError('技能来源必须是官方仓库及完整固定提交。')
+    files=value.get('files')
+    if not isinstance(files,dict) or 'LICENSE' not in files or not any(k.startswith('skills/') for k in files):raise ValueError('技能来源清单缺失。')
+    for name,expected in files.items():
+        if name!='LICENSE' and not re.fullmatch(r'skills/[a-zA-Z0-9_-]{1,80}/SKILL\.md',name):raise ValueError('技能路径无效。')
+        if not isinstance(expected,str) or not re.fullmatch('[a-f0-9]{64}',expected):raise ValueError('技能摘要无效。')
+    return value
+
+
+def _verify_snapshot():
+    if SKILLS_DIR!=DEFAULT_SKILLS_DIR:return
+    import hashlib,json
+    source=SKILLS_DIR/'source.json'
+    if not source.is_file():raise RuntimeError('官方技能快照尚未准备。请按开发指南运行 scripts/prepare_skills.py；客户端不会自动下载。')
+    value=validate_source_manifest(json.loads(source.read_text('utf-8')))
+    for name,expected in value.get('files',{}).items():
+        path=SKILLS_DIR/name.removeprefix('skills/')
+        if not path.resolve().is_relative_to(SKILLS_DIR.resolve()) or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:raise RuntimeError('官方技能快照不完整或内容已变化；请导出到新目录核对，保留自定义技能。')
 
 
 def list_skills() -> list[dict]:
+    _verify_snapshot()
     if not SKILLS_DIR.is_dir():
         raise RuntimeError(
             f"没有技能目录 {SKILLS_DIR}。在 desk-companion/skills/<名>/SKILL.md 放入技能。"
@@ -43,6 +67,7 @@ def skill_turn_block(names: list) -> str:
 
 
 def read_skill(name: str) -> dict:
+    _verify_snapshot()
     if type(name) is not str or not name.strip():
         raise RuntimeError("技能名必须是非空字符串。")
     meta, body = _read_skill_file(name.strip())

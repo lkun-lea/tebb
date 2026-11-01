@@ -65,3 +65,7 @@ original notices are retained in licenses/supplemental/installer and in the
 generated dependency inventory. NSIS's COPYING describes its compression-module
 licenses separately; the application MIT license does not replace those terms.
 Exact component source locations and notice hashes are recorded alongside.
+
+## tebb official skills
+
+Official skill instructions are maintained at https://github.com/lkun-lea/tebb-skills under MIT. The product pins their exact commit and digests in skills-source.json. Packaged snapshots include skills/LICENSE and skills/source.json; the original copyright statement is preserved. Personal skills are not bundled.

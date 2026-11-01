@@ -55,6 +55,20 @@ jobs:
           ref: ${{ steps.atlas.outputs.sha }}
           path: .ci-atlas
           persist-credentials: false
+      - name: Read pinned skills commit
+        id: skills
+        shell: pwsh
+        run: |
+          $skillsRef = python -c "import json; print(json.load(open('skills-source.json'))['commit'])"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "sha=$skillsRef" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: lkun-lea/tebb-skills
+          ref: ${{ steps.skills.outputs.sha }}
+          path: .ci-skills
+          persist-credentials: false
+      - run: python scripts/prepare_skills.py --source .ci-skills
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
@@ -67,7 +81,7 @@ jobs:
         run: |
           python scripts/ci_checks.py version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/prepare_runtime.py --atlas .ci-atlas --output "$env:RUNNER_TEMP/tebb-runtime"
+          python scripts/prepare_runtime.py --atlas .ci-atlas --skills .ci-skills --output "$env:RUNNER_TEMP/tebb-runtime"
           exit $LASTEXITCODE
       - run: pnpm tauri build --no-bundle
         working-directory: client

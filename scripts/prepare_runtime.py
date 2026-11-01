@@ -37,6 +37,7 @@ def export_atlas(source, destination):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--atlas", type=Path, required=True)
+    parser.add_argument("--skills",type=Path,required=True,help="tebb-skills checkout containing the pinned commit")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--python-zip", type=Path)
     args = parser.parse_args()
@@ -68,9 +69,11 @@ def main():
         shutil.copy2(dll, runtime / dll.name)
     shutil.copytree(ROOT / "desk_companion", site / "desk_companion",
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log", "*.ready"))
-    shutil.copytree(ROOT / "skills", site / "skills", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
+    from scripts.skill_snapshot import export_snapshot
+    skills=export_snapshot(args.skills,site/'skills')
     ref = export_atlas(args.atlas, site)
-    provenance = {"python": VERSION, "python_sha256": SHA256, "atlas_commit": ref}
+    provenance = {"python": VERSION, "python_sha256": SHA256, "atlas_commit": ref,"skills_repository":skills['repository'],"skills_commit":skills['commit']}
     (output / "runtime-provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     run(str(runtime / "python.exe"), "-c", "from desk_companion.local_api.host import HeadlessApp; from atlas.llm.base import LLM; print('runtime imports OK')")
     lock = subprocess.check_output([str(runtime / "python.exe"), "-m", "pip", "freeze", "--all"], text=True)

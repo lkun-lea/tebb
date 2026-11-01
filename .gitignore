@@ -45,3 +45,7 @@ client/public/Core/
 
 # Local persona migration backup
 /user_state.before-tebb-persona.json
+
+# Explicitly prepared, pinned official skills and local custom skills.
+/skills/
+/.ci-skills/

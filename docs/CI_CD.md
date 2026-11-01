@@ -41,3 +41,5 @@ python scripts/ci_checks.py smoke-zip C:/path/to/package.zip 'C:/new/中文路�
 ci_checks test 必须有 Atlas 契约环境，不会因为未设置变量就默认跳过它。需要先将固定 Atlas 源码加入 PYTHONPATH 或按开发说明安装。后端测试仍依赖相应 Windows 组件；WSL/沙箱等专项仅按明确环境运行，实际跳过原因留在 JSON。自动检查不替代原生窗口的视觉与点击验收。
 
 故障定位按 job/步骤查看：Atlas 源码读取、依赖安装、版本校验、测试失败、打包审计、迁移 smoke、上传分别保留实际阶段。不得把授权或下载失败当作“未找到 Release”后继续创建，也不因为构建失败自动发送发布通知。
+
+官方技能独立仓库 lkun-lea/tebb-skills，由 skills-source.json 唯一锁定。CI及候选构建先checkout .ci-skills并调用prepare_skills；打包直接从该Git提交导出，不读取开发机skills工作树。公开仓库读取无需额外凭据，安装包离线携带正文、许可与来源快照。
