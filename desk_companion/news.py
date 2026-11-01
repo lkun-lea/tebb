@@ -370,6 +370,7 @@ def summarize(day, cfg, candidates, emit):
         "\"key_points\":[\"可核实技术要点1\",\"可核实技术要点2\"],\"value\":\"针对 tebb 工作台的具体试用步骤或实践建议，120字以内\","
         "\"caution\":\"许可证/开源范围/兼容性/硬件要求/尚未复现等局限，80字以内\"}]}。"
         "未公开许可证、代码或硬件要求时写未知；不要把只开源权重说成全部开源。英文原始标题必须提供准确中文翻译。"
+        "每条items的key_points必须是2至4条非空字符串的数组，不是5条，也不能使用对象；五条资讯与每条要点的数量是不同限制。"
         "不要硬凑来源、不生成Markdown或代码围栏。"},
         {"role": "user", "content": json.dumps({"day": day, "sources": candidates}, ensure_ascii=False)}]
     emit("status", "正在比较官方资料，筛选可落地的技术并整理摘要。")
@@ -398,7 +399,7 @@ def validate_report(value, candidates, limit):
         raise ReportValidationError("摘要未提供 5 条可核实重点，未发布。")
     index = {r["id"]: r for r in candidates}
     items, used, projects = [], set(), set()
-    for item in value["items"]:
+    for item_number,item in enumerate(value["items"],1):
         sid = item.get("source_id") if isinstance(item, dict) else None
         if sid not in index or sid in used:
             raise ReportValidationError("摘要引用了未知或重复来源，未发布。")
@@ -425,7 +426,8 @@ def validate_report(value, candidates, limit):
             raise ReportValidationError("摘要缺少足够详细的文档说明，未发布。")
         points = item.get("key_points")
         if not isinstance(points, list) or not 2 <= len(points) <= 4 or any(not isinstance(p, str) or not p.strip() for p in points):
-            raise ReportValidationError("摘要缺少可核实技术要点，未发布。")
+            count=str(len(points)) if isinstance(points,list) else type(points).__name__
+            raise ReportValidationError(f"第{item_number}条资讯的key_points必须是2–4条非空字符串组成的数组，当前为{count}；请仅按原始来源修正该字段，未发布。")
         clean["key_points"] = [p.strip()[:250] for p in points]
         items.append({**clean, **{k: row[k] for k in ("id", "title", "url", "published", "date_verified")}})
         items[-1].update(company=row.get("company", ""), region=row.get("region", ""))

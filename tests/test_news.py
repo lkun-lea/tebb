@@ -31,6 +31,20 @@ def fixture():
 
 
 class NewsTests(unittest.TestCase):
+    def test_report_repair_identifies_exact_key_points_count_without_relaxing_validation(self):
+        import copy
+        run=fixture();valid=dict(lead=run['report']['lead'],cover_title='真实技术进展',items=[dict(item,source_id=item['id']) for item in run['report']['items']])
+        invalid=copy.deepcopy(valid);invalid['items'][0]['key_points']=['要点']*5
+        with self.assertRaisesRegex(news.ReportValidationError,'第1条.*key_points.*2–4.*当前为5'):news.validate_report(invalid,run['report']['items'],5)
+        calls=[]
+        def chat(messages,_tools):
+            calls.append(copy.deepcopy(messages));return dict(message=dict(content=json.dumps(invalid if len(calls)==1 else valid,ensure_ascii=False)))
+        client=SimpleNamespace(chat=chat)
+        with patch('desk_companion.execution_context.ExecutionLLM',return_value=client),patch('desk_companion.model_catalog.require_active',return_value=dict(api_key='fixture',base_url='http://example.invalid',model='fixture')),patch('desk_companion.model_catalog.bind_llm'):
+            result=news.summarize(run['day'],dict(highlights=5),run['report']['items'],lambda *_:None)
+        self.assertEqual(len(result['items']),5);self.assertEqual(len(calls),2)
+        self.assertIn('2至4条',calls[0][0]['content']);self.assertIn('当前为5',calls[1][-1]['content'])
+
     def test_budget_denial_before_record_send_clears_only_the_new_pending_marker(self):
         from desk_companion.task_budgets import BudgetExceeded
         run=fixture();run['doc_url']='https://example.feishu.cn/docx/doc'

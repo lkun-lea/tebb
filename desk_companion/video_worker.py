@@ -91,9 +91,9 @@ def safe_caption_url(url, platform):
 def classify_error(text):
     text = str(text).lower()
     if any(x in text for x in ("sign in", "login", "cookies", "private", "members-only", "age-restricted", "403", "412", "429", "captcha", "bot")):
-        return "平台限制访问或需要登录。请在「看板 → 视频读取」打开平台登录窗口，完成登录后点击「使用此登录态」，再重试；登录后仍可能受到平台限流。"
+        return "平台限制访问或需要登录。请在「设置 → 连接与网络 → 视频」打开平台登录窗口，完成登录后点击「使用此登录态」，再重试；登录后仍可能受到平台限流。"
     if any(x in text for x in ("timeout", "timed out", "ssl", "tls", "proxy", "connection", "unreachable", "resolve")):
-        return "视频网络连接失败或超时。请在「看板 → 视频读取」检查网络代理设置后重试。"
+        return "视频网络连接失败或超时。请在「设置 → 连接与网络 → 视频」检查网络代理设置后重试。"
     return "无法读取这个视频，可能已删除、受地区限制或平台接口变动。请检查链接后重试。"
 
 
@@ -294,7 +294,7 @@ def retrieve(url, settings, emit):
             value.update(subtitle_status="unavailable", subtitle_notice="字幕读取失败。" + failure_reason + " 当前只能介绍标题、简介和章节。")
             emit({"status": "字幕未能读取，已保留视频信息。"})
         elif any("login" in w.lower() or "logged in" in w.lower() for w in warnings):
-            value.update(subtitle_status="login_required", subtitle_notice="平台要求登录才能读取字幕。请在「看板 → 视频读取」登录并使用此登录态；当前只能介绍标题、简介和章节。")
+            value.update(subtitle_status="login_required", subtitle_notice="平台要求登录才能读取字幕。请在「设置 → 连接与网络 → 视频」登录并使用此登录态；当前只能介绍标题、简介和章节。")
             emit({"status": "平台要求登录读取字幕，已保留视频信息。"})
         else:
             value["subtitle_notice"] = "没有可用的平台字幕。当前只能介绍标题、简介和章节，无法给出全片总结。"

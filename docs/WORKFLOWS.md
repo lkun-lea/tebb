@@ -13,6 +13,8 @@
 
 未编辑的空白图、示例和已保存流程可以直接切换；仅选中节点、缩放或无变化的画布通知不算修改。改名、修改配置、移动节点、调整连线或未提交的字段 JSON 才会提示放弃，取消会保留当前内容，恢复载入时的值后不再提示。新示例仍须明确保存才能执行，切换浏览不会自动创建任务或启用定时。关联修复 #224。
 
+2026-11-02 补充决策（#225/#226/#227，沿用全部推荐方案授权）：对齐辅助默认开启，单节点拖动显示边缘/中心参考线，8屏幕像素内吸附；Shift多选后可水平/竖直居中对齐，组合拖动不拆散相对位置。辅助开关、参考线与选择不持久化，实际坐标变化才算修改。专注画布复用原生WorkspaceDialog顶层及稳定portal容器，避开祖先裁剪与侧栏层叠，保留原画布、输入和草稿，Escape或退出按钮返回。实现依据：[React Flow 坐标层](https://reactflow.dev/api-reference/components/viewport-portal)、[React 稳定 portal 容器](https://react.dev/reference/react-dom/createPortal)。
+
 ## 能力与边界
 
 | 能力 | 输入 | 输出 |
@@ -91,6 +93,21 @@ python scripts/eval_agent.py --case workflow_authoring --limit 1 --samples 1 --t
 ```
 
 评测必须核对落盘能力、图引用、来源版本、布局、未发生工作流执行和认证父服务退出；不是HTTP成功或口头声称搭好。全部失败和超时保留。实际完成及未验证项记录于各关联issue。
+
+## 示例的真实场景验收（#227）
+
+`scripts/verify_workflow_scenarios.py` 沿用认证RPC→工作流服务→任务进程→原节点适配器，明确加`--live`才运行。先准备仅含选定模型连接、网络与容量设置的隔离bootstrap，不复制聊天、工作区、视频来源缓存或原有定时。每个输出目录必须全新，保留来源代码摘要、图/运行/任务编号、节点回执、实际模型调用与失败；退出核对服务/工作进程并删除临时凭据。
+
+```powershell
+$env:DESK_COMPANION_DATA_DIR='<仅含选定连接的隔离bootstrap>'
+python scripts/verify_workflow_scenarios.py --live --case tech-news --case video-notes --video-url 'https://www.youtube.com/watch?v=eIho2S0ZahI' --timeout 600 --output '<新结果目录>'
+```
+
+默认资讯图最多2次模型调用（一次生成、一次契约修正），视频图一次；不增加工作流或模型的既有执行预算，不为成功而注入候选或放宽校验。资讯须返回5条唯一来源且ID/URL绑定实际采集结果；视频须取得实际字幕、生成含时间点的笔记并说明部分覆盖。语义质量仍须对照来源审阅，这些检查不等于形式化事实证明。
+
+飞书用例为`feishu-document`、`feishu-base`、`feishu-message`。须先明确专用测试目标，私有`--write-targets` JSON只含profile及parent_token/chat_id/base_token/table_id/key_field/content_field，未提供的目标不会猜测。再显式加`--confirm-test-writes`，才会创建标题“tebb 工作流验收 2026-11-02”的文档或写入/发送“这是一条 tebb 工作流验收数据，不含业务内容。”。写后复用原reconcile只读核对远端回执及正文，未知结果不重发。未授权项记录pending，不能算通过；`--use-connected-video-login`仅按需复制产品内的DPAPI加密登录副本并在退出删除，不读取外部浏览器。
+
+2026-11-02实际结果：固定TED公开视频图一次真实模型调用完成，取得完整平台字幕、时间点笔记及覆盖说明；首次资讯图取得来源但两次返回每条5个key_points，违反2–4条约束而失败。已补齐系统提示与带条目编号/实际数量的修正反馈，保留原严格校验；修正后的新一轮默认图完成5条报告及实际来源绑定核对。两轮原始结果、失败和清理证据全部保留，没有以第二轮覆盖第一轮。飞书连接/权限/字段及机器人可见性只读预检具备，真实发布等待专用测试目标与确认。浏览器/原生人工点击与组件回归分开报告。
 
 ## 历史首版验收（2026-10-31，不能代替本批结果）
 
