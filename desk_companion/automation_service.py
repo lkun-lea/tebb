@@ -48,10 +48,13 @@ class AutomationService:
     def list_automation_jobs(self, seen=False):
         return self._call(lambda: self.seen() if seen else self.snapshot())
 
-    def save_automation_job(self, payload):
+    def save_automation_job(self, payload, *, _from_agent=False):
         def save():
-            with self._lock:
+            with self._lock, a.transaction():
                 self._admit()
+                if _from_agent:
+                    if not isinstance(payload,dict) or payload.get('action')!='tebb_task' or any(k.startswith('workflow_') or k=='confirm_writes' for k in payload):raise RuntimeError('伙伴只能保存原有AI目标规则；工作流发布与定时须在工作流界面明确确认。')
+                    if payload.get('id') and a._find(a.load_store(),payload['id'])['action']=='workflow':raise RuntimeError('不能通过旧自动化工具修改工作流计划。')
                 self._idle(str(payload.get('id') or '') if isinstance(payload, dict) else '')
                 if isinstance(payload, dict) and payload.get('action') == 'workflow':
                     from .workflow_graph import WRITES
@@ -69,16 +72,17 @@ class AutomationService:
                 return a.upsert_job(payload)
         return self._call(save, str(payload.get('id') or '') if isinstance(payload, dict) else '')
 
-    def delete_automation_job(self, job_id):
+    def delete_automation_job(self, job_id, *, _from_agent=False):
         def delete():
-            with self._lock:
+            with self._lock, a.transaction():
                 self._admit()
+                if _from_agent and a._find(a.load_store(),job_id)['action']=='workflow':raise RuntimeError('工作流计划请在工作流界面管理。')
                 self._idle(job_id)
                 return a.delete_job(job_id)
         return self._call(delete, job_id)
 
-    def run_automation_job(self, job_id, request_id=""):
-        return self._call(lambda: self.run_now(job_id, request_id), job_id)
+    def run_automation_job(self, job_id, request_id="", *, _from_agent=False):
+        return self._call(lambda: self.run_now(job_id, request_id,_from_agent=_from_agent), job_id)
 
     def _idle(self, job_id):
         if job_id and (job_id in self._active or job_id in self._news_active or job_id == self._running_job):
@@ -116,11 +120,12 @@ class AutomationService:
         job.update(last_result='queued', last_error='', alert_seen=True, execution=execution)
         return deepcopy(execution)
 
-    def run_now(self, job_id, request_id=""):
+    def run_now(self, job_id, request_id="", *, _from_agent=False):
         with self._lock, a.transaction():
             self._admit()
             store = a.load_store()
             job = a._find(store, str(job_id or '').strip())
+            if _from_agent and job['action']=='workflow':raise RuntimeError('伙伴不能通过旧自动化工具执行工作流发布；请在工作流界面明确运行。')
             previous=job.get('execution',{})
             if request_id and previous.get('request_id')==request_id:return dict(self.snapshot(),job_id=job['id'],execution=previous)
             if previous.get('phase')=='needs_input':raise RuntimeError('原任务待补充，请进入原AI执行补充或取消，不会重复派发。')

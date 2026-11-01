@@ -12,6 +12,10 @@ KINDS = {
     'read': ('读取网页', {'url': ''}, ('text', 'url', 'title', 'truncated')),
     'ai': ('AI 处理', {'prompt': '', 'model_id': ''}, ('text',)),
     'condition': ('条件', {'left': '', 'operator': 'not_empty', 'right': ''}, ('result',)),
+    'video': ('读取视频字幕', {'url': ''}, ('text', 'title', 'url', 'source_id', 'complete')),
+    'feishu_read': ('读取飞书文档', {'document_id': '', 'profile': ''}, ('text',)),
+    'news_sources': ('核实官方资讯来源', {'topics': 'AI agent 开源项目\n大厂模型 推理 工具', 'lookback_days': 3,'source_limit':8}, ('candidates', 'warnings', 'day')),
+    'news_report': ('整理资讯报告', {'candidates': '', 'day': ''}, ('text', 'report')),
     'document': ('创建飞书文档', {'title': '', 'content': '', 'parent_token': '', 'profile': ''}, ('document_id', 'url')),
     'base': ('写多维表格', {'base_token': '', 'table_id': '', 'fields': {}, 'key_field': '', 'profile': ''}, ('record_id',)),
     'message': ('发送群消息', {'chat_id': '', 'text': '', 'profile': ''}, ('message_id',)),
@@ -40,7 +44,7 @@ def validate(graph):
         raise ValueError('工作流需要 1–32 个节点，连线不超过 64 条。')
     result, by_id = {'nodes': [], 'edges': []}, {}
     for node in nodes:
-        if not isinstance(node, dict) or set(node) - {'id', 'kind', 'config', 'position'}:
+        if not isinstance(node, dict) or set(node) - {'id', 'kind', 'config', 'position', 'capability'}:
             raise ValueError('节点结构无效。')
         ident, kind, config = node.get('id'), node.get('kind'), node.get('config', {})
         if not isinstance(ident, str) or not IDENT.fullmatch(ident) or ident in by_id or kind not in KINDS:
@@ -56,9 +60,12 @@ def validate(graph):
             raise ValueError('节点单项文本不能超过 50000 字。')
         if kind == 'search' and not 1 <= config['limit'] <= 5:
             raise ValueError('每个搜索节点最多返回 5 条来源。')
+        if kind == 'news_sources' and (not 1 <= config['lookback_days'] <= 14 or not 1 <= len(config['topics'].splitlines()) <= 4):
+            raise ValueError('资讯来源需要1–4个主题及1–14天时间范围。')
+        if kind=='news_sources' and (not config['topics'].strip() or not 5<=config['source_limit']<=16):raise ValueError('资讯主题不能为空，候选核实上限为5–16条。')
         if kind == 'condition' and config['operator'] not in {'equals', 'contains', 'not_empty'}:
             raise ValueError('条件只支持等于、包含、非空。')
-        required = {'search': ['query'], 'read': ['url'], 'ai': ['prompt'], 'document': ['title', 'content'],
+        required = {'search': ['query'], 'read': ['url'], 'video': ['url'], 'feishu_read': ['document_id'], 'news_report': ['candidates','day'], 'ai': ['prompt'], 'document': ['title', 'content'],
                     'message': ['chat_id', 'text'], 'base': ['base_token', 'table_id', 'key_field']}.get(kind, [])
         if any(not config[key].strip() for key in required):
             raise ValueError(f'{ident} 缺少必填配置：{", ".join(required)}。')
@@ -68,13 +75,18 @@ def validate(graph):
             if config['key_field'] in config['fields']:
                 raise ValueError('去重字段由工作流写入稳定回执编号，不要同时填写。')
         # Targets/profile cannot be changed by an upstream model response.
-        for key in ('chat_id', 'base_token', 'table_id', 'key_field', 'parent_token', 'profile', 'model_id'):
+        for key in ('chat_id', 'base_token', 'table_id', 'key_field', 'parent_token', 'profile', 'model_id','document_id'):
             if key in config and ('{{' in config[key] or len(config[key]) > 300):
                 raise ValueError(f'{ident}.{key} 必须是确认过的固定目标，不能引用动态输出。')
-        position = node.get('position', {'x': 0, 'y': 0})
+        position = node.get('position', {'x': len(result['nodes'])*280, 'y': 0})
         if not isinstance(position, dict) or set(position) != {'x', 'y'} or any(type(v) not in {int, float} or not -100000 <= v <= 100000 for v in position.values()):
             raise ValueError('节点位置无效。')
         clean = dict(id=ident, kind=kind, config=config, position=position)
+        if 'capability' in node:
+            origin=node['capability']
+            if not isinstance(origin,dict) or set(origin)!={'id','version','name'} or any(not isinstance(v,str) or not 1<=len(v)<=100 for v in origin.values()):
+                raise ValueError('能力来源编号、版本和名称无效。')
+            clean['capability']=copy.deepcopy(origin)
         result['nodes'].append(clean)
         by_id[ident] = clean
     triggers = [n['id'] for n in result['nodes'] if n['kind'] == 'trigger']

@@ -29,7 +29,7 @@ RPC_METHODS = frozenset({
     'read_calendar_proposal',
     'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
     'task_completion_prepare','task_completion_confirm','task_completion_status','task_completion_inspect',
-    "load_work_board", "change_work_item", "tebb_operation", "project_operation", "project_environments_ui", "check_automation_execution",
+    "load_work_board", "change_work_item", "tebb_operation", "workflow_authoring", "project_operation", "project_environments_ui", "check_automation_execution",
     "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event",
     "load_local_calendar", "change_local_calendar", "calendar_sync_step",
     "load_collaboration", "collaboration_action", "project_workspace", "save_collaboration_note", "prepare_notebook_source", "get_report_chart",
@@ -180,7 +180,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             from ..agent_debug import context
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
-        if method.startswith(("terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
+        if method.startswith(("terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
                       "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
                       "export_notebook_markdown", "export_notebook_feishu", "open_notebook_file",
                       "reveal_notebook_file", "delete_notebook_file",

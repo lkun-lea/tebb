@@ -423,6 +423,12 @@ def record_progress(tool,arguments,result):
         try:result=json.loads(result)
         except (ValueError,TypeError):return
     if not isinstance(result,dict)or result.get('ok')is False or result.get('error'):return
+    if tool in {'capability_save','workflow_save'}:
+        artifact=result.get('capability' if tool=='capability_save' else 'definition',{})
+        if not isinstance(artifact,dict):artifact={}
+        identity,version=artifact.get('id'),artifact.get('version')
+        if isinstance(identity,str) and identity and isinstance(version,str) and len(version)==64 and all(c in '0123456789abcdef' for c in version):
+            scope.progress('authoring_artifact',tool+':'+identity,version)
     operation=result.get('operation')or{}
     if isinstance(operation,dict)and operation.get('state')in{'unknown','failed','cancelled','running'}:return
     from .web_sources import evidence_sources

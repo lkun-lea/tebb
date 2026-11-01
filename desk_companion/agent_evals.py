@@ -4,7 +4,7 @@ import math
 import time
 from .json_document import json_answer
 
-CONTRACT_VERSION=23
+CONTRACT_VERSION=24
 
 
 class CancellationNotSettled(TimeoutError):
@@ -166,6 +166,9 @@ CASES.append(case('memory_trial','memory','仅根据本轮已经提供的生效�
     dict(code='Maple-217'),executor='memory',scenario='trial',budget=2))
 
 
+CASES.append(case('workflow_authoring','authoring','这是隔离的合成搭建验收。请实际发现能力目录，新建一个AI文字提取原子能力：参数名text，模板引用{{input.text}}，模型条目留空；然后使用该能力实例化名为extract的节点，参数text引用{{trigger.text}}，放在x=300,y=0。新建且只保存一份包含trigger→extract两节点的工作流草稿，触发节点放在x=0,y=0。请读取保存后的图核对id/version。不要运行、启用定时或向外部发布。最后只输出JSON对象draft_saved=true。',dict(draft_saved=True),executor='authoring',kind='task',tools=['自动化工作流'],budget=8,required_tools=['workflow_catalog','capability_save','capability_instantiate','workflow_save','workflow_load']))
+
+
 def evaluate(spec, task, *, verification=None):
     """Queue success alone cannot establish semantic success."""
     events=task.get('events',[])
@@ -186,6 +189,7 @@ def evaluate(spec, task, *, verification=None):
             return ('timed_out' if chain_state=='timed_out' else 'failed'),evidence
         if state=='cancelled' and spec.get('scenario')!='cancel':return 'cancelled',evidence
         return ('needs_input' if state=='needs_input' else 'timed_out' if state=='timed_out' else 'false_success' if state in {'succeeded','cancelled'} else 'failed'),evidence
+    if spec.get('executor')=='authoring':evidence['verification']=verification
     if task.get('state')!='succeeded':
         return ('cancelled' if task.get('state')=='cancelled' else 'timed_out' if task.get('state')=='timed_out' else 'failed'), evidence
     if spec.get('executor'):

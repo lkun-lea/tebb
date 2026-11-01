@@ -27,6 +27,10 @@ class Bridge:
     def automation_workflow(self, operation, payload=None):
         return self._host.automation.workflows.operation(operation, payload)
 
+    def workflow_authoring(self,run_id,tool,payload,call_id='',task_id=''):
+        from .workflow_tools import execute
+        return execute(self._host,run_id,tool,payload,call_id,task_id)
+
     def tebb_operation(self, run_id, tool, args):
         from .tebb_operations import execute
         return execute(self._host, run_id, tool, args)

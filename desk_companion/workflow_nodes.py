@@ -90,6 +90,42 @@ def preflight(kind, config):
 
 
 def execute(kind, config, receipt_key, emit, request):
+    if kind == 'video':
+        from . import video
+        session='workflow-'+receipt_key
+        result=video.read_video(session,config['url'],False,lambda text:emit('status',text))
+        source=video.get_source(session,result['source_id'])
+        if source.get('subtitle_status')!='available' or not source.get('segments'):
+            raise ValueError('未取得可用字幕；不能仅凭标题生成学习笔记。请在设置检查视频登录或改用有字幕视频。')
+        lines=[];size=0
+        for segment in source['segments']:
+            line=f"[{video.timestamp(segment['start'])}] {segment['text']}"
+            if size+len(line)>50000:break
+            lines.append(line);size+=len(line)
+        complete=len(lines)==len(source['segments']) and not source.get('truncated',False)
+        return dict(text='\n'.join(lines),title=source.get('title',''),url=source['url'],source_id=source['source_id'],complete=complete)
+    if kind == 'feishu_read':
+        data=cli(config,['docs','+fetch','--doc',config['document_id']])
+        return dict(text=json.dumps(data,ensure_ascii=False))
+    if kind == 'news_sources':
+        from . import news
+        from datetime import datetime,timedelta,date
+        from .memory import TZ
+        day=datetime.now(TZ).date().isoformat()
+        from .workflows import WorkflowStore
+        since=(date.fromisoformat(day)-timedelta(days=config['lookback_days'])).isoformat()
+        published=WorkflowStore().published_news(since,day)
+        candidates,warnings=news.collect(day,dict(topics=[s.strip() for s in config['topics'].splitlines() if s.strip()],lookback_days=config['lookback_days']),emit,max_sources=config['source_limit'],published=published)
+        if len(candidates)<5:raise ValueError('可核实官方来源少于5条，未生成完整日报；请调整主题或时间范围。')
+        return dict(candidates=candidates,warnings=warnings,day=day)
+    if kind == 'news_report':
+        from . import news
+        from datetime import date
+        date.fromisoformat(config['day'])
+        candidates=json.loads(config['candidates'])
+        if not isinstance(candidates,list) or not 5<=len(candidates)<=32:raise ValueError('需要5–32条已核实来源。')
+        report=news.summarize(config['day'],dict(highlights=5),candidates,emit)
+        return dict(text=news.markdown_report(dict(day=config['day'],report=report)),report=report)
     if kind == 'trigger':
         return dict(text=request.get('workflow_input', {}).get('text', config['text']))
     if kind == 'search':

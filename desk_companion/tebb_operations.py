@@ -7,7 +7,7 @@ def execute(host,run_id,tool,args):
     try:
         with host.collaboration.lock,transaction(host.collaboration.path) as (state,_):
             run=next((r for r in state['runs'] if r['id']==run_id),None)
-            if not run or run['agent']!='tebb' or run['state'] not in ACTIVE:
+            if not run or run['agent']!='tebb' or run['state'] not in ACTIVE or run['state']=='cancelling':
                 raise ValueError('tebb执行已结束或身份不匹配。')
             project_id=run.get('workspace',{}).get('project_id','')
         args=copy.deepcopy(args)
@@ -28,10 +28,10 @@ def execute(host,run_id,tool,args):
         if tool=='automation_save':
             payload=args['payload'];payload.setdefault('project_id',project_id);payload.setdefault('agent_id','tebb');payload.setdefault('doc','')
             payload['operation_id']='tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50]
-            return host.automation.save_automation_job(payload)
+            return host.automation.save_automation_job(payload,_from_agent=True)
         if tool=='automation_manage':
-            if args['action']=='delete':return host.automation.delete_automation_job(args['job_id'])
-            if args['action']=='run':return host.automation.run_automation_job(args['job_id'],'tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50])
+            if args['action']=='delete':return host.automation.delete_automation_job(args['job_id'],_from_agent=True)
+            if args['action']=='run':return host.automation.run_automation_job(args['job_id'],'tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50],_from_agent=True)
             if args['action']=='check':return host.automation.check_agent_execution(args['job_id'])
         raise ValueError('不支持的tebb能力。')
     except Exception as exc:return dict(ok=False,error=str(exc),stage='tebb_operation')

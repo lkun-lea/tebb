@@ -269,7 +269,8 @@ def fetch_source(url):
     return {"text": " ".join(page.parts)[:6000], "published": page.published}
 
 
-def collect(day, cfg, progress):
+def collect(day, cfg, progress, *, max_sources=32, published=()):
+    if type(max_sources) is not int or not 1<=max_sources<=32:raise ValueError('来源核实数量须为1–32。')
     from .web_search import search_sources, format_search
     since = (date.fromisoformat(day) - timedelta(days=cfg["lookback_days"])).isoformat()
     candidates = []
@@ -278,6 +279,7 @@ def collect(day, cfg, progress):
     recent = {(i["url"], i.get("published", "")) for r in list_runs()
               if r.get("status") in {"published", "archived"} and since <= r["day"] < day
               for i in (r.get("report") or {}).get("items", [])}
+    recent.update(published)
     def search(query):
         value = search_sources(query,
                       on_status=lambda x: progress("status", x))
@@ -302,8 +304,9 @@ def collect(day, cfg, progress):
     verified = []
     # 企业官方页面与官方仓库优先，避免泛学术搜索占满核实预算。
     candidates.sort(key=lambda row: not bool(company_for(row["url"])))
-    for index, row in enumerate(candidates[:32]):
-        progress("status", f"正在核实官方来源 {index+1}/{min(len(candidates),32)}：{row['title'][:60]}。")
+    if len(candidates)>max_sources:warnings.append(f'本轮最多核实{max_sources}条候选，其他候选未读取。')
+    for index, row in enumerate(candidates[:max_sources]):
+        progress("status", f"正在核实官方来源 {index+1}/{min(len(candidates),max_sources)}：{row['title'][:60]}。")
         try:
             page = phase(progress, "tool", "news_read_source", lambda: fetch_source(row["url"]))
             row["body"] = page["text"][:6000]

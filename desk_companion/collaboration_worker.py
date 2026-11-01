@@ -276,6 +276,9 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             from .log_tools import ERROR_LOG_SPEC
             for spec in (AGENDA_SPEC,TASKS_SPEC,RECENT_SPEC,ROADMAP_SPEC,STATUS_SPEC,ERROR_LOG_SPEC,REPOSITORY_SPEC):
                 extra[spec['name']] = dict(type='function',function={k:spec[k] for k in ('name','description','parameters')}, implementation=spec['func'],read_only=True)
+    if kind=='task' and (role.get('id')=='tebb' or '自动化工作流' in permissions):
+        from .workflow_tools import specs as workflow_specs
+        for spec in workflow_specs(request):extra[spec['function']['name']]=spec
     if kind=='task' and role.get('id')=='tebb':
         from .tebb_tools import specs as tebb_specs
         for spec in tebb_specs(request):extra[spec['function']['name']]=spec
@@ -380,7 +383,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         if name == 'workspace_run':
             try: wait['phase_timeout'] = min(120, max(1, int(arguments.get('timeout',90)))) + 20
             except (ValueError, TypeError): pass
-        if name in {'calendar_change','automation_save','automation_manage'} or name in TOOL_OPERATIONS:
+        from .workflow_tools import TOOLS as WORKFLOW_TOOLS
+        if name in {'calendar_change','automation_save','automation_manage'} or name in TOOL_OPERATIONS or name in WORKFLOW_TOOLS:
             arguments['_call_id']=call_id
         emit('tool_start',dict(tool=name,read_only=extra[name].get('read_only',name not in {'workspace_write','workspace_run'}),query=arguments.get('path') or arguments.get('command',''),**wait))
         try:

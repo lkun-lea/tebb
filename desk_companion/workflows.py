@@ -41,6 +41,8 @@ class WorkflowStore:
                 CREATE TABLE IF NOT EXISTS receipts(run TEXT, node TEXT, kind TEXT, state TEXT, input TEXT,
                     output TEXT, error TEXT, started REAL, ended REAL, receipt_key TEXT, PRIMARY KEY(run,node));
             ''')
+            from .workflow_capabilities import initialize
+            initialize(db)
 
     @contextmanager
     def db(self, write=False):
@@ -84,7 +86,16 @@ class WorkflowStore:
         if not isinstance(ident, str) or len(ident) > 100:
             raise ValueError('工作流编号无效。')
         raw, digest = json.dumps(graph, ensure_ascii=False), version(graph)
+        operation=payload.get('operation_id','')
+        import hashlib
+        fingerprint=hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        if operation and (not isinstance(operation,str) or len(operation)!=32 or any(c not in '0123456789abcdef' for c in operation)):raise ValueError('保存操作编号无效。')
         with self.db(True) as db:
+            if operation:
+                prior=db.execute('SELECT digest,result FROM workflow_operations WHERE id=?',(operation,)).fetchone()
+                if prior:
+                    if prior[0]!=fingerprint:raise ValueError('保存操作编号已用于不同图。')
+                    return json.loads(prior[1])
             row = db.execute('SELECT revision FROM definitions WHERE id=?', (ident,)).fetchone()
             if row and payload.get('revision') != row['revision']:
                 raise ValueError('工作流已被其他窗口修改，请读取最新版本；当前草稿保留。')
@@ -96,6 +107,9 @@ class WorkflowStore:
             except sqlite3.IntegrityError:
                 raise ValueError('已有同名工作流，请修改名称。') from None
             db.execute('INSERT OR IGNORE INTO versions VALUES(?,?,?)', (ident, digest, raw))
+            if operation:
+                saved=dict(db.execute('SELECT * FROM definitions WHERE id=?',(ident,)).fetchone());saved['graph']=graph
+                db.execute('INSERT INTO workflow_operations VALUES(?,?,?)',(operation,fingerprint,json.dumps(saved,ensure_ascii=False)))
         return self.definition(ident)
 
     def runs(self, ident=''):
@@ -103,6 +117,20 @@ class WorkflowStore:
             rows = db.execute('SELECT id,workflow,version,name,state,mode,attempt,task_id,created,updated,error FROM runs '
                               + ('WHERE workflow=? ' if ident else '') + 'ORDER BY created DESC LIMIT 100', (ident,) if ident else ())
             return [dict(row) for row in rows]
+
+    def published_news(self,since,day):
+        """Known publication only: confirmed writes that actually contain a report URL."""
+        import re
+        published=set()
+        with self.db() as db:
+            reports=db.execute("SELECT run,input,output FROM receipts WHERE kind='news_report' AND state='confirmed' AND json_extract(input,'$.day')>=? AND json_extract(input,'$.day')<=?",(since,day)).fetchall()
+            for row in reports:
+                writes=db.execute("SELECT input FROM receipts WHERE run=? AND kind IN ('document','base','message') AND state='confirmed'",(row['run'],)).fetchall()
+                actual='\n'.join(value['input'] for value in writes)
+                report=json.loads(row['output']).get('report',{})
+                for item in report.get('items',[]):
+                    if item.get('url') and re.search(re.escape(item['url'])+r'(?=$|[\s\\"<>\]\[{}()])',actual):published.add((item['url'],item.get('published','')))
+        return published
 
     def run(self, ident):
         with self.db() as db:
@@ -209,11 +237,20 @@ class WorkflowService:
         if not isinstance(payload, dict):
             raise ValueError('工作流参数须为对象。')
         if operation == 'catalog':
-            return dict(nodes=[dict(kind=k, label=v[0], defaults=v[1], outputs=v[2], writes=k in WRITES) for k, v in KINDS.items()])
+            from .workflow_capabilities import listing
+            return dict(nodes=[dict(kind=k, label=v[0], defaults=v[1], outputs=v[2], writes=k in WRITES) for k, v in KINDS.items()],capabilities=listing(self.store))
+        if operation in {'capability_save','capability_load','capability_instantiate'}:
+            from . import workflow_capabilities as caps
+            if operation=='capability_save':return dict(capability=caps.save(self.store,payload))
+            if operation=='capability_load':return dict(capability=caps.load(self.store,payload['id'],payload.get('version','')))
+            return dict(node=caps.instantiate(self.store,payload))
+        if operation=='templates':
+            from .workflow_templates import templates
+            return dict(templates=templates())
         if operation == 'list':
             return dict(definitions=self.store.definitions(), runs=self.store.runs(payload.get('id', '')))
         if operation == 'load':
-            return dict(definition=self.store.definition(payload['id']))
+            return dict(definition=self.store.definition(payload['id'],payload.get('version','')))
         if operation == 'validate':
             graph, order = validate(payload.get('graph'))
             return dict(graph=graph, order=order, version=version(graph))
@@ -222,6 +259,12 @@ class WorkflowService:
             graph, _ = validate(payload.get('graph'))
             return dict(targets=[dict(node=n['id'], kind=n['kind'], **preflight(n['kind'], n['config'])) for n in graph['nodes'] if n['kind'] in WRITES])
         if operation == 'save':
+            from .workflow_capabilities import load
+            graph,_=validate(payload.get('graph'))
+            for node in graph['nodes']:
+                if node.get('capability'):
+                    source=load(self.store,node['capability']['id'],node['capability']['version'])
+                    if source['kind']!=node['kind'] or source['name']!=node['capability']['name']:raise ValueError('能力来源与节点不一致。')
             return dict(definition=self.store.save(payload))
         if operation == 'start':
             if not payload.get('version'):
@@ -247,6 +290,7 @@ class WorkflowService:
             return dict(run=self.observe(run['id']))
         if operation == 'advance':
             run = self.observe(payload['run_id'])
+            if payload.get('expected_attempt') is not None and (type(payload['expected_attempt']) is not int or payload['expected_attempt']!=run['attempt']):raise ValueError('原执行阶段已变化，请重新读取并确认当前节点。')
             if run['state'] not in {'paused', 'failed', 'interrupted', 'cancelled', 'waiting_approval'}:
                 raise ValueError('执行正在运行、已完成或结果未知；未知写入须先核对，不会重放。')
             graph, order = validate(run['graph'])

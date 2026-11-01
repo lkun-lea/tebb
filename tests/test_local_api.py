@@ -385,6 +385,16 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         local=await self.notebook_rpc('load_local_calendar');self.assertEqual(sum(e['local_id']==proposal['id']for e in local['events']),1)
         result=await self.notebook_rpc('tebb_operation',run_id=root['id'],tool='automation_save',args=dict(_call_id='auto-one',payload=dict(name='每日学习',action='tebb_task',goal='整理学习计划',cadence='daily',weekdays=[],hour=9,minute=0,enabled=False)))
         self.assertTrue(result['ok'],result)
+        draft=await self.notebook_rpc('automation_workflow',operation='save',payload=dict(name='仅草稿',graph=dict(nodes=[dict(id='trigger',kind='trigger',config=dict(text='hello'))],edges=[])))
+        self.assertTrue(draft['ok'],draft)
+        definition=draft['definition']
+        plan=dict(name='不得从旧工具启用',action='workflow',enabled=True,cadence='daily',hour=9,minute=0,weekdays=[],doc='',workflow_id=definition['id'],workflow_version=definition['version'],workflow_write_version=definition['version'])
+        blocked=await self.notebook_rpc('tebb_operation',run_id=root['id'],tool='automation_save',args=dict(_call_id='forged-workflow',payload=plan))
+        self.assertFalse(blocked['ok'],blocked)
+        saved_plan=await self.notebook_rpc('save_automation_job',payload=dict(plan,enabled=False))
+        self.assertTrue(saved_plan['ok'],saved_plan)
+        blocked=await self.notebook_rpc('tebb_operation',run_id=root['id'],tool='automation_manage',args=dict(_call_id='forged-run',action='run',job_id=saved_plan['job_id']))
+        self.assertFalse(blocked['ok'],blocked)
         refused=await self.notebook_rpc('tebb_operation',run_id='missing',tool='calendar_change',args=dict(_call_id='nope',action=dict(type='delete')))
         self.assertFalse(refused['ok'])
 

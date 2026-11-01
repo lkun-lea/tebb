@@ -65,6 +65,22 @@ class Fixture(BaseHTTPRequestHandler):
                 if scenario=='incomparable':evidence=[dict(source_id=m['id'],quote=m['segments'][0][:500])for m in material if m['level']=='body']
             delta=dict(content=json.dumps(dict(requirements=[dict(requirement='模拟交付检查',dimension=dimension,status=status,
                 reason='受控模拟审阅，不构成真实语义验收',evidence=evidence)]),ensure_ascii=False))
+        elif executor=='authoring':
+            invoked=[c['function']['name'] for m in request['messages'] for c in m.get('tool_calls',[])]
+            values=[]
+            for receipt in receipts:
+                try:values.append(json.loads(receipt.get('content','{}')))
+                except (ValueError,TypeError):pass
+            cap=next((v['capability'] for v in values if isinstance(v,dict) and v.get('capability')),None)
+            node=next((v['node'] for v in values if isinstance(v,dict) and v.get('node')),None)
+            definition=next((v['definition'] for v in values if isinstance(v,dict) and v.get('definition')),None)
+            if 'start_background_task' in available:delta=tool('start_background_task',dict(instructions=spec['prompt'],strategy='direct'))
+            elif 'workflow_catalog' not in invoked:delta=tool('workflow_catalog',dict(payload={}))
+            elif not cap:delta=tool('capability_save',dict(payload=dict(name='合成文字提取'+uuid.uuid4().hex[:8],kind='ai',template=dict(prompt='提取条目：{{input.text}}',model_id=''),parameters=dict(text=''))))
+            elif not node:delta=tool('capability_instantiate',dict(payload=dict(id=cap['id'],version=cap['version'],node_id='extract',arguments=dict(text='{{trigger.text}}'),position=dict(x=300,y=0))))
+            elif not definition:delta=tool('workflow_save',dict(payload=dict(name='合成搭建'+uuid.uuid4().hex[:8],graph=dict(nodes=[dict(id='trigger',kind='trigger',config={},position=dict(x=0,y=0)),node],edges=[dict(source='trigger',target='extract',branch='')]))))
+            elif 'workflow_load' not in invoked:delta=tool('workflow_load',dict(payload=dict(id=definition['id'])))
+            else:delta=dict(content=json.dumps(dict(draft_saved=True)))
         elif executor=='memory':
             body=json.dumps(request['messages'],ensure_ascii=False)
             code='Maple-217' if 'Maple-217' in body else 'Cedar-217' if 'Cedar-217' in body else 'unknown'
@@ -239,7 +255,7 @@ def main():
             'desk_companion/task_worker.py','desk_companion/collaboration_worker.py',
             'desk_companion/collaboration_llm.py','desk_companion/workflow_worker.py','desk_companion/workflow_nodes.py',
             'desk_companion/local_calendar.py','desk_companion/tebb_tools.py','desk_companion/collaboration.py',
-            'desk_companion/agent_eval_memory.py','desk_companion/memory_selection.py','desk_companion/memory_inspector.py','desk_companion/context_sources.py','desk_companion/facts.py',
+            'desk_companion/agent_eval_memory.py','desk_companion/agent_eval_authoring.py','desk_companion/workflow_tools.py','desk_companion/workflow_capabilities.py','desk_companion/workflow_templates.py','desk_companion/workflows.py','desk_companion/workflow_graph.py','desk_companion/memory_selection.py','desk_companion/memory_inspector.py','desk_companion/context_sources.py','desk_companion/facts.py',
             'desk_companion/agent_eval_tools.py','desk_companion/agent_eval_lifecycle.py','desk_companion/calendar_proposals.py','scripts/eval_fixture_worker.py',
             'desk_companion/research_tools.py','desk_companion/readonly_research.py','desk_companion/agent_eval_research.py','scripts/eval_readonly_worker.py',
             'desk_companion/agent_eval_projects.py','scripts/eval_project_host.py','scripts/eval_project_fixture.py',
@@ -304,6 +320,12 @@ def main():
                     row['task_ids']=task_ids;task_id=task_ids[0]if task_ids else''
                     expired=verification.get('deadline_exceeded',False)
                     row['project_case']=verification
+                elif spec.get('executor')=='authoring':
+                    from desk_companion.agent_eval_authoring import execute
+                    def progress(value):row.update(value);save()
+                    task,verification,task_ids,calls=execute(spec,profile=profile,workspace=workspace,model_id=model['id'],timeout=args.timeout,command=command,progress=progress)
+                    row['task_ids']=task_ids;task_id=task_ids[0] if task_ids else ''
+                    expired=verification['deadline_exceeded']
                 elif spec.get('executor')=='memory':
                     from desk_companion.agent_eval_memory import execute
                     def progress(value):row.update(value);save()
@@ -331,15 +353,15 @@ def main():
                 else:
                     task_id=manager.submit(context['prompt'],'eval-'+run_id,'collaboration',workflow='collaboration',kind=spec.get('kind','chat'),role=dict(id='research',name='验收助手',role='按实际输入完成可验证任务',tools=spec.get('tools',[])),selection=context['selection'],context=context.get('history',[]),members=[],model_id=model['id'],collab_run=run_id,collab_path=str(workspace),budget=spec.get('budget',2),search_budget=0,fetch_budget=spec.get('fetch_budget',0),task_limits=dict(call_timeout=min(args.timeout,90),task_timeout=args.timeout),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),**context.get('request_extra',{}))
                 row['task_id']=task_id;save()
-                if not lifecycle and not project and spec.get('executor')!='memory':row['task_ids']=[task_id]
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:row['task_ids']=[task_id]
                 row['stage']='wait'
-                if not lifecycle and not project and spec.get('executor')!='memory':task,expired=wait_task(manager,task_id,started+args.timeout)
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:task,expired=wait_task(manager,task_id,started+args.timeout)
                 row['deadline_exceeded']=expired
                 if spec['category']=='workflow':
                     observed=service.operation('get',dict(run_id=run['id']))['run']
                     row['node_states']={k:v['state'] for k,v in observed['receipts'].items()}
                     task={**task,'answer':observed['receipts'].get('ai',{}).get('output',{}).get('text','')}
-                if not lifecycle and not project and spec.get('executor')!='memory':verification=verify(spec,task,context)
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:verification=verify(spec,task,context)
                 row['stage']='verify'
                 outcome,evidence=evaluate(spec,task,verification=verification)
                 if expired:outcome='timed_out'
