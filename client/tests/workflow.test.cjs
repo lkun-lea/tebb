@@ -2,8 +2,9 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),ts=require('typescript'),React=require('react');
 const {act,create}=require('react-test-renderer');
-function compile(file,imports={}){const filename=path.resolve(__dirname,'../src/client/'+file),mod=new Module(filename,module);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));const original=mod.require.bind(mod);mod.require=id=>id in imports?imports[id]:id.endsWith('.css')?{}:original(id);mod._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,filename);return mod.exports;}
+function compile(file,imports={}){const filename=path.resolve(__dirname,'../src/client/'+file),mod=new Module(filename,module);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));const original=mod.require.bind(mod);mod.require=id=>{if(id in imports)return imports[id];if(id.endsWith('.css'))return{};const local=id.startsWith('./')&&['.tsx','.ts'].find(extension=>fs.existsSync(path.resolve(path.dirname(filename),id+extension)));return local?compile(id.slice(2)+local,imports):original(id);};mod._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,filename);return mod.exports;}
 const state=compile('workflow-state.ts');
+const alignment=compile('workflow-alignment.ts');
 
 async function draftEditor(){
   const graph={nodes:[{id:'trigger',kind:'trigger',config:{text:''},position:{x:70,y:70}},{id:'ai',kind:'ai',config:{prompt:'{{trigger.text}}',model_id:''},position:{x:350,y:70}}],edges:[{source:'trigger',target:'ai',branch:''}]};
@@ -12,7 +13,7 @@ async function draftEditor(){
   const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false},{kind:'ai',label:'AI处理',defaults:{prompt:'',model_id:''},outputs:['text'],writes:false},{kind:'base',label:'表格',defaults:{fields:{内容:'{{trigger.text}}'},base_token:'b',table_id:'t',key_field:'receipt',profile:''},outputs:['record_id'],writes:true}];
   const rpc=async(_info,_method,{operation,payload}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions,runs:[]}:operation==='templates'?{ok:true,templates}:operation==='load'?{ok:true,definition:definitions.find(d=>d.id===payload.id)}:operation==='save'?{ok:true,definition:{...payload,id:'saved-copy',revision:1,version:'c'.repeat(64)}}:{ok:true};
   const {applyNodeChanges}=require('@xyflow/react');
-  const flow={ReactFlow:props=>React.createElement('div',null,props.children),ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,changes=>set(current=>applyNodeChanges(changes,current))];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,fitView(){}})};
+  const flow={ReactFlow:props=>React.createElement('div',null,props.children),ViewportPortal:({children})=>children,ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,changes=>set(current=>applyNodeChanges(changes,current))];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,getZoom:()=>1,fitView(){}})};
   const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:()=>null},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
   const previous=global.window,confirms=[];global.window={setInterval:()=>1,clearInterval(){},confirm:message=>{confirms.push(message);return false;}};let view;
   await act(async()=>{view=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'fixture'}}));});
@@ -30,6 +31,37 @@ test('untouched examples and saved workflows switch without a discard prompt, in
     assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'已保存二');assert.equal(ui.confirms.length,0);
     await ui.choose('示例工作流','one');await act(async()=>ui.button('保存工作流').props.onClick());
     await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,0);
+  }finally{ui.close();}
+});
+
+test('alignment snaps closest measured edges and centers within screen pixels, and excludes a selected group',()=>{
+  const anchor={id:'anchor',position:{x:300,y:100},measured:{width:200,height:80}};
+  const moving={id:'moving',position:{x:307,y:105},measured:{width:100,height:60}};
+  const snapped=alignment.snapAlignment(moving,[anchor]);assert.equal(snapped.position.x,300);assert.equal(snapped.position.y,100);assert.equal(snapped.guides.length,2);
+  assert.equal(alignment.snapAlignment({...moving,position:{x:316,y:500}},[anchor],.5).position.x,300);
+  assert.equal(alignment.snapAlignment({...moving,position:{x:307,y:500}},[anchor],2).position.x,307);
+  assert.deepEqual(alignment.snapAlignment(moving,[{...anchor,selected:true}]).position,moving.position);
+  const nodes=[{...anchor,selected:true},{...moving,selected:true},{id:'fixed',position:{x:900,y:800}}];
+  const horizontal=alignment.alignSelection(nodes,'horizontal');assert.equal(horizontal[0].position.y+40,horizontal[1].position.y+30);assert.equal(horizontal[0].position.x,300);assert.strictEqual(horizontal[2],nodes[2]);
+  const vertical=alignment.alignSelection(nodes,'vertical');assert.equal(vertical[0].position.x+100,vertical[1].position.x+50);assert.equal(vertical[1].position.y,105);
+  assert.strictEqual(alignment.alignSelection([anchor],'vertical')[0],anchor);
+});
+
+test('canvas drag guides snap while dragging and on release; alignment toggle and group controls keep drafts valid',async()=>{
+  const ui=await draftEditor();
+  try{
+    await ui.choose('示例工作流','one');
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:347,y:75},dragging:true}]));
+    assert.deepEqual(ui.canvas().nodes[0].position,{x:350,y:70});assert.equal(ui.view.root.findAllByType('line').length,2);
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:348,y:74},dragging:false}]));
+    assert.deepEqual(ui.canvas().nodes[0].position,{x:350,y:70});assert.equal(ui.view.root.findAllByType('line').length,0);
+    const checkbox=ui.view.root.findAllByType('input').find(n=>n.props.type==='checkbox');act(()=>checkbox.props.onChange({target:{checked:false}}));
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:347,y:75},dragging:true}]));assert.deepEqual(ui.canvas().nodes[0].position,{x:347,y:75});
+    act(()=>ui.canvas().onNodesChange([{type:'select',id:'trigger',selected:true},{type:'select',id:'ai',selected:true}]));
+    assert.equal(ui.button('水平对齐').props.disabled,false);act(()=>ui.button('水平对齐').props.onClick());
+    assert.equal(ui.canvas().nodes[0].position.y,ui.canvas().nodes[1].position.y);assert.equal(ui.canvas().edges.length,1);assert.equal(ui.canvas().nodes[1].data.config.prompt,'{{trigger.text}}');
+    act(()=>ui.button('竖直对齐').props.onClick());assert.equal(ui.canvas().nodes[0].position.x,ui.canvas().nodes[1].position.x);
+    await act(async()=>ui.button('保存工作流').props.onClick());await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,0);
   }finally{ui.close();}
 });
 
