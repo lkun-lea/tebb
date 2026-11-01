@@ -5,15 +5,17 @@
   const retry = document.getElementById("startup-retry");
   if (!panel || !status || !retry) return;
   let finished = false;
+  let failed = false;
   let stage = status.textContent;
   let slow = false;
   const slowTimer = setTimeout(() => {
     slow = true;
-    if (!finished) status.textContent = `${stage}\n首次启动可能需要多等一会儿。`;
+    if (!finished && !failed) status.textContent = `${stage}\n首次启动可能需要多等一会儿。`;
   }, 12000);
 
   function fail(message) {
-    if (finished) return;
+    if (finished || failed) return;
+    failed = true;
     clearTimeout(slowTimer);
     panel.dataset.state = "error";
     panel.setAttribute("aria-live", "assertive");
@@ -34,7 +36,7 @@
   window.addEventListener("unhandledrejection", onRejection);
   retry.addEventListener("click", () => location.reload());
   window.addEventListener("desk-startup", (event) => {
-    if (finished) return;
+    if (finished || failed) return;
     const detail = event.detail || {};
     if (detail.state === "error") {
       fail(detail.message);

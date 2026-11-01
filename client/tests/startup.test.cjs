@@ -92,3 +92,22 @@ test("主资源加载失败和初始化异常都能显示恢复入口", () => {
     assert.equal(ui.retry.hidden, false);
   }
 });
+
+test("启动失败后迟到的阶段、就绪和慢启动回调不能覆盖恢复页", () => {
+  const ui = startup();
+  const queuedSlow = [...ui.timers.values()].find(timer => timer.delay === 12000).fn;
+  ui.event({ state: "error", message: "首次资源加载失败" });
+  const failure = ui.status.textContent;
+  ui.event({ state: "loading", message: "迟到的会话响应" });
+  ui.event({ state: "ready" });
+  queuedSlow();
+  ui.event({ state: "error", message: "后续异常" });
+  assert.equal(ui.status.textContent, failure);
+  assert.equal(ui.panel.dataset.state, "error");
+  assert.equal(ui.retry.hidden, false);
+  assert.equal(ui.panel.classes.has("startup-exit"), false);
+  assert.equal(ui.panel.removed, false);
+  assert.equal(ui.timers.size, 0);
+  ui.retry.click();
+  assert.equal(ui.reloads(), 1);
+});
