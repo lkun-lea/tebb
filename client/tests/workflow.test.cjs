@@ -4,6 +4,61 @@ const fs=require('node:fs'),path=require('node:path'),Module=require('node:modul
 const {act,create}=require('react-test-renderer');
 function compile(file,imports={}){const filename=path.resolve(__dirname,'../src/client/'+file),mod=new Module(filename,module);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));const original=mod.require.bind(mod);mod.require=id=>id in imports?imports[id]:id.endsWith('.css')?{}:original(id);mod._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,filename);return mod.exports;}
 const state=compile('workflow-state.ts');
+
+async function draftEditor(){
+  const graph={nodes:[{id:'trigger',kind:'trigger',config:{text:''},position:{x:70,y:70}},{id:'ai',kind:'ai',config:{prompt:'{{trigger.text}}',model_id:''},position:{x:350,y:70}}],edges:[{source:'trigger',target:'ai',branch:''}]};
+  const templates=[{id:'one',name:'示例一',description:'one',graph},{id:'two',name:'示例二',description:'two',graph}];
+  const definitions=[{id:'saved-one',name:'已保存一',revision:1,version:'a'.repeat(64),graph},{id:'saved-two',name:'已保存二',revision:1,version:'b'.repeat(64),graph}];
+  const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false},{kind:'ai',label:'AI处理',defaults:{prompt:'',model_id:''},outputs:['text'],writes:false},{kind:'base',label:'表格',defaults:{fields:{内容:'{{trigger.text}}'},base_token:'b',table_id:'t',key_field:'receipt',profile:''},outputs:['record_id'],writes:true}];
+  const rpc=async(_info,_method,{operation,payload}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions,runs:[]}:operation==='templates'?{ok:true,templates}:operation==='load'?{ok:true,definition:definitions.find(d=>d.id===payload.id)}:operation==='save'?{ok:true,definition:{...payload,id:'saved-copy',revision:1,version:'c'.repeat(64)}}:{ok:true};
+  const {applyNodeChanges}=require('@xyflow/react');
+  const flow={ReactFlow:props=>React.createElement('div',null,props.children),ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,changes=>set(current=>applyNodeChanges(changes,current))];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,fitView(){}})};
+  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:()=>null},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
+  const previous=global.window,confirms=[];global.window={setInterval:()=>1,clearInterval(){},confirm:message=>{confirms.push(message);return false;}};let view;
+  await act(async()=>{view=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'fixture'}}));});
+  return {view,confirms,canvas:()=>view.root.findByType(flow.ReactFlow).props,choose:async(label,value)=>act(async()=>view.root.findByProps({'aria-label':label}).props.onChange({target:{value}})),button:text=>view.root.findAllByType('button').find(n=>n.children[0]===text),close:()=>{act(()=>view.unmount());global.window=previous;}};
+}
+
+test('untouched examples and saved workflows switch without a discard prompt, including unchanged canvas notifications',async()=>{
+  const ui=await draftEditor();
+  try{
+    await ui.choose('示例工作流','one');await ui.choose('示例工作流','two');
+    assert.match(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,/示例二/);assert.equal(ui.confirms.length,0);
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:70,y:70},dragging:false}]));
+    act(()=>ui.canvas().onNodesChange([{type:'select',id:'ai',selected:true},{type:'dimensions',id:'ai',dimensions:{width:180,height:80}}]));
+    await ui.choose('已保存工作流','saved-one');await ui.choose('已保存工作流','saved-two');
+    assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'已保存二');assert.equal(ui.confirms.length,0);
+    await ui.choose('示例工作流','one');await act(async()=>ui.button('保存工作流').props.onClick());
+    await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,0);
+  }finally{ui.close();}
+});
+
+test('actual edits require confirmation even for a single trigger; cancelling preserves text and reverting removes the prompt',async()=>{
+  const ui=await draftEditor();
+  try{
+    const text=()=>ui.view.root.findByType('textarea');
+    act(()=>text().props.onChange({target:{value:'尚未保存的输入'}}));
+    await ui.choose('已保存工作流','saved-one');assert.equal(ui.confirms.length,1);assert.equal(text().props.value,'尚未保存的输入');assert.equal(ui.canvas().nodes.length,1);
+    act(()=>text().props.onChange({target:{value:''}}));await ui.choose('示例工作流','one');assert.equal(ui.confirms.length,1);
+    const original=ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value;
+    await ui.choose('工作流名称','临时改名');await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,2);assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'临时改名');
+    await ui.choose('工作流名称',original);await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,2);assert.match(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,/示例二/);
+    act(()=>ui.button('表格').props.onClick());act(()=>ui.canvas().onConnect({source:'trigger',target:ui.canvas().nodes.find(n=>n.data.kind==='base').id}));await act(async()=>ui.button('保存工作流').props.onClick());
+    act(()=>ui.view.root.findByProps({'aria-label':'普通文本字段 JSON'}).props.onChange({target:{value:'未完成的 JSON'}}));
+    await ui.choose('示例工作流','one');assert.equal(ui.confirms.length,3);assert.equal(ui.view.root.findByProps({'aria-label':'普通文本字段 JSON'}).props.value,'未完成的 JSON');
+  }finally{ui.close();}
+});
+
+test('moving a node is an actual draft edit, and moving it back restores direct example switching',async()=>{
+  const ui=await draftEditor();
+  try{
+    await ui.choose('示例工作流','one');
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:90,y:70},dragging:false}]));
+    await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,1);assert.equal(ui.canvas().nodes[0].position.x,90);
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'trigger',position:{x:70,y:70},dragging:false}]));
+    await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,1);assert.match(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,/示例二/);
+  }finally{ui.close();}
+});
 test('manual connection validation rejects cycles, self links, duplicate edges and invalid branch handles',()=>{
   const graph={nodes:[{id:'trigger',kind:'trigger'},{id:'a',kind:'condition'},{id:'b',kind:'ai'},{id:'c',kind:'ai'}],edges:[{source:'trigger',target:'a',branch:''},{source:'a',target:'b',branch:'true'}]};
   assert.match(state.connectionError(graph,'b','a'),/循环/);

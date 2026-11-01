@@ -12,6 +12,9 @@ export type CatalogNode = {kind:NodeKind;label:string;defaults:NodeConfig;output
 export const writeKinds = new Set<NodeKind>(['document','base','message']);
 export const runLabels:Record<string,string> = {queued:'排队中',running:'执行中',paused:'步骤完成',waiting_approval:'待确认发布',completed:'已完成',failed:'失败',unknown:'结果待核对',interrupted:'已中断',cancelled:'已停止',confirmed:'已确认',pending:'执行中',skipped:'分支跳过'};
 export const initialGraph = ():Graph => ({nodes:[{id:'trigger',kind:'trigger',config:{text:''},position:{x:70,y:70}}],edges:[]});
+export function draftSnapshot(name:string,graph:Graph){
+  return JSON.stringify({name,graph},(_key,value)=>value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b))):value);
+}
 export const newNodeId = (kind:NodeKind) => kind+'_'+crypto.randomUUID().replaceAll('-','').slice(0,8);
 export function connectionError(graph:Graph,source:string|null,target:string|null,branch=''){
   const from=graph.nodes.find(n=>n.id===source),to=graph.nodes.find(n=>n.id===target);
