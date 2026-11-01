@@ -72,7 +72,7 @@ def execute(spec,*,profile,workspace,model_id,timeout,command=None,progress=lamb
                     if root['state'] not in {'pending','queued','running','waiting','cancelling'}:break
                     if time.monotonic()>=deadline:
                         if not cancelled:
-                            proof['deadline_exceeded']=True;service.action(dict(type='cancel',run=run_id,request_id=uuid.uuid4().hex));cancelled=True;deadline=time.monotonic()+8
+                            proof['deadline_exceeded']=True;service.action(dict(type='cancel',id=run_id,request_id=uuid.uuid4().hex));cancelled=True;deadline=time.monotonic()+8
                         else:break
                     time.sleep(.05)
                 definitions=[store.definition(d['id']) for d in store.definitions() if d['id'] not in before]
@@ -83,7 +83,7 @@ def execute(spec,*,profile,workspace,model_id,timeout,command=None,progress=lamb
                     definition,cap=definitions[0],capabilities[0];graph,order=validate(definition['graph'])
                     instances=[n for n in graph['nodes'] if n.get('capability',{}).get('id')==cap['id']]
                     artifact_ok=bool(cap['kind']=='ai' and len(instances)==1 and instances[0]['config'].get('prompt','').count('{{trigger.text}}')==1 and len(graph['nodes'])==2 and order[0]==next(n['id'] for n in graph['nodes'] if n['kind']=='trigger') and len({(n['position']['x'],n['position']['y']) for n in graph['nodes']})==2)
-                proof.update(verified=artifact_ok and root['state']=='succeeded' and not proof['deadline_exceeded'] and not store.runs(),draft_only=not store.runs(),definitions=len(definitions),capabilities=len(capabilities),layout_and_reference_verified=artifact_ok)
+                proof.update(verified=artifact_ok and root['state']=='succeeded' and not proof['deadline_exceeded'] and not store.runs(),draft_only=not store.runs(),definitions=len(definitions),capabilities=len(capabilities),layout_and_reference_verified=artifact_ok,cancellation_confirmed=root['state']=='cancelled' if cancelled else None)
             finally:service.shutdown();service=None;managers={}
         proof['authenticated_parent_stopped']=connection.get('stopped',False)
         proof['verified']=proof['verified'] and proof['authenticated_parent_stopped']

@@ -6,9 +6,24 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 class WorkflowAuthoringEvaluationTests(unittest.TestCase):
+    def test_deadline_requests_actual_root_cancellation_and_keeps_partial_evidence(self):
+        from desk_companion.agent_eval_authoring import execute
+        from desk_companion.agent_evals import CASES
+        from desk_companion.tasks import TaskManager
+        from tests.test_collaboration import MODEL
+        configure=TaskManager.configure
+        with tempfile.TemporaryDirectory() as temp,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=temp),patch('desk_companion.model_catalog.require_active',return_value=MODEL),patch('desk_companion.model_catalog.require_item',return_value=MODEL),patch.object(TaskManager,'configure',autospec=True,side_effect=lambda manager,*args:configure(manager,1,30,30,False)):
+            folder=Path(temp)
+            task,proof,ids,calls=execute(next(c for c in CASES if c['id']=='workflow_authoring'),profile=folder,workspace=folder/'workspace.sqlite3',model_id=MODEL['id'],timeout=1,command=[sys.executable,'-c','import time;time.sleep(30)'])
+            self.assertTrue(proof['deadline_exceeded']);self.assertFalse(proof['verified'])
+            self.assertIn(task['state'],{'cancelling','cancelled'});self.assertEqual(proof['artifacts'],[])
+            self.assertEqual(proof['cancellation_confirmed'],task['state']=='cancelled')
+            self.assertTrue(proof['authenticated_parent_stopped']);self.assertTrue(ids)
+
     def test_cli_checks_saved_capability_graph_and_complete_cleanup(self):
         root=Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as temp:

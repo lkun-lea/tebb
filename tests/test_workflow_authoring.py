@@ -16,6 +16,14 @@ from tests.test_workflows import FakeTasks,node,graph
 
 
 class AuthoringTests(unittest.TestCase):
+    def test_model_tools_describe_actual_nested_adapter_config_and_graph_structure(self):
+        from desk_companion.workflow_tools import specs
+        tools={tool['function']['name']:tool['function']['parameters']['properties']['payload'] for tool in specs(dict(collab_run='fixture',task_id='fixture'))}
+        cap=tools['capability_save'];self.assertEqual(cap['properties']['template']['type'],'object')
+        self.assertEqual(cap['properties']['parameters']['additionalProperties'],dict(type='string'))
+        self.assertNotIn('model_id',cap['properties']);self.assertFalse(cap['additionalProperties'])
+        self.assertEqual(tools['workflow_save']['properties']['graph']['properties']['edges']['items']['required'],['source','target'])
+
     def setUp(self):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
         self.env=patch.dict(os.environ,DESK_COMPANION_DATA_DIR=temp.name);self.env.start();self.addCleanup(self.env.stop)

@@ -4,6 +4,19 @@ TOOLS=frozenset({'workflow_catalog','workflow_load','workflow_save','capability_
 
 def specs(request):
     from .worker_rpc import call
+    from .workflow_graph import KINDS
+    string=dict(type='string')
+    position=dict(type='object',properties=dict(x=dict(type='number'),y=dict(type='number')),required=['x','y'],additionalProperties=False)
+    node=dict(type='object',properties=dict(id=string,kind=dict(type='string',enum=list(KINDS)),config=dict(type='object',description='该kind在目录中的defaults配置对象；文字引用形如{{trigger.text}}。'),position=position,capability=dict(type='object')),required=['id','kind','config','position'],additionalProperties=False)
+    edge=dict(type='object',properties=dict(source=string,target=string,branch=dict(type='string',enum=['','true','false'])),required=['source','target'],additionalProperties=False)
+    fields={
+        'workflow_catalog':({},[]),
+        'workflow_load':(dict(id=string,version=string),['id']),
+        'workflow_save':(dict(name=string,id=string,revision=dict(type='integer'),graph=dict(type='object',properties=dict(nodes=dict(type='array',items=node),edges=dict(type='array',items=edge)),required=['nodes','edges'],additionalProperties=False)),['name','graph']),
+        'capability_save':(dict(name=string,id=string,revision=dict(type='integer'),kind=dict(type='string',enum=[k for k in KINDS if k!='trigger']),template=dict(type='object',description='适配器配置对象，字段同目录defaults。例如AI: {"prompt":"提取：{{input.text}}","model_id":""}；不能直接传字符串或将model_id放到payload顶层。'),parameters=dict(type='object',additionalProperties=string,description='参数名到文字默认值，例如{"text":""}。')),['name','kind','template','parameters']),
+        'capability_load':(dict(id=string,version=string),['id']),
+        'capability_instantiate':(dict(id=string,version=string,arguments=dict(type='object',additionalProperties=string),node_id=string,position=position),['id','arguments']),
+    }
     descriptions={
         'workflow_catalog':'发现工作流原子适配器、输入默认值/输出/写入标记、用户声明式能力和示例。先发现再配置，不猜节点类型。',
         'workflow_load':'按id读取已保存工作流图和revision/version；修改前读取，结果不明先核对原ID。',
@@ -12,7 +25,7 @@ def specs(request):
         'capability_load':'按id、可选version读取可复用能力定义。旧版本不随编辑变化。',
         'capability_instantiate':'按能力id/version及arguments生成普通节点，可选node_id和position。将返回节点放入workflow_save的graph；不执行能力。实际配置将冻结到图版本。',
     }
-    return [dict(type='function',function=dict(name=name,description=description,parameters=dict(type='object',properties=dict(payload=dict(type='object')),required=['payload'],additionalProperties=False)),read_only=name not in {'workflow_save','capability_save'},implementation=lambda args,n=name:call('workflow_authoring',dict(run_id=request['collab_run'],task_id=request.get('task_id',''),tool=n,payload=args.get('payload',{}),call_id=args.get('_call_id','')))) for name,description in descriptions.items()]
+    return [dict(type='function',function=dict(name=name,description=description,parameters=dict(type='object',properties=dict(payload=dict(type='object',properties=fields[name][0],required=fields[name][1],additionalProperties=False)),required=['payload'],additionalProperties=False)),read_only=name not in {'workflow_save','capability_save'},implementation=lambda args,n=name:call('workflow_authoring',dict(run_id=request['collab_run'],task_id=request.get('task_id',''),tool=n,payload=args.get('payload',{}),call_id=args.get('_call_id','')))) for name,description in descriptions.items()]
 
 
 def execute(host,run_id,tool,payload,call_id,task_id=''):
