@@ -51,7 +51,7 @@ import { LocalSourcesDialog, type LocalSource } from "./local-sources";
 import { SideWorkspace, previewSource, openTerminal, openProject, openProjectFolder, togglePreview } from "./side-workspace";
 import { LoadingText } from "./loading-text";
 import { AutomationPane } from "./automation";
-import { VideoPane, WikiConnectionSettings } from "./video";
+import { VideoLogin, VideoSettings, WikiConnectionSettings } from "./video";
 import { StatusGrid, loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusKind, type StatusView } from "./status";
 import { Markdown, MdLink, openableHref, PlainLinks } from "./Markdown";
 import { DEFAULT_SAMPLING, samplingFromInputs, EFFORTS, type Sampling } from "./sampling";
@@ -100,7 +100,7 @@ import {
 } from "./settings";
 
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
-type Pane = "work" | "chat" | "board" | "feishu" | "settings" | "automation" | "monitor" | "video" | "collaboration" | "pet";
+type Pane = "work" | "chat" | "board" | "settings" | "automation" | "monitor" | "collaboration" | "pet";
 
 const debugKind = debugPane();
 const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "monitor" || debugKind === "video";
@@ -118,7 +118,7 @@ export function App() {
   const [guideModel, setGuideModel] = useState<ModelSetupState | null>(null);
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("tebb.theme") !== "light"; } catch { return true; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
-  const [settingsSection,setSettingsSection] = useState(debugKind==='usage'?'usage':"assistant");
+  const [settingsSection,setSettingsSection] = useState(debugKind==='usage'?'usage':debugKind==='feishu'||debugKind==='video'?'connections':"assistant");
   const [workspaceModalOpen,setWorkspaceModalOpen] = useState(false);
   useEffect(()=>{const dialogs=new Set<string>();const change=(event:Event)=>{const {id,open}=(event as CustomEvent<{id:string;open:boolean}>).detail;if(open)dialogs.add(id);else dialogs.delete(id);setWorkspaceModalOpen(dialogs.size>0);};window.addEventListener('tebb-workspace-dialog',change);return()=>window.removeEventListener('tebb-workspace-dialog',change);},[]);
   const [noteSourcesOpen, setNoteSourcesOpen] = useState(false);
@@ -155,10 +155,10 @@ export function App() {
   const applyBgRef = useRef<(url: string) => void>(() => {});
   const clearBgRef = useRef<() => void>(() => {});
   const [pane, setPane] = useState<Pane>(
-    debugKind === "work" || debugKind === "automation" || debugKind === "monitor" || debugKind === "video"
+    debugKind === "work" || debugKind === "automation" || debugKind === "monitor"
       ? debugKind
-      : debugKind === "feishu"
-        ? "feishu"
+      : debugKind === "feishu" || debugKind === "video"
+        ? "settings"
         : debugKind === "board"
           ? "board"
           : debugKind === "settings" || debugKind === "usage"
@@ -1305,7 +1305,7 @@ export function App() {
   }
 
   async function openFeishu() {
-    setPane("feishu");
+    setSettingsSection("connections"); setPane("settings");
     if (boardClock !== null) {
       setFeishu((cur) => cur || FEISHU_LOGGED_OUT);
       return;
@@ -1368,7 +1368,12 @@ export function App() {
   }
 
   useEffect(() => {
-    if (pane !== "feishu" || boardClock !== null || !info || !feishuWaiting(feishu)) return;
+    if(pane!=="settings"||settingsSection!=="connections"||boardClock!==null||!info)return;
+    void pullFeishu(info).catch(err=>setFeishu({ok:false,logged_in:false,error:String(err)}));
+  },[pane,settingsSection,boardClock,info]);
+
+  useEffect(() => {
+    if ((pane !== "settings" || settingsSection !== "connections") || boardClock !== null || !info || !feishuWaiting(feishu)) return;
     const timer = window.setInterval(() => {
       if (feishuBusyRef.current) return;
       void pullFeishu(info).catch((err: unknown) => {
@@ -1376,7 +1381,7 @@ export function App() {
       });
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [pane, boardClock, info, feishu]);
+  }, [pane, settingsSection, boardClock, info, feishu]);
 
   draftRef.current = draft;
   userLinesRef.current = (preview || thread?.items || [])
@@ -1823,8 +1828,6 @@ export function App() {
     <span className="tebb-nav-group">内容</span>
     <RailButton icon="notes" label="笔记" active={pane === "chat" && (chatFace === "notebooks" || chatFace === "thread" && !!noteSessionId)} onClick={() => navigateWorkspace(()=>void openNotes())} />
     <RailButton icon="knowledge" label="知识库" active={pane === "chat" && chatFace === "knowledge"} onClick={() => navigateWorkspace(()=>void openKnowledge())} />
-    <RailButton icon="video" label="视频学习" active={pane === "video"} onClick={() => navigateWorkspace(()=>setPane("video"))} />
-    <RailButton icon="feishu" label="飞书" active={pane === "feishu"} onClick={() => navigateWorkspace(()=>void openFeishu())} />
     <span className="tebb-nav-group">偏好</span>
     <RailButton icon="settings" label="设置" active={pane === "settings"} onClick={() => navigateWorkspace(()=>setPane("settings"))} />
     <div className="tebb-nav-actions"><RailButton icon="pet" label="桌宠" active={pane==='pet'} onClick={()=>navigateWorkspace(()=>setPane('pet'))}/></div>
@@ -2179,7 +2182,7 @@ export function App() {
               {settingsSection==='assistant'&&<ReminderSettings info={info} debug={!!debugKind}/>}
               <div hidden={settingsSection!=='usage'}><PersonalUsagePane info={info} debug={!!debugKind} visible={settingsSection==='usage'}/></div>
               <div hidden={settingsSection!=='about'}><ReleaseSettings info={info} onShowIntro={releaseIntro.show}/>{developerMode&&<button type="button" className="desk-menu-item" onClick={()=>setAgentDebugOpen(true)}>调用调试</button>}</div>
-              <div hidden={settingsSection!=='connections'}><ModelNetworkSettings info={info} debug={!!debugKind}/><SearchSettings info={info} debug={!!debugKind}/><StatusGrid cards={statuses} onOpenFeishu={()=>void openFeishu()}/></div>
+              <div hidden={settingsSection!=='connections'}><ModelNetworkSettings info={info} debug={!!debugKind}/><SearchSettings info={info} debug={!!debugKind}/><StatusGrid cards={statuses} onOpenFeishu={()=>void openFeishu()}/>{settingsSection==='connections'&&<><FeishuPane snap={feishu} busy={feishuBusy} debug={boardClock!==null} onLogin={()=>void startFeishuLogin()} onLogout={()=>void logoutFeishu()}/><FeishuAgentPane info={info} debug={boardClock!==null}/><h2 className="mt-6 text-lg">视频来源与登录</h2><p>学习笔记在自动化工作流中编排；这里管理读取来源所需的连接。</p><VideoLogin info={info} debug={!!debugKind}/><VideoSettings info={info} debug={!!debugKind}/></>}</div>
               <div hidden={!['assistant','appearance'].includes(settingsSection)}><SettingsPane section={settingsSection==='appearance'?'appearance':'assistant'}
                 onOpenGuide={(replay = false) => {
                   if (!info) return;
@@ -2211,31 +2214,9 @@ export function App() {
                 onSavePersona={(text) => void savePersona(text)}
               /></div>
             </section>
-          ) : pane === "feishu" ? (
-            <section
-              key="feishu"
-              className="flex-1 overflow-y-auto px-8 py-6"
-            >
-              <FeishuPane
-                snap={feishu}
-                busy={feishuBusy}
-                debug={boardClock !== null}
-                onLogin={() => void startFeishuLogin()}
-                onLogout={() => void logoutFeishu()}
-              />
-              <FeishuAgentPane info={info} debug={boardClock !== null} />
-            </section>
           ) : pane === "automation" ? (
-            <section key="automation" data-page="automation" className="flex-1 overflow-y-auto px-8 py-6">
-              <h1 className="text-2xl font-semibold">自动化</h1>
-              <p className="mt-2 text-sm text-muted-foreground">管理每日资讯、运行计划和执行记录。</p>
+            <section key="automation" data-page="automation" className="flex min-h-0 flex-1 overflow-hidden">
               <AutomationPane info={info} debug={boardClock !== null} onOpenExecution={conversation => { if (!info) return; void rpc(info, 'collaboration_action', { action: { type: 'select', id: conversation, conversation, request_id: crypto.randomUUID() } }).then(() => { setPane('collaboration'); window.dispatchEvent(new CustomEvent('tebb-show-tasks')); }).catch(e => setError(String(e))); }} />
-            </section>
-          ) : pane === "video" ? (
-            <section key="video" data-page="video" className="flex-1 overflow-y-auto px-8 py-6">
-              <h1 className="text-2xl font-semibold">视频学习</h1>
-              <p className="mt-2 text-sm text-muted-foreground">从实际视频资料中提炼要点，查看出处并整理笔记。</p>
-              <VideoPane info={info} debug={boardClock !== null} />
             </section>
           ) : pane === "work" ? (
             <section key="work" data-page="work" className="flex min-h-0 flex-1 overflow-hidden">
