@@ -65,6 +65,21 @@ test('canvas drag guides snap while dragging and on release; alignment toggle an
   }finally{ui.close();}
 });
 
+test('focus uses the native modal and a stable portal container, preserving child state through Escape and repeated toggles',async()=>{
+  const old={document:global.document,window:global.window,CustomEvent:global.CustomEvent};let view,mounts=0,shows=0,closes=0;const targets=[];
+  const host=()=>({children:[],appendChild(child){if(child.parentNode)child.parentNode.children=child.parentNode.children.filter(c=>c!==child);this.children.push(child);child.parentNode=this;},showModal(){this.open=true;shows++;},close(){this.open=false;closes++;}});
+  global.document={createElement:host,activeElement:{isConnected:true,focus(){}}};global.window={dispatchEvent(){}};global.CustomEvent=class{constructor(type,options){this.type=type;this.detail=options.detail;}};
+  const {WorkflowSurface}=compile('workflow-surface.tsx',{'react-dom':{createPortal:(children,target)=>{targets.push(target);return children;}},'./page-stack':{usePageActive:()=>true}});
+  function Child(){const[text,setText]=React.useState('');React.useEffect(()=>{mounts++;},[]);return React.createElement('input',{value:text,onChange:e=>setText(e.target.value)});}
+  function App(){const[focused,setFocused]=React.useState(false);return React.createElement(React.Fragment,null,React.createElement('button',{onClick:()=>setFocused(true)},'focus'),React.createElement(WorkflowSurface,{focused,onClose:()=>setFocused(false)},React.createElement(Child)));}
+  try{
+    await act(async()=>{view=create(React.createElement(App),{createNodeMock:host});});act(()=>view.root.findByType('input').props.onChange({target:{value:'未保存的内容'}}));
+    await act(async()=>view.root.findByType('button').props.onClick());assert.equal(shows,1);assert.equal(view.root.findByType('dialog').props['aria-label'],'工作流专注画布');assert.equal(view.root.findByType('input').props.value,'未保存的内容');
+    let prevented=false;await act(async()=>view.root.findByType('dialog').props.onCancel({preventDefault(){prevented=true;}}));assert.equal(prevented,true);assert.equal(closes,1);assert.equal(view.root.findByType('input').props.value,'未保存的内容');
+    await act(async()=>view.root.findByType('button').props.onClick());assert.equal(shows,2);assert.equal(mounts,1);assert.ok(targets.every(target=>target===targets[0]));
+  }finally{act(()=>view?.unmount());for(const[key,value]of Object.entries(old))if(value===undefined)delete global[key];else global[key]=value;}
+});
+
 test('actual edits require confirmation even for a single trigger; cancelling preserves text and reverting removes the prompt',async()=>{
   const ui=await draftEditor();
   try{
