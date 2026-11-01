@@ -2216,7 +2216,7 @@ export function App() {
             </section>
           ) : pane === "automation" ? (
             <section key="automation" data-page="automation" className="flex min-h-0 flex-1 overflow-hidden">
-              <AutomationPane info={info} debug={boardClock !== null} onOpenExecution={conversation => { if (!info) return; void rpc(info, 'collaboration_action', { action: { type: 'select', id: conversation, conversation, request_id: crypto.randomUUID() } }).then(() => { setPane('collaboration'); window.dispatchEvent(new CustomEvent('tebb-show-tasks')); }).catch(e => setError(String(e))); }} />
+              <AutomationPane info={info} debug={boardClock !== null} />
             </section>
           ) : pane === "work" ? (
             <section key="work" data-page="work" className="flex min-h-0 flex-1 overflow-hidden">
