@@ -215,7 +215,11 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         counted=await self.notebook_rpc('load_context_debug',conversation='dm-tebb',call_id=local)
         self.assertEqual(counted['budget']['input_source'],'tokenizer');self.assertGreater(counted['budget']['input_tokens'],0)
         await self.notebook_rpc('collaboration_action',action=dict(type='partner_memory',conversation='dm-tebb',agent_id='tebb',memory='认证RPC新偏好',request_id='new-memory-rpc-test'))
-        self.assertEqual((await self.notebook_rpc('load_context_debug',conversation='dm-tebb'))['agents'][0]['memory'],'认证RPC新偏好')
+        current=await self.notebook_rpc('memory_debug',conversation='dm-tebb',action=dict(type='catalog'))
+        self.assertEqual(next(row for row in current['selection']['selected'] if row['id']=='partner:tebb')['text'],'认证RPC新偏好')
+        recorded=await self.notebook_rpc('load_context_debug',conversation='dm-tebb',call_id=call)
+        self.assertNotIn('agents',recorded)
+        self.assertEqual(recorded['detail']['request']['messages'],payload['messages'])
         async with connect(self.url,proxy=None) as ws:
             await ws.send(json.dumps(dict(type='rpc',id='foreign',method='load_context_debug',args=dict(conversation='dm-writer',call_id=call))))
             denied=json.loads(await ws.recv());self.assertFalse(denied['result']['ok'])

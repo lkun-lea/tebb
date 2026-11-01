@@ -180,7 +180,7 @@ class MemoryDeskTests(unittest.TestCase):
         result=desk.operate(self.collab,lazy,self.cid,dict(type='trial_run',call_id=call,revision=material['revision'],overrides={item['id']:'试验覆盖'},operation=uuid.uuid4().hex))
         self.assertEqual(result['task_id'],'new-trial')
         kwargs=task.submit.call_args.kwargs
-        self.assertEqual(kwargs['workflow'],'memory_trial');self.assertNotIn('tools',kwargs)
+        self.assertEqual(kwargs['workflow'],'memory_trial');self.assertEqual(kwargs['kind'],'memory_trial');self.assertNotIn('tools',kwargs)
         self.assertEqual(kwargs['trial_messages'],material['request']['messages'])
 
     def test_missing_call_files_and_legacy_unknown_are_not_reconstructed(self):
@@ -242,6 +242,14 @@ class MemoryDeskTests(unittest.TestCase):
         self.assertEqual(model.chat.call_count,1);self.assertIsNone(model.chat.call_args.kwargs['tools'])
         self.assertEqual(facts.read_facts(),before)
         self.assertIn(('result','短回答'),events)
+        self.assertEqual([k for k,_ in events].count('llm_start'),1)
+        self.assertEqual([k for k,_ in events].count('llm_end'),1)
+        events.clear();model.chat.side_effect=TimeoutError('synthetic timeout')
+        with patch('desk_companion.collaboration_llm.CollaborationLLM',return_value=context):
+            with self.assertRaises(TimeoutError):
+                desk.execute_trial(dict(model_id=MODEL['id'],target_revision=digest({k:MODEL[k] for k in ('id','model','base_url')}),limits=dict(call_timeout=60),trial_messages=material['request']['messages'],original_call=call),lambda k,v:events.append((k,v)))
+        self.assertEqual([k for k,_ in events].count('llm_end'),1)
+        self.assertFalse(any(k=='result' for k,_ in events))
 
     def test_partner_preferences_preserve_versions_and_stop_without_losing_text(self):
         self.collab.action(dict(type='partner_memory',conversation=self.cid,agent_id='tebb',memory='旧偏好',request_id=uuid.uuid4().hex))

@@ -148,9 +148,17 @@ def execute_trial(request,emit):
     if digest({k:model[k] for k in ('id','model','base_url')})!=request['target_revision']:
         raise ValueError('模型路由已变化，未发送。')
     emit('status','独立记忆试验：一次模型调用，未登记工具。')
-    with CollaborationLLM(model,request.get('sampling',{}),min(60,request['limits']['call_timeout']),purpose='memory_trial',expected_configuration_revision=request.get('configuration_revision')) as llm:
-        from .context_sources import restore
-        result=llm.chat(restore(request['trial_messages'],request.get('trial_assembly')),tools=None,on_delta=lambda text:emit('token',text))
+    import time
+    started=time.monotonic()
+    emit('llm_start',dict(model=model['model'],turn=1,phase='memory_trial'))
+    try:
+        with CollaborationLLM(model,request.get('sampling',{}),min(60,request['limits']['call_timeout']),purpose='memory_trial',expected_configuration_revision=request.get('configuration_revision')) as llm:
+            from .context_sources import restore
+            llm.on_reasoning=lambda _:emit('llm_progress',True)
+            llm.on_progress=lambda:emit('llm_progress',True)
+            result=llm.chat(restore(request['trial_messages'],request.get('trial_assembly')),tools=None,on_delta=lambda text:emit('token',text))
+    finally:
+        emit('llm_end',dict(phase='memory_trial',duration_ms=int((time.monotonic()-started)*1000)))
     calls=result.get('message',{}).get('tool_calls') or []
     emit('memory_trial',dict(unexpected_tool_calls=calls,usage=result.get('usage'),applied=False,original_call=request['original_call']))
     if calls:
@@ -180,7 +188,7 @@ def operate(collaboration,tasks,conversation,action):
             raise ValueError('试验输入或目标模型已变化，请重新组装核对。')
         operation=agent_debug.valid_id(action.get('operation'))
         ident=tasks().submit('记忆独立试验 '+material['revision'],'memory-trial-'+conversation,'debug',
-            workflow='memory_trial',model_id=material['target']['id'],trial_messages=material['request']['messages'],trial_assembly=material['sources'],configuration_revision=material['configuration_revision'],
+            workflow='memory_trial',kind='memory_trial',model_id=material['target']['id'],trial_messages=material['request']['messages'],trial_assembly=material['sources'],configuration_revision=material['configuration_revision'],
             sampling={k:v for k,v in material['request'].items() if k in {'temperature','top_p','reasoning_effort'}},
             target_revision=digest(material['target']),original_call=material['original_call'],
             submission_key='memory-trial:'+operation,task_limits=dict(call_timeout=60,task_timeout=90),auto_video_archive=False)
