@@ -2,130 +2,117 @@
 
 # tebb.
 
-### 一起研究，一起动手
+### Think together. Build together.
 
-面向极客的 Agent 伙伴工作区
+A local-first workspace for AI companions, projects, and visual workflows.
 
-[![Release](https://img.shields.io/github/v/release/liukun158959-beep/tebb?style=flat-square)](https://github.com/liukun158959-beep/tebb/releases)
-[![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square)](https://github.com/liukun158959-beep/tebb/releases)
-[![Status](https://img.shields.io/badge/status-early%20preview-8D9B82?style=flat-square)](#项目状态)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-[下载体验](https://github.com/liukun158959-beep/tebb/releases) · [快速开始](#快速开始) · [使用文档](docs/GETTING_STARTED.md) · [反馈与建议](https://github.com/liukun158959-beep/tebb/issues)
+[![Release](https://img.shields.io/github/v/release/lkun-lea/tebb?style=flat-square)](https://github.com/lkun-lea/tebb/releases)
+[![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square)](https://github.com/lkun-lea/tebb/releases)
+[![Status](https://img.shields.io/badge/status-early%20preview-8D9B82?style=flat-square)](#project-status)
+
+[Download](https://github.com/lkun-lea/tebb/releases) · [Quick start](#quick-start) · [Documentation](docs/GETTING_STARTED.md) · [Issues](https://github.com/lkun-lea/tebb/issues)
 
 </div>
 
-> v0.4.1 已发布：[下载 Windows x64 便携版](https://github.com/liukun158959-beep/tebb/releases/tag/v0.4.1)。
+> Latest published package: [v0.4.1 for Windows x64](https://github.com/lkun-lea/tebb/releases/tag/v0.4.1). This README describes main, which includes changes made after that frozen release.
 
-![tebb v0.4.1：让对话，更清晰](desk_companion/ui/release-v0.4.1.png)
+![tebb v0.4.1 release concept](desk_companion/ui/release-v0.4.1.png)
 
-*版本概念插画；界面与功能以实际客户端为准。*
+*Release concept illustration; the actual client is the reference for interface and behavior.*
 
-tebb 把有个性的 AI 伙伴、你的项目文件和正在做的事放进同一个工作区。你可以与一位伙伴聊，也可以把几位伙伴拉进协作群：查资料、讨论思路、动手写代码，再把成果留下来继续使用。
+Bring your own model and work with AI companions alongside your files and projects. Start a private conversation or a group, research a question, edit code, inspect the results, and keep useful material for the next task.
 
-接入自己的模型，从一个问题开始。需要执行时，在聊天里跟进任务、查看改动和验证结果，随时补充要求或停止。
+## What you can do
 
-## 和伙伴一起做些什么
+### Work with a team of companions
 
-### 组一支自己的 Agent 小队
+tebb helps turn goals into tasks. Research, writing, coding, and chart companions have their own personality, model, tools, and avatar. Create your own companions, mention participants with `@`, select a skill with `/`, and attach relevant files. Conversations and the companion directory remain separate, so earlier work is easy to continue.
 
-tebb 通用助手帮你梳理并执行目标，研究助手查资料、写作助手整理表达、编程助手动手编码，图表助手按需整理可视化。每位伙伴有自己的头像、性格、模型与工具配置，也可以创建你自己的伙伴。
+> “Research this project's technical approach, verify primary sources, and write a report.”
 
-私聊深入一个问题，协作群处理需要分工的目标。通过 `@` 指定参与者，用 `/` 选择 Skill，附上文件再一起讨论；伙伴目录与对话记录分开，旧话题随时续聊。
+### Open a folder and build in it
 
-> 「@研究助手 @写作助手 查一查这个项目的技术路线，核实一手资料，再整理成研究报告。」
+Browse files, preview Markdown, and inspect code beside the conversation. Grant editing and command permissions per project. Companions can make changes, run checks, and report actual diffs, output and exit codes. Reading example code does not require execution permissions.
 
-### 打开文件夹，让代码落到项目里
+Each project keeps its own directories, permissions, instructions, and conversations. Public GitHub Node/Python web projects can use an explicitly enabled Docker Sandboxes environment for dependencies, execution, logs, a local preview and stopping the service. See [folder projects](docs/FOLDER_PROJECTS.md), [terminal](docs/TERMINAL.md), and [project runtime](docs/PROJECT_RUNTIME.md).
 
-像使用熟悉的编辑器一样，点击 **打开文件夹**，浏览文件、预览 Markdown、查看代码。为项目授予需要的编辑和命令权限后，编程助手可以修改文件、运行构建或测试，并把真实结果带回聊天。
+### Keep evidence and notes useful
 
-文件夹会成为一个项目，相关私聊和协作群集中保存在项目下；再次打开同一文件夹即可继续。每个项目独立保存目录与权限，并共享项目说明和你收藏的成果。旧聊天可先预览工作目录的归类建议，再选择迁移。详见[文件夹项目](docs/FOLDER_PROJECTS.md)。
-
-你能看到文件差异、命令输出和退出码，也能在对话旁打开终端继续检查。只想要一段代码示例时，直接提问即可，无需配置目录。
-
-> 「修复这个函数，让已有测试通过；不要修改测试，完成后告诉我改了什么、验证了什么。」
-
-### 让资料与笔记接着参与下一次对话
-
-在聊天旁阅读文档、网页和项目文件，按需把内容加入本轮资料。知识库支持基于选定来源提问、查看原文引用和保存笔记。
-
-主导航的「笔记」提供来源、问答和已存笔记三栏；阅读正文打开弹窗，关闭后继续原问答。可以就地添加已有知识库、飞书或本地资料。知识库则负责资料、检索检查与索引设置，详见[工作区布局](docs/WORKSPACE_UI.md)。
-
-伙伴的回答可以收藏到笔记，笔记也能作为完整资料带回伙伴聊天。一次研究留下的内容，可以继续用来写作、讨论或执行下一步任务。
-
-> 「根据这份笔记梳理待办，再帮我补充需要验证的问题。」
+Read documents, web pages and local files alongside chat. Select the material to include in a task. Notebooks combine sources, questions and saved notes; knowledge search preserves citations and links back to the original material. A saved answer can become evidence for the next conversation. See [workspace layout](docs/WORKSPACE_UI.md).
 
 <details>
-<summary>查看笔记与引用界面</summary>
+<summary>Notebook and citation preview</summary>
 
-![笔记、已选来源与原文引用](docs/images/notebook.png)
+![Notebook, selected sources and citations](docs/images/notebook.png)
 
-*界面演示使用匿名资料；截图来自已有笔记组件。*
+*Existing notebook components with anonymous demonstration material.*
 
 </details>
 
-### 把学习与协作接进日常
+### Compose visual workflows
 
-- **事项与日程**：在「事项」中拖动本地卡片推进待办、进行中、待验收、已完成，可选项目、AI 负责人（默认 tebb），明确点击交给 AI 执行；历史成果、归档与恢复继续保留。「日程」独立提供月、周和单日，日/周完整展示 24 小时，支持独立新建、可选事项关联及双向定位；普通个人日程可拖动改期和调整时长，断连先核对原回执。业务进度由你确认，详见[工作看板](docs/WORK_BOARD.md)。
-- **视频学习**：读取 Bilibili / YouTube 的可用字幕与章节，整理学习笔记，长视频分段处理。
-- **飞书协作**：在飞书与机器人继续对话，把内容整理为文档，连接知识库和多维表格。
-- **定时工作**：配置资讯整理与推送，在本机运行期间按计划执行。
-- **轻巧桌面入口**：一个可换色、可调大小的圆形小伴，单击打开浮动聊天。左下角「桌宠」独立页可预览、显示/隐藏及选择已有外观。桌宠是工作区的可选入口，关闭浮窗后任务仍可继续。
+Start with editable examples for technology news, video notes, or Feishu publishing. Drag atomic capabilities onto the design page, connect them, inspect inputs and outputs step by step, then run or schedule a saved version. Ask a companion to create reusable declarative capabilities and save a workflow draft using the same services. Saving a draft does not execute it or enable publication.
 
-## 为喜欢掌控工具的人设计
+Video reading uses actual available subtitles and reports coverage gaps. Feishu document creation, table records and group messages are separate optional nodes with fixed targets and explicit publication confirmation. Connections and video login live in settings. These integrations are optional capabilities rather than prerequisites for the agent. See [workflows](docs/WORKFLOWS.md).
 
-| 你关心的事 | tebb 的做法 |
+### Organize work and keep a desktop entry point
+
+Move local work items through todo, in progress, review and done. Assign a project or AI owner, then explicitly hand a task to a companion. The calendar supports local appointments, month/week/day views, rescheduling and optional Feishu synchronization. See [work board](docs/WORK_BOARD.md) and [calendar](docs/CALENDAR.md).
+
+A small, customizable desktop pet opens floating chat. Hide it or change its appearance from the pet page; closing a floating window does not stop tasks.
+
+## Stay in control
+
+| Concern | Behavior |
 | --- | --- |
-| 用什么模型 | 自带 API Key，接入兼容 Chat Completions 的模型服务，为伙伴配置不同模型 |
-| Agent 正在做什么 | 流式进度、任务时间线、工具回执，支持补充与停止 |
-| 文件会改在哪里 | 每个项目各自的主目录与只读参考目录，编辑和命令分别授权 |
-| 结果是否真的验证过 | 展示实际文件差异、测试命令与退出码，区分生成代码和运行验证 |
-| 如何扩展 | 选择 Skill、配置工具，按现有兼容范围接入 MCP |
-| 如何排查问题 | 对话下方查看实际请求、调用参数与窗口容量；「记忆」打开调用检查台，核对完整输入、来源版本，预览和独立试验 |
+| Model choice | Bring your own API key for a compatible Chat Completions service; configure models per companion. |
+| Task progress | Streaming output, task timelines, tool receipts, clarification and cancellation. |
+| File access | Explicit project directories with separate read, edit and command permissions. |
+| Verification | Actual changes and command results, with generated output distinguished from verified execution. |
+| Extensions | [Versioned official skills](https://github.com/lkun-lea/tebb-skills), configured tools and supported MCP connections. Skills do not grant permissions. |
+| Memory and debugging | Inspect actual model input, source versions, selected/excluded memory, next-send previews and isolated trials. See [memory](docs/MEMORY_REDESIGN.md). |
 
-## 快速开始
+## Quick start
 
-### 下载 Windows 便携版
+1. Download the Windows x64 ZIP from [Releases](https://github.com/lkun-lea/tebb/releases) and extract it completely.
+2. Run `tebb.exe`, keeping its `runtime` directory alongside it.
+3. Follow onboarding to enter the model API URL, model ID and API key, then save and test the connection.
+4. To work on local code, open a folder from companion chat and configure its permissions.
 
-1. 打开 [Releases](https://github.com/liukun158959-beep/tebb/releases)，下载 Windows x64 ZIP 并完整解压。
-2. 运行包内入口程序，保留旁边的 `runtime` 文件夹。
-3. 按首次引导填写模型 **API 地址、模型 ID、API Key**，保存并测试连接，然后开始聊天。
-4. 想操作本地项目时，在伙伴聊天侧栏的管理菜单选择 **打开文件夹**，按需设置编辑与命令权限。
+Windows 10/11 x64 and WebView2 Runtime are required. The portable package includes Python; installing Python, Node or Rust is unnecessary for the packaged client. Model service charges may apply, and tool execution requires model support for tool calling.
 
-> 本文介绍 v0.4.1 工作区，新包入口为 `tebb.exe`。历史 v0.2.3 包使用 `ZhiXing.exe`；升级沿用原用户数据。
+Optional connections can be configured later. See [getting started](docs/GETTING_STARTED.md). To run from source, follow [development](docs/DEVELOPMENT.md): Atlas and tebb-skills use pinned commits, and skills must be explicitly prepared before first use. The app does not download skill updates at startup.
 
-支持 Windows 10/11 x64，需要 WebView2 Runtime。便携版无需自行安装 Python、Node 或 Rust；模型服务需自行准备，API 调用可能产生费用。工具执行需要模型支持 tool calling。
+## Project status
 
-飞书、知识库、视频登录和 WSL 终端都可以后续按需配置，参见 [首次使用](docs/GETTING_STARTED.md)。从源码运行请看 [开发指南](docs/DEVELOPMENT.md)；完整源码启动依赖公开的 Atlas 源码，开发与发布使用固定正式提交。
+tebb is an early preview, currently focused on a personal Windows installation. Conversations and configuration are stored locally. Required task context is sent to your selected model or configured tool service.
 
-## 项目状态
+- Scheduled workflows require the local app to be running; they do not continue in the cloud after shutdown.
+- Subtitle availability and coverage limit video summaries; missing content is reported.
+- Commands require configured permissions and a ready isolation backend. The offline terminal and Docker project runtime have different capabilities.
+- Model and network requests can time out. Completed external actions are not automatically undone or repeated; unknown write results require reconciliation.
+- Cloud hosting, remote access and multi-user administration are not current product guarantees. UI localization beyond these READMEs is outside this change.
 
-tebb 正在快速迭代，当前以 **Windows 本机运行**为主。会话和配置保存在本机；回答与工具所需上下文会发送给你选择的模型服务。
+See [issues](https://github.com/lkun-lea/tebb/issues) and [performance evidence](docs/PERFORMANCE.md) for current limits and measurements.
 
-- 定时任务依赖本机程序运行，关机后不会在云端继续执行。
-- 视频总结依赖实际取得的字幕，无字幕时会说明内容缺口。
-- 文件与命令执行需配置目录和权限；终端依赖 WSL 与 bubblewrap。
-- 模型服务与网络仍可能超时，已完成的工具操作不会因超时自动撤销或重做。
+## Documentation and contributing
 
-云端常驻、远程连接与更多运行环境属于后续探索。当前进展与已知问题见 [Issues](https://github.com/liukun158959-beep/tebb/issues)，实测边界见 [性能记录](docs/PERFORMANCE.md)。
-
-## 文档与参与
-
-| 想做什么 | 从这里开始 |
+| Topic | Documentation |
 | --- | --- |
-| 安装、连接模型和设置工作目录 | [首次使用](docs/GETTING_STARTED.md) · [伙伴工作区](docs/LOCAL_COLLABORATION.md) |
-| 连接飞书、文档与机器人 | [飞书接入](docs/FEISHU_AGENT.md) |
-| 阅读视频、管理字幕与登录 | [视频学习](docs/VIDEO_SUMMARIES.md) |
-| 了解终端、权限和开发者模式 | [终端说明](docs/TERMINAL.md) · [Agent 调试](docs/AGENT_DEBUG.md) |
-| 运行源码、提交改动或构建版本 | [开发指南](docs/DEVELOPMENT.md) · [贡献指南](CONTRIBUTING.md) · [发布流程](docs/RELEASING.md) |
+| Setup, model connections and workspace | [Getting started](docs/GETTING_STARTED.md) · [Companions](docs/LOCAL_COLLABORATION.md) |
+| Visual automation | [Workflows](docs/WORKFLOWS.md) · [Official skills](https://github.com/lkun-lea/tebb-skills) |
+| Feishu connections and video sources | [Feishu](docs/FEISHU_AGENT.md) · [Video](docs/VIDEO_SUMMARIES.md) |
+| Execution, permissions and debugging | [Terminal](docs/TERMINAL.md) · [Agent debugging](docs/AGENT_DEBUG.md) |
+| Development and releases | [Development](docs/DEVELOPMENT.md) · [Contributing](CONTRIBUTING.md) · [Releasing](docs/RELEASING.md) |
 
-欢迎提交使用反馈、复现步骤、功能建议，以及文档和代码改进。提交问题前请隐藏 API Key、登录信息和私人对话。
+Bug reports, reproducible examples, documentation and code improvements are welcome. Remove credentials and private conversation content before sharing diagnostics.
 
-tebb 原名知行 · ZhiXing；仓库已更名为 `tebb`，旧仓库链接由 GitHub 重定向，更新时沿用原有用户数据。旧版检查更新失败时，请从 Releases 手动下载。[品牌与兼容说明](docs/BRAND.md)
+tebb was previously named ZhiXing. GitHub redirects the old repository links; existing user data is retained. See [branding](docs/BRAND.md).
 
-## 许可证与致谢
+## License and acknowledgements
 
-tebb 自有代码采用 [MIT License](LICENSE)，允许商业使用、修改和再分发，需保留版权与许可声明。Atlas 同样采用 MIT；第三方代码、依赖和字体保留各自授权，见 [第三方声明](THIRD_PARTY_NOTICES.md)。MIT 不代替品牌、第三方角色形象、模型权重或其他外部素材的授权；个人 Live2D／Core 和权重不随公开发布包提供。
+tebb's own code is [MIT licensed](LICENSE). Atlas is also MIT licensed; third-party dependencies, fonts and assets retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md). MIT does not grant rights to brands, character designs, model weights or separately licensed assets. Personal Live2D/Core assets and model weights are not included in public release packages.
 
-感谢 Atlas 及本项目使用的 Tauri、React、xterm.js、bubblewrap、yt-dlp 等项目。
-
-日程支持本地保存、周/单日安排及选择同步到飞书；操作与边界见 [日程说明](docs/CALENDAR.md)。
+Thanks to Atlas, Tauri, React, React Flow, xterm.js, bubblewrap, yt-dlp and the other projects used here.
