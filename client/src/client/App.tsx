@@ -51,6 +51,7 @@ import { LocalSourcesDialog, type LocalSource } from "./local-sources";
 import { SideWorkspace, previewSource, openTerminal, openProject, openProjectFolder, togglePreview } from "./side-workspace";
 import { LoadingText } from "./loading-text";
 import { AutomationPane } from "./automation";
+import { DevelopmentTeam } from "./development-team";
 import { VideoLogin, VideoSettings, WikiConnectionSettings } from "./video";
 import { StatusGrid, loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusKind, type StatusView } from "./status";
 import { Markdown, MdLink, openableHref, PlainLinks } from "./Markdown";
@@ -100,7 +101,7 @@ import {
 } from "./settings";
 
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
-type Pane = "work" | "chat" | "board" | "settings" | "automation" | "monitor" | "collaboration" | "pet";
+type Pane = "work" | "chat" | "board" | "settings" | "automation" | "monitor" | "collaboration" | "pet" | "team";
 
 const debugKind = debugPane();
 const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "monitor" || debugKind === "video";
@@ -1819,6 +1820,7 @@ export function App() {
   function openWorkItem(id:string){setWorkTarget({id,nonce:Date.now()});setPane('work');}
   const workspaceNavigation = <>
     <span className="tebb-nav-group">协作</span>
+    <RailButton icon="tasks" label="开发团队" active={pane === "team"} onClick={() => navigateWorkspace(()=>setPane("team"))} />
     <RailButton icon="chat" label="伙伴聊天" active={pane === "collaboration"} onClick={() => navigateWorkspace(()=>setPane("collaboration"))} />
     <RailButton icon="tasks" label="AI 执行" active={pane === "monitor"} onClick={() => navigateWorkspace(()=>setPane("monitor"))} />
     <RailButton icon="automation" label="自动化" active={pane === "automation"} onClick={() => navigateWorkspace(()=>setPane("automation"))} />
@@ -1865,7 +1867,7 @@ export function App() {
       <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
-          ({ work: "事项", board: "日程", feishu: "飞书", settings: "设置", automation: "自动化", monitor: "AI 执行", video: "视频学习", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
+          ({ team:"开发团队", work: "事项", board: "日程", feishu: "飞书", settings: "设置", automation: "自动化", monitor: "AI 执行", video: "视频学习", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
           model={modelItems.find(m => m.id === activeModelId)?.model ? `默认：${modelItems.find(m => m.id === activeModelId)?.model}` : ""} connected={!!info || !!debugKind} busy={busy || noteBusy}
           onFile={() => setLocalDialog("file")} onFolder={openProjectFolder} onTerminal={openTerminal} sidebarOpen={sidebarState.open} sidebarAvailable={sidebarState.available} onSidebarToggle={togglePreview} />
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
@@ -2214,7 +2216,7 @@ export function App() {
                 onSavePersona={(text) => void savePersona(text)}
               /></div>
             </section>
-          ) : pane === "automation" ? (
+          ) : pane === "team" ? <DevelopmentTeam info={info}/> : pane === "automation" ? (
             <section key="automation" data-page="automation" className="flex min-h-0 flex-1 overflow-hidden">
               <AutomationPane info={info} debug={boardClock !== null} />
             </section>

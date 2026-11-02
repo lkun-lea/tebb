@@ -7,6 +7,10 @@ from . import workbench_queries
 
 
 class Bridge:
+    def development_team(self):
+        from .development_team import snapshot
+        return snapshot()
+
     def __init__(self, host, *, session_changed=None) -> None:
         self._host = host
         self._session_changed = session_changed

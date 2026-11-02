@@ -49,3 +49,4 @@ client/public/Core/
 # Explicitly prepared, pinned official skills and local custom skills.
 /skills/
 /.ci-skills/
+/.dev-team/

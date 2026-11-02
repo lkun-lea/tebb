@@ -26,6 +26,7 @@ from .host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
+    "development_team",
     'read_calendar_proposal',
     'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
     'task_completion_prepare','task_completion_confirm','task_completion_status','task_completion_inspect',
@@ -190,7 +191,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
                       "load_board", "create_agenda", "delete_agenda", "delete_task", "read_calendar_proposal",
                       "generate_week_review", "write_today_summary_doc", "write_week_review_doc",
                       "list_automation_jobs", "save_automation_job", "delete_automation_job", "run_automation_job", "automation_workflow",
-                      "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
+                      "development_team", "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
                       "list_debug_calls", "get_debug_call", "set_debug_recording", "explain_debug_call", "load_context_debug", "save_context_capacity", "memory_debug",
                       "load_model_network", "save_model_network", "load_search_settings", "save_search_settings", "test_search",
                       "load_video_settings", "save_video_settings", "list_task_videos", "export_task_video",
