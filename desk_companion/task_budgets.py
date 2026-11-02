@@ -453,9 +453,9 @@ def record_progress(tool,arguments,result):
         if source.get('level')=='body'and source.get('text'):
             scope.progress('body',source.get('url',source.get('source_id','')),hashlib.sha256(source['text'].encode()).hexdigest())
     digest=result.get('sha256')or result.get('revision')
-    if tool in{'project_read','workspace_read','workspace_write'}and isinstance(digest,str):scope.progress('file',str(arguments.get('path','')),digest)
+    if tool in{'project_read','workspace_read','workspace_write','workspace_read_symbol','workspace_patch'}and isinstance(digest,str):scope.progress('file',str(arguments.get('path','')),digest)
     text=result.get('text')or result.get('content')
-    if tool in{'read_local_source','project_read','workspace_read'}and isinstance(text,str)and text:
+    if tool in{'read_local_source','project_read','workspace_read','workspace_read_symbol'}and isinstance(text,str)and text:
         scope.progress('local_body',str(arguments.get('source_id')or arguments.get('path','')),hashlib.sha256(text.encode()).hexdigest())
     if tool=='project_log'and isinstance(text,str)and text:
         start=result.get('start_offset');end=result.get('offset');size=result.get('bytes')

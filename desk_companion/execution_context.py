@@ -14,7 +14,7 @@ _BODY_KEYS={'text','body','content','stdout','stderr'}
 _WRITES={'write','prepare','create','start','stop','delete','update','send','post','publish','archive'}
 _VIDEO={'read_video','read_video_transcript'}
 _RELOADABLE_READS={'read_local_source','web_fetch','web_search','project_read','project_log',
-                   'workspace_read','github_repository','project_chat_search'}
+                   'workspace_read','workspace_read_symbol','workspace_search','github_repository','project_chat_search'}
 _NOTICE='部分旧工具正文在本轮材料中只保留摘录，原来源/操作编号与回执仍保留。需要原文时重新读取；不要声称本轮仍持有完整正文。'
 
 

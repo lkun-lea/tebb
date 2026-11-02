@@ -55,11 +55,14 @@ raise SystemExit(0 if all(rows.values()) else 1)
 """
 
 
-def trial(arm, output, model, policy):
+def trial(arm, output, model, policy, *, seed=None, goal=GOAL, holdout=HOLDOUT, observe=None):
     folder=output/arm
-    folder.mkdir()
-    for name,content in FILES.items():
-        (folder/name).write_text(content,'utf-8')
+    if seed is None:
+        folder.mkdir()
+        for name,content in FILES.items():
+            (folder/name).write_text(content,'utf-8')
+    else:
+        seed(folder)
     with tempfile.TemporaryDirectory(prefix='tebb-team-profile-') as tmp:
         profile=Path(tmp)
         (profile/'models.json').write_text(json.dumps(dict(active=model['id'],items=[model])),'utf-8')
@@ -80,28 +83,36 @@ def trial(arm, output, model, policy):
                     if a['id']=='research':
                         a.update(role='独立验证跨模块集成和失败路径',tools=['工作区读取','终端'])
             if arm=='team':
-                group=action(type='group',title='订单团队',members=['tebb','coder','research'],project_id=pid)['selected']
-                sent=action(type='send',conversation=group,target='tebb',mode='task',text=GOAL,strategy='delegate',development_task=True)
+                group=action(type='group',title='开发验证团队',members=['tebb','coder','research'],project_id=pid)['selected']
+                started=time.time()
+                sent=action(type='send',conversation=group,target='tebb',mode='task',text=goal,strategy='delegate',development_task=True)
             else:
                 dm=action(type='open_dm',agent_id='coder',project_id=pid)['selected']
-                sent=action(type='send',conversation=dm,target='coder',mode='task',text=GOAL)
+                started=time.time()
+                sent=action(type='send',conversation=dm,target='coder',mode='task',text=goal)
             rid=sent['runs'][-1]['id']
             while True:
                 service.tick()
                 runs=service.snapshot()['state']['runs']
                 root=next(r for r in runs if r['id']==rid)
+                if observe:
+                    observe(service, started)
                 rows=[{k:r.get(k) for k in ('id','parent','agent','kind','state','status','calls','input_tokens','output_tokens','error')} for r in runs]
                 (output/(arm+'-progress.json')).write_text(json.dumps(rows,ensure_ascii=False,indent=2),'utf-8')
                 if root['state'] not in {'running','pending','queued','waiting','cancelling'}:break
                 time.sleep(1)
             oracle='held_out_'+uuid.uuid4().hex+'.py'
             with (folder/oracle).open('x',encoding='utf-8') as script:
-                script.write(HOLDOUT)
-            result=project_workspace.run('python3 '+oracle,ws,'evaluation-'+rid,60)
+                script.write(holdout)
+            elapsed=time.time()-started
+            try:
+                result=project_workspace.run('python3 '+oracle,ws,'evaluation-'+rid,60)
+            finally:
+                (folder/oracle).unlink(missing_ok=True)
             try: scores=json.loads(result.get('output','').strip().splitlines()[-1])
             except (ValueError,IndexError):scores=None
             return dict(model=model['model'],delivery=root['state'],runs=rows,checks=scores,budget=root.get('task_budget'),
-                        test_exit=result.get('exit_code'),test_state=result.get('state'),error=result.get('error'))
+                        elapsed_s=round(elapsed,1),test_exit=result.get('exit_code'),test_state=result.get('state'),error=result.get('error'))
         finally:
             service.shutdown()
             (profile/'models.json').unlink(missing_ok=True)

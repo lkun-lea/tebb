@@ -14,6 +14,34 @@
 
 本地机制验证可运行 `python -m unittest tests.test_native_development_team`。它使用受控模型、实际文件修改和 Python 子进程检查跨进程重复订单。使用已配置 tebb 模型做同题实测，可运行 `python -m scripts.eval_native_development --live --output <全新目录>`。两组从相同的 CLI、服务和 SQLite 存储代码开始，保留原生交付状态，并通过 tebb 终端独立检查重启、账户隔离、失败回滚及并发。该命令需要现有模型连接和可用的原生 WSL 沙箱。
 
+## 在项目群中定位和修改源码
+
+编码伙伴可用 `workspace_search` 按 Python 函数或类名搜索，结果包含路径、限定名和行号。非 Python 代码和日志常量可用 `mode=text` 搜索。用 `workspace_read_symbol` 传入路径和限定名，或用 `start_line`、`end_line` 读取原文。返回 `next_line` 时可从该行续读。每次最多返回 120 行、12,000 字符。搜索最多返回 25 个匹配，`limited` 表示还有结果或扫描达到了上限，可用 `path` 缩小范围。
+
+小改动用 `workspace_patch`，传入路径、读取时的整文件 revision、唯一原文 old 和替换文本 new。版本变化或原文不唯一时，重读目标再改。成功会生成文件变更回执，使此前的验证失效。参考目录和验证伙伴均只能使用两个读取工具。新功能的本地检查为 `python -m unittest tests.test_workspace_source tests.test_native_development_team`。
+
+### 复跑真实 #208
+
+在两个独立进程中运行下列同一入口。每次将 `$engine` 指向对应版本的原生后端根目录，`$out` 指向仓库外尚不存在的结果目录。先结束旧组再启动新组。需要 tebb 已配置的模型、可用的 WSL 沙箱，以及包含 #208 历史提交的本地仓库。评测会实际使用模型额度。
+
+~~~powershell
+$repo = (Get-Location).Path
+$env:PYTHONPATH = $engine
+$env:DESK_COMPANION_DATA_DIR = $repo
+python "$repo/scripts/eval_native_issue208.py" --live --repo $repo --output $out
+~~~
+
+两组都从 `1494d1c` 的完整归档起步，共用需求、团队成员和原生根预算。评测结束后才注入 `88bf758` 的四项缺陷检查和修复前的八项回归。候选代码在 `team/`，原生命令、实际输出、文件变更及距发单的秒数在 `events.jsonl`，终态、逐项结果和用量在 `result.json`。搜索命中不能计作复现。用量缺失看 `budget.consumed.input_unknown_calls` 和 `output_unknown_calls`。
+
+2026-11-02 在旧控制器 `e049b57` 和本次工具版本各运行一次，模型均为 `mimo-v2.6-flash`。
+
+| 原生团队 | 首次实际复现 | 首次业务源码修改 | 冻结缺陷检查 | 既有回归 | 已登记输入 / 输出 token |
+| --- | --- | --- | --- | --- | --- |
+| 旧工具 | 602.2 秒内未观察到 | 无 | 0/4 | 8/8 | 110,303 / 5,585 |
+| 新工具 | 290.05 秒 | 无 | 0/4 | 8/8 | 178,245 / 4,897 |
+
+旧组耗尽根时间预算。新组调用搜索 6 次，按函数读取 1 次未命中，仍整文件读取 5 次。复现命令打印了带控制序列的错误地址和来源登记、引用审阅的 IPv6 异常；下一次模型等待超时，未调用局部修改。两组各有一次调用缺少用量，已登记总量相差 67,254 token（新组多 58.0%）。此次对照只观察到了复现阶段的进展。
+
 ## 外部流程实验记录
 
 展开“外部开发流程实验记录”后可选择已登记的 issue，比较外部实验组及单开发者的固定测试、返工和用量。

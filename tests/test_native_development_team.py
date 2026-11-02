@@ -81,6 +81,12 @@ class NativeTeamTests(unittest.TestCase):
                 on_tool_delta=None
                 def chat(_,messages,tools,on_delta):
                     log.append(messages)
+                    names={t['function']['name'] for t in tools or []}
+                    if 'workspace_read' in names:
+                        self.assertTrue({'workspace_search','workspace_read_symbol'} <= names)
+                        self.assertEqual('workspace_patch' in names,'workspace_write' in names)
+                        if req.get('integration_verification'):
+                            self.assertNotIn('workspace_patch',names)
                     scope=task_budgets.current()
                     if scope:
                         phase=scope.phase()
@@ -103,9 +109,10 @@ class NativeTeamTests(unittest.TestCase):
             return log
         prefix="from pathlib import Path\nimport json\ndef record(path,key):\n p=Path(path); d=json.loads(p.read_text()) if p.exists() else {}\n "
         end="\n p.write_text(json.dumps(d)); return d[key]\n"
-        def implementation(task,req,expression):
+        def implementation(task,req,edit):
             rev=project_workspace.read("main","storage.py",config=req["workspace"])["revision"]
-            return worker(task,req,[("workspace_write",dict(path="storage.py",text=prefix+expression+end,revision=rev)),
+            name,args=edit
+            return worker(task,req,[(name,dict(path="storage.py",revision=rev,**args)),
                                     ("workspace_run",dict(command="python check_first.py"))])
         task,writer=take("task","coder")
         self.assertFalse(any(r['kind']=='plan' for r in self.work.requests.values()))
@@ -122,7 +129,7 @@ class NativeTeamTests(unittest.TestCase):
                 ident,_=ledger.reserve_call(task,12)
                 ledger.settle(task,ident,dict(prompt_tokens=12,completion_tokens=8))
         with task_budgets.installed(task),patch.object(task_budgets,'record_workspace_check',side_effect=plateau):
-            implementation(task,writer,"d[key]=1+d.get(key,0)")
+            implementation(task,writer,("workspace_write",dict(text=prefix+"d[key]=1+d.get(key,0)"+end)))
         self.assertEqual(sum(c['phase']=='finish' for c in ledger.read(budget_id)['calls'].values()),1)
         self.assertEqual(run_command("python check_first.py")["exit_code"],0)
         self.assertNotEqual(run_command(command)["exit_code"],0)
@@ -134,7 +141,7 @@ class NativeTeamTests(unittest.TestCase):
         proof=fix["handoffs"][0]["workspace_observation"]["checks"][0]
         self.assertEqual(proof["exit_code"],1)
         self.assertIn("duplicate order",proof["failure_output"])
-        implementation(task,fix,"d.setdefault(key,1)")
+        implementation(task,fix,("workspace_patch",dict(old="d[key]=1+d.get(key,0)",new="d.setdefault(key,1)")))
         task,qa=take("task","research")
         self.assertEqual(qa["required_rechecks"],[command])
         worker(task,qa,[("workspace_run",dict(command=command))])

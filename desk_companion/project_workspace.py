@@ -156,7 +156,7 @@ def tree(root_id='main', relative='', config=None):
     return dict(ok=True, entries=rows, limited=len(rows) >= 400 or len(candidates) >= 2000)
 
 
-def read(root_id, relative, config=None):
+def read(root_id, relative, config=None, *, utf8_only=False):
     path, cfg = resolve(root_id, relative, config)
     if not path.is_file(): raise ValueError('文件不存在')
     if path.stat().st_size > MAX_FILE: raise ValueError('预览上限1 MiB，请使用附件提取或本地应用打开')
@@ -165,10 +165,12 @@ def read(root_id, relative, config=None):
     revision = hashlib.sha256(raw).hexdigest()
     result = dict(ok=True, path=relative, root=root_id, revision=revision, editable=root_id == 'main' and cfg['edit'], name=path.name, workspace_revision=cfg["revision"])
     if path.suffix.lower() in IMAGES:
+        if utf8_only: raise ValueError('源码工具需要 UTF-8 文本')
         result.update(kind='image', data='data:'+mimetypes.guess_type(path.name)[0]+';base64,'+base64.b64encode(raw).decode(), editable=False)
     else:
         try: text = raw.decode('utf-8')
         except UnicodeError:
+            if utf8_only: raise ValueError('源码工具需要 UTF-8 文本') from None
             from .local_sources import extract
             text = extract(path)
             result['editable'] = False
@@ -272,13 +274,17 @@ def run(command, snapshot, run_id, timeout=90):
         if job['state'] in {'starting','running','stopping'}: service.cancel(ident)
 
 
-def tool_specs():
+def tool_specs(*, development=False):
     def spec(name, description, properties, required):
-        return dict(type='function', function=dict(name=name, description=description, parameters=dict(type='object', properties=properties, required=required)),read_only=name in {'workspace_list','workspace_read'})
+        return dict(type='function', function=dict(name=name, description=description, parameters=dict(type='object', properties=properties, required=required)),read_only=name in {'workspace_list','workspace_read','workspace_search','workspace_read_symbol'})
     string = {'type':'string'}
     return [
         spec('workspace_list', '列出授权工作目录，参考目录只读。root为main或ref-0等。', {'root':string,'path':string}, []),
         spec('workspace_read', '读取工作区文本，返回revision；创建新文件时revision用new。', {'root':string,'path':string}, ['path']),
         spec('workspace_write', '编辑主目录UTF-8文件，必须带上读取时的revision；新文件用new。', {'path':string,'text':string,'revision':string}, ['path','text','revision']),
         spec('workspace_run', '在主目录WSL无网络沙箱运行命令。开启失败立即退出和pipefail，直接执行构建或测试，不用echo或||true掩盖退出码。/references/N只读。', {'command':string,'timeout':{'type':'integer'}}, ['command']),
-    ]
+    ] + ([
+        spec('workspace_search', '搜索 Python 函数/类定义，或用 text 搜索源码文字。path 可限定目录或文件。返回路径、限定名或匹配行。', {'root':string,'path':string,'query':string,'mode':{'type':'string','enum':['symbol','text']}}, ['query']),
+        spec('workspace_read_symbol', '按 Python 限定名或行号读取局部源码；next_line 为续读位置。返回文件 revision。', {'root':string,'path':string,'symbol':string,'start_line':{'type':'integer'},'end_line':{'type':'integer'}}, ['path']),
+        spec('workspace_patch', '在主目录将唯一 old 精确替换为 new；带读取时文件 revision，保留片段外原文。', {'path':string,'revision':string,'old':string,'new':string}, ['path','revision','old','new']),
+    ] if development else [])
