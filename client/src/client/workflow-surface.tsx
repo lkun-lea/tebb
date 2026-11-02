@@ -8,7 +8,7 @@ export function WorkflowSurface({focused,onClose,children}:{focused:boolean;onCl
   const [target]=useState(()=>typeof document==='undefined'?null:document.createElement('div'));
   useLayoutEffect(()=>{
     if(!target)return;
-    target.className='workflow-surface-content';
+    target.className='workflow-surface-content workflow-workbench';
     (focused?modal.current:home.current)?.appendChild(target);
   },[target,focused]);
   if(!target)return <>{children}</>;

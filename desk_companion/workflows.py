@@ -61,7 +61,20 @@ class WorkflowStore:
 
     def definitions(self):
         with self.db() as db:
-            return [dict(r) for r in db.execute('SELECT id,name,revision,version,updated FROM definitions ORDER BY updated DESC')]
+            result = []
+            latest = {row['workflow']: dict(row) for row in db.execute('''
+                SELECT id,workflow,version,name,state,mode,attempt,task_id,created,updated,error FROM
+                    (SELECT *,ROW_NUMBER() OVER (PARTITION BY workflow ORDER BY created DESC) AS recency FROM runs)
+                WHERE recency=1''')}
+            for row in db.execute('SELECT id,name,revision,version,updated,graph FROM definitions ORDER BY updated DESC'):
+                item = dict(row)
+                graph = json.loads(item.pop('graph'))
+                # The overview needs topology and layout, never node inputs or targets.
+                item['preview'] = dict(nodes=[dict(id=node['id'], kind=node['kind'], position=node['position'],
+                    label=node.get('capability', {}).get('name', '')) for node in graph['nodes']], edges=graph['edges'])
+                item['latest_run'] = latest.get(item['id'])
+                result.append(item)
+            return result
 
     def definition(self, ident, requested_version=''):
         with self.db() as db:

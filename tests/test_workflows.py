@@ -113,6 +113,28 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse(other['ok'])
         self.assertEqual(len(self.store.runs()), 1)
 
+    def test_overview_lists_current_layout_without_node_inputs_or_targets(self):
+        value = graph(node('trigger', 'trigger', text='private input'),
+                      node('send', 'message', chat_id='oc_private', text='private body'))
+        value['nodes'][1]['position'] = dict(x=350, y=-40)
+        saved = self.save(value)
+        result = self.service.operation('list', {})
+        self.assertTrue(result['ok'])
+        item = result['definitions'][0]
+        self.assertEqual(item['id'], saved['id'])
+        self.assertEqual(item['version'], saved['version'])
+        self.assertEqual(item['preview']['edges'], saved['graph']['edges'])
+        self.assertEqual(item['preview']['nodes'][1], dict(id='send', kind='message', position=dict(x=350, y=-40), label=''))
+        self.assertNotIn('graph', item)
+        self.assertNotIn('private', json.dumps(item))
+        changed = copy.deepcopy(saved['graph'])
+        changed['nodes'][1]['position']['x'] = 700
+        updated = self.save(changed, id=saved['id'], revision=saved['revision'])
+        current = self.service.operation('list', {})['definitions'][0]
+        self.assertEqual(current['preview']['nodes'][1]['position']['x'], 700)
+        self.assertEqual(current['version'], updated['version'])
+        self.assertEqual(self.store.definition(saved['id'], saved['version'])['graph']['nodes'][1]['position']['x'], 350)
+
     def test_definition_update_keeps_original_run_snapshot_and_conflicting_name_does_not_delete(self):
         definition = self.save(graph(node('trigger', 'trigger', text='original')))
         run = self.start(definition)
@@ -141,6 +163,23 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result['state'], 'completed')
         self.assertEqual(result['receipts']['no']['state'], 'skipped')
         self.assertEqual(len(called), 3)
+
+    def test_card_latest_run_is_not_lost_outside_global_history_limit(self):
+        original = self.save(graph(node('trigger', 'trigger')))
+        old = self.store.create_run(original['id'], original['version'], 'old', 'full', {}, False)
+        self.store.set_run(old['id'], state='unknown', error='待核对')
+        other = self.store.save(dict(name='另一个工作流', graph=original['graph']))
+        for index in range(101):
+            run = self.store.create_run(other['id'], other['version'], str(index), 'full', {}, False)
+            self.store.set_run(run['id'], state='completed')
+        result = self.service.operation('list', {})
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(len(result['runs']), 100)
+        self.assertNotIn(old['id'], [run['id'] for run in result['runs']])
+        card = next(d for d in result['definitions'] if d['id'] == original['id'])
+        self.assertEqual(card['latest_run']['id'], old['id'])
+        self.assertEqual(card['latest_run']['state'], 'unknown')
+        self.assertNotIn('receipts', card['latest_run'])
 
     def test_step_requires_explicit_write_confirmation_and_keeps_same_run(self):
         definition = self.save(graph(node('trigger', 'trigger', text='content'), document()))

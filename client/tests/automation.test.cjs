@@ -16,12 +16,13 @@ test('old schedules remain visible and are only disabled explicitly; active jobs
   let refresh,fail=false;const calls=[];
   let job={id:'original',name:'原资讯计划',action:'ai_news',enabled:true,active:false,last_result:'ok'};
   const rpc=async(_info,method,args)=>{calls.push([method,args]);if(method==='list_automation_jobs')return{ok:true,items:[{...job}]};if(fail)return{ok:false,error:'已保存，但列表读取失败'};job={...job,enabled:args.payload.enabled};return{ok:true};};
-  const {WorkflowSchedules}=component('workflow-schedules.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true}});
+  const {WorkflowSchedules,useWorkflowSchedules}=component('workflow-schedules.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true}});
+  function Schedules(){const state=useWorkflowSchedules({port:1,token:'fixture'});return React.createElement(WorkflowSchedules,{state});}
   const previous=global.window;global.window={setInterval:fn=>{refresh=fn;return 1;},clearInterval(){}};let view;
   try{
-    await act(async()=>{view=create(React.createElement(WorkflowSchedules,{info:{port:1,token:'fixture'}}));});
+    await act(async()=>{view=create(React.createElement(Schedules));});
     const button=text=>view.root.findAllByType('button').find(n=>n.children.join('')===text);
-    assert.match(JSON.stringify(view.toJSON()),/仍启用的旧计划/);assert.equal(calls.filter(c=>c[0]==='save_automation_job').length,0);
+    assert.match(JSON.stringify(view.toJSON()),/原有计划仍按原规则运行/);assert.equal(calls.filter(c=>c[0]==='save_automation_job').length,0);
     fail=true;await act(async()=>button('停用计划').props.onClick());assert.match(JSON.stringify(view.toJSON()),/先刷新核对/);
     assert.equal(calls.at(-1)[1].payload.id,'original');
     fail=false;job.active=true;await act(async()=>refresh());assert.equal(button('停用计划').props.disabled,true);

@@ -5,19 +5,30 @@ const {act,create}=require('react-test-renderer');
 function compile(file,imports={}){const filename=path.resolve(__dirname,'../src/client/'+file),mod=new Module(filename,module);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));const original=mod.require.bind(mod);mod.require=id=>{if(id in imports)return imports[id];if(id.endsWith('.css'))return{};const local=id.startsWith('./')&&['.tsx','.ts'].find(extension=>fs.existsSync(path.resolve(path.dirname(filename),id+extension)));return local?compile(id.slice(2)+local,imports):original(id);};mod._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,filename);return mod.exports;}
 const state=compile('workflow-state.ts');
 const alignment=compile('workflow-alignment.ts');
+const textOf=node=>typeof node==='string'?node:node.children?.map(textOf).join('')||'';
+const summary=definition=>({...definition,updated:123,latest_run:null,preview:{nodes:definition.graph.nodes.map(n=>({id:n.id,kind:n.kind,position:n.position,label:n.capability?.name||''})),edges:definition.graph.edges}});
+const scheduleState={jobs:[],loaded:true,error:'',busy:'',reload:async()=>{},toggle:async()=>{}};
+const scheduleMock={WorkflowSchedules:()=>null,useWorkflowSchedules:()=>scheduleState};
 
 async function draftEditor(){
   const graph={nodes:[{id:'trigger',kind:'trigger',config:{text:''},position:{x:70,y:70}},{id:'ai',kind:'ai',config:{prompt:'{{trigger.text}}',model_id:''},position:{x:350,y:70}}],edges:[{source:'trigger',target:'ai',branch:''}]};
   const templates=[{id:'one',name:'示例一',description:'one',graph},{id:'two',name:'示例二',description:'two',graph}];
   const definitions=[{id:'saved-one',name:'已保存一',revision:1,version:'a'.repeat(64),graph},{id:'saved-two',name:'已保存二',revision:1,version:'b'.repeat(64),graph}];
   const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false},{kind:'ai',label:'AI处理',defaults:{prompt:'',model_id:''},outputs:['text'],writes:false},{kind:'base',label:'表格',defaults:{fields:{内容:'{{trigger.text}}'},base_token:'b',table_id:'t',key_field:'receipt',profile:''},outputs:['record_id'],writes:true}];
-  const rpc=async(_info,_method,{operation,payload}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions,runs:[]}:operation==='templates'?{ok:true,templates}:operation==='load'?{ok:true,definition:definitions.find(d=>d.id===payload.id)}:operation==='save'?{ok:true,definition:{...payload,id:'saved-copy',revision:1,version:'c'.repeat(64)}}:{ok:true};
+  const rpc=async(_info,_method,{operation,payload}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions:definitions.map(summary),runs:[]}:operation==='templates'?{ok:true,templates}:operation==='load'?{ok:true,definition:definitions.find(d=>d.id===payload.id)}:operation==='save'?{ok:true,definition:{...payload,id:'saved-copy',revision:1,version:'c'.repeat(64)}}:{ok:true};
   const {applyNodeChanges}=require('@xyflow/react');
   const flow={ReactFlow:props=>React.createElement('div',null,props.children),ViewportPortal:({children})=>children,ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,changes=>set(current=>applyNodeChanges(changes,current))];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,getZoom:()=>1,fitView(){}})};
-  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:()=>null},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
+  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':scheduleMock,'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
   const previous=global.window,confirms=[];global.window={setInterval:()=>1,clearInterval(){},confirm:message=>{confirms.push(message);return false;}};let view;
   await act(async()=>{view=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'fixture'}}));});
-  return {view,confirms,canvas:()=>view.root.findByType(flow.ReactFlow).props,choose:async(label,value)=>act(async()=>view.root.findByProps({'aria-label':label}).props.onChange({target:{value}})),button:text=>view.root.findAllByType('button').find(n=>n.children[0]===text),close:()=>{act(()=>view.unmount());global.window=previous;}};
+  async function choose(label,value){
+    if(label==='示例工作流'){
+      await act(async()=>view.root.findByProps({'aria-label':'自动化工作流首页'}).findAllByType('button').find(n=>textOf(n)==='从示例创建').props.onClick());
+      await act(async()=>view.root.findAllByType('button').find(n=>textOf(n).includes(templates.find(t=>t.id===value).name)&&n.props.onClick).props.onClick());
+    }else if(label==='已保存工作流')await act(async()=>view.root.findByProps({'aria-label':'打开工作流：'+definitions.find(d=>d.id===value).name}).props.onClick());
+    else await act(async()=>view.root.findByProps({'aria-label':label}).props.onChange({target:{value}}));
+  }
+  return {view,confirms,canvas:()=>view.root.findByType(flow.ReactFlow).props,choose,button:text=>view.root.findAllByType('button').find(n=>textOf(n)===text||n.children.includes(text)),close:()=>{act(()=>view.unmount());global.window=previous;}};
 }
 
 test('untouched examples and saved workflows switch without a discard prompt, including unchanged canvas notifications',async()=>{
@@ -45,6 +56,47 @@ test('alignment snaps closest measured edges and centers within screen pixels, a
   const horizontal=alignment.alignSelection(nodes,'horizontal');assert.equal(horizontal[0].position.y+40,horizontal[1].position.y+30);assert.equal(horizontal[0].position.x,300);assert.strictEqual(horizontal[2],nodes[2]);
   const vertical=alignment.alignSelection(nodes,'vertical');assert.equal(vertical[0].position.x+100,vertical[1].position.x+50);assert.equal(vertical[1].position.y,105);
   assert.strictEqual(alignment.alignSelection([anchor],'vertical')[0],anchor);
+});
+
+test('card home opens the selected definition and returning preserves configuration, positions and unfinished JSON',async()=>{
+  const ui=await draftEditor();
+  try{
+    const home=()=>ui.view.root.findByProps({'className':'workflow-home-surface'});
+    const editor=()=>ui.view.root.findByProps({'className':'workflow-editor-surface'});
+    assert.equal(home().props.hidden,false);assert.equal(editor().props.hidden,true);assert.equal(ui.view.root.findAllByProps({'aria-label':'工作流画布'}).length,0);
+    await ui.choose('已保存工作流','saved-two');assert.equal(editor().props.hidden,false);
+    act(()=>ui.canvas().onNodeClick({},ui.canvas().nodes[1]));
+    act(()=>ui.view.root.findByType('textarea').props.onChange({target:{value:'保留我的提示词'}}));
+    act(()=>ui.canvas().onNodesChange([{type:'position',id:'ai',position:{x:700,y:300},dragging:false}]));
+    await act(async()=>ui.button('工作流').props.onClick());assert.equal(home().props.hidden,false);assert.equal(ui.confirms.length,0);
+    await ui.choose('已保存工作流','saved-two');assert.equal(ui.confirms.length,0);assert.equal(ui.view.root.findByType('textarea').props.value,'保留我的提示词');assert.deepEqual(ui.canvas().nodes[1].position,{x:700,y:300});
+    await act(async()=>ui.button('工作流').props.onClick());await ui.choose('已保存工作流','saved-one');
+    assert.equal(ui.confirms.length,1);assert.equal(home().props.hidden,false);assert.equal(ui.canvas().nodes[1].data.config.prompt,'保留我的提示词');
+    await act(async()=>ui.button('返回当前画布').props.onClick());assert.equal(editor().props.hidden,false);
+    act(()=>ui.button('表格').props.onClick());act(()=>ui.view.root.findByProps({'aria-label':'普通文本字段 JSON'}).props.onChange({target:{value:'{"未完成":'}}));
+    await act(async()=>ui.button('工作流').props.onClick());await act(async()=>ui.button('返回当前画布').props.onClick());
+    assert.equal(ui.view.root.findByProps({'aria-label':'普通文本字段 JSON'}).props.value,'{"未完成":');assert.equal(ui.confirms.length,1);
+  }finally{ui.close();}
+});
+
+test('overview uses real graph layout, per-definition latest receipts and actual schedule state; actions remain separate',async()=>{
+  const {WorkflowOverview}=compile('workflow-overview.tsx');
+  const definition=summary({id:'w',name:'资讯流程',revision:1,version:'c'.repeat(64),graph:{nodes:[{id:'t',kind:'trigger',config:{text:'private'},position:{x:-30,y:40}},{id:'a',kind:'ai',config:{prompt:'private'},position:{x:300,y:240}}],edges:[{source:'t',target:'a',branch:''}]}});
+  definition.latest_run={id:'older-than-100',workflow:'w',name:'资讯流程',state:'unknown',created:1700000000};
+  const job={id:'original',name:'每天整理',action:'workflow',workflow_id:'w',workflow_version:'b'.repeat(64),enabled:false,schedule_text:'每天 09:00'};
+  const calls=[],props={definitions:[definition],history:[],catalog:[{kind:'trigger',label:'触发'},{kind:'ai',label:'AI处理'}],schedules:{...scheduleState,jobs:[job],toggle:async value=>calls.push(['toggle',value])},loading:false,loaded:true,error:'',disabled:false,debug:false,draft:'',onOpen:id=>calls.push(['open',id]),onResume(){},onNew:()=>calls.push(['new']),onTemplate:()=>calls.push(['template']),onRun:id=>calls.push(['run',id]),onRefresh(){},onSchedules:()=>calls.push(['schedules'])};let view;
+  try{
+    await act(async()=>{view=create(React.createElement(WorkflowOverview,props));});
+    assert.equal(view.root.findAllByType('path').filter(n=>n.props['data-branch']==='').length,1);
+    assert.equal(view.root.findByProps({className:'workflow-thumbnail'}).findAllByType('rect').length,2);assert.match(textOf(view.root),/结果待核对/);assert.match(textOf(view.root),/绑定历史版本/);assert.doesNotMatch(JSON.stringify(view.toJSON()),/private/);
+    const button=text=>view.root.findAllByType('button').find(n=>textOf(n)===text);
+    await act(async()=>view.root.findByProps({'aria-label':'打开工作流：资讯流程'}).props.onClick());await act(async()=>view.root.findByProps({'aria-label':'查看最近执行：资讯流程'}).props.onClick());
+    const toggle=view.root.findByProps({role:'switch'});assert.equal(toggle.props['aria-checked'],false);await act(async()=>toggle.props.onClick());assert.strictEqual(calls[2][1],job);
+    act(()=>button('新建工作流').props.onClick());act(()=>button('从示例创建').props.onClick());act(()=>button('触发计划').props.onClick());
+    assert.deepEqual(calls.slice(0,2),[['open','w'],['run','older-than-100']]);assert.deepEqual(calls.slice(3),[['new'],['template'],['schedules']]);
+    act(()=>view.root.findByProps({'aria-label':'搜索工作流'}).props.onChange({target:{value:'不存在'}}));assert.equal(view.root.findAllByType('article').length,0);assert.match(textOf(view.root),/没有找到/);
+    await act(async()=>view.update(React.createElement(WorkflowOverview,{...props,definitions:[],schedules:{...scheduleState,loaded:false,error:'权限失败'},error:'连接失败'})));assert.match(textOf(view.root),/连接失败/);assert.doesNotMatch(textOf(view.root),/已完成/);
+  }finally{act(()=>view?.unmount());}
 });
 
 test('canvas drag guides snap while dragging and on release; alignment toggle and group controls keep drafts valid',async()=>{
@@ -83,6 +135,7 @@ test('focus uses the native modal and a stable portal container, preserving chil
 test('actual edits require confirmation even for a single trigger; cancelling preserves text and reverting removes the prompt',async()=>{
   const ui=await draftEditor();
   try{
+    act(()=>ui.button('新建工作流').props.onClick());
     const text=()=>ui.view.root.findByType('textarea');
     act(()=>text().props.onChange({target:{value:'尚未保存的输入'}}));
     await ui.choose('已保存工作流','saved-one');assert.equal(ui.confirms.length,1);assert.equal(text().props.value,'尚未保存的输入');assert.equal(ui.canvas().nodes.length,1);
@@ -129,14 +182,14 @@ test('the designer connection form and canvas both update the graph and reject a
   const graph={nodes:[{id:'trigger',kind:'trigger',config:{text:''},position:{x:0,y:0}},{id:'first',kind:'ai',config:{prompt:'one',model_id:''},position:{x:300,y:0}}],edges:[{source:'trigger',target:'first',branch:''}]};
   const definition={id:'saved',name:'编辑',revision:1,version:'a'.repeat(64),graph};
   const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false},{kind:'ai',label:'AI处理',defaults:{prompt:'',model_id:''},outputs:['text'],writes:false}];
-  const rpc=async(_info,_method,{operation}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions:[definition],runs:[]}:operation==='load'?{ok:true,definition}:{ok:true,templates:[]};
+  const rpc=async(_info,_method,{operation}={})=>operation==='catalog'?{ok:true,nodes:catalog}:operation==='list'?{ok:true,definitions:[summary(definition)],runs:[]}:operation==='load'?{ok:true,definition}:{ok:true,templates:[]};
   const flow={ReactFlow:props=>React.createElement('div',null,props.children),ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,{...edge,id:'added'}],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,fitView(){}})};
-  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:()=>null},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
+  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':scheduleMock,'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
   const previous=global.window;global.window={setInterval:()=>1,clearInterval(){},confirm:()=>true};let view;
   try{
     await act(async()=>{view=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'fixture'}}));});
-    await act(async()=>view.root.findByProps({'aria-label':'已保存工作流'}).props.onChange({target:{value:'saved'}}));
-    const button=text=>view.root.findAllByType('button').find(n=>n.children[0]===text);
+    await act(async()=>view.root.findByProps({'aria-label':'打开工作流：编辑'}).props.onClick());
+    const button=text=>view.root.findAllByType('button').find(n=>textOf(n)===text||n.children.includes(text));
     await act(async()=>button('AI处理').props.onClick());
     let canvas=()=>view.root.findByType(flow.ReactFlow).props;
     const added=canvas().nodes.find(n=>!['trigger','first'].includes(n.id)).id;
@@ -157,15 +210,15 @@ test('workflow publishing previews the fixed target before sending, and a lost r
   const definition={id:'workflow',name:'日报',revision:1,version:'a'.repeat(64),graph};
   const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false},{kind:'message',label:'发送群消息',defaults:{chat_id:'',text:'',profile:''},outputs:['message_id'],writes:true}];
   const run={id:'run',workflow:'workflow',version:definition.version,name:'日报',mode:'full',state:'running',receipts:{},approved:['send'],graph};
-  const rpc=async(_info,method,{operation,payload}={})=>{calls.push([method,operation,payload]);if(operation==='catalog')return{ok:true,nodes:catalog};if(operation==='list')return{ok:true,definitions:[definition],runs:[]};if(operation==='load')return{ok:true,definition};if(operation==='check_targets')return{ok:true,targets:[{node:'send',target:'oc_target',name:'目标群'}]};if(operation==='start'){if(failures-- >0)throw Error('WebSocket disconnected');return{ok:true,run};}return{ok:true};};
+  const rpc=async(_info,method,{operation,payload}={})=>{calls.push([method,operation,payload]);if(operation==='catalog')return{ok:true,nodes:catalog};if(operation==='list')return{ok:true,definitions:[summary(definition)],runs:[]};if(operation==='load')return{ok:true,definition};if(operation==='check_targets')return{ok:true,targets:[{node:'send',target:'oc_target',name:'目标群'}]};if(operation==='start'){if(failures-- >0)throw Error('WebSocket disconnected');return{ok:true,run};}return{ok:true};};
   const flow={ReactFlow:props=>React.createElement('div',{'data-canvas':true},props.children),ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,fitView:()=>{}})};
-  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:()=>null},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
+  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':scheduleMock,'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
   const previous=global.window;global.window={setInterval:()=>1,clearInterval(){},confirm:()=>true};
   let renderer;
   try{
     await act(async()=>{renderer=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'test'}}));});
-    await act(async()=>renderer.root.findByProps({'aria-label':'已保存工作流'}).props.onChange({target:{value:'workflow'}}));
-    const button=text=>renderer.root.findAllByType('button').find(node=>node.children.join('')===text);
+    await act(async()=>renderer.root.findByProps({'aria-label':'打开工作流：日报'}).props.onClick());
+    const button=text=>renderer.root.findAllByType('button').find(node=>textOf(node)===text);
     act(()=>renderer.root.findByProps({'aria-label':'工作流触发输入'}).props.onChange({target:{value:'已确认的正文'}}));
     await act(async()=>button('运行工作流').props.onClick());
     assert.equal(calls.filter(c=>c[1]==='start').length,0);
@@ -195,10 +248,10 @@ test('editing an existing schedule keeps its ID, name, disabled state and frozen
   const calls=[],graph=state.initialGraph(),definition={id:'w',name:'工作流当前名称',revision:4,version:'b'.repeat(64),graph};
   const job={id:'original-job',name:'自定义计划名称',action:'workflow',enabled:false,cadence:'daily',hour:9,minute:0,weekdays:[],workflow_id:'w',workflow_version:definition.version};
   const catalog=[{kind:'trigger',label:'触发',defaults:{text:''},outputs:['text'],writes:false}];
-  const rpc=async(_info,method,args={})=>{calls.push([method,args]);if(method==='save_automation_job')return{ok:true,job_id:job.id};if(args.operation==='catalog')return{ok:true,nodes:catalog};if(args.operation==='list')return{ok:true,definitions:[definition],runs:[]};if(args.operation==='load')return{ok:true,definition};return{ok:true,templates:[]};};
+  const rpc=async(_info,method,args={})=>{calls.push([method,args]);if(method==='save_automation_job')return{ok:true,job_id:job.id};if(args.operation==='catalog')return{ok:true,nodes:catalog};if(args.operation==='list')return{ok:true,definitions:[summary(definition)],runs:[]};if(args.operation==='load')return{ok:true,definition};return{ok:true,templates:[]};};
   const Schedules=()=>null;
   const flow={ReactFlow:props=>React.createElement('div',null,props.children),ReactFlowProvider:({children})=>children,Background:()=>null,Controls:()=>null,Handle:()=>null,Position:{Top:'top',Bottom:'bottom'},addEdge:(edge,edges)=>[...edges,edge],useNodesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useEdgesState:initial=>{const[v,set]=React.useState(initial);return[v,set,()=>{}];},useNodesInitialized:()=>true,useReactFlow:()=>({screenToFlowPosition:value=>value,fitView(){}})};
-  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{WorkflowSchedules:Schedules},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
+  const editor=compile('workflow-editor.tsx',{'./api':{rpc},'./page-stack':{usePageActive:()=>true},'./workflow-state':state,'./workflow-schedules':{...scheduleMock,WorkflowSchedules:Schedules},'./task-budget':compile('task-budget.tsx'),'@xyflow/react':flow});
   const previous=global.window;global.window={setInterval:()=>1,clearInterval(){},confirm:()=>true};let view;
   try{
     await act(async()=>{view=create(React.createElement(editor.WorkflowPane,{info:{port:1,token:'fixture'}}));});
