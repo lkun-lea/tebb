@@ -304,9 +304,17 @@ class WorkflowAdapterTests(unittest.TestCase):
         with patch.object(workflow_nodes,'cli',return_value=dict(message_id='om_id')) as cli:
             self.assertEqual(workflow_nodes.execute('message',config,'key',lambda *args:None,{}),dict(message_id='om_id'))
         self.assertIn('tebb-workflow-key',cli.call_args.args[1])
-        response=dict(items=[dict(chat_id='oc_other',body=dict(content=json.dumps(dict(text='正文\n\n自动化回执：key'))))])
-        with patch.object(workflow_nodes,'cli',return_value=response):
-            with self.assertRaises(ValueError): workflow_nodes.reconcile('message',config,'key','om_12345')
+        row=dict(message_id='om_12345',chat_id='oc_target',msg_type='text',deleted=False,content='正文\n\n自动化回执：key')
+        with patch.object(workflow_nodes,'cli',return_value=dict(messages=[row])) as cli:
+            self.assertEqual(workflow_nodes.reconcile('message',config,'key','om_12345'),dict(message_id='om_12345'))
+        cli.assert_called_once_with(config,['im','+messages-mget','--message-ids','om_12345','--no-reactions','--format','json'],bot=True)
+        for invalid in (dict(row,chat_id='oc_other'),dict(row,message_id='om_other'),dict(row,content='正文'),dict(row,deleted=True),dict(row,msg_type='post')):
+            with self.subTest(invalid=invalid),patch.object(workflow_nodes,'cli',return_value=dict(messages=[invalid])) as cli:
+                with self.assertRaises(ValueError): workflow_nodes.reconcile('message',config,'key','om_12345')
+                self.assertEqual(cli.call_count,1)
+        for response in (dict(messages=[]),dict(messages=[row,row]),dict(messages=None),dict(messages=['invalid']),dict(items=[row])):
+            with self.subTest(response=response),patch.object(workflow_nodes,'cli',return_value=response):
+                with self.assertRaises(ValueError): workflow_nodes.reconcile('message',config,'key','om_12345')
 
     def test_invalid_record_receipts_do_not_become_success(self):
         from desk_companion.lark_receipts import single_record_id

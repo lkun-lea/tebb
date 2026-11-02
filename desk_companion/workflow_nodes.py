@@ -227,13 +227,14 @@ def reconcile(kind, config, receipt_key, remote_id=''):
             raise ValueError('文档核对未返回地址，请检查完整原始回执。')
         return dict(document_id=remote_id, url=url)
     if kind == 'message':
-        data = cli(config, ['im', 'messages', 'get', '--params', json.dumps({'message_id': remote_id})], bot=True)
-        rows = data.get('items', [])
-        if len(rows) != 1 or rows[0].get('chat_id') != config['chat_id']:
+        data = cli(config, ['im', '+messages-mget', '--message-ids', remote_id, '--no-reactions', '--format', 'json'], bot=True)
+        rows = data.get('messages', [])
+        if (not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict) or
+            rows[0].get('message_id') != remote_id or rows[0].get('chat_id') != config['chat_id'] or
+            rows[0].get('deleted') is True or rows[0].get('msg_type') != 'text'):
             raise ValueError('原消息不存在或不属于确认过的群聊。')
-        content = json.loads(rows[0].get('body', {}).get('content', '{}'))
         expected = config['text'] + '\n\n自动化回执：' + receipt_key
-        if content.get('text') != expected:
+        if rows[0].get('content') != expected:
             raise ValueError('原消息内容与该节点快照不符，不能确认。')
         return dict(message_id=remote_id)
     raise ValueError('此节点不支持写入核对。')

@@ -55,6 +55,15 @@ def verify_outputs(ident,run):
         cfg=receipt['input'];remote=reconcile(node['kind'],cfg,receipt['receipt_key'],receipt['output'].get(field,''))
         proof['remote_receipt_matched']=remote[field]==receipt['output'][field]
         if node['kind']=='document':proof['remote_text_matched']=TEXT in json.dumps(cli(cfg,['docs','+fetch','--doc',remote[field]]),ensure_ascii=False)
+        if node['kind']=='base':
+            expected={**cfg['fields'],cfg['key_field']:receipt['receipt_key']}
+            arguments=['base','+record-get','--base-token',cfg['base_token'],'--table-id',cfg['table_id'],'--record-id',remote[field],'--format','json']
+            for name in expected:arguments+=['--field-id',name]
+            data=cli(cfg,arguments);names=data.get('fields',[]);rows=data.get('data',[])
+            proof['remote_fields_matched']=(data.get('record_id_list')==[remote[field]] and isinstance(names,list) and
+                all(isinstance(n,str) for n in names) and len(names)==len(set(names))==len(expected) and
+                isinstance(rows,list) and len(rows)==1 and isinstance(rows[0],list) and len(rows[0])==len(names) and
+                dict(zip(names,rows[0]))==expected)
     return proof
 
 

@@ -36,6 +36,18 @@ class ScenarioAcceptanceTests(unittest.TestCase):
         receipts['note']['output']['text']='00:01 仅依据部分字幕的笔记，存在覆盖缺口'
         self.assertTrue(all(scenarios.verify_outputs('video-notes',dict(receipts=receipts)).values()))
 
+    def test_base_acceptance_reads_actual_text_and_receipt_in_json(self):
+        config=dict(base_token='test-base',table_id='test-table',key_field='回执',fields={'内容':scenarios.TEXT})
+        run=dict(graph=dict(nodes=[dict(id='record',kind='base')]),receipts=dict(record=dict(state='confirmed',input=config,receipt_key='stable-key',output=dict(record_id='rec_test'))))
+        response=dict(record_id_list=['rec_test'],fields=['回执','内容'],data=[['stable-key',scenarios.TEXT]])
+        with patch('desk_companion.workflow_nodes.reconcile',return_value=dict(record_id='rec_test')),patch('desk_companion.workflow_nodes.cli',return_value=response) as cli:
+            self.assertTrue(all(scenarios.verify_outputs('feishu-base',run).values()))
+            args=cli.call_args.args[1]
+            self.assertEqual(args[args.index('--format')+1],'json')
+            for invalid in (dict(response,data=[['stable-key','wrong text']]),dict(response,data=[['another-key',scenarios.TEXT]]),dict(response,record_id_list=['rec_other']),dict(response,fields=['内容','内容']),dict(response,data=[])):
+                cli.return_value=invalid
+                self.assertFalse(scenarios.verify_outputs('feishu-base',run)['remote_fields_matched'])
+
     def test_bootstrap_failure_removes_credentials_and_restores_original_profile(self):
         from tests.test_collaboration import MODEL
         with tempfile.TemporaryDirectory() as temp:
