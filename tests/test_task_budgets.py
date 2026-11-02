@@ -8,6 +8,22 @@ from desk_companion.task_budgets import Ledger,BudgetExceeded
 
 
 class RootBudgets(unittest.TestCase):
+    def test_native_command_progress_uses_receipt_and_edit_not_stdout_or_command_variants(self):
+        from desk_companion.task_budgets import installed,record_workspace_check
+        edits=[dict(path='storage.py',revision='a'*64)]
+        observed=dict(state='succeeded',exit_code=0,output='ok')
+        def count():return len(self.ledger.read(self.root)['progress'])
+        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger), installed('child'):
+            record_workspace_check(dict(output='{"state":"succeeded","exit_code":0}'),edits)
+            record_workspace_check(dict(observed,state='running'),edits)
+            self.assertEqual(count(),0)
+            record_workspace_check(observed,edits)
+            record_workspace_check(dict(observed,command='echo 2',output='new text'),edits)
+            self.assertEqual(count(),1)
+            record_workspace_check(dict(observed,state='failed',exit_code=1),edits)
+            record_workspace_check(observed,[dict(path='storage.py',revision='b'*64)])
+            self.assertEqual(count(),3)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.ledger=Ledger(Path(self.tmp.name)/'budget.sqlite3')

@@ -415,6 +415,20 @@ def budgeted_operation(name,tier='simple'):
     return decorate
 
 
+def record_workspace_check(result, changes):
+    """Credit a physical command outcome once per task, edit revision and outcome."""
+    scope=current()
+    if scope is None or not isinstance(result,dict) or result.get('error') or type(result.get('exit_code')) is not int:
+        return
+    state=result.get('state')
+    if (state,result['exit_code']==0) not in {('succeeded',True),('failed',False)}:
+        return
+    edit=next((c for c in reversed(changes) if isinstance(c.get('revision'),str) and
+               len(c['revision'])==64), {})
+    fingerprint=json.dumps([edit.get('path'),edit.get('revision'),state])
+    scope.progress('workspace_command_exit',scope.task,hashlib.sha256(fingerprint.encode()).hexdigest())
+
+
 def record_progress(tool,arguments,result):
     scope=current()
     if scope is None:return

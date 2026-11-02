@@ -400,8 +400,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         emit('tool_start',dict(tool=name,read_only=extra[name].get('read_only',name not in {'workspace_write','workspace_run'}),query=arguments.get('path') or arguments.get('command',''),**wait))
         try:
             result = extra_call(name, arguments)
-            from .task_budgets import record_progress
-            record_progress(name,arguments,result)
+            from .task_budgets import record_progress,record_workspace_check
+            if name=='workspace_run':
+                record_workspace_check(result,changes)
+            else:
+                record_progress(name,arguments,result)
             if name=='calendar_propose':
                 from .calendar_proposals import task_event
                 proposal=task_event(result,request['task_id'],call_id)

@@ -112,6 +112,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--live',action='store_true',required=True)
+    parser.add_argument('--arm',choices=('single','team','both'),default='both')
     args=parser.parse_args()
     output=args.output.resolve()
     output.mkdir(parents=True,exist_ok=False)
@@ -120,7 +121,7 @@ def main():
     original=os.environ.get('DESK_COMPANION_DATA_DIR')
     passed=True
     try:
-        for arm in ['single','team']:
+        for arm in (['single','team'] if args.arm=='both' else [args.arm]):
             try: result=trial(arm,output,model,policy)
             except Exception as exc: result=dict(error=type(exc).__name__,delivery='unverified')
             (output/(arm+'.json')).write_text(json.dumps(result,indent=2,ensure_ascii=False),'utf-8')

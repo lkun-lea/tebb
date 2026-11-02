@@ -910,7 +910,12 @@ class Collaboration:
                     ledger=Ledger()
                     if not run.get('budget_id'):
                         parent=next((r for r in state['runs']if r['id']==run.get('parent')),None)
-                        run['budget_id']=(parent or{}).get('budget_id')or ledger.create('collab:'+run['id'],default_tier(run['kind'],run['agent_config']),execution_limits(run['agent'],run['agent_config'].get('tools',()))['task_timeout']*1000,
+                        # Size a new development root for the work it owns. A
+                        # coordinator's shorter chat timeout otherwise caps its entire team.
+                        coding_root=run.get('development_task') and not run.get('parent')
+                        tier='coding' if coding_root else default_tier(run['kind'],run['agent_config'])
+                        limits=execution_limits('coder' if coding_root else run['agent'],run['agent_config'].get('tools',()))
+                        run['budget_id']=(parent or{}).get('budget_id')or ledger.create('collab:'+run['id'],tier,limits['task_timeout']*1000,
                             prior_usage_unknown=bool(run.get('calls')or run.get('tool_calls')or run.get('attempt')or run.get('phases')))
                     if not run.get('parent')and ledger.read(run['budget_id'])['status']=='finished':ledger.resume(run['budget_id'])
                     if run['kind']=='task'and not run.get('parent'):ledger.choose_tier(run['budget_id'],default_tier(run['kind'],run['agent_config']))

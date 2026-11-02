@@ -56,6 +56,11 @@ class NativeTeamTests(unittest.TestCase):
         project_workspace.save(str(folder),[],True,True,project_id=project)
         root=self.action(**action)["runs"][-1]["id"]
         self.service.tick()
+        from desk_companion.task_budgets import Ledger
+        with transaction(self.service.path) as (db,_):
+            budget=Ledger().read(next(r for r in db['runs'] if r['id']==root)['budget_id'])
+        self.assertEqual(budget['tier'],'coding')
+        self.assertEqual(budget['hard_time_ms'],600_000)
         self.chat.complete(next(iter(self.chat.items)),json.dumps(dict(mode="task",instructions=action["text"],strategy="direct")))
         self.service.tick()
         def take(kind,role=None):
