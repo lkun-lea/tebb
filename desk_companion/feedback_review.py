@@ -69,6 +69,10 @@ def material(goal,draft,sources,receipts,handoffs=(),assignment=None):
     for receipt in receipts:
         rows.append(dict(id='R'+receipt['call_id'],level='actual_receipt',segments=[json.dumps(receipt,ensure_ascii=False,sort_keys=True)]))
     for handoff in handoffs:
+        if handoff.get('workspace_observation'):
+            rows.append(dict(id='W'+handoff['id'],level='actual_receipt',
+                segments=[json.dumps(handoff['workspace_observation'],ensure_ascii=False,sort_keys=True)],
+                scope='仅证明该伙伴交接时观察到的文件和命令退出结果，不证明后来版本或未运行的集成行为。'))
         rows.append(dict(id='H'+handoff['id'],level='actual_handoff',segments=[json.dumps(handoff,ensure_ascii=False,sort_keys=True)],
                          scope='实际任务交接；其中回答是模型文本，不独立证明外部事实。'))
     return rows

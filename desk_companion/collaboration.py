@@ -212,7 +212,44 @@ def call_budget(agent_id, kind='task', tools=()):
     return 2 if kind in {'plan','route','chat','compress','clarify_options'} else 12 if agent_id == 'coder' or '项目环境' in tools else 8
 
 
-def parse_plan(text, members):
+def append_integration_check(plans, run):
+    """Reuse a final tester's assignment or, if there is room, an unused member."""
+    chosen = {p['agent_id'] for p in plans}
+    terminal = {m['id'] for m in run['members'] if '终端' in m['tools']}
+    authors = set(run['implementers'])
+    testers = {m['id'] for m in run['members'] if m['id'] in terminal and
+               set(m['tools']) <= {'终端','工作区读取'}}
+    if (plans[-1].get('stage')=='deliver' and plans[-1]['agent_id'] in testers
+            and any(p['agent_id'] in authors for p in plans[:-1])):
+        check = plans[-1]
+    else:
+        unused = sorted(terminal - chosen)
+        if run.get('requested_assignees') or not unused or len(plans) >= 3:
+            return
+        check = dict(agent_id=unused[0],title='独立集成验证',instructions='',depends_on=len(plans)-1)
+        plans.append(check)
+    check.update(stage='deliver',integration_verification=True)
+    check['instructions'] += (' 按用户验收目标，从公开入口实际执行一个跨模块场景和最易漏掉的边界。'
+                              '核对前序改动，仅验证，不修改源码。交付实际命令结果与未覆盖范围。')
+
+
+def code_handoff(run):
+    """Small, backend-observed facts about this member's workspace at handoff."""
+    changes = run.get('changes', [])
+    checks = run.get('checks', [])
+    if not changes and not checks:
+        return {}
+    files = list(dict.fromkeys(c['path'] for c in changes if c.get('path')))
+    observed = []
+    for check in checks[-8:]:
+        row = {key:check.get(key) for key in ('command','state','exit_code','stale')}
+        if check.get('state') == 'failed':
+            row['failure_output'] = str(check.get('output') or check.get('error') or '')[-1200:]
+        observed.append(row)
+    return dict(files=files[:40], file_count=len(files), checks=observed, check_count=len(checks))
+
+
+def parse_plan(text, members, *, implementers=()):
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
     value = json.loads(text)
     rows = value.get("tasks") if isinstance(value, dict) else None
@@ -235,6 +272,8 @@ def parse_plan(text, members):
         if not isinstance(required,list) or any(s not in {'repository','web'} for s in required): raise ValueError('来源要求无效')
         topics=row.get('source_topics',[])
         if not isinstance(topics,list) or len(topics)>4 or any(not isinstance(t,str) or not t.strip() or len(t)>80 for t in topics):raise ValueError('资料对象最多4项，每项1至80字')
+    if implementers and used.isdisjoint(implementers):
+        raise ValueError('开发分工必须包含能编辑和验证该项目的编码伙伴')
     return rows
 
 
@@ -644,6 +683,16 @@ class Collaboration:
             reserved = sum((2 if r["kind"] in {"plan", "route"} else 1) for r in state["runs"] if r["state"] in ACTIVE)
             if reserved + (2 if mode != "message" else 1) > 12: raise ValueError("已有较多待处理工作，请先完成或停止部分任务")
             run = self._run(state, conversation, target, text, 'chat' if mode=='message' else 'route', context=history, model_id=action.get("model_id", ""), dry_run=dry_run)
+            if action.get('development_task'):
+                ws = run['workspace']
+                capable = [a['id'] for a in state['agents'] if a['id'] in conversation['members']
+                           and a['id'] != target and {'文件编辑','终端'} <= set(a['tools'])]
+                if not (require_delegate and mode=='task' and conversation.get('project_id') and capable
+                        and (not selected or set(selected).intersection(capable))
+                        and ws.get('primary') and ws.get('edit') and ws.get('commands')):
+                    raise ValueError('请选择含编码伙伴的项目协作群，并为项目目录开启编辑和终端权限。')
+                run['development_task'] = True
+                run['implementers'] = capable
             from .execution_flow import explicit_search
             run['require_execution']=require_delegate or mode=='task' or mode=='auto' and explicit_search(text)
             if require_delegate:run.update(requested_strategy='delegate',strategy_source='explicit'if strategy=='delegate'else'mentions')
@@ -763,6 +812,44 @@ class Collaboration:
     def _manager(self, run):
         return self.managers["chat" if run["kind"] in {"chat", "route", "compress"} else "work"]
 
+    def _repair_integration(self, state, parent, preceding):
+        """One same-project repair and independent recheck under the original budget."""
+        if not parent.get('development_task') or parent.get('integration_repair') or parent.get('parent'):
+            return False
+        failed = [r for r in preceding if r['state'] != 'succeeded']
+        if len(failed) != 1 or not failed[0].get('integration_verification') or failed[0]['state'] != 'failed':
+            return False
+        checker = failed[0]
+        if not checker.get('integration_failure') or checker.get('changes'):
+            return False
+        from .task_budgets import Ledger
+        budget=Ledger().view(parent['budget_id'])
+        if not budget or budget['stop_reason'] or budget['remaining']['model_calls'] < 3 or budget['remaining']['time_ms'] <= 0:
+            return False
+        writer = next((r for r in preceding if r['id'] in dependencies(checker) and
+                       r['agent'] in parent['implementers'] and r['state']=='succeeded'), None)
+        if not writer:
+            return False
+        group = next(c for c in state['conversations'] if c['id']==parent['conversation'])
+        observation = code_handoff(checker)
+        def follow(original, text, dependency=None):
+            child = self._run(state,group,original['agent'],text,parent=parent['id'],dependency=dependency,
+                              context=list(original['context']),model_id=original['model_id'])
+            for field in ('workspace','agent_config','selection','objective','stage','sampling','configuration_revision'):
+                if field in original: child[field]=copy.deepcopy(original[field])
+            child['development_task']=True
+            return child
+        fix = follow(writer,'先复现独立验收的失败；确认是实现缺陷才修改，保留原已通过行为：'+parent['input'])
+        fix['handoffs']=[dict(id=checker['id'],agent=checker['agent'],state='failed',answer=checker['answer'],
+                              workspace_observation=observation)]
+        recheck = follow(checker,checker['input']+'。重跑原失败命令：'+json.dumps(checker['integration_failure'],ensure_ascii=False),fix['id'])
+        recheck.update(integration_verification=True, required_rechecks=checker['integration_failure'])
+        checker['rechecked_by']=recheck['id']
+        parent.update(integration_repair=fix['id'],dependencies=[r['id'] for r in preceding
+                      if r['id'] not in {writer['id'],checker['id']}]+[fix['id'],recheck['id']])
+        parent['events'].append('独立验证观察到失败，交回原编码伙伴修复一次，再由原验证伙伴复查。')
+        return True
+
     def _finish(self, state, run, status, error=""):
         run["state"] = status; run["error"] = error
         run.pop('answer_pending', None)
@@ -798,11 +885,22 @@ class Collaboration:
                 if run["state"] == "waiting":
                     preceding = [next(r for r in state['runs'] if r['id']==ident) for ident in dependencies(run)]
                     if any(dep['state'] not in ACTIVE | {'succeeded'} for dep in preceding):
-                        self._finish(state, run, "cancelled", "前序任务未成功，未继续执行")
+                        if self._repair_integration(state,run,preceding):
+                            continue
+                        stopped=next(r for r in preceding if r['state'] not in ACTIVE | {'succeeded'})
+                        if run.get('development_task') and stopped['state'] in {'failed','timed_out','interrupted'}:
+                            self._finish(state,run,stopped['state'],f"{stopped['title']}：{stopped.get('error') or stopped['state']}")
+                        else:
+                            self._finish(state, run, "cancelled", "前序任务未成功，未继续执行")
                     elif all(dep['state']=='succeeded' for dep in preceding):
                         for dep in preceding:
                             run["context"].append(dict(sender=dep["agent"], text=dep["answer"][:24000]))
                         run['handoffs']=[dict(id=dep['id'],agent=dep['agent'],state=dep['state'],answer=dep['answer'])for dep in preceding]
+                        if run.get('development_task'):
+                            for handoff, dep in zip(run['handoffs'], preceding):
+                                facts = code_handoff(dep)
+                                if facts:
+                                    handoff['workspace_observation'] = facts
                         run['source_evidence']=[e for dep in preceding for e in dep.get('source_evidence',[])+dep.get('evidence',[])]
                         run["state"] = "pending"; run["events"].append("已收到前序成果，准备接续")
                     continue
@@ -826,6 +924,10 @@ class Collaboration:
                         search_budget=max(0, run.get('search_limit',2)-run.get("search_calls",0)),fetch_budget=max(0,run.get('fetch_limit',4)-run.get("fetch_calls",0)),
                         source_topics=run.get('source_topics',[]),dependencies=dependencies(run),execution_runtime=run.get('execution_runtime','legacy'),
                         source_evidence=run.get("source_evidence",[]),evidence=run.get("evidence",[]),handoffs=run.get('handoffs',[]))
+                    if run.get('development_task'):
+                        request.update(development_task=True, implementers=run.get('implementers', []))
+                        if run.get('integration_verification'):
+                            request.update(integration_verification=True, required_rechecks=run.get('required_rechecks',[]))
                     run["task"] = manager.submit(run["input"], "collab-"+run["id"], "collaboration", submission_key=f"collab:{run['id']}:{run['attempt']}",
                         _budget_root=run['budget_id'],_budget_root_member=not run.get('parent'),
                         task_limits=execution_limits(run['agent'],run.get('agent_config',{}).get('tools',())), **({**request, **({"sampling":run["sampling"]} if run.get("sampling") else {})}))
@@ -850,6 +952,8 @@ class Collaboration:
                         run.setdefault("changes", []).append(data)
                         for check in run.get("checks", []): check["stale"] = True
                     elif kind == "verification": run.setdefault("checks", []).append(data)
+                    elif kind == 'integration_failure' and run.get('integration_verification'):
+                        run['integration_failure'] = data['commands']
                     elif kind == "citation_check": run["citation_check"]=data
                     elif kind == "delivery_check": run['delivery_check']=data
                     elif kind == 'feedback_check': run['feedback_check']=data
@@ -905,6 +1009,7 @@ class Collaboration:
                         run.update(state="pending", attempt=run["attempt"]+1, cursor=0, parent_draft=task['answer'])
                         run["events"].append("收到迟到补充，在剩余预算内修订；未交接旧成果")
                     continue
+                fixed_plan = None
                 if run['kind'] == 'route':
                     try:
                         decision = parse_route(task['answer'])
@@ -931,13 +1036,22 @@ class Collaboration:
                         self._finish(state,run,'failed','当前任务没有可委派的伙伴，未降级为直接执行；请先选择协作群成员。');continue
                     run['requires_charts']=decision.get('requires_charts',False)
                     advance(run,'plan' if delegate else 'task',status='目标明确，准备职责分工' if delegate else '目标明确，直接执行',preserve_answer=True)
-                    continue
+                    authors = run.get('implementers', [])
+                    others = [m for m in run.get('members',[]) if m['id'] not in authors]
+                    if (delegate and run.get('development_task') and len(authors)==1
+                            and not run.get('requested_assignees') and len(others)<=1
+                            and all('终端' in m['tools'] for m in others)):
+                        fixed_plan=[dict(agent_id=authors[0], title='实现项目需求',
+                            instructions=run['input']+'\n沿用户入口实现完整行为，验证接口、持久化和必要的失败路径。')]
+                        run['events'].append('目标已确认，按现有编码与验证职责直接分工')
+                    else:
+                        continue
                 if run['kind'] == 'compress':
                     conversation = next(c for c in state['conversations'] if c['id']==run['conversation'])
                     conversation['summary'] = run['answer']; conversation['summary_ids'] = run.get('compress_ids', [])
                 if run["kind"] == "plan":
                     try:
-                        plans = parse_plan(task["answer"], {m["id"] for m in run["members"] if m["id"]!=run["agent"]})
+                        plans = fixed_plan or parse_plan(task["answer"], {m["id"] for m in run["members"] if m["id"]!=run["agent"]}, implementers=run.get('implementers', ()))
                         if run.get('requested_assignees')and {p['agent_id']for p in plans}!=set(run['requested_assignees']):
                             self._finish(state,run,'failed','委派计划未覆盖用户明确指定的全部伙伴，尚未创建子任务。');continue
                     except (ValueError, TypeError):
@@ -945,6 +1059,10 @@ class Collaboration:
                         continue
                     conversation = next(c for c in state["conversations"] if c["id"] == run["conversation"])
                     from .task_budgets import Ledger,default_tier
+                    for plan in plans:
+                        plan.pop('integration_verification',None)
+                    if run.get('development_task'):
+                        append_integration_check(plans,run)
                     tiers=[default_tier('task',next(a for a in run['members']if a['id']==p['agent_id']))for p in plans]
                     Ledger().choose_tier(run['budget_id'],'coding'if'coding'in tiers else'research')
                     children = []
@@ -956,12 +1074,19 @@ class Collaboration:
                         # A synthesis task consumes every preceding collection, even
                         # if a model omitted a dependency in its proposed plan.
                         if stage=='deliver': edges=list(range(len(children)))
+                        if run.get('development_task') and {'文件编辑','终端'} & set(agent['tools']):
+                            edges=sorted(set(edges) | {i for i,c in enumerate(children)
+                                if {'文件编辑','终端'} & set(c['agent_config']['tools'])})
                         deps=[children[index]['id'] for index in edges]
                         dependency=deps[-1] if deps else None
                         assigned=next(a for a in state['agents'] if a['id']==plan['agent_id'])
                         child = self._run(state, conversation, plan["agent_id"], plan["instructions"], parent=run["id"], dependency=dependency,
                             context=run["context"] + [dict(sender="user", text=run["input"]), *[dict(sender="user", text=t) for t in run["updates"]]],model_id='' if assigned.get('model') else run['model_id'])
                         child.update(dependencies=deps,objective=run['input'],stage=stage,required_sources=plan.get('required_sources',[]),requires_charts=run.get('requires_charts',False) and stage=='deliver')
+                        if run.get('development_task'):
+                            child['development_task'] = True
+                            if plan.get('integration_verification'):
+                                child['integration_verification'] = True
                         topics=list(dict.fromkeys(plan.get('source_topics',[])))
                         child.update(source_topics=topics,search_limit=max(2,len(topics)),fetch_limit=max(4,len(topics)*2))
                         from .readonly_research import eligible_child

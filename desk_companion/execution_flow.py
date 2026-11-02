@@ -52,7 +52,10 @@ def chain_view(run, runs):
         identifiers = more
     chain = [r for r in runs if r['id'] in identifiers]
     unfinished = [r for r in chain if r['state'] in ACTIVE]
-    failed = next((r for r in chain if r['state'] in {'failed', 'timed_out', 'interrupted'}), None)
+    # Keep the first failed verification (and its costs) in the history. Its
+    # explicitly scheduled replacement now owns the chain's verification outcome.
+    failed = next((r for r in chain if r['state'] in {'failed', 'timed_out', 'interrupted'}
+                   and r.get('rechecked_by') not in identifiers), None)
     awaiting = next((r for r in chain if r['state'] == 'needs_input'), None)
     state = (failed['state'] if failed else 'needs_input' if awaiting else 'running' if unfinished
              else 'cancelled' if any(r['state'] == 'cancelled' for r in chain) else run['state'])

@@ -2216,7 +2216,11 @@ export function App() {
                 onSavePersona={(text) => void savePersona(text)}
               /></div>
             </section>
-          ) : pane === "team" ? <DevelopmentTeam info={info}/> : pane === "automation" ? (
+          ) : pane === "team" ? <DevelopmentTeam info={info} onOpen={async id=>{
+            if(!info)throw Error("后端尚未连接");
+            await rpc(info,"collaboration_action",{action:{type:"select",id,conversation:id,request_id:crypto.randomUUID()}});
+            setPane("collaboration");
+          }}/> : pane === "automation" ? (
             <section key="automation" data-page="automation" className="flex min-h-0 flex-1 overflow-hidden">
               <AutomationPane info={info} debug={boardClock !== null} />
             </section>
