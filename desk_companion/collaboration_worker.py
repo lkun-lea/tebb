@@ -1,5 +1,6 @@
 """Bounded real model calls and optional read-only search. No shared persona/facts."""
 from datetime import datetime
+from contextlib import nullcontext
 import json
 import time
 import uuid
@@ -386,6 +387,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     from .execution_context import replace_owned_message
     catalog_message=turn_message=None
     finishing=False
+    handoff_finish=False
     code_retry_offered=False
     def invoke_extra(name,arguments,call_id):
         wait = {}
@@ -434,12 +436,18 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         return ToolOutcome(not isinstance(result,dict)or result.get('ok')is not False,json.dumps(result,ensure_ascii=False)if not isinstance(result,str)else result)
 
     def prepare_turn():
-        nonlocal catalog_message,turn_message,finishing
+        nonlocal catalog_message,turn_message,finishing,handoff_finish
         latest_updates()
         if kind=='task' and sources:
             catalog_message=replace_owned_message(messages,catalog_message,'引用即使放在JSON字符串字段内，也必须是"[完整证据id]"，保留方括号；裸id不会成为引用。以下id只是格式变量，复制本清单实际id，不照抄示例。当前实际证据编号（仅body为已读正文；snippet仅摘要）：'+json.dumps([{k:s.get(k) for k in ('id','url','level','title','truncated')} for s in source_catalog(sources)],ensure_ascii=False))
         reserve=2 if scope or not set(role.get('tools',[])) & {'文件编辑','终端','项目环境'} else 1
-        finishing=kind=='task' and consumed>=max(0,budget-reserve)
+        if scope and request.get('development_task') and request.get('parent_run') and changes and checks:
+            last_checks={c['command']:c for c in checks}
+            handoff_finish=(scope.ledger.view(scope.member['id'])['no_progress_calls']>=3
+                and any(not c.get('stale') for c in last_checks.values())
+                and all(c.get('state')=='succeeded' and c.get('exit_code')==0 for c in last_checks.values())
+                and not any(p['write_attempted'] for p in feedback.pending_operations(tool_receipts)))
+        finishing=kind=='task' and (handoff_finish or consumed>=max(0,budget-reserve))
         if finishing:
             turn_message=replace_owned_message(messages,turn_message,'进入交付收尾，本轮不再发起采集或执行工具。用实际已取得资料完成当前交付，保留Markdown来源链接；不足须说明，不编造。实际可引用链接：'+json.dumps(list(dict.fromkeys(s['url'] for s in sources)),ensure_ascii=False))
         elif kind=='task' and (allowed_search or allowed_fetch):
@@ -478,7 +486,9 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             if delivering: report_text.push(index, name, arguments)
         llm.on_tool_delta = tool_delta
         try:
-            response = llm.chat(current_messages, tools=tools, on_delta=content_delta)
+            from .task_budgets import phase as budget_phase
+            with budget_phase('finish') if handoff_finish else nullcontext():
+                response = llm.chat(current_messages, tools=tools, on_delta=content_delta)
         finally:
             emit("llm_end", {"duration_ms": int((time.monotonic()-started)*1000)})
         record_usage(request,response.get('usage') or {},model['model'],emit)

@@ -239,6 +239,9 @@ class Ledger:
             for attempt in range(2):
                 used=self.usage(root);reserve=root['finish_reserve']if not finish else dict(model_calls=0,output_tokens=0)
                 reason=self._check_time(root)
+                if (not reason and phase=='finish' and not member['root_member'] and
+                        any(c['task']==task and c['phase']=='finish' for c in root['calls'].values())):
+                    reason=self.reason('no_progress','该子任务已使用一次只读收尾；禁止重复交接调用。')
                 if not reason and phase=='work'and root['no_progress']>=3:reason=self.reason('no_progress','连续模型工作未产生可核对新进展，已停止新调用。')
                 if not reason and used['model_calls']>=root['limits']['model_calls']-reserve['model_calls']:
                     reason=self.reason('model_calls','模型请求额度已到，保留收尾额度。')

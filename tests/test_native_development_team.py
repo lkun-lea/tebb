@@ -10,6 +10,7 @@ from unittest.mock import patch
 from desk_companion import project_workspace
 from desk_companion.collaboration import transaction
 from desk_companion.collaboration_worker import execute
+from desk_companion import task_budgets
 from tests import test_collaboration as fixtures
 
 
@@ -80,6 +81,13 @@ class NativeTeamTests(unittest.TestCase):
                 on_tool_delta=None
                 def chat(_,messages,tools,on_delta):
                     log.append(messages)
+                    scope=task_budgets.current()
+                    if scope:
+                        phase=scope.phase()
+                        call,_=scope.ledger.reserve_call(scope.task,20,phase=phase)
+                        scope.ledger.settle(scope.task,call,dict(prompt_tokens=20,completion_tokens=8))
+                        if phase=='finish':
+                            self.assertFalse(tools)
                     if steps:
                         tool,args=steps.pop(0)
                         return dict(message=dict(role="assistant",tool_calls=[dict(id=str(len(log)),type="function",function=dict(name=tool,arguments=json.dumps(args)))]),usage={})
@@ -101,7 +109,21 @@ class NativeTeamTests(unittest.TestCase):
                                     ("workspace_run",dict(command="python check_first.py"))])
         task,writer=take("task","coder")
         self.assertFalse(any(r['kind']=='plan' for r in self.work.requests.values()))
-        implementation(task,writer,"d[key]=1+d.get(key,0)")
+        # Reproduce the real stall after implementation and a successful command.
+        # New work must stop, but one tool-free handoff can still feed the checker.
+        ledger=task_budgets.Ledger()
+        with transaction(self.service.path) as (db,_):
+            budget_id=next(r['budget_id'] for r in db['runs'] if r['id']==root)
+        ledger.bind(budget_id,task,purpose='task')
+        observe=task_budgets.record_workspace_check
+        def plateau(result,changes):
+            observe(result,changes)
+            for _ in range(3):
+                ident,_=ledger.reserve_call(task,12)
+                ledger.settle(task,ident,dict(prompt_tokens=12,completion_tokens=8))
+        with task_budgets.installed(task),patch.object(task_budgets,'record_workspace_check',side_effect=plateau):
+            implementation(task,writer,"d[key]=1+d.get(key,0)")
+        self.assertEqual(sum(c['phase']=='finish' for c in ledger.read(budget_id)['calls'].values()),1)
         self.assertEqual(run_command("python check_first.py")["exit_code"],0)
         self.assertNotEqual(run_command(command)["exit_code"],0)
         task,qa=take("task","research")

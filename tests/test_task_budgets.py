@@ -8,6 +8,15 @@ from desk_companion.task_budgets import Ledger,BudgetExceeded
 
 
 class RootBudgets(unittest.TestCase):
+    def test_child_handoff_is_single_use_and_keeps_root_finish_reserve(self):
+        first,_=self.ledger.reserve_call('child',10,phase='finish')
+        self.ledger.settle('child',first,dict(prompt_tokens=10,completion_tokens=3))
+        with self.assertRaises(BudgetExceeded):self.ledger.reserve_call('child',10,phase='finish')
+        limits=self.ledger.view(self.root)
+        self.assertEqual(limits['consumed']['model_calls'],1)
+        self.assertEqual(limits['extensions'],[])
+        self.ledger.reserve_call('parent',10,phase='finish')
+
     def test_native_command_progress_uses_receipt_and_edit_not_stdout_or_command_variants(self):
         from desk_companion.task_budgets import installed,record_workspace_check
         edits=[dict(path='storage.py',revision='a'*64)]
