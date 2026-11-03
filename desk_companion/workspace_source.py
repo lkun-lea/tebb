@@ -159,6 +159,14 @@ def _page(relative,revision,lines,start,end):
                 next_line=stop+1 if stop<end else None,text=''.join(lines[start-1:stop]))
 
 
+def _line_ending(text):
+    """Return the sole newline sequence, '' for none, or None for mixed."""
+    pairs = text.count('\r\n')
+    styles = [style for style,count in (('\r\n',pairs),('\r',text.count('\r')-pairs),
+                                        ('\n',text.count('\n')-pairs)) if count]
+    return styles[0] if len(styles)==1 else (None if styles else '')
+
+
 def patch(relative, old, new, revision, *, config, locked=False):
     if not isinstance(old,str) or not old or not isinstance(new,str) or old==new:
         raise ValueError('提供非空唯一原文和不同的替换文本')
@@ -169,6 +177,12 @@ def patch(relative, old, new, revision, *, config, locked=False):
         raise ValueError('文件版本已变化，请重新读取')
     text = doc['text']
     pos = text.find(old)
+    if pos<0:
+        target, supplied = _line_ending(text), _line_ending(old)
+        if target and supplied and target!=supplied and _line_ending(new) in ('',supplied):
+            old = old.replace(supplied,target)
+            new = new.replace(supplied,target)
+            pos = text.find(old)
     if pos<0 or text.find(old,pos+1)>=0:
         raise ValueError('原文未找到或不唯一，请重新读取并提供上下文')
     return workspace.write(relative,text[:pos]+new+text[pos+len(old):],revision,config=config,locked=locked)

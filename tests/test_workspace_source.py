@@ -52,6 +52,25 @@ class SourceToolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             workspace_source.patch('mod.py','1','2','new',config=self.config)
 
+    def test_patch_retries_only_unique_uniform_newline_mismatch(self):
+        def apply(raw,old,new,revision=None):
+            self.file.write_bytes(raw)
+            rev=revision or project_workspace.read('main','mod.py',config=self.config)['revision']
+            return workspace_source.patch('mod.py',old,new,rev,config=self.config)
+        for target,supplied in [('\r\n','\n'),('\n','\r\n'),('\r','\n')]:
+            raw=target.join(['# 前','first','second','# 后','']).encode()
+            apply(raw,'first'+supplied+'second','one'+supplied+'two')
+            self.assertEqual(self.file.read_bytes(),raw.replace(b'first',b'one').replace(b'second',b'two'))
+        for raw,old,new,rev in [
+                (b'a\r\nb\r\na\r\nb','a\nb','x',None),
+                (b'a\r\nb\nc','a\nb','x',None),
+                (b'a\r\nb','a\nb','x\ny\r\nz',None),
+                (b'a\r\nb','a\nb','x','stale')]:
+            with self.assertRaises(ValueError):apply(raw,old,new,rev)
+            self.assertEqual(self.file.read_bytes(),raw)
+        apply(b'a\r\nb\nc','a\r\nb','x')
+        self.assertEqual(self.file.read_bytes(),b'x\nc')
+
     def test_exact_preview_uses_the_same_paging_as_a_symbol_read(self):
         self.file.write_text('def long_body():\n'+'    pass\n'*130,'utf-8')
         exact=workspace_source.search('main','mod.py','long_body','symbol',config=self.config)
