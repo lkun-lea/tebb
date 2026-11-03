@@ -131,7 +131,7 @@ class Fixture(BaseHTTPRequestHandler):
             names={t['function']['name'] for t in request.get('tools',[])}
             if 'request_clarification' in names:
                 if spec['scenario']=='clarify' and '用户补充目标' not in json.dumps(request['messages'],ensure_ascii=False):
-                    delta=tool('request_clarification',dict(question='请补充两个数值。'))
+                    delta=tool('request_clarification',dict(questions=[dict(question='第一个数值？',options=['7','1']),dict(question='第二个数值？',options=['11','2'])]))
                 else:delta=tool('start_background_task',dict(instructions='将7与11相加，只返回JSON total和checked=true。',strategy='delegate' if spec['scenario']=='delegate' else 'direct'))
             elif 'submit_plan' in names:
                 delta=tool('submit_plan',dict(tasks=[dict(agent_id='writer',title='核对求和',instructions='将7与11相加，只返回JSON total和checked=true。',depends_on=None,stage='collect',required_sources=[])]))
@@ -272,7 +272,7 @@ def main():
             'desk_companion/project_tools.py','desk_companion/project_receipts.py','desk_companion/project_integrity.py','desk_companion/docker_sandboxes.py',
             'desk_companion/worker_rpc.py','desk_companion/bridge.py','desk_companion/local_api/host.py','desk_companion/local_api/server.py',
             'desk_companion/execution_context.py','desk_companion/model_capacity.py','desk_companion/model_tokenizer.py',
-            'desk_companion/task_budgets.py','desk_companion/review_limits.py','desk_companion/model_generation.py',
+            'desk_companion/task_budgets.py','desk_companion/review_limits.py','desk_companion/clarification.py','desk_companion/model_generation.py',
             'desk_companion/context_pack.py','desk_companion/assistant.py','desk_companion/model_catalog.py',
             'desk_companion/json_document.py','desk_companion/feedback.py','desk_companion/feedback_review.py',
             'desk_companion/delivery_feedback.py','desk_companion/web_sources.py','desk_companion/project_workspace.py')

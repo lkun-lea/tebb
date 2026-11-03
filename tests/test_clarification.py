@@ -10,6 +10,7 @@ from desk_companion.collaboration_worker import execute,PublicFailure
 from tests import test_execution_flow as flow
 
 QUESTIONS=[dict(id='duration',question='这场评审会预计多久？',options=[dict(id='short',label='30分钟',value='持续30分钟'),dict(id='hour',label='1小时',value='持续1小时'),dict(id='long',label='1.5小时',value='持续1.5小时')])]
+MODEL_QUESTIONS=[dict(question=q['question'],options=[o['label']for o in q['options']])for q in QUESTIONS]
 
 
 class ClarificationTests(unittest.TestCase):
@@ -23,7 +24,7 @@ class ClarificationTests(unittest.TestCase):
     def paused(self,structured=True):
         root=self.send('帮我新建一个日程，明晚8点有一个需求评审会')
         kwargs=dict(question='2026-10-29 20:00需求评审会，请选择时长。')
-        if structured:kwargs['questions']=QUESTIONS
+        if structured:kwargs['questions']=MODEL_QUESTIONS
         run=self.finish(root['id'],[self.control('request_clarification',**kwargs)])[0]
         if not structured:
             # A real legacy row predates structured questions and has no form.
@@ -73,11 +74,11 @@ class ClarificationTests(unittest.TestCase):
             def chat(_,messages,tools,on_delta):
                 seen.extend(t['function']['name'] for t in tools)
                 self.assertIn('2026-10-29 20:00',messages[-1]['content'])
-                return dict(message=dict(tool_calls=[dict(id='options',function=dict(name='submit_questions',arguments=json.dumps(dict(question=previous,questions=QUESTIONS))))]),usage={})
+                return dict(message=dict(tool_calls=[dict(id='options',function=dict(name='submit_questions',arguments=json.dumps(dict(question=previous,questions=MODEL_QUESTIONS))))]),usage={})
         execute(request,lambda k,d:events.append((k,d)),llm=Model())
         self.assertEqual(seen,['submit_questions']);self.assertFalse(any(k=='tool_start' for k,d in events))
         self.chat.complete(generation['task'],next(d for k,d in events if k=='result'));self.service.tick()
-        result=self.service.execution_status(run['id']);self.assertEqual(result['state'],'needs_input');self.assertEqual(result['clarification_form']['questions'],QUESTIONS)
+        result=self.service.execution_status(run['id']);self.assertEqual(result['state'],'needs_input');self.assertEqual(result['clarification_form']['questions'],choice.model_decision(dict(questions=MODEL_QUESTIONS))['questions'])
         self.assertFalse(self.work.items);self.assertNotEqual(choice.version(result),choice.version(run))
         public=self.state()['runs'][-1];self.assertNotIn('task',public['options_generation'])
         for _ in range(3):self.service.tick()
@@ -114,6 +115,15 @@ class ClarificationTests(unittest.TestCase):
     def test_options_schema_rejects_bad_shapes_and_duplicates(self):
         for raw in ([],QUESTIONS*2,[dict(QUESTIONS[0],options=[])],[dict(QUESTIONS[0],options=[dict(id='custom',label='x',value='x')]*2)],[dict(QUESTIONS[0],extra=True)]):
             with self.subTest(raw=raw),self.assertRaises(ValueError):choice.questions(raw)
+
+    def test_model_supplies_semantics_not_persisted_ids_or_hidden_values(self):
+        value=choice.model_decision(dict(questions=MODEL_QUESTIONS))
+        self.assertEqual(value['question'],MODEL_QUESTIONS[0]['question'])
+        self.assertEqual(value['questions'][0]['id'],'q1')
+        self.assertEqual(value['questions'][0]['options'][1],dict(id='q1_o2',label='1小时',value='1小时'))
+        for raw in [dict(questions=QUESTIONS),dict(questions=[dict(question='pick',options=['x','x'])]),
+                    dict(questions=[dict(question='pick',options=['x',dict(label='y',value='hidden')])])]:
+            with self.subTest(raw=raw),self.assertRaises(ValueError):choice.model_decision(raw)
 
     def test_hidden_option_value_does_not_become_user_instructions(self):
         run=self.paused()

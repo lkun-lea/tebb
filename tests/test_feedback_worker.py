@@ -34,6 +34,16 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_clarification_form_identity_and_heading_are_generated_by_product(self):
+        self.request.update(kind='route',text='两个数值缺失，请先询问。')
+        payload=dict(questions=[dict(question='第一个数？',options=['1','2']),dict(question='第二个数？',options=['3','4'])])
+        model=ScriptedModel([dict(tool_calls=[dict(id='ask',function=dict(name='request_clarification',arguments=json.dumps(payload)))])])
+        self.run_model(model)
+        value=json.loads(next(data for kind,data in self.events if kind=='result'))
+        self.assertEqual(value['mode'],'clarify');self.assertEqual(value['text'],'第一个数？\n第二个数？')
+        self.assertEqual([q['id']for q in value['questions']],['q1','q2'])
+        self.assertEqual(value['questions'][1]['options'][0],dict(id='q2_o1',label='3',value='3'))
+
     def test_resumed_json_and_business_mode_are_data_without_output_contract(self):
         for answer in ['{"total":18,"checked":true}', '[7,11]', '{"mode":"active","count":2}']:
             with self.subTest(answer=answer):

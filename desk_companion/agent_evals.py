@@ -4,7 +4,7 @@ import math
 import time
 from .json_document import json_answer
 
-CONTRACT_VERSION=26
+CONTRACT_VERSION=27
 
 FAILURE_CASES_V1=('clarify_calendar','clarify_target','clarify_resume_root','research_search_fetch',
     'research_public_source','feedback_partial_read','readonly_legacy_parallel','readonly_atlas_parallel',

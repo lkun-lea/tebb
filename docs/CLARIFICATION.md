@@ -42,3 +42,9 @@ pnpm build
 ## 路由中的结构化业务答案（#249）
 
 当前路由通过 `start_background_task` / `request_clarification` 工具提交控制动作。消息正文始终是业务答案，包括追问恢复后的JSON对象、数组，以及包含业务 `mode` 字段的对象；不再把正文中的JSON猜测成内部控制协议。显式执行请求仍必须有真实工具申请，不能用任何正文声称已经派发或执行。`tests.test_feedback_worker` 覆盖同根恢复答案、业务mode及无工具伪称执行被拒绝。
+
+## 模型提问与持久表单分离（#254）
+
+当前模型wire只表达可见语义：可给一个question文本，或questions数组（每项question及2至4个options字符串），总说明可省略。内部question/option id和隐藏value不再要求模型生成，旧对象型选项不作回退；同题重复可见选项仍拒绝。后台为当前表单生成q1/q2及q1_o1等唯一编号，缺总说明时合并问题文本。生成补充选项的submit_questions也采用同一wire，并要求questions。
+
+持久表单的严格id、run/conversation归属、问题版本、提交去重及自定义输入校验保持由原服务负责。静态日程时长模板仍由后端提供；只读答案只使用用户看见并选择的label，不从隐藏value生成权限或新指令。模型提供内部id/value的旧wire、重复选项、过期或跨会话提交有回归；模拟同根追问恢复实际使用无id、无总说明的questions输入。

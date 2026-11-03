@@ -250,8 +250,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             messages[0]['content']+='\n用户已明确选择协作；目标就绪后必须申请delegate分工，不能改为direct。仍须对真正缺失的目标/材料先request_clarification。'
         messages[0]['content']+='\n用户明确要求图表时，start_background_task设置requires_charts=true，交付需有真实构建的图表；普通技术报告按需要使用图表。'
         extra['start_background_task'] = dict(type='function', function=dict(name='start_background_task', description='目标明确后开始执行。简单工作选direct；确需独立职责分工才选delegate。不执行业务工具。', parameters=dict(type='object', properties={'instructions': {'type':'string'}, 'strategy':{'type':'string','enum':['direct','delegate']}, 'requires_charts':{'type':'boolean','description':'用户明确要求必须有图表时为true，不能以无图正文冒充完整交付'}}, required=['instructions'], additionalProperties=False)))
-        from .clarification import QUESTION_SCHEMA,questions
-        extra['request_clarification'] = dict(type='function',function=dict(name='request_clarification',description='缺少目标、对象、范围或必要参数时说明具体问题并暂停。日程仅缺时长时首选preset=calendar_duration，由系统提供可靠选项；其他问题提供questions。',parameters=dict(type='object',properties={'question':{'type':'string'},'questions':QUESTION_SCHEMA,'preset':{'type':'string','enum':['calendar_duration']}},required=['question'],additionalProperties=False)))
+        from .clarification import MODEL_QUESTION_SCHEMA,model_decision
+        extra['request_clarification'] = dict(type='function',function=dict(name='request_clarification',description='缺少目标或必要参数时提问并暂停。仅缺日程时长首选preset=calendar_duration。其他问题可只给question文字，或给questions（每题question及options字符串数组）；内部id/value由系统生成，不要提交。总说明question可省略。',parameters=dict(type='object',properties={'question':{'type':'string'},'questions':MODEL_QUESTION_SCHEMA,'preset':{'type':'string','enum':['calendar_duration']}},anyOf=[dict(required=[key])for key in ['question','questions','preset']],additionalProperties=False)))
         messages[0]['content']+='\n需要追问时优先提供questions结构化选项，每次只问真正缺少的1至3项，每项2至4个选项，系统提供自定义。日程默认本地保存，不重复确认；只缺时长可给30分钟、1小时、1.5小时。不选中默认值，不自行代用户选择。'
         if request.get('requested_strategy')=='delegate':extra['start_background_task']['function']['parameters']['properties']['strategy']['enum']=['delegate']
         if request.get('require_execution'):messages[0]['content']+='\n这是显式执行请求：必须调用start_background_task或request_clarification，不以普通回答冒充任务完成。'
@@ -616,13 +616,16 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                 try:
                     if len(calls)==1 and calls[0]['function']['name']=='request_clarification':
                         value=json.loads(calls[0]['function'].get('arguments') or '{}')
+                        if not isinstance(value,dict)or set(value)-{'question','questions','preset'}:raise ValueError('未知追问字段。')
                         from .clarification import static_options
-                        canonical=static_options(dict(text=request['text'],question=value.get('question','')))
-                        if canonical:value=canonical
                         if value.get('preset')=='calendar_duration':
                             from .clarification import duration_options
                             value=duration_options(value.get('question',''))
-                        decision=parse_route(json.dumps(dict(mode='clarify',text=value.get('question'),**({'questions':questions(value['questions'])} if value.get('questions') is not None else {}))))
+                        else:
+                            value=model_decision(value)
+                            canonical=static_options(dict(text=request['text'],question=value['question']))
+                            if canonical:value=canonical
+                        decision=parse_route(json.dumps(dict(mode='clarify',text=value['question'],**({'questions':value['questions']}if value.get('questions')is not None else{}))))
                     else:
                         if not 1<=len(calls)<=3 or any(c['function']['name']!='start_background_task' for c in calls): raise ValueError()
                         decisions=[parse_route(json.dumps(dict(mode='task',**json.loads(c['function'].get('arguments') or '{}')))) for c in calls]
