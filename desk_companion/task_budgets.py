@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import sqlite3
 import time
 import uuid
@@ -293,12 +294,13 @@ class Ledger:
 
     def progress(self,task,kind,reference,fingerprint):
         member=self.member(task)
-        if not member:return
+        if not member:return False
         key=hashlib.sha256(json.dumps([kind,reference,fingerprint],sort_keys=True).encode()).hexdigest()
         with self.change(member['id'])as root:
-            if any(p['key']==key for p in root['progress']):return
+            if any(p['key']==key for p in root['progress']):return False
             root['progress'].append(dict(key=key,kind=kind,reference=reference,at=time.time()))
             root['no_progress']=0
+            return True
 
     def log_progress(self,task,reference,start,end,fingerprint):
         member=self.member(task)
@@ -372,7 +374,10 @@ class Scope:
         if not read_only and self.finishing():raise BudgetExceeded(self.ledger.reason('finish','当前仅保留整理已有成果的收尾额度，未执行新的写入。'))
         self.ledger.reserve_tool(self.task);self.notice()
 
-    def progress(self,kind,reference,fingerprint):self.ledger.progress(self.task,kind,reference,fingerprint);self.notice()
+    def progress(self,kind,reference,fingerprint):
+        added=self.ledger.progress(self.task,kind,reference,fingerprint)
+        self.notice()
+        return added
 
     def log_progress(self,reference,start,end,fingerprint):
         self.ledger.log_progress(self.task,reference,start,end,fingerprint);self.notice()
@@ -440,6 +445,14 @@ def record_progress(tool,arguments,result):
         try:result=json.loads(result)
         except (ValueError,TypeError):return
     if not isinstance(result,dict)or result.get('ok')is False or result.get('error'):return
+    if tool in {'workspace_search','workspace_read_symbol'}:
+        if not result.get('text') or not result.get('revision'):return False
+        path=os.path.normcase(os.path.normpath(arguments['path'])).replace('\\','/')
+        root=arguments.get('root','main')
+        reference=path if root=='main' else f'{root}:{path}'
+        file_added=scope.progress('file',reference,result['revision'])
+        body_added=scope.progress('local_body',reference,hashlib.sha256(result['text'].encode()).hexdigest())
+        return file_added or body_added
     if tool in {'capability_save','workflow_save'}:
         artifact=result.get('capability' if tool=='capability_save' else 'definition',{})
         if not isinstance(artifact,dict):artifact={}
@@ -453,9 +466,9 @@ def record_progress(tool,arguments,result):
         if source.get('level')=='body'and source.get('text'):
             scope.progress('body',source.get('url',source.get('source_id','')),hashlib.sha256(source['text'].encode()).hexdigest())
     digest=result.get('sha256')or result.get('revision')
-    if tool in{'project_read','workspace_read','workspace_write','workspace_read_symbol','workspace_patch'}and isinstance(digest,str):scope.progress('file',str(arguments.get('path','')),digest)
+    if tool in{'project_read','workspace_read','workspace_write','workspace_patch'}and isinstance(digest,str):scope.progress('file',str(arguments.get('path','')),digest)
     text=result.get('text')or result.get('content')
-    if tool in{'read_local_source','project_read','workspace_read','workspace_read_symbol'}and isinstance(text,str)and text:
+    if tool in{'read_local_source','project_read','workspace_read'}and isinstance(text,str)and text:
         scope.progress('local_body',str(arguments.get('source_id')or arguments.get('path','')),hashlib.sha256(text.encode()).hexdigest())
     if tool=='project_log'and isinstance(text,str)and text:
         start=result.get('start_offset');end=result.get('offset');size=result.get('bytes')
