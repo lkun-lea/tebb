@@ -306,7 +306,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         if request.get('integration_verification'):
             extra={name:spec for name,spec in extra.items() if name in {'workspace_list','workspace_read','workspace_search','workspace_read_symbol','workspace_run','submit_deliverable'}}
         if 'workspace_search' in extra:
-            prompt_extra+='\n定位定义用 workspace_search，按函数或行号用 workspace_read_symbol；已有文件的小改动优先 workspace_patch。终端用于运行复现与测试。'
+            prompt_extra+='\n定位定义用 workspace_search；将命中的 path、start_line 和 end_line（如有）直接传给 workspace_read_symbol，不必猜函数名。已有文件的小改动优先 workspace_patch。终端用于运行复现与测试。'
         messages[0]['content'] += prompt_extra
         messages.append(dict(role='user',content='当前工作目录授权：'+json.dumps(request.get('workspace',{}),ensure_ascii=False)))
     messages[0]['content']+='\n当前任务职责是本阶段需要执行的工作，整体目标用于理解背景与约束；不要把其他伙伴或其他阶段的分工动作重复当作自己的职责。已完成的工作依据实际交接与回执，不再次调度；无回执的事实仍是未知，工具权限不因整体目标扩大。'
