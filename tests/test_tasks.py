@@ -304,6 +304,43 @@ class TaskTests(unittest.TestCase):
         phase = next(e['data'] for e in task['events'] if e['kind'] == 'timeout_phase')
         self.assertEqual(phase, dict(stage='llm_start', scope='call'))
 
+    def test_root_budget_timeout_during_model_is_not_reported_as_network_timeout(self):
+        from desk_companion.task_budgets import Ledger
+        ledger=Ledger();root=ledger.create('root-timeout','research',1000)
+        self.manager.settings.update(call_timeout=10,task_timeout=20)
+        ident=self.manager.submit('timeout','root-timeout',_budget_root=root)
+        task=self.manager.wait(ident)
+        self.assertEqual(task['state'],'timed_out')
+        self.assertIn('整个目标的执行时间预算已到',task['error'])
+        self.assertNotIn('模型接口等待',task['error'])
+        self.assertEqual(next(e['data']for e in task['events']if e['kind']=='timeout_phase'),dict(stage='llm_start',scope='root_budget'))
+
+    def test_resume_preserves_evidence_tool_allowances_and_original_budget(self):
+        from desk_companion.task_budgets import Ledger
+        ident=self.manager.submit('source','evidence-resume','collaboration',workflow='collaboration',kind='task')
+        self.manager.wait(ident)
+        page=dict(kind='page',level='body',url='https://example.org/source',text='PERSISTED_BODY',truncated=True,read_ranges=[[0,14]])
+        self.manager.event(ident,'evidence',page)
+        self.manager.event(ident,'tool_start',dict(tool='web_search',read_only=True))
+        self.manager.event(ident,'tool_start',dict(tool='web_fetch',read_only=True))
+        self.manager.event(ident,'tool_end',dict(tool='write',read_only=False,fingerprint='original-receipt',status='success'))
+        self.manager.finish(ident,'failed','interrupted')
+        resumed=self.manager.resume(ident,'继续整理已有来源')
+        with self.manager.db()as db:payload=json.loads(db.execute('SELECT request FROM tasks WHERE id=?',(resumed,)).fetchone()[0])
+        self.assertEqual(payload['evidence'],[page])
+        self.assertEqual((payload['search_budget'],payload['fetch_budget']),(1,3))
+        self.assertIn('original-receipt',payload['completed_writes'])
+        self.assertEqual(Ledger().member(ident)['id'],Ledger().member(resumed)['id'])
+        self.assertIn('不可盲目重做',payload['resume_note'])
+        self.manager.wait(resumed)
+        self.manager.finish(resumed,'failed','interrupted again')
+        again=self.manager.resume(resumed,'继续核对原回执')
+        with self.manager.db()as db:payload=json.loads(db.execute('SELECT request FROM tasks WHERE id=?',(again,)).fetchone()[0])
+        self.assertEqual(payload['evidence'],[page])
+        self.assertEqual((payload['search_budget'],payload['fetch_budget']),(1,3))
+        self.assertIn('original-receipt',payload['resume_note'])
+        self.manager.wait(again)
+
     def test_total_timeout_outside_call_is_distinct_from_model_wait_and_persisted(self):
         self.manager.settings.update(call_timeout=.3, task_timeout=.3)
         # Both cold startup and the fixture's non-model wait are outside a call.

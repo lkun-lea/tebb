@@ -436,6 +436,8 @@ class TaskManager:
                 reader.join(2)
                 if reason == 'cancelled':
                     message = '任务已停止。'
+                elif timeout_scope == 'root_budget':
+                    message = '整个目标的执行时间预算已到（包含路由、规划和子任务），已停止等待。'
                 elif timeout_scope == 'task':
                     message = '任务总时限已到，已停止等待。'
                 elif timeout_stage == 'llm_start':
@@ -494,8 +496,21 @@ class TaskManager:
         note += "\n前次部分答案：\n" + previous["answer"][-10000:] + "\n避免重复执行已完成的写入操作。"
         with self.db() as db:
             request = json.loads(db.execute("SELECT request FROM tasks WHERE id=?", (task_id,)).fetchone()[0])
+        prior_note = request.pop('resume_note', '')
+        if prior_note:
+            note = prior_note + note
         for key in ("text", "session_id", "limits"):
             request.pop(key, None)
+        # Evidence events contain the actual snippets/body ranges, not merely
+        # tool names. Keep them available to citation checks after interruption.
+        evidence = request.setdefault('evidence', [])
+        for event in previous['events']:
+            if event['kind'] == 'evidence' and event['data'] not in evidence:
+                evidence.append(event['data'])
+        if request.get('workflow') == 'collaboration':
+            for tool, key, default in [('web_search', 'search_budget', 2), ('web_fetch', 'fetch_budget', 4)]:
+                spent = sum(e['kind'] == 'tool_start' and e['data'].get('tool') == tool for e in previous['events'])
+                request[key] = max(0, request.get(key, default) - spent)
         # Successful-answer follow-ups do not create another full note automatically.
         if previous["state"] == "succeeded":
             request["auto_video_archive"] = False

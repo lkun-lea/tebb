@@ -13,7 +13,7 @@ from functools import wraps
 
 from .paths import data_root
 
-VERSION=1
+VERSION=2
 DIMENSIONS=('model_calls','tool_calls','input_tokens','output_tokens','time_ms')
 _ROWS={
     'simple':(8,12,64000,16000,180000,4096),
@@ -93,6 +93,7 @@ class Ledger:
             calls={},tools=0,progress=[],extensions=[],no_progress=0,
             created=time.time(),spent_ms=0,active_since=None,waiting_user=False,stop_reason=None,tier_decided=False)
         root['prior_usage_unknown']=bool(prior_usage_unknown)
+        root['finish_reserve']['time_ms']=self._finish_allocation(root)
         with closing(self._connect(create=True))as db:
             db.execute('BEGIN IMMEDIATE')
             old=db.execute('SELECT root FROM owners WHERE owner=?',(owner,)).fetchone()
@@ -196,6 +197,7 @@ class Ledger:
             if root['tier_decided']:return
             if root['hard_time_ms']is not None:limits['time_ms']=min(limits['time_ms'],root['hard_time_ms'])
             root.update(tier=tier,limits=limits,base=limits.copy(),tier_decided=decided)
+            if 'time_ms' in root['finish_reserve']:root['finish_reserve']['time_ms']=self._finish_allocation(root)
 
     @staticmethod
     def reason(dimension,message,**details):return dict(code='budget_'+dimension,dimension=dimension,message=message,**details)
@@ -225,9 +227,12 @@ class Ledger:
     def _extend(self,root,dimension):
         if root['extensions']or not root['progress']or root['no_progress']>=3 or root['tier']=='probe':return False
         before=root['limits'].copy()
+        if dimension=='time_ms' and root['hard_time_ms'] is not None and before['time_ms']>=root['hard_time_ms']:
+            return False
         for key in DIMENSIONS:
             root['limits'][key]=root['base'][key]+math.floor(root['base'][key]*.25)
         if root['hard_time_ms']is not None:root['limits']['time_ms']=min(root['limits']['time_ms'],root['hard_time_ms'])
+        if 'time_ms' in root['finish_reserve']:root['finish_reserve']['time_ms']=self._finish_allocation(root)
         root['extensions'].append(dict(at=time.time(),trigger=dimension,before=before,after=root['limits'].copy(),progress=copy.deepcopy(root['progress'][-3:])))
         return True
 
@@ -327,8 +332,19 @@ class Ledger:
                 input_tokens=None if not root['calls']or any(c['reserved_input']is None for c in root['calls'].values())or used['input_unknown_calls']else max(0,root['limits']['input_tokens']-used['input_tokens']),
                 output_tokens=max(0,root['limits']['output_tokens']-used['output_occupied']),time_ms=max(0,round(root['limits']['time_ms']-elapsed))),
             input_mode='exact'if root['calls']and all(c['reserved_input']is not None for c in root['calls'].values())else'measured_or_unknown',output_mode='requested_hard'if root['calls']and all(c['enforced']for c in root['calls'].values())else'measured_or_unknown',
-            finish_reserve=root['finish_reserve'],extensions=root['extensions'],no_progress_calls=root['no_progress'],
+            finish_reserve=root['finish_reserve']|dict(time_ms=self.finish_time(root)),extensions=root['extensions'],no_progress_calls=root['no_progress'],
             waiting_user=root['waiting_user'],stop_reason=root['stop_reason'],prior_usage_unknown=root.get('prior_usage_unknown',False),cost=None)
+
+    @staticmethod
+    def finish_time(root):
+        # Historical roots did not declare a time reserve; do not backfill one.
+        return root['finish_reserve'].get('time_ms',0)
+
+    @staticmethod
+    def _finish_allocation(root):
+        # Keep the final quarter (at most 90s) for delivery/review. Collection
+        # children hand off a quarter earlier so the writer can still run.
+        return min(90000, root['limits']['time_ms']//4) if root['finish_reserve']['model_calls'] else 0
 
 
 class Scope:
@@ -345,7 +361,7 @@ class Scope:
         if self.finishing():
             with self.ledger.change(self.member['id'])as root:
                 if not root['stop_reason']:
-                    dimension='no_progress'if root['no_progress']>=3 else'model_calls'
+                    dimension='finish_time'if self.time_for_finish() else'no_progress'if root['no_progress']>=3 else'model_calls'
                     root['stop_reason']=self.ledger.reason(dimension,'新的工作请求已停止，正在用保留额度整理已有成果与缺口。')
             return'finish'
         return'work'
@@ -353,7 +369,13 @@ class Scope:
     def finishing(self):
         if not self.member['root_member']:return False
         root=self.ledger.read(self.member['id'])
-        return root['no_progress']>=3 or len(root['calls'])>=root['limits']['model_calls']-root['finish_reserve']['model_calls']or(root.get('stop_reason')or{}).get('dimension')in{'tool_calls','input_tokens','output_tokens'}
+        return self.time_for_finish() or root['no_progress']>=3 or len(root['calls'])>=root['limits']['model_calls']-root['finish_reserve']['model_calls']or(root.get('stop_reason')or{}).get('dimension')in{'tool_calls','input_tokens','output_tokens'}
+
+    def time_for_finish(self,stage=''):
+        root=self.ledger.read(self.member['id'])
+        reserve=self.ledger.finish_time(root)
+        if not self.member['root_member'] and stage=='collect':reserve*=2
+        return reserve>0 and root['limits']['time_ms']-self.ledger.elapsed(root)<=reserve
 
     def notice(self):
         if self.emit:self.emit('task_budget',self.ledger.view(self.member['id']))

@@ -8,6 +8,16 @@ from desk_companion.task_budgets import Ledger,BudgetExceeded
 
 
 class RootBudgets(unittest.TestCase):
+    def test_historical_root_does_not_gain_an_invented_time_reserve(self):
+        from desk_companion.task_budgets import Scope
+        with self.ledger.change(self.root)as root:
+            root['version']=1;root['finish_reserve'].pop('time_ms');root['spent_ms']=181000
+        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):child=Scope('child')
+        self.assertFalse(child.time_for_finish('collect'))
+        view=self.ledger.view(self.root)
+        self.assertEqual(view['policy_version'],1)
+        self.assertEqual(view['finish_reserve']['time_ms'],0)
+
     def test_symbol_search_and_read_share_progress_and_repeated_navigation_stops(self):
         from desk_companion.task_budgets import installed,record_progress
         args=dict(path='mod.py')
@@ -23,6 +33,31 @@ class RootBudgets(unittest.TestCase):
                 self.assertFalse(record_progress(tool,args,result))
             with self.assertRaises(BudgetExceeded):self.ledger.reserve_call('child',10)
             self.assertEqual(self.ledger.read(self.root)['stop_reason']['code'],'budget_no_progress')
+
+    def test_time_reserve_hands_collection_off_before_root_delivery(self):
+        from desk_companion.task_budgets import Scope
+        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):
+            parent=Scope('parent');child=Scope('child')
+        with self.ledger.change(self.root)as root:
+            root['spent_ms']=181000
+        self.assertTrue(child.time_for_finish('collect'))
+        self.assertFalse(parent.finishing())
+        self.assertFalse(child.time_for_finish('deliver'))
+        with self.ledger.change(self.root)as root:root['spent_ms']=271000
+        self.assertTrue(parent.finishing())
+        self.assertEqual(parent.phase(),'finish')
+        self.assertEqual(self.ledger.view(self.root)['stop_reason']['dimension'],'finish_time')
+        self.ledger.reserve_call('child',10,phase='finish')
+        self.ledger.reserve_call('parent',10,phase='finish')
+        self.assertEqual(self.ledger.view(self.root)['finish_reserve']['time_ms'],90000)
+
+    def test_hard_deadline_does_not_record_an_ineffective_time_extension(self):
+        root=self.ledger.create('hard-progress','research',300000);self.ledger.bind(root,'hard-progress')
+        self.ledger.progress('hard-progress','body','source','v1')
+        with self.ledger.change(root)as value:value['spent_ms']=300001
+        self.assertEqual(self.ledger.time_expired(root)['dimension'],'time_ms')
+        self.assertEqual(self.ledger.view(root)['extensions'],[])
+        self.assertEqual(self.ledger.view(root)['limits']['model_calls'],16)
 
     def test_child_handoff_is_single_use_and_keeps_root_finish_reserve(self):
         first,_=self.ledger.reserve_call('child',10,phase='finish')

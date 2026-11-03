@@ -529,7 +529,9 @@ class CollaborationTests(unittest.TestCase):
 
     def test_explicit_project_capability_uses_existing_coding_default_without_changing_other_roles(self):
         from desk_companion.collaboration import execution_limits,call_budget
-        self.assertEqual(execution_limits('research')['task_timeout'],300)
+        self.assertEqual(execution_limits('research')['task_timeout'],360)
+        self.assertEqual(execution_limits('tebb',['联网搜索','网页读取'])['task_timeout'],360)
+        self.assertEqual(execution_limits('writer')['task_timeout'],300)
         self.assertEqual(execution_limits('research',['项目环境'])['task_timeout'],600)
         self.assertEqual(call_budget('research'),8)
         self.assertEqual(call_budget('research',tools=['项目环境']),12)
@@ -965,6 +967,95 @@ class CollaborationTests(unittest.TestCase):
         request["limits"] = dict(call_timeout=10, task_timeout=30)
         if role is not None: request["role"] = role
         return request
+
+    def test_time_handoff_uses_saved_body_and_disables_collection_before_deadline(self):
+        from desk_companion.task_budgets import Ledger,installed,current_phase
+        from desk_companion.collaboration_worker import _execute
+        from desk_companion.web_sources import source_catalog
+        request=self.request()
+        request.update(task_id='time-child',parent_run='parent',stage='collect',
+                       resume_note='原操作original-operation结果未知，先核对，不可重做。')
+        page=dict(kind='page',level='body',url='https://example.org/source',text='PERSISTED_BODY')
+        request['evidence']=[page]
+        ledger=Ledger();root=ledger.create('time-handoff','research')
+        ledger.bind(root,'time-child')
+        with ledger.change(root)as budget:budget['spent_ms']=181000
+        events=[];seen=[]
+        class LLM:
+            def chat(_,messages,tools,on_delta):
+                seen.append(copy.deepcopy(messages))
+                self.assertEqual(current_phase(),'finish')
+                self.assertFalse(tools)
+                return dict(message=dict(content='已有结论 ['+source_catalog([page])[0]['id']+']'),usage={})
+        with installed('time-child'):
+            preview=_execute(request,lambda *_:None,llm=LLM(),preview=True)
+            self.assertFalse(preview['tools'])
+            with patch('desk_companion.web_sources.fetch_page')as fetch,patch('desk_companion.web_search.search_sources')as search:
+                execute(request,lambda k,d:events.append((k,d)),llm=LLM())
+                fetch.assert_not_called();search.assert_not_called()
+        actual=json.dumps(seen,ensure_ascii=False)
+        self.assertIn('PERSISTED_BODY',actual)
+        self.assertIn('original-operation',actual)
+        self.assertIn('整个目标剩余执行时间',actual)
+        self.assertIn('600～900',actual)
+        self.assertTrue(any(k=='result'for k,d in events))
+
+    def test_collection_deadline_is_rechecked_after_slow_model_before_tools(self):
+        from desk_companion.task_budgets import Ledger,installed
+        from desk_companion.web_sources import source_catalog
+        for runtime in ('legacy','atlas_readonly'):
+            with self.subTest(runtime=runtime):
+                request=self.request(role=dict(id='research',name='研究助手',role='采集证据',tools=['联网搜索','网页读取']))
+                task='slow-'+runtime
+                request.update(task_id=task,parent_run='parent',stage='collect',dependencies=[],execution_runtime=runtime)
+                page=dict(kind='page',level='body',url='https://example.org/source',text='SAVED_BODY')
+                request['evidence']=[page]
+                ledger=Ledger();root=ledger.create(task,'research');ledger.bind(root,task)
+                seen=[];events=[]
+                class LLM:
+                    def chat(_,messages,tools,on_delta):
+                        seen.append(True)
+                        if len(seen)==1:
+                            with ledger.change(root)as budget:budget['spent_ms']=181000
+                            return dict(message=dict(tool_calls=[dict(id='late-search',type='function',function=dict(name='web_search',arguments='{"query":"late"}'))]),usage={})
+                        return dict(message=dict(content='已有结论 ['+source_catalog([page])[0]['id']+']'),usage={})
+                with installed(task),patch('desk_companion.web_search.search_sources')as search:
+                    execute(request,lambda k,d:events.append((k,d)),llm=LLM())
+                    search.assert_not_called()
+                self.assertEqual(len(seen),2)
+                self.assertFalse(any(k=='tool_start'for k,d in events))
+                self.assertTrue(any(k=='result'for k,d in events))
+
+    def test_late_collector_reads_first_body_batch_before_early_handoff(self):
+        from desk_companion.task_budgets import Ledger,installed
+        from desk_companion.collaboration_worker import _execute
+        for runtime in ('legacy','atlas_readonly'):
+            with self.subTest(runtime=runtime):
+                request=self.request(role=dict(id='research',name='研究助手',role='采集证据',tools=['网页读取']))
+                task='first-body-'+runtime
+                links=['https://example.org/a','https://example.org/b']
+                request.update(task_id=task,parent_run='parent',stage='collect',dependencies=[],execution_runtime=runtime,text='读取 '+ ' '.join(links))
+                ledger=Ledger();root=ledger.create(task,'research');ledger.bind(root,task)
+                with ledger.change(root)as budget:budget['spent_ms']=181000
+                seen=[];fetched=[];events=[]
+                class LLM:
+                    def chat(_,messages,tools,on_delta):
+                        seen.append(True)
+                        if len(seen)==1:
+                            self.assertIn('web_fetch',[t['function']['name']for t in tools])
+                            with ledger.change(root)as budget:budget['spent_ms']=200000
+                            return dict(message=dict(tool_calls=[dict(id=str(i),type='function',function=dict(name='web_fetch',arguments=json.dumps(dict(url=url))))for i,url in enumerate(links)]),usage={})
+                        self.assertFalse(tools)
+                        return dict(message=dict(content='已有结论 [甲](https://example.org/a) [乙](https://example.org/b)'),usage={})
+                def fetch(url):
+                    fetched.append(url)
+                    return dict(kind='page',level='body',url=url,text='实际正文')
+                with installed(task):
+                    execute(request,lambda k,d:events.append((k,d)),llm=LLM(),fetch=fetch)
+                    self.assertEqual(fetched,links)
+                    self.assertTrue(any(k=='result'for k,d in events))
+                    with ledger.change(root)as budget:budget['spent_ms']=271000
+                    self.assertFalse(_execute(request,lambda *_:None,llm=LLM(),fetch=fetch,preview=True)['tools'])
 
     def test_real_worker_search_then_response_and_usage(self):
         request = self.request(); events = []; inputs = []; queries = []

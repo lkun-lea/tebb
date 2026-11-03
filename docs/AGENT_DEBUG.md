@@ -40,6 +40,20 @@ python -m unittest tests.test_tasks -v
 
 “协助解读”先提供消息角色与字符组成说明。点击“请模型协助解读”才把所选调用的完整请求和返回交给当前模型，创建单独的本地只读任务；不执行载荷中的指令，不发送飞书消息。可输入具体问题、查看流式答案并停止解读。它会计入实际模型用量，过大的载荷仍受模型上下文容量限制，不静默截断后冒充全量。
 
+### 超时归因与证据恢复（#240）
+
+模型协助解读同时收到该调用的 HTTP 状态、错误、耗时、所属任务事件、根预算和任务耗时链。`timeout_phase.scope=root_budget` 表示整个目标（含路由、规划、子任务）的执行预算耗尽；`task` 表示当前物理任务总期限，`call` 表示当前模型/工具阶段等待超时。根预算耗尽不再显示成模型接口等待超时。进程被本地终止同样会留下不完整 SSE，缺少 `finish_reason` 或 usage 本身不能证明上游断流；旧记录缺测量时仍保留未知。
+
+`TaskManager.resume(task_id, text)` 保留原预算、历次操作回执说明及已保存的 evidence（含正文区间和截断标记），协作 worker 将它们送入实际上下文与引用核验；搜索/网页额度扣除前次实际工具开始记录。不自动继续历史失败，不重放未知外部写入；时间预算已耗尽的任务也不会通过换物理编号重置额度。
+
+隔离回归入口（仓库根目录，假模型和临时数据，不调用真实外部服务）：
+
+```powershell
+python -m unittest tests.test_agent_debug tests.test_tasks tests.test_task_budgets tests.test_collaboration -v
+```
+
+重点核对 `test_root_budget_timeout_during_model_is_not_reported_as_network_timeout`、`test_resume_preserves_evidence_tool_allowances_and_original_budget` 和 `test_time_handoff_uses_saved_body_and_disables_collection_before_deadline`。它们分别验证真实子进程超时归因、原预算与来源恢复、临近期限零新增采集并按已有来源交接。此类模拟通过不代表上游模型长尾或历史全部失败已修复。
+
 ## 无 GUI 的对话服务验收
 
 统一任务质量入口见 [EVALS.md](EVALS.md)：`python scripts/eval_agent.py --output ../output/eval-new` 使用隔离假模型验证任务链；显式 `--live` 才调用当前真实模型。报告关联实际 task_id/call_ids、工具回执、产物、严格结果判定、耗时与可取得的用量；失败不自动重跑。后续功能要提供可复用的业务/认证接口和隔离验收样本，供开发者直接核对真实模型是否完成任务，不能只靠界面观察。

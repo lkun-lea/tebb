@@ -66,7 +66,9 @@ def parse_route(text):
 
 
 def execution_limits(agent_id, tools=()):
-    defaults = dict(call_timeout=90, task_timeout=600 if agent_id == 'coder' or '项目环境' in tools else 300)
+    from .task_budgets import default_tier, policy
+    tier = default_tier(role=dict(id=agent_id, tools=tools))
+    defaults = dict(call_timeout=90, task_timeout=max(300, policy(tier)['time_ms']//1000))
     path = data_root() / 'memory' / 'task_settings.json'
     if not path.exists(): return defaults
     try:

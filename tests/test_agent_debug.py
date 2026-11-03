@@ -126,6 +126,11 @@ class DebugTests(unittest.TestCase):
             client.post('https://example.invalid/chat/completions', json={'model': 'test', 'messages': [{'role': 'user', 'content': long_text}],
                 'tools': [{'type': 'function', 'function': {'name': 'execute_command'}}]})
         source_id = debug.listing()['items'][0]['id']
+        debug.update(source_id,state='timed_out',error='TaskTimeout')
+        task=dict(id='task-own',state='timed_out',error='整个目标的执行时间预算已到。',ended=123,
+                  events=[dict(kind='timeout_phase',data=dict(stage='llm_start',scope='root_budget')),
+                          dict(kind='token',data='DUPLICATED_TOKEN_EVENT')])
+        budget=dict(stop_reason=dict(dimension='time_ms',message='整个目标的执行时间预算已到。'))
         seen = []
         raw = 'data: ' + json.dumps({'choices': [{'index': 0, 'delta': {'content': '这是只读解读。'}, 'finish_reason': 'stop'}]}) + '\n\ndata: [DONE]\n\n'
         def handle(req):
@@ -138,13 +143,21 @@ class DebugTests(unittest.TestCase):
             emitted = []
             with patch('desk_companion.model_network.openai_client',side_effect=lambda **kw:OpenAI(api_key='test',base_url='https://example.invalid/v1',http_client=transport,max_retries=0)), patch('desk_companion.execution_context.ExecutionLLM', side_effect=make_llm), patch('desk_companion.model_catalog.require_active', return_value={
                     'model': 'test', 'api_key': 'test', 'base_url': 'https://example.invalid/v1'}):
-                debug.execute_explanation({'debug_call_id': source_id, 'text': '解读', 'limits': {'call_timeout': 30},
-                    'sampling': {'reasoning_effort': 'low', 'temperature': .5, 'top_p': 1}}, lambda k,d: emitted.append((k,d)))
+                with patch('desk_companion.performance.task_snapshot',return_value=task),patch('desk_companion.performance.task_timing',return_value={'total_ms':300000}),patch('desk_companion.task_budgets.task_view',return_value=budget):
+                    debug.execute_explanation({'debug_call_id': source_id, 'text': '解读', 'limits': {'call_timeout': 30},
+                        'sampling': {'reasoning_effort': 'low', 'temperature': .5, 'top_p': 1}}, lambda k,d: emitted.append((k,d)))
         payload = seen[0]
         self.assertNotIn('tools', payload)
         source = json.loads(payload['messages'][1]['content'])
         self.assertEqual(source['request']['messages'][0]['content'], long_text)
         self.assertEqual(source['request']['tools'][0]['function']['name'], 'execute_command')
+        self.assertEqual(source['call']['state'],'timed_out')
+        self.assertEqual(source['call']['status'],200)
+        self.assertEqual(source['task']['events'][0]['data']['scope'],'root_budget')
+        self.assertNotIn('DUPLICATED_TOKEN_EVENT',json.dumps(source))
+        self.assertEqual(source['task_budget']['stop_reason']['dimension'],'time_ms')
+        self.assertEqual(source['chain']['total_ms'],300000)
+        self.assertIn('timing',source)
         self.assertIn(('result', '这是只读解读。'), emitted)
         self.assertEqual(len(debug.listing()['items']), 2)
 
