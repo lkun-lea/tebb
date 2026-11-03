@@ -701,12 +701,14 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                 continue
         if kind == 'route':
             try:
-                decision=parse_route(text if not structured and text.startswith(('{','```json')) else json.dumps(dict(mode='answer',text=text)))
+                # Routing actions arrive through tools. JSON in content is user data,
+                # including answers after a clarification or a business "mode" field.
+                decision=parse_route(json.dumps(dict(mode='answer',text=text)))
                 if request.get('require_execution') and decision['mode']=='answer':raise ValueError('明确执行请求不能用无工具的普通回答结束。')
             except (ValueError,TypeError):
                 emit('answer_reset',True)
                 if turn>=budget-1:raise PublicFailure('模型未返回有效的回答或真实任务申请；仅口头声称提交不算派发，未执行工具，请重试。')
-                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。需要实际搜索或操作时只调用start_background_task，缺信息调用request_clarification；普通解释、代码示例可直接回答，但不能编造执行进度。也可用合法mode=answer/task/clarify的JSON修正。')])
+                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。需要实际搜索或操作时只调用start_background_task，缺信息调用request_clarification；普通解释、代码示例可直接按用户格式回答，但不能编造执行进度。不要用JSON中的mode字段替代真实工具调用。')])
                 emit('status','正在纠正路由，尚未开始后台操作。');continue
             emit('result',json.dumps(decision,ensure_ascii=False));return
         if kind=='task':

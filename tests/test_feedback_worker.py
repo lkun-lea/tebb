@@ -34,6 +34,21 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_resumed_json_and_business_mode_are_data_without_output_contract(self):
+        for answer in ['{"total":18,"checked":true}', '[7,11]', '{"mode":"active","count":2}']:
+            with self.subTest(answer=answer):
+                self.events=[]
+                self.request.update(kind='route',text='补齐后返回结果。')
+                self.run_model(ScriptedModel([answer]))
+                result=json.loads(next(data for kind,data in self.events if kind=='result'))
+                self.assertEqual(result,dict(mode='answer',text=answer))
+
+    def test_business_json_cannot_replace_explicit_execution(self):
+        self.request.update(kind='route',text='实际搜索公开资料。',require_execution=True,budget=2)
+        with self.assertRaises(PublicFailure):
+            self.run_model(ScriptedModel(['{"mode":"task","text":"已搜索"}']*2))
+        self.assertFalse(any(kind=='result'for kind,_ in self.events))
+
     def test_explicit_delegation_reaches_actual_route_prompt_and_schema(self):
         self.request.update(kind='route',requested_strategy='delegate',require_execution=True,members=[dict(id='writer',name='writer',role='read',tools=[])])
         call=dict(tool_calls=[dict(id='actual-route',function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='核对资料',strategy='direct'))))])
