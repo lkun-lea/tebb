@@ -262,6 +262,23 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.assertTrue(any(k=='feedback_review_repair'for k,d in self.events))
         self.assertTrue(json.loads(model.calls[-1]['messages'][1]['content'])['previous_protocol_issues'])
 
+    def test_review_timeout_retains_candidate_without_reexecuting_tools_or_rewriting(self):
+        from desk_companion.review_limits import ReviewTimeout
+        self.request.update(text='核对给定来源。',source_evidence=[dict(kind='page',level='body',url='https://example.org/a',text='Actual fact.')])
+        class ExpiredReview(ScriptedModel):
+            def chat(inner,messages,tools=None,on_delta=None):
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    inner.calls.append(dict(messages=messages,tools=tools))
+                    raise ReviewTimeout('controlled expiry')
+                return super().chat(messages,tools,on_delta)
+        model=ExpiredReview(['Actual fact. [source](https://example.org/a)'])
+        with self.assertRaises(PublicFailure):self.run_model(model)
+        self.assertEqual(len(model.calls),2)
+        self.assertIn('Actual fact.',self.events[-1][1])
+        self.assertFalse(any(kind=='result'for kind,_ in self.events))
+        report=next(data for kind,data in self.events if kind=='feedback_check')
+        self.assertTrue(any(c['id']=='review_unavailable'and c['status']=='unknown'for c in report['checks']))
+
     def test_correct_raw_child_candidate_is_reviewed_for_current_duty(self):
         text='计算7与11的和。只输出JSON对象。'
         self.request.update(text=text,objective='必须委派写作者并整体汇总。只返回JSON。',parent_run='actual-parent',stage='deliver',budget=2)

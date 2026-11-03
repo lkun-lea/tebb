@@ -28,6 +28,12 @@ elif r['text']=='stream':
   time.sleep(.07)
   emit('token','流')
  emit('llm_end',{})
+elif r['text']=='review_stream':
+ emit('llm_start',dict(phase='feedback_review'))
+ for i in range(30):
+  emit('think','progress')
+  time.sleep(.03)
+ emit('llm_end',{})
 elif r['text']=='stream_stalls':
  emit('llm_start',{})
  emit('token','流')
@@ -75,6 +81,19 @@ emit('result',r['text'])
 
 
 class TaskTests(unittest.TestCase):
+    def test_review_absolute_deadline_is_not_extended_by_heartbeat(self):
+        self.manager.settings.update(call_timeout=2,task_timeout=10)
+        seen=[];original=self.manager.event
+        def observed(task_id,kind,data,**kwargs):
+            if kind=='think':seen.append(data)
+            return original(task_id,kind,data,**kwargs)
+        with patch.object(self.manager,'event',side_effect=observed),patch('desk_companion.review_limits.MAX_SECONDS',.1),patch('desk_companion.review_limits.SETTLE_SECONDS',.05):
+            task=self.manager.wait(self.manager.submit('review_stream','review-window'))
+        self.assertEqual(task['state'],'timed_out')
+        self.assertIn('保留片段',task['answer'])
+        self.assertTrue(seen)
+        self.assertEqual(next(e['data']for e in task['events']if e['kind']=='timeout_phase'),dict(stage='llm_start',scope='call'))
+
     def test_expired_phase_cannot_be_cleared_before_supervisor_observes_it(self):
         start=threading.Thread.start;settled=[]
         def handoff(thread):

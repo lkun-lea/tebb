@@ -51,3 +51,6 @@
 - 原v14新策略3成功/1 false_success，#206修复题目所需章节覆盖判定后，以原始任务与快照零新增模型调用复判；两组均4成功/0 false_success。原始报告及SHA保留，不覆盖原分。
 
 原证据：`output/budget-170-rpc/`、`output/budget-170-compare/`（位于工作区仓库旁）；模拟、真实模型、零调用复判与完整CI分别记录。运行代码76752ad已通过[CI 41182333915](https://github.com/liukun158959-beep/tebb/actions/runs/41182333915)：986项后端、12显式旧沙箱条件跳过、0失败/错误，208前端、类型检查/构建与Rust全部通过。用户6项原修改未暂存；仅文档收尾后推送并关闭#170，不重发冻结的0.4.1。
+# 独立审阅窗口（#247）
+
+`review_limits.ReviewWindow`由产品拥有，首审和协议修正共用60秒绝对窗口，且不超过call_timeout或根剩余时间减5秒。`CollaborationLLM`仅为该窗口派生SDK调用设置并复用原连接，恢复后不污染业务调用。流中任何进展都不能刷新该绝对窗口。TaskManager对feedback_review另有最多65秒的父进程兜底；正常协作取消先生成unknown审阅结果并保留候选，不追加候选重写或外部操作。`test_collaboration_llm`验证持续流取消及借用连接恢复，`test_tasks`验证心跳不会逃逸审阅绝对时限。

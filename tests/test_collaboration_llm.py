@@ -11,6 +11,28 @@ SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
 
 
 class StreamingTests(unittest.TestCase):
+    def test_review_deadline_stops_continuous_reasoning_and_restores_borrowed_client(self):
+        import time
+        from desk_companion.review_limits import ReviewWindow,ReviewTimeout
+        window=ReviewWindow(dict(limits=dict(call_timeout=20)))
+        seen=[];closed=[]
+        class Stream(httpx.SyncByteStream):
+            def __iter__(self):
+                yield b'data: {"choices":[{"delta":{"reasoning_content":"progress"}}]}\n\n'
+                window.deadline=time.monotonic()-1
+                yield b'data: {"choices":[{"delta":{"reasoning_content":"still progress"}}]}\n\n'
+            def close(self):closed.append(True)
+        def handle(request):
+            seen.append((json.loads(request.content),request.extensions['timeout']))
+            if len(seen)==1:return httpx.Response(200,stream=Stream())
+            return httpx.Response(200,text='data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
+        llm=self.llm(handle)
+        with window.active(),self.assertRaises(ReviewTimeout):llm.chat([])
+        self.assertTrue(closed);self.assertFalse(llm.client.is_closed)
+        self.assertNotIn('reasoning_effort',seen[0][0]);self.assertLessEqual(seen[0][1]['read'],20)
+        llm.chat([])
+        self.assertEqual(seen[1][0]['reasoning_effort'],'low')
+
     def test_glm_tool_reasoning_is_returned_only_to_model_and_tool_stream_reports_progress(self):
         seen=[]
         chunks=[dict(choices=[dict(delta=dict(reasoning_content='opaque-model-reasoning'))]),

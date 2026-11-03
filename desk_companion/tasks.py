@@ -352,12 +352,19 @@ class TaskManager:
                             if expired:outcome.setdefault('expiration',expired)
                             if kind in ('llm_start','tool_start'):
                                 wait=request['limits']['call_timeout']
+                                hard_wait=max(300,wait)
+                                if kind=='llm_start'and isinstance(data,dict)and data.get('phase')=='feedback_review':
+                                    from .review_limits import MAX_SECONDS,SETTLE_SECONDS
+                                    hard_wait=min(hard_wait,MAX_SECONDS+SETTLE_SECONDS)
+                                    remaining=data.get('absolute_timeout')
+                                    if type(remaining)in(int,float)and 0<remaining<=MAX_SECONDS:
+                                        hard_wait=min(hard_wait,remaining+SETTLE_SECONDS)
                                 if kind=='tool_start'and isinstance(data,dict):
                                     command_wait=data.get('phase_timeout')
                                     if type(command_wait)in(int,float)and 1<=command_wait<=360:wait=max(wait,command_wait)
                                 phase.update(deadline=observed+wait,kind=kind,
                                     tool=data.get('tool')if kind=='tool_start'and isinstance(data,dict)else None,
-                                    hard_deadline=observed+max(300,request['limits']['call_timeout'])if kind=='llm_start'else None,
+                                    hard_deadline=observed+hard_wait if kind=='llm_start'else None,
                                     waiting_note=observed+30)
                             elif kind in ('llm_end','tool_end'):
                                 phase.update(deadline=None,hard_deadline=None,kind=None,tool=None,waiting_note=None)

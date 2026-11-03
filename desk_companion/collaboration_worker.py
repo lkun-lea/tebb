@@ -85,19 +85,25 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     role, kind = request["role"], request["kind"]
     if kind=='feedback_review':
         from .feedback_review import review,OUTPUT_TOOL
+        from .review_limits import ReviewWindow,ReviewTimeout
+        from .task_budgets import phase as budget_phase
         from .feedback import check,report,check_receipts
+        review_window=ReviewWindow(request)
         if type(request.get('budget',1))is not int or request.get('budget',1)<1:raise PublicFailure('审阅没有可用模型调用预算。')
         def review_once(messages):
-            emit('llm_start',dict(model=model['model'],turn=1,phase='feedback_review'))
+            emit('llm_start',dict(model=model['model'],turn=1,phase='feedback_review',absolute_timeout=review_window.remaining()))
             started=time.monotonic()
             try:
-                value=llm.chat(messages,tools=[OUTPUT_TOOL],on_delta=lambda _:emit('llm_progress',True))
+                with review_window.active(),budget_phase('feedback_review'):
+                    value=llm.chat(messages,tools=[OUTPUT_TOOL],on_delta=lambda _:emit('llm_progress',True))
                 record_usage(request,value.get('usage')or {},model['model'],emit)
                 return value
             finally:emit('llm_end',dict(phase='feedback_review',duration_ms=int((time.monotonic()-started)*1000)))
         receipts=request.get('review_receipts',[])
         sources=request.get('source_evidence',[])
-        checks=review(request['review_goal'],request['review_draft'],sources,receipts,review_once)
+        try:checks=review(request['review_goal'],request['review_draft'],sources,receipts,review_once)
+        except ReviewTimeout:
+            checks=[check('review_unavailable','task_acceptance','unknown','独立审阅超时，候选与实际回执保留，未算验收通过。',basis='model_assessment')]
         checks.extend(check_receipts(receipts,request.get('acceptance',[])))
         if request.get('review_requires_full')and any(s.get('level')!='body'or s.get('truncated')is True or s.get('complete')is False for s in sources):
             checks.append(check('required_full_reading','reading','unknown','验收明确要求全文，但只取得节选，不能确认全文结论。'))
@@ -720,16 +726,18 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             if audit is not None:emit('citation_check',audit)
             assessment=feedback.report(feedback_checks,receipts=tool_receipts)
             if assessment['ok']and (sources or delivering or tool_receipts or role.get('tools')or role.get('id')=='tebb'or request.get('require_execution')):
+                from .review_limits import ReviewWindow
+                review_window=ReviewWindow(request)
                 def review_call(material):
                     nonlocal consumed
                     if consumed>=budget:raise RuntimeError('feedback_call_budget_exhausted')
                     consumed+=1
-                    emit('llm_start',dict(model=model['model'],turn=consumed,phase='feedback_review'))
+                    emit('llm_start',dict(model=model['model'],turn=consumed,phase='feedback_review',absolute_timeout=review_window.remaining()))
                     started=time.monotonic();old_delta=llm.on_tool_delta;llm.on_tool_delta=None
                     from .agent_debug import context as call_context
                     try:
                         from .task_budgets import phase
-                        with call_context(phase='feedback_review'),phase('feedback_review'):
+                        with review_window.active(),call_context(phase='feedback_review'),phase('feedback_review'):
                             response=llm.chat(material,tools=[OUTPUT_TOOL],on_delta=lambda _:emit('llm_progress',True))
                         record_usage(request,response.get('usage')or {},model['model'],emit)
                         return response
@@ -757,7 +765,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                     limitations=declared.get('limitations',[])if declared else [],completion=assessment['completion'],scope=assessment['scope']))
             if not assessment['ok']:
                 issues=[c for c in assessment['checks']if c.get('required',True)and c['status']!='pass']
-                if consumed<budget and repair.begin():
+                if not any(c['id']=='review_unavailable'for c in issues)and consumed<budget and repair.begin():
                     messages.extend([revision_message(text,answer),dict(role='user',content='本稿未完成核验，仅有一次定向修订：'+json.dumps(issues,ensure_ascii=False)+
                         '。保留已有有效分析、真实图表及原操作编号，重新交付完整成果。严格遵守用户JSON/其他格式，不能只追加说明或修改清单。'+
                         '引用复制真实证据id，不能编造来源；必要时只读补齐已授权材料。图表复用已成功资产，确需修正才用原draft_id。'+

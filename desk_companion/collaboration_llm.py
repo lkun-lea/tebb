@@ -36,6 +36,9 @@ class CollaborationLLM:
             self.client = None
 
     def chat(self, messages, tools=None, on_delta=None, *, should_cancel=None):
+        from .review_limits import current_window,ReviewTimeout
+        review=current_window()
+        if review:review.check()
         if self.expected_configuration_revision:
             from .execution_context import configuration_revision
             from .model_catalog import require_item
@@ -51,11 +54,18 @@ class CollaborationLLM:
                                      on_context=lambda report:self.on_context(report)if self.on_context else None)
         extra = {'thinking': {'clear_thinking': False}, 'tool_stream': True} if self.preserve_reasoning else None
         try:
-            return self._llm.chat(messages, tools, options=ChatOptions(
-                sampling=self.sampling, extra_body=extra, stream=True,
-                preserve_reasoning=self.preserve_reasoning, should_cancel=should_cancel,
-            ), callbacks=ChatCallbacks(on_delta=on_delta, on_reasoning=self.on_reasoning,
-                on_progress=self.on_progress, on_tool_delta=self.on_tool_delta))
-        except Exception:
+            driver=self._llm;client=driver.client
+            if review:driver.bind_client(client.with_options(timeout=min(self.timeout,review.remaining())))
+            try:
+                return driver.chat(messages, tools, options=ChatOptions(
+                    sampling={k:v for k,v in self.sampling.items()if k!='reasoning_effort'}if review else self.sampling,
+                    extra_body=extra, stream=True,preserve_reasoning=self.preserve_reasoning,
+                    should_cancel=(lambda:review.expired()or bool(should_cancel and should_cancel()))if review else should_cancel,
+                ), callbacks=ChatCallbacks(on_delta=on_delta, on_reasoning=self.on_reasoning,
+                    on_progress=self.on_progress, on_tool_delta=self.on_tool_delta))
+            finally:
+                if review:driver.bind_client(client)
+        except Exception as exc:
             self.close()
+            if review and review.expired():raise ReviewTimeout('独立审阅时间窗口已到，候选和实际回执保留，未算验收通过。')from exc
             raise
