@@ -24,7 +24,7 @@ async function draftEditor(){
   async function choose(label,value){
     if(label==='示例工作流'){
       await act(async()=>view.root.findByProps({'aria-label':'自动化工作流首页'}).findAllByType('button').find(n=>textOf(n)==='从示例创建').props.onClick());
-      await act(async()=>view.root.findAllByType('button').find(n=>textOf(n).includes(templates.find(t=>t.id===value).name)&&n.props.onClick).props.onClick());
+      await act(async()=>view.root.findByProps({'aria-label':'从示例创建'}).findAllByType('button').find(n=>textOf(n).includes(templates.find(t=>t.id===value).name)&&n.props.onClick).props.onClick());
     }else if(label==='已保存工作流')await act(async()=>view.root.findByProps({'aria-label':'打开工作流：'+definitions.find(d=>d.id===value).name}).props.onClick());
     else await act(async()=>view.root.findByProps({'aria-label':label}).props.onChange({target:{value}}));
   }
@@ -84,7 +84,7 @@ test('overview uses real graph layout, per-definition latest receipts and actual
   const definition=summary({id:'w',name:'资讯流程',revision:1,version:'c'.repeat(64),graph:{nodes:[{id:'t',kind:'trigger',config:{text:'private'},position:{x:-30,y:40}},{id:'a',kind:'ai',config:{prompt:'private'},position:{x:300,y:240}}],edges:[{source:'t',target:'a',branch:''}]}});
   definition.latest_run={id:'older-than-100',workflow:'w',name:'资讯流程',state:'unknown',created:1700000000};
   const job={id:'original',name:'每天整理',action:'workflow',workflow_id:'w',workflow_version:'b'.repeat(64),enabled:false,schedule_text:'每天 09:00'};
-  const calls=[],props={definitions:[definition],history:[],catalog:[{kind:'trigger',label:'触发'},{kind:'ai',label:'AI处理'}],schedules:{...scheduleState,jobs:[job],toggle:async value=>calls.push(['toggle',value])},loading:false,loaded:true,error:'',disabled:false,debug:false,draft:'',onOpen:id=>calls.push(['open',id]),onResume(){},onNew:()=>calls.push(['new']),onTemplate:()=>calls.push(['template']),onRun:id=>calls.push(['run',id]),onRefresh(){},onSchedules:()=>calls.push(['schedules'])};let view;
+  const calls=[],props={definitions:[definition],templates:[],onConfigure(){},history:[],catalog:[{kind:'trigger',label:'触发'},{kind:'ai',label:'AI处理'}],schedules:{...scheduleState,jobs:[job],toggle:async value=>calls.push(['toggle',value])},loading:false,loaded:true,error:'',disabled:false,debug:false,draft:'',onOpen:id=>calls.push(['open',id]),onResume(){},onNew:()=>calls.push(['new']),onTemplate:()=>calls.push(['template']),onRun:id=>calls.push(['run',id]),onRefresh(){},onSchedules:()=>calls.push(['schedules'])};let view;
   try{
     await act(async()=>{view=create(React.createElement(WorkflowOverview,props));});
     assert.equal(view.root.findAllByType('path').filter(n=>n.props['data-branch']==='').length,1);
@@ -114,6 +114,38 @@ test('canvas drag guides snap while dragging and on release; alignment toggle an
     assert.equal(ui.canvas().nodes[0].position.y,ui.canvas().nodes[1].position.y);assert.equal(ui.canvas().edges.length,1);assert.equal(ui.canvas().nodes[1].data.config.prompt,'{{trigger.text}}');
     act(()=>ui.button('竖直对齐').props.onClick());assert.equal(ui.canvas().nodes[0].position.x,ui.canvas().nodes[1].position.x);
     await act(async()=>ui.button('保存工作流').props.onClick());await ui.choose('示例工作流','two');assert.equal(ui.confirms.length,0);
+  }finally{ui.close();}
+});
+
+test('home discovers builtin workflows without saved definitions and keeps original plans distinct',async()=>{
+  const {WorkflowOverview}=compile('workflow-overview.tsx'),calls=[];
+  const graph=state.initialGraph(),template={id:'video-notes',name:'视频学习笔记',description:'读取实际字幕后生成笔记',graph};
+  const job={id:'old-news',name:'已有资讯计划',action:'ai_news',enabled:true,schedule_text:'每天 09:00',last_result:'ok'};
+  const props={definitions:[],templates:[template],history:[],catalog:[{kind:'trigger',label:'触发'}],schedules:{...scheduleState,jobs:[job]},loading:false,loaded:true,error:'',disabled:false,debug:false,draft:'',onOpen:id=>calls.push(['open',id]),onConfigure:value=>calls.push(['configure',value]),onResume(){},onNew(){},onTemplate(){},onRun(){},onRefresh(){},onSchedules:()=>calls.push(['plans'])};let view;
+  try{
+    await act(async()=>{view=create(React.createElement(WorkflowOverview,props));});
+    assert.equal(view.root.findAllByType('article').length,2);assert.equal(view.root.findAllByProps({'data-workflow-source':'saved'}).length,0);
+    assert.match(textOf(view.root),/内置 · 待配置/);assert.match(textOf(view.root),/尚未保存/);assert.match(textOf(view.root),/已有资讯计划/);
+    act(()=>view.root.findByProps({'aria-label':'配置内置工作流：视频学习笔记'}).props.onClick());assert.strictEqual(calls[0][1],template);
+    act(()=>view.root.findByProps({'aria-label':'查看原有计划：已有资讯计划'}).props.onClick());assert.deepEqual(calls[1],['plans']);
+    assert.equal(view.root.findByProps({'data-workflow-source':'plan'}).findAllByProps({className:'workflow-thumbnail'}).length,0);
+    act(()=>view.root.findByProps({'aria-label':'筛选流程来源'}).props.onChange({target:{value:'builtin'}}));assert.equal(view.root.findAllByType('article').length,1);assert.equal(view.root.findAllByProps({'data-workflow-source':'plan'}).length,0);
+    act(()=>view.root.findByProps({'aria-label':'搜索工作流'}).props.onChange({target:{value:'资讯'}}));assert.equal(view.root.findAllByType('article').length,0);
+    act(()=>view.root.findByProps({'aria-label':'筛选流程来源'}).props.onChange({target:{value:'plan'}}));assert.equal(view.root.findAllByType('article').length,1);
+    await act(async()=>view.update(React.createElement(WorkflowOverview,{...props,schedules:{...props.schedules,error:'offline'}})));
+    assert.match(textOf(view.root.findByProps({'data-workflow-source':'plan'})),/状态待核对/);assert.doesNotMatch(textOf(view.root.findByProps({'data-workflow-source':'plan'})),/已启用|已完成/);
+  }finally{act(()=>view?.unmount());}
+});
+
+test('clicking a builtin home card opens an unsaved draft and protects actual edits',async()=>{
+  const ui=await draftEditor();
+  try{
+    assert.equal(ui.view.root.findAllByProps({'data-workflow-source':'saved'}).length,2);assert.equal(ui.view.root.findAllByProps({'data-workflow-source':'builtin'}).length,2);
+    await act(async()=>ui.view.root.findByProps({'aria-label':'配置内置工作流：示例一'}).props.onClick());
+    assert.match(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,/示例一/);assert.equal(ui.button('运行工作流').props.disabled,true);assert.equal(ui.confirms.length,0);
+    await ui.choose('工作流名称','内置工作流中的未保存修改');await act(async()=>ui.button('工作流').props.onClick());
+    await act(async()=>ui.view.root.findByProps({'aria-label':'配置内置工作流：示例二'}).props.onClick());
+    assert.equal(ui.confirms.length,1);assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'内置工作流中的未保存修改');
   }finally{ui.close();}
 });
 
