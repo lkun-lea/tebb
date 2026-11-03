@@ -113,7 +113,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
     {schedulePane}
   </div>;
   return <div className="work-board" data-work-board data-demo={debug?'true':'false'}>
-    <header className="wb-heading"><div><span className="wb-eyebrow">工作区 / 工作看板</span><h1>把事情一步步做完。</h1><p>研究、动手、验收，都有自己的位置。{debug&&' · 演示数据，未连接后端'}</p></div>
+    <header className="wb-heading"><div><span className="wb-eyebrow">工作区 / 工作看板</span><h1>事项</h1><p>查看和管理事项、负责人及执行状态。{debug&&' · 演示数据，未连接后端'}</p></div>
       <UiButton variant="primary" onClick={create}>＋ 新增事项</UiButton></header>
     {debug&&<UiContractSample/>}
     <div className="wb-toolbar"><label className="wb-search"><span aria-hidden="true">⌕</span><input aria-label="搜索事项" placeholder="搜索事项" value={query} onChange={e=>setQuery(e.target.value)}/></label>

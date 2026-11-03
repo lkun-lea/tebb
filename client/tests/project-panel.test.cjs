@@ -122,7 +122,7 @@ test('empty workspace offers folder picker and dirty files prevent changing dire
  const empty={revision:'',primary:'',references:[],edit:false,commands:false};let pickCount=0;
  const {ProjectPanel}=load(async(_i,_m,args)=>{if(args.operation==='load')return {ok:true,workspace:empty};if(args.operation==='pick'){pickCount++;return {ok:true,paths:[]};}throw Error('unexpected');});let view;
  await act(async()=>{view=create(React.createElement(ProjectPanel,{info,onQuote(){}}));});
- assert(text(view.toJSON()).includes('像 VS Code'));assert.equal(view.root.findAllByProps({'aria-label':'文件根目录'}).length,0);
+ assert(text(view.toJSON()).includes('选择文件夹后可浏览和预览文件'));assert.equal(view.root.findAllByProps({'aria-label':'文件根目录'}).length,0);
  await act(async()=>button(view,'选择并打开文件夹').props.onClick());assert.equal(pickCount,1);
  await act(async()=>view.unmount());
  const api=backend();const Panel=load(api.rpc).ProjectPanel;

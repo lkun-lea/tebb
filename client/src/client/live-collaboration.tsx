@@ -83,7 +83,7 @@ export function LiveCollaboration({ info: provided, standalone = false, composeR
   const confirmAction=(id:string)=>{
     if(pending.current?.id===id){pending.current=null;setActionError('');}
   };
-  if (!state) return <div className="flex min-h-0 flex-1"><section className="cp-connect" aria-label="连接真实协作"><span>tebb / LOCAL AGENTS</span><h1>你的伙伴，即将就位</h1>
-    <p>{error || "正在连接本地模型与协作任务服务…"}</p><button onClick={() => setRetry(value => value+1)}>重新连接</button><a href="/client.html?preview=chat">返回交互演示</a></section>{navigation && <nav className="cp-rail" aria-label="工作区快捷栏">{navigation}</nav>}</div>;
+  if (!state) return <div className="flex min-h-0 flex-1"><section className="cp-connect" aria-label="连接真实协作"><h1>伙伴聊天</h1>
+    <p>{error || "正在连接本地协作服务…"}</p><button onClick={() => setRetry(value => value+1)}>重新连接</button><a href="/client.html?preview=chat">返回交互演示</a></section>{navigation && <nav className="cp-rail" aria-label="工作区快捷栏">{navigation}</nav>}</div>;
   return <ReportAssetProvider info={info}><ChatPrototype backend={info} attachments={attachments} onAttach={onAttach} onDetach={onDetach} onProject={onProject} onFile={onFile} onTerminal={onTerminal} onCalendar={onCalendar} composeRequest={composeRequest} navigation={navigation} developerMode={developerMode} onDeveloperMode={onDeveloperMode} standalone={standalone} live={{ state, act, confirmAction, busy, error: actionError || error }} /></ReportAssetProvider>;
 }

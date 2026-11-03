@@ -311,9 +311,9 @@ function ContextBody(props: {
         </div>
       </section>
       <section data-context-local="" className="px-3 py-2" style={{ background: "hsl(var(--muted-foreground) / 0.12)" }}>
-        <h3 className="text-sm font-semibold">只留在对话里</h3>
+        <h3 className="text-sm font-semibold">已由摘要覆盖的原文</h3>
         {props.covered.length === 0 ? (
-          <p className="mt-1 text-muted-foreground">没有只留在对话里的原句。</p>
+          <p className="mt-1 text-muted-foreground">暂无已压缩原文。</p>
         ) : (
           <div className="mt-2 space-y-2">
             {props.covered.map((item, idx) => (
