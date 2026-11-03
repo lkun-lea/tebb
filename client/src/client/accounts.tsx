@@ -45,7 +45,7 @@ export function AccountsPane({info,debug=false}:{info:BackendInfo|null;debug?:bo
     <details className="accounts-card" open={!page.configured||!!page.config_error}><summary>账号服务连接</summary>
       {page.config_error&&<p role="alert">{page.config_error}</p>}
       <p>{page.configured?'已配置：'+page.url:'账号服务尚未配置。需要部署方提供项目地址和公开客户端密钥。'}</p>
-      {!page.config_managed&&<form onSubmit={event=>{event.preventDefault();void submit('configure',{url,publishable_key:publicKey});}}>
+      {!page.config_managed&&<form className="accounts-connection-form" onSubmit={event=>{event.preventDefault();void submit('configure',{url,publishable_key:publicKey});}}>
         <UiField label="项目地址"><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://项目.supabase.co" disabled={blocked}/></UiField>
         <UiField label="公开客户端密钥" help="填写 publishable key；已保存时留空可保留。"><input type="password" autoComplete="off" value={publicKey} onChange={e=>setPublicKey(e.target.value)} disabled={blocked}/></UiField>
         <UiButton type="submit" disabled={blocked} busy={controller.activeType==='configure'} busyLabel="正在保存连接…">保存连接</UiButton>
