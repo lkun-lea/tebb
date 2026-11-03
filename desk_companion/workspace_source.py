@@ -110,7 +110,7 @@ def search(root, relative, query, mode, *, config):
                     name,start,end,is_function = matches[0]
                     if is_function and query in (name,name.split('.')[-1]):
                         try:
-                            preview = _page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),start,end)
+                            preview = dict(symbol=name, **_page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),start,end))
                         except ValueError as exc:
                             preview = dict(preview_error=str(exc))
         except (OSError,ValueError,SyntaxError,RecursionError):
@@ -121,6 +121,17 @@ def search(root, relative, query, mode, *, config):
     return dict(ok=True,matches=hits[:25],hit_count=hit_count,limited=limited or len(hits)>25,**preview)
 
 
+def _resolve_symbol(text, symbol):
+    rows = [(name,start,end) for name,start,end,_ in symbols(text)]
+    matches = [r for r in rows if r[0]==symbol] or [r for r in rows if r[0].split('.')[-1]==symbol]
+    if len(matches)==1:
+        return matches[0]
+    names = get_close_matches(symbol,[r[0] for r in rows],n=5,cutoff=0.35)
+    choices = matches or [row for row in rows if row[0] in names] or rows
+    hints = '；'.join(f'{name[:90]} ({a}–{b})' for name,a,b in choices[:5])
+    raise ValueError(f'符号不存在或不唯一。可用限定名及行号：{hints or "无定义"}。可用行号重新读取。')
+
+
 def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, config):
     doc = workspace.read(root,relative,config,utf8_only=True)
     text = doc['text']
@@ -128,22 +139,17 @@ def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, 
     lines = list(io.StringIO(text,newline=''))
     first,last = 1,len(lines)
     if symbol:
-        rows = [(name,start,end) for name,start,end,_ in symbols(text)]
-        matches = [r for r in rows if r[0]==symbol] or [r for r in rows if r[0].split('.')[-1]==symbol]
-        if len(matches)!=1:
-            names = get_close_matches(symbol,[r[0] for r in rows],n=5,cutoff=0.35)
-            choices = matches or [row for row in rows if row[0] in names] or rows
-            hints = '；'.join(f'{name[:90]} ({a}–{b})' for name,a,b in choices[:5])
-            raise ValueError(f'符号不存在或不唯一。可用限定名及行号：{hints or "无定义"}。'
-                             f'也可省略 symbol，传 start_line/end_line（文件共 {last} 行）。')
-        _,first,last = matches[0]
+        symbol,first,last = _resolve_symbol(text,symbol)
     elif start_line is None:
         raise ValueError('需要符号名或起始行号')
     start = first if start_line is None else start_line
     end = last if end_line is None else end_line
     if type(start) is not int or type(end) is not int or not first<=start<=end<=last:
         raise ValueError('行号超出范围')
-    return dict(ok=True,**_page(relative,doc['revision'],lines,start,end))
+    result = dict(ok=True,**_page(relative,doc['revision'],lines,start,end))
+    if symbol:
+        result['symbol'] = symbol
+    return result
 
 
 def _page(relative,revision,lines,start,end):
@@ -167,22 +173,59 @@ def _line_ending(text):
     return styles[0] if len(styles)==1 else (None if styles else '')
 
 
-def patch(relative, old, new, revision, *, config, locked=False):
+def _match_error(section, old, pos, first):
+    lines = list(io.StringIO(section,newline=''))
+    if pos < 0:
+        anchor = next((line.strip()[:160] for line in old.splitlines() if line.strip()), '')
+        excerpts = [line.strip()[:160] for line in lines]
+        nearest = get_close_matches(anchor, excerpts, n=1, cutoff=0.4) if anchor else []
+        index = excerpts.index(nearest[0]) if nearest else 0
+        hints = ' | '.join(f'L{first+i} {lines[i].rstrip()[:160]}' for i in
+                           range(max(0,index-1), min(len(lines),index+2)))
+        return ValueError(f'old_not_found 原文未找到（0 处）。请按当前原文修改。参考片段：{hints}')
+    count, offsets = 0, []
+    while pos >= 0:
+        count += 1
+        if len(offsets)<3:
+            offsets.append(pos)
+        pos = section.find(old,pos+1)
+    hints = []
+    start = 0
+    for i,line in enumerate(lines,first):
+        while offsets and offsets[0] < start+len(line):
+            column = offsets.pop(0)-start
+            hints.append(f'L{i}:{column+1} {line[max(0,column-40):column+100].rstrip()}')
+        if not offsets:
+            break
+        start += len(line)
+    return ValueError(f'old_ambiguous 原文不唯一（{count} 处）。补充上下文或指定 symbol：'+' | '.join(hints))
+
+
+def patch(relative, old, new, revision, *, config, locked=False, symbol=None):
     if not isinstance(old,str) or not old or not isinstance(new,str) or old==new:
         raise ValueError('提供非空唯一原文和不同的替换文本')
     doc = workspace.read('main',relative,config,utf8_only=True)
     if not doc['editable'] or doc['kind']!='text':
         raise ValueError('仅可修改授权主目录的 UTF-8 文本')
     if doc['revision']!=revision:
-        raise ValueError('文件版本已变化，请重新读取')
+        raise ValueError('stale_revision 文件版本已变化，请重新读取目标片段')
     text = doc['text']
-    pos = text.find(old)
+    section, start, first = text, 0, 1
+    if symbol is not None:
+        if not isinstance(symbol,str) or not symbol.strip() or Path(relative).suffix.lower() not in {'.py','.pyi'}:
+            raise ValueError('symbol 需要 Python 文件和有效限定名')
+        _,first,last = _resolve_symbol(text,symbol)
+        lines = list(io.StringIO(text,newline=''))
+        start = sum(map(len,lines[:first-1]))
+        section = ''.join(lines[first-1:last])
+    pos = section.find(old)
     if pos<0:
         target, supplied = _line_ending(text), _line_ending(old)
         if target and supplied and target!=supplied and _line_ending(new) in ('',supplied):
             old = old.replace(supplied,target)
             new = new.replace(supplied,target)
-            pos = text.find(old)
-    if pos<0 or text.find(old,pos+1)>=0:
-        raise ValueError('原文未找到或不唯一，请重新读取并提供上下文')
+            pos = section.find(old)
+    if pos<0 or section.find(old,pos+1)>=0:
+        raise _match_error(section,old,pos,first)
+    pos += start
     return workspace.write(relative,text[:pos]+new+text[pos+len(old):],revision,config=config,locked=locked)

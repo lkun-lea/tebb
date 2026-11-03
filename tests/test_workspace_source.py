@@ -78,6 +78,26 @@ class SourceToolTests(unittest.TestCase):
         self.assertEqual(exact['text'],page['text'])
         self.assertEqual((exact['end_line'],exact['next_line']),(120,121))
 
+    def test_scoped_edits_report_recoverable_errors_and_preserve_other_bytes(self):
+        raw = b'class A:\r\n def f(self):\r\n  return 1\r\nclass B:\r\n def f(self):\r\n  x="aaa"\r\n  return 1\r\n'
+        self.file.write_bytes(raw)
+        page = workspace_source.read_symbol('main','mod.py','B.f',config=self.config)
+        self.assertEqual(page['symbol'],'B.f')
+        self.assertEqual(workspace_source.search('main','mod.py','B.f','symbol',config=self.config)['symbol'],'B.f')
+        def edit(old,new):
+            return workspace_source.patch('mod.py',old,new,page['revision'],symbol=page['symbol'],config=self.config)
+        with self.assertRaisesRegex(ValueError,r'old_ambiguous.*2 处.*L6:.*L6:'):
+            edit('aa','b')
+        with self.assertRaisesRegex(ValueError,r'old_not_found.*L7 +return 1'):
+            edit('return 2','return 3')
+        with self.assertRaisesRegex(ValueError,'old_not_found'):
+            edit('class A','class C')
+        self.assertEqual(self.file.read_bytes(),raw)
+        edit('  x="aaa"\n  return 1','  return 2')
+        self.assertEqual(self.file.read_bytes(),raw.replace(b'  x="aaa"\r\n  return 1',b'  return 2'))
+        with self.assertRaisesRegex(ValueError,'stale_revision'):
+            edit('return 2','return 3')
+
     def test_text_search_keeps_line_matches_and_only_previews_unique_identifiers(self):
         self.file.write_bytes(b'def urls(): return 1\nlink=urls()\n')
         def search(query='urls',path='mod.py'):

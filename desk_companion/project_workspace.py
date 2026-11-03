@@ -284,7 +284,7 @@ def tool_specs(*, development=False):
         spec('workspace_write', '编辑主目录UTF-8文件，必须带上读取时的revision；新文件用new。', {'path':string,'text':string,'revision':string}, ['path','text','revision']),
         spec('workspace_run', '在主目录WSL无网络沙箱运行命令。开启失败立即退出和pipefail，直接执行构建或测试，不用echo或||true掩盖退出码。/references/N只读。', {'command':string,'timeout':{'type':'integer'}}, ['command']),
     ] + ([
-        spec('workspace_search', '按名称搜索 Python 定义，或用 text 搜索文字。path 指定文件且唯一精确命中函数时，返回可直接用于局部修改的 text 和 revision，否则返回候选行号。', {'root':string,'path':string,'query':string,'mode':{'type':'string','enum':['symbol','text']}}, ['query']),
+        spec('workspace_search', 'symbol 按名称搜索 Python 定义；text 按单个字面子串搜索，不支持正则或 | 备选。指定文件并唯一精确命中函数时，返回 text、symbol 和 revision；其余返回候选行号。', {'root':string,'path':string,'query':string,'mode':{'type':'string','enum':['symbol','text']}}, ['query']),
         spec('workspace_read_symbol', '按 Python 限定名或行号读取局部源码；next_line 为续读位置。返回文件 revision。', {'root':string,'path':string,'symbol':string,'start_line':{'type':'integer'},'end_line':{'type':'integer'}}, ['path']),
-        spec('workspace_patch', '在主目录将唯一 old 精确替换为 new；带读取时文件 revision，保留片段外原文。', {'path':string,'revision':string,'old':string,'new':string}, ['path','revision','old','new']),
+        spec('workspace_patch', '将唯一 old 替换为 new。传读取时的 revision；有 symbol 时传回其限定名，只在该 Python 定义内匹配。失败按回执重读或补上下文。', {'path':string,'revision':string,'symbol':string,'old':string,'new':string}, ['path','revision','old','new']),
     ] if development else [])

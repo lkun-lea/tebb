@@ -140,7 +140,7 @@ class NativeTeamTests(unittest.TestCase):
                 ident,_=ledger.reserve_call(task,12)
                 ledger.settle(task,ident,dict(prompt_tokens=12,completion_tokens=8))
         with task_budgets.installed(task),patch.object(task_budgets,'record_workspace_check',side_effect=plateau):
-            implementation(task,writer,("workspace_write",dict(text=prefix+"d[key]=1+d.get(key,0)"+end)))
+            implementation(task,writer,("workspace_write",dict(text=prefix+"d[key]=1+d.get(key,0)"+end+"# previous: d[key]=1+d.get(key,0)\n")))
         self.assertEqual(sum(c['phase']=='finish' for c in ledger.read(budget_id)['calls'].values()),1)
         self.assertEqual(run_command("python check_first.py")["exit_code"],0)
         self.assertNotEqual(run_command(command)["exit_code"],0)
@@ -152,7 +152,7 @@ class NativeTeamTests(unittest.TestCase):
         proof=fix["handoffs"][0]["workspace_observation"]["checks"][0]
         self.assertEqual(proof["exit_code"],1)
         self.assertIn("duplicate order",proof["failure_output"])
-        implementation(task,fix,("workspace_patch",dict(old="d[key]=1+d.get(key,0)",new="d.setdefault(key,1)")))
+        implementation(task,fix,("workspace_patch",dict(symbol="record",old="d[key]=1+d.get(key,0)",new="d.setdefault(key,1)")))
         task,qa=take("task","research")
         self.assertEqual(qa["required_rechecks"],[command])
         worker(task,qa,[("workspace_run",dict(command=command))])

@@ -365,7 +365,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             if name in {'workspace_write','workspace_patch'}:
                 if name == 'workspace_patch':
                     if root_id!='main': raise ValueError('参考目录只读')
-                    change = invoke_tool(name,workspace_source.patch,path,arguments.get('old'),arguments.get('new'),arguments.get('revision'),config=snapshot,locked=True)
+                    change = invoke_tool(name,workspace_source.patch,path,arguments.get('old'),arguments.get('new'),arguments.get('revision'),symbol=arguments.get('symbol'),config=snapshot,locked=True)
                 else:
                     change = invoke_tool(name,project.write,path,arguments.get('text'),arguments.get('revision'),config=snapshot,locked=True)
                 changes.append(change)
