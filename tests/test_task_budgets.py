@@ -8,6 +8,22 @@ from desk_companion.task_budgets import Ledger,BudgetExceeded
 
 
 class RootBudgets(unittest.TestCase):
+    def test_symbol_search_and_read_share_progress_and_repeated_navigation_stops(self):
+        from desk_companion.task_budgets import installed,record_progress
+        args=dict(path='mod.py')
+        body=dict(ok=True,text='def foo(): pass',revision='a'*64)
+        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger), installed('child'):
+            ident,_=self.ledger.reserve_call('child',10)
+            self.ledger.settle('child',ident,dict(prompt_tokens=10,completion_tokens=1))
+            self.assertTrue(record_progress('workspace_search',args,body))
+            self.assertEqual(self.ledger.read(self.root)['no_progress'],0)
+            for tool,result in [('workspace_read_symbol',body),('workspace_search',body),('workspace_search',dict(ok=True,matches=[]))]:
+                ident,_=self.ledger.reserve_call('child',10)
+                self.ledger.settle('child',ident,dict(prompt_tokens=10,completion_tokens=1))
+                self.assertFalse(record_progress(tool,args,result))
+            with self.assertRaises(BudgetExceeded):self.ledger.reserve_call('child',10)
+            self.assertEqual(self.ledger.read(self.root)['stop_reason']['code'],'budget_no_progress')
+
     def test_child_handoff_is_single_use_and_keeps_root_finish_reserve(self):
         first,_=self.ledger.reserve_call('child',10,phase='finish')
         self.ledger.settle('child',first,dict(prompt_tokens=10,completion_tokens=3))

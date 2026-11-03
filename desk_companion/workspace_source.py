@@ -1,6 +1,7 @@
 """Bounded source navigation and revision-checked edits in a granted workspace."""
 import ast
 from difflib import get_close_matches
+import hashlib
 import io
 import os
 from pathlib import Path
@@ -21,7 +22,7 @@ def symbols(text):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 scope = (*parents, child.name)
                 start = min([child.lineno, *(d.lineno for d in child.decorator_list)])
-                yield '.'.join(scope), start, child.end_lineno
+                yield '.'.join(scope), start, child.end_lineno, not isinstance(child,ast.ClassDef)
             yield from walk(child, scope)
 
     yield from walk(tree, ())
@@ -57,6 +58,8 @@ def search(root, relative, query, mode, *, config):
             yield from (Path(parent)/name for name in sorted(files))
 
     exact, partial = [], []
+    hit_count = 0
+    preview = {}
     count, size = 0, 0
     needle = query.casefold()
     for file in paths():
@@ -79,17 +82,27 @@ def search(root, relative, query, mode, *, config):
                 continue
             text = raw.decode('utf-8')
             if mode=='symbol':
-                for name,start,end in symbols(text):
+                single_function = None
+                for name,start,end,is_function in symbols(text):
                     if needle in name.casefold():
+                        hit_count += 1
                         group = exact if needle in (name.casefold(),name.split('.')[-1].casefold()) else partial
+                        if file==target and is_function and query in (name,name.split('.')[-1]):
+                            single_function = (start,end)
                         if len(group)<25:
                             group.append(dict(path=path,symbol=name,start_line=start,end_line=end))
                         else:
                             limited = True
+                if single_function and len(exact)==1:
+                    try:
+                        preview = _page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),*single_function)
+                    except ValueError as exc:
+                        preview = dict(preview_error=str(exc))
             else:
                 for line_no,line in enumerate(io.StringIO(text,newline=''),1):
                     pos = line.casefold().find(needle)
                     if pos>=0:
+                        hit_count += 1
                         partial.append(dict(path=path,start_line=line_no,text=line[max(0,pos-60):pos+140]))
                         if len(partial)>25:
                             break
@@ -98,7 +111,7 @@ def search(root, relative, query, mode, *, config):
         if mode=='text' and len(partial)>25:
             break
     hits = exact+partial
-    return dict(ok=True,matches=hits[:25],limited=limited or len(hits)>25)
+    return dict(ok=True,matches=hits[:25],hit_count=hit_count,limited=limited or len(hits)>25,**preview)
 
 
 def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, config):
@@ -108,7 +121,7 @@ def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, 
     lines = list(io.StringIO(text,newline=''))
     first,last = 1,len(lines)
     if symbol:
-        rows = list(symbols(text))
+        rows = [(name,start,end) for name,start,end,_ in symbols(text)]
         matches = [r for r in rows if r[0]==symbol] or [r for r in rows if r[0].split('.')[-1]==symbol]
         if len(matches)!=1:
             names = get_close_matches(symbol,[r[0] for r in rows],n=5,cutoff=0.35)
@@ -123,6 +136,10 @@ def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, 
     end = last if end_line is None else end_line
     if type(start) is not int or type(end) is not int or not first<=start<=end<=last:
         raise ValueError('行号超出范围')
+    return dict(ok=True,**_page(relative,doc['revision'],lines,start,end))
+
+
+def _page(relative,revision,lines,start,end):
     stop, chars = start-1, 0
     for line in lines[start-1:min(end,start+119)]:
         if chars+len(line)>12000:
@@ -131,7 +148,7 @@ def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, 
         stop += 1
     if stop<start:
         raise ValueError('单行超过片段上限，请使用完整文件读取')
-    return dict(ok=True,path=relative,revision=doc['revision'],start_line=start,end_line=stop,
+    return dict(path=relative,revision=revision,start_line=start,end_line=stop,
                 next_line=stop+1 if stop<end else None,text=''.join(lines[start-1:stop]))
 
 
