@@ -59,6 +59,23 @@ class SourceToolTests(unittest.TestCase):
         self.assertEqual(exact['text'],page['text'])
         self.assertEqual((exact['end_line'],exact['next_line']),(120,121))
 
+    def test_text_search_keeps_line_matches_and_only_previews_unique_identifiers(self):
+        self.file.write_bytes(b'def urls(): return 1\nlink=urls()\n')
+        def search(query='urls',path='mod.py'):
+            return workspace_source.search('main',path,query,'text',config=self.config)
+        found=search()
+        self.assertEqual(found['matches'],search(path='')['matches'])
+        self.assertEqual(found['hit_count'],2)
+        self.assertEqual(found['text'],'def urls(): return 1\n')
+        self.assertNotIn('revision',search('urls()'))
+        self.assertNotIn('revision',search(path=''))
+        self.file.write_text('class A:\n def urls(self): pass\nclass B:\n def urls(self): pass\n','utf-8')
+        self.assertNotIn('revision',search())
+        self.file.write_text('def urls(:\n','utf-8')
+        broken=search()
+        self.assertEqual(broken['hit_count'],1)
+        self.assertNotIn('revision',broken)
+
     def test_pages_ambiguous_names_and_ambiguous_edits(self):
         self.file.write_text('class A:\n    def get(self): pass\nclass B:\n    def get(self): pass\n'+'# n\n'*130,'utf-8')
         for query,count in [('get',2),('ge',2),('missing',0),('A',2)]:

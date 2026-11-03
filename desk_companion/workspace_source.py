@@ -82,22 +82,17 @@ def search(root, relative, query, mode, *, config):
                 continue
             text = raw.decode('utf-8')
             if mode=='symbol':
-                single_function = None
-                for name,start,end,is_function in symbols(text):
+                definitions = symbols(text)
+                if file==target:
+                    definitions = list(definitions)
+                for name,start,end,_ in definitions:
                     if needle in name.casefold():
                         hit_count += 1
                         group = exact if needle in (name.casefold(),name.split('.')[-1].casefold()) else partial
-                        if file==target and is_function and query in (name,name.split('.')[-1]):
-                            single_function = (start,end)
                         if len(group)<25:
                             group.append(dict(path=path,symbol=name,start_line=start,end_line=end))
                         else:
                             limited = True
-                if single_function and len(exact)==1:
-                    try:
-                        preview = _page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),*single_function)
-                    except ValueError as exc:
-                        preview = dict(preview_error=str(exc))
             else:
                 for line_no,line in enumerate(io.StringIO(text,newline=''),1):
                     pos = line.casefold().find(needle)
@@ -106,6 +101,18 @@ def search(root, relative, query, mode, *, config):
                         partial.append(dict(path=path,start_line=line_no,text=line[max(0,pos-60):pos+140]))
                         if len(partial)>25:
                             break
+                definitions = ()
+                if file==target and query.isidentifier() and file.suffix.lower() in {'.py','.pyi'}:
+                    definitions = symbols(text)
+            if file==target:
+                matches = [row for row in definitions if needle in (row[0].casefold(),row[0].split('.')[-1].casefold())]
+                if len(matches)==1:
+                    name,start,end,is_function = matches[0]
+                    if is_function and query in (name,name.split('.')[-1]):
+                        try:
+                            preview = _page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),start,end)
+                        except ValueError as exc:
+                            preview = dict(preview_error=str(exc))
         except (OSError,ValueError,SyntaxError,RecursionError):
             continue
         if mode=='text' and len(partial)>25:
