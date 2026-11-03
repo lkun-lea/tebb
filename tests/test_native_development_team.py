@@ -85,6 +85,8 @@ class NativeTeamTests(unittest.TestCase):
                     if 'workspace_read' in names:
                         self.assertTrue({'workspace_search','workspace_read_symbol'} <= names)
                         self.assertEqual('workspace_patch' in names,'workspace_write' in names)
+                        read=next(t['function'] for t in tools if t['function']['name']=='workspace_read')
+                        self.assertEqual('open_question' in read['parameters']['properties'],'workspace_patch' in names)
                         if req.get('integration_verification'):
                             self.assertNotIn('workspace_patch',names)
                     scope=task_budgets.current()
@@ -112,8 +114,17 @@ class NativeTeamTests(unittest.TestCase):
         def implementation(task,req,edit):
             rev=project_workspace.read("main","storage.py",config=req["workspace"])["revision"]
             name,args=edit
-            return worker(task,req,[(name,dict(path="storage.py",revision=rev,**args)),
-                                    ("workspace_run",dict(command="python check_first.py"))])
+            steps=[]
+            if name=='workspace_patch':
+                steps=[('workspace_read_symbol',dict(path='storage.py',symbol='record')),
+                       ('workspace_read',dict(path='checks.py',open_question='重启检查如何比较两次余额？'))]
+            log=worker(task,req,steps+[(name,dict(path="storage.py",revision=rev,**args)),
+                                       ("workspace_run",dict(command="python check_first.py"))])
+            if name=='workspace_patch':
+                self.assertTrue(any('next_step' in str(m.get('content')) for batch in log for m in batch if m.get('role')=='tool'))
+                starts=[e['data'] for e in self.work.items[task]['events'] if e['kind']=='tool_start']
+                self.assertEqual([e['open_question'] for e in starts if 'open_question' in e],['重启检查如何比较两次余额？'])
+            return log
         task,writer=take("task","coder")
         self.assertFalse(any(r['kind']=='plan' for r in self.work.requests.values()))
         # Reproduce the real stall after implementation and a successful command.

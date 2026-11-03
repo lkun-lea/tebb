@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--repo', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--repro-events', type=Path, help='Use the previously observed #208 command and output as the starting evidence.')
+    parser.add_argument('--known-read',action='store_true',help='Supplemental run with an explicit first function read; requires --repro-events.')
     args = parser.parse_args()
     goal = GOAL
     if args.repro_events:
@@ -36,6 +37,10 @@ def main():
         goal = goal.replace('请先运行最小失败样例，在输出中展示期望与实际，再实现修改并验证。',
                             '复现已完成。编码伙伴从下方真实回执开始，在 desk_companion/web_sources.py 读取相关函数并局部修改，随后运行验证。')
         goal += '\n先前的复现命令和实际输出：\n'+repro['command']+'\n'+repro['output']
+    if args.known_read:
+        if not args.repro_events:
+            parser.error('--known-read requires --repro-events')
+        goal += '\n本次诊断的起点已经定位。编码伙伴第一步直接调用 workspace_read_symbol(path="desk_companion/web_sources.py", symbol="urls")，然后根据真实回执决定修改或补证。'
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     tests = {name:git(args.repo,'show',sha+':tests/'+name+'.py').decode() for name,sha in
@@ -70,6 +75,8 @@ sys.exit(0 if len(rows)==12 and all(rows.values()) else 1)
     result = trial('team',out,model_catalog.require_active(),model_network.load(),
                    seed=seed,goal=goal,holdout=holdout,observe=observe)
     result['starting_point'] = 'observed_reproduction' if args.repro_events else 'cold'
+    if args.known_read:
+        result['starting_point'] = 'observed_reproduction_with_first_read'
     (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
     print(result['delivery'],result['checks'],flush=True)
 

@@ -291,6 +291,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     if kind=='task' and role.get('id')=='tebb':
         from .tebb_tools import specs as tebb_specs
         for spec in tebb_specs(request):extra[spec['function']['name']]=spec
+    discovery_tools = {'workspace_search','workspace_read_symbol','workspace_read','workspace_list','workspace_run'}
+    coding_child = bool(request.get('parent_run') and 'workspace_patch' in extra)
     if extra and kind == 'task':
         prompt_extra = ('\n工作区读写只限已授权目录。文件编辑必须先读revision；新建文件使用new。'
             '命令在WSL/bubblewrap无网络沙箱执行，可修改主目录；参考目录只读。先查看项目约定和已有构建测试入口，实际验证后再汇报。'
@@ -307,6 +309,10 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             extra={name:spec for name,spec in extra.items() if name in {'workspace_list','workspace_read','workspace_search','workspace_read_symbol','workspace_run','submit_deliverable'}}
         if 'workspace_search' in extra:
             prompt_extra+='\n已知源码文件时，用 workspace_search 在该文件内按精确函数名查询；返回 text 和 revision 后可直接 workspace_patch。仅有候选时把命中的 path 和行号传给 workspace_read_symbol。终端用于运行复现与测试。'
+        if coding_child:
+            prompt_extra+='\n首次修改：取到目标代码后，若已有证据足够，立即提交一处可验证的最小补丁并运行针对性检查。若仍需取证，在该次工具调用的 open_question 中写出阻止修改的一个具体问题，并只查询能回答它的内容。'
+            for name in discovery_tools & extra.keys():
+                extra[name]['function']['parameters']['properties']['open_question']=dict(type='string',maxLength=240,description='已读到源码且尚未修改时，继续取证要回答的具体问题。')
         messages[0]['content'] += prompt_extra
         messages.append(dict(role='user',content='当前工作目录授权：'+json.dumps(request.get('workspace',{}),ensure_ascii=False)))
     messages[0]['content']+='\n当前任务职责是本阶段需要执行的工作，整体目标用于理解背景与约束；不要把其他伙伴或其他阶段的分工动作重复当作自己的职责。已完成的工作依据实际交接与回执，不再次调度；无回执的事实仍是未知，工具权限不因整体目标扩大。'
@@ -400,8 +406,13 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     finishing=False
     handoff_finish=False
     code_retry_offered=False
+    source_ready=False
     def invoke_extra(name,arguments,call_id):
+        nonlocal source_ready
         wait = {}
+        if coding_child and source_ready and not changes and name in discovery_tools:
+            question=arguments.get('open_question')
+            wait['open_question']=question.strip()[:240] if isinstance(question,str) else ''
         from .project_tools import TOOL_OPERATIONS
         if name in TOOL_OPERATIONS:wait['phase_timeout']=300
         if name == 'workspace_run':
@@ -423,6 +434,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                     search_receipt=dict(query=arguments.get('query'),mode=arguments.get('mode','symbol'),
                                         hit_count=result['hit_count'],limited=result['limited'],
                                         has_body=bool(result.get('text')),progress_added=bool(added))
+            if (coding_child and not source_ready and not changes and arguments.get('root','main')=='main'
+                    and name in {'workspace_search','workspace_read_symbol','workspace_read'}
+                    and result.get('revision') and result.get('text')):
+                source_ready=True
+                result['next_step']='现在判断能否修改：证据足够就用 revision 提交最小补丁；否则在下一次取证调用的 open_question 写明缺少哪个事实。'
             if name=='calendar_propose':
                 from .calendar_proposals import task_event
                 proposal=task_event(result,request['task_id'],call_id)
