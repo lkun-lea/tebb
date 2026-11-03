@@ -76,6 +76,7 @@ class NativeTeamTests(unittest.TestCase):
             run=subprocess.run([sys.executable,"-B",cmd.split()[1]],cwd=folder,capture_output=True,text=True)
             return dict(command=cmd,state="failed" if run.returncode else "succeeded",exit_code=run.returncode,output=run.stderr,changes=[])
         def worker(task,req,steps):
+            req={**req,'limits':dict(call_timeout=30,task_timeout=600)}
             events=[];log=[]
             class Model:
                 on_tool_delta=None
@@ -96,6 +97,12 @@ class NativeTeamTests(unittest.TestCase):
                         scope.ledger.settle(scope.task,call,dict(prompt_tokens=20,completion_tokens=8))
                         if phase=='finish':
                             self.assertFalse(tools)
+                    if messages[0]['content'].startswith('反馈审阅协议'):
+                        material=json.loads(messages[1]['content'])['materials']
+                        receipt=next((row for row in material if row['level']=='actual_receipt'),material[0])
+                        return dict(message=dict(content=json.dumps(dict(requirements=[dict(
+                            requirement='本阶段已实际执行，范围以回执为准',dimension='task_acceptance',status='supported',
+                            reason='受控模拟审阅，仅核对本阶段命令已执行，不声称整体通过',evidence=[receipt['excerpts'][0]['id']])]))),usage={})
                     if steps:
                         tool,args=steps.pop(0)
                         return dict(message=dict(role="assistant",tool_calls=[dict(id=str(len(log)),type="function",function=dict(name=tool,arguments=json.dumps(args)))]),usage={})
