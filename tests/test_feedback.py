@@ -6,6 +6,28 @@ from desk_companion.web_sources import source_catalog,render_citations,check_cit
 
 
 class FeedbackTests(unittest.TestCase):
+    def test_wire_references_preserve_exact_whitespace_and_cannot_invent_source(self):
+        from desk_companion.feedback_review import review,excerpt_packet,material
+        source=dict(level='body',url='https://example.org/fact',text='    .test\n\t.example\n  observed in 2020.')
+        packet,registry=excerpt_packet(material('read','2020',[source],[]))
+        body=packet[-1];ident=body['excerpts'][0]['id']
+        self.assertNotIn('segments',body)
+        self.assertEqual(registry[ident]['quote'],source['text'])
+        def call(evidence,dimension='claim_support'):
+            return lambda _:dict(message=dict(content=json.dumps(dict(requirements=[dict(requirement='year',dimension=dimension,status='supported',reason='actual source',evidence=evidence)]))))
+        result=review('read','2020',[source],[],call([ident]))[0]
+        self.assertEqual(result['status'],'pass');self.assertEqual(result['evidence'][0]['quote'],source['text'])
+        self.assertEqual(review('read','2020',[source],[],call(['invented']))[0]['status'],'unknown')
+        self.assertEqual(review('read','2020',[source],[],call([ident],'reading'))[0]['status'],'unknown')
+        self.assertEqual(review('read','2020',[source],[],call([dict(source_id=body['id'],quote=source['text'])]))[0]['status'],'unknown')
+
+    def test_excerpt_packet_never_joins_unread_segments(self):
+        from desk_companion.feedback_review import excerpt_packet
+        packet,registry=excerpt_packet([dict(id='actual',level='body',segments=['A'*700,'B'*200])])
+        self.assertEqual([len(e['text'])for e in packet[0]['excerpts']],[600,100,200])
+        self.assertEqual(packet[0]['excerpts'][-1]['id'],'E0.1.0')
+        self.assertFalse(any('A'in e['quote']and 'B'in e['quote']for e in registry.values()))
+
     def test_invalid_review_dimension_keeps_unknown_and_reports_safe_repair_path(self):
         from desk_companion.feedback_review import review
         item=dict(requirement='PRIVATE_CONTENT_NOT_FOR_DIAGNOSTIC',dimension='format/schema',status='supported',reason='checked',evidence=[])
@@ -17,7 +39,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(checks[0]['status'],'unknown')
         issue=checks[0]['protocol_errors'][0]
         self.assertEqual(issue['path'],'/requirements/0/dimension');self.assertEqual(issue['keyword'],'enum')
-        self.assertIn('format',issue['allowed_values']);self.assertIn('schema',issue['allowed_values']);self.assertNotIn('format/schema',issue['allowed_values'])
+        self.assertIn('task_acceptance',issue['allowed_values']);self.assertNotIn('format',issue['allowed_values']);self.assertNotIn('format/schema',issue['allowed_values'])
         self.assertNotIn('PRIVATE_CONTENT_NOT_FOR_DIAGNOSTIC',json.dumps(checks))
         review('goal','draft',[],[],call,protocol_issues=checks)
         self.assertEqual(json.loads(captured[-1][1]['content'])['previous_protocol_issues'][0]['protocol_errors'],checks[0]['protocol_errors'])
@@ -41,7 +63,7 @@ class FeedbackTests(unittest.TestCase):
 
     def test_structured_review_submission_is_data_only_and_still_strict(self):
         from desk_companion.feedback_review import review
-        item=dict(requirement='return the given word',dimension='task_acceptance',status='supported',reason='matches provided input',evidence=[dict(source_id='goal',quote='red')])
+        item=dict(requirement='return the given word',dimension='task_acceptance',status='supported',reason='matches provided input',evidence=['E0.0.0'])
         def call_for(name,items):
             return lambda _:dict(message=dict(tool_calls=[dict(function=dict(name=name,arguments=json.dumps(dict(requirements=items))))]))
         checks=review('red','red',[],[],call_for('submit_feedback_review',[item]))
@@ -206,24 +228,7 @@ class FeedbackTests(unittest.TestCase):
         item['evidence']=[dict(source_id=ident,quote='summary')]
         self.assertEqual(interpret(dict(requirements=[item]),rows)[0]['status'],'unknown')
 
-    def test_whole_candidate_json_equivalence_is_not_external_quote_fuzziness(self):
-        from desk_companion.feedback_review import material,interpret
-        rows=material('JSON only','{"n": 18, "checked": true}',[],[])
-        item=dict(requirement='JSON shape',dimension='task_acceptance',status='supported',reason='matching structured candidate',evidence=[dict(source_id='draft',quote='{"checked":true,"n":18}')])
-        result=interpret(dict(requirements=[item]),rows)[0]
-        self.assertEqual(result['status'],'pass');self.assertEqual(result['evidence'][0]['match_kind'],'json_value_equivalent')
-        for bad in ['{"checked":1,"n":18}','{"checked":true,"n":19}','{"checked":true}', '{"n":18,"checked":false,"checked":true}']:
-            item['evidence'][0]['quote']=bad
-            self.assertEqual(interpret(dict(requirements=[item]),rows)[0]['status'],'unknown')
 
-    def test_reason_alias_and_level_metadata_cannot_override_source_ownership(self):
-        from desk_companion.feedback_review import material,interpret
-        rows=material('check','claim',[dict(level='snippet',url='https://example.org/source',text='summary')],[])
-        item=dict(requirement='claim',dimension='claim_support',status='supported',status_reason='model explanation',evidence=[dict(source_id=rows[-1]['id'],quote='summary',level='body')])
-        result=interpret(dict(requirements=[item]),rows)[0]
-        self.assertEqual(result['status'],'unknown');self.assertEqual(result['evidence'][0]['level'],'snippet')
-        item['reason']='conflicting canonical field'
-        with self.assertRaises(ValueError):interpret(dict(requirements=[item]),rows)
 
     def test_actual_receipts_can_ground_observations_but_handoffs_are_not_body(self):
         from desk_companion.feedback_review import material,interpret
@@ -235,12 +240,6 @@ class FeedbackTests(unittest.TestCase):
         handoff=rows[-1];item['evidence']=[dict(source_id=handoff['id'],quote=handoff['segments'][0])]
         self.assertEqual(interpret(dict(requirements=[item]),rows)[0]['status'],'unknown')
 
-    def test_candidate_equivalence_does_not_normalize_external_body_quotes(self):
-        from desk_companion.feedback_review import material,interpret
-        sources=[dict(level='body',url='https://example.org/source',text='{"n": 18}')]
-        rows=material('read','{"n": 18}',sources,[])
-        item=dict(requirement='quoted body',dimension='claim_support',status='supported',reason='model claim',evidence=[dict(source_id=rows[-1]['id'],quote='{"n":18}')])
-        self.assertEqual(interpret(dict(requirements=[item]),rows)[0]['status'],'unknown')
 
     def test_verified_project_observation_is_not_research_body(self):
         from desk_companion.feedback_review import material,interpret
@@ -260,19 +259,6 @@ class FeedbackTests(unittest.TestCase):
         self.assertTrue(any(c['id']=='output_format'and c['status']=='fail'for c in checks))
         self.assertEqual(feedback.current_goal({**req,'parent_run':None}),req['objective'])
 
-    def test_rule_reference_keeps_canonical_scope_and_cannot_replace_semantics(self):
-        from desk_companion.feedback_review import material,interpret
-        rows=material('check facts','candidate',[],[])
-        known=[feedback.check('citation_provenance','source_url','pass','仅核对URL来源。')]
-        item=dict(requirement='overbroad model claim',dimension='source_url',rule_id='citation_provenance',status='supported',reason='matches',evidence=[])
-        result=interpret(dict(requirements=[item]),rows,verified_checks=known)
-        self.assertEqual(result[0]['status'],'pass');self.assertEqual(result[0]['verified_by'],'citation_provenance')
-        self.assertEqual(result[0]['requirement'],known[0]['message'])
-        self.assertFalse(feedback.report(result)['ok'])
-        for changes in [dict(rule_id='invented'),dict(dimension='reading'),dict(dimension='claim_support')]:
-            invalid=interpret(dict(requirements=[{**item,**changes}]),rows,verified_checks=known)
-            self.assertEqual(invalid[0]['status'],'unknown');self.assertFalse(feedback.report(invalid)['ok'])
-        self.assertEqual(interpret(dict(requirements=[item]),rows,verified_checks=[{**known[0],'status':'unknown'}])[0]['status'],'unknown')
 
     def test_explicit_required_json_prefix_is_not_a_quoted_example(self):
         goal='用户目标：计算7与11。完成条件：你必须只返回一个 JSON 对象，包含total与checked。'
@@ -282,20 +268,6 @@ class FeedbackTests(unittest.TestCase):
         for text in ['解释“你必须只返回一个 JSON 对象”的含义。','示例：`你必须只返回JSON`。解释即可。','如果只返回JSON会怎样？']:
             self.assertIsNone(feedback.output_contract(text))
 
-    def test_missing_rule_id_only_binds_one_passed_actual_rule_of_same_dimension(self):
-        from desk_companion.feedback_review import interpret,material
-        rows=material('JSON only','{"n":18}',[],[])
-        item=dict(requirement='JSON shape',dimension='format',status='supported',reason='valid JSON',evidence=[])
-        known=[feedback.check('output_format','format','pass','完整JSON格式已核对。')]
-        value=interpret(dict(requirements=[item]),rows,verified_checks=known)
-        self.assertEqual(value[0]['verified_by'],'output_format');self.assertEqual(value[0]['rule_binding'],'unique_actual_rule')
-        self.assertFalse(feedback.report(value)['ok']) # No substantive goal assessment.
-        for candidates in [[],[{**known[0],'status':'unknown'}],known+[feedback.check('another','format','pass','other')]]:
-            self.assertEqual(interpret(dict(requirements=[item]),rows,verified_checks=candidates)[0]['status'],'unknown')
-        self.assertEqual(interpret(dict(requirements=[{**item,'rule_id':'invented'}]),rows,verified_checks=known)[0]['status'],'unknown')
-        world={**item,'dimension':'claim_support','evidence':[dict(source_id='draft',quote='{"n":18}')]}
-        check=interpret(dict(requirements=[world]),rows,verified_checks=known)[0]
-        self.assertEqual(check['status'],'unknown');self.assertNotEqual(check['message'],check['model_reason'])
 
 
 if __name__=='__main__':unittest.main()

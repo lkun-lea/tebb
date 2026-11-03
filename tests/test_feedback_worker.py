@@ -22,7 +22,7 @@ class ScriptedModel:
             row=next((r for r in rows if r['level']=='body'),rows[0])
             status=next(self.assessments,'supported')
             value=dict(requirements=[dict(requirement='current requirement',dimension='claim_support'if row['level']=='body'else'task_acceptance',
-                status=status,reason='controlled independent assessment',evidence=[dict(source_id=row['id'],quote=row['segments'][0][:500])])])
+                status=status,reason='controlled independent assessment',evidence=[row['excerpts'][0]['id']])])
             return dict(message=dict(content=json.dumps(value)),usage=dict(prompt_tokens=5,completion_tokens=3))
         value=next(self.drafts)
         if isinstance(value,str):value=dict(content=value)
@@ -252,7 +252,7 @@ class FeedbackWorkerTests(unittest.TestCase):
                 if messages[0]['content'].startswith('反馈审阅协议'):
                     inner.reviewed+=1
                     if inner.reviewed==1:
-                        raw=json.loads(value['message']['content']);raw['requirements'][0]['evidence'][0]['quote']='not actually in source'
+                        raw=json.loads(value['message']['content']);raw['requirements'][0]['evidence'][0]='not_an_actual_excerpt'
                         value['message']['content']=json.dumps(raw)
                 return value
         model=RepairingReview([candidate])
@@ -267,10 +267,10 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.request.update(text=text,objective='必须委派写作者并整体汇总。只返回JSON。',parent_run='actual-parent',stage='deliver',budget=2)
         candidate='{"total":18,"checked":true}';model=ScriptedModel([candidate,candidate]);self.run_model(model)
         self.assertEqual(json.loads(self.events[-1][1]),dict(total=18,checked=True));self.assertEqual(len(model.calls),2)
-        self.assertEqual(json.loads(model.calls[-1]['messages'][1]['content'])['materials'][0]['segments'],[text])
+        self.assertEqual(json.loads(model.calls[-1]['messages'][1]['content'])['materials'][0]['excerpts'][0]['text'],text)
         materials=json.loads(model.calls[-1]['messages'][1]['content'])['materials']
-        self.assertEqual(next(m for m in materials if m['id']=='global_goal')['segments'],[self.request['objective']])
-        self.assertEqual(json.loads(next(m for m in materials if m['id']=='assignment')['segments'][0])['parent_run'],'actual-parent')
+        self.assertEqual(next(m for m in materials if m['id']=='global_goal')['excerpts'][0]['text'],self.request['objective'])
+        self.assertEqual(json.loads(next(m for m in materials if m['id']=='assignment')['excerpts'][0]['text'])['parent_run'],'actual-parent')
         self.assertIn('actual-parent',model.calls[0]['messages'][0]['content'])
         delivery_check=next(d for k,d in self.events if k=='delivery_check')
         self.assertTrue(delivery_check['ok']);self.assertEqual(delivery_check['missing'],[])

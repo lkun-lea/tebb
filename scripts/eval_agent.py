@@ -57,12 +57,12 @@ class Fixture(BaseHTTPRequestHandler):
         if request['messages'][0].get('content','').startswith('反馈审阅协议'):
             material=json.loads(request['messages'][1]['content'])['materials']
             row=next((m for m in material if m['level']=='body'),material[0])
-            status='supported';dimension='task_acceptance';evidence=[dict(source_id=row['id'],quote=row['segments'][0][:500])]
+            status='supported';dimension='task_acceptance';evidence=[row['excerpts'][0]['id']]
             if executor=='feedback':
                 scenario=spec['scenario']
                 status='contradicted'if scenario in{'unsupported','incomparable'}else'unverified'if scenario=='partial'else'supported'
                 dimension='numeric_comparability'if scenario=='incomparable'else'claim_support'if scenario=='unsupported'else'task_acceptance'
-                if scenario=='incomparable':evidence=[dict(source_id=m['id'],quote=m['segments'][0][:500])for m in material if m['level']=='body']
+                if scenario=='incomparable':evidence=[m['excerpts'][0]['id']for m in material if m['level']=='body']
             delta=dict(content=json.dumps(dict(requirements=[dict(requirement='模拟交付检查',dimension=dimension,status=status,
                 reason='受控模拟审阅，不构成真实语义验收',evidence=evidence)]),ensure_ascii=False))
         elif executor=='authoring':

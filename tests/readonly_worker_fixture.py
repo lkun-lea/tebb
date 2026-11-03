@@ -32,7 +32,7 @@ def execute(request,emit):
             if messages[0]['content'].startswith('反馈审阅协议'):
                 rows=json.loads(messages[1]['content'])['materials'];body=next(r for r in rows if r['level']=='body')
                 requirement=dict(requirement='report reflects actual source',dimension='claim_support',status='supported',
-                    reason='controlled quote',evidence=[dict(source_id=body['id'],quote=SOURCE['text'])])
+                    reason='controlled quote',evidence=[body['excerpts'][0]['id']])
                 message=dict(content=json.dumps(dict(requirements=[requirement])))
             else:
                 turns[0]+=1
