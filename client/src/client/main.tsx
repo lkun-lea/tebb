@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { lazy, Suspense } from "react";
 import { RenderBoundary, renderDiagnostics } from './render-boundary';
+import {AccountBootstrap} from './account-bootstrap';
 import "reend-components/styles.css";
 import "./index.css";
 import "./chat-prototype.css";
@@ -16,4 +17,4 @@ const preview = new URLSearchParams(window.location.search).get("preview") === "
 // The standalone preview never mounts App: no backend startup, credentials, or real chat requests.
 const live = preview && new URLSearchParams(window.location.search).get("live") === "1";
 Object.defineProperty(window, '__DESK_UI_DIAGNOSTICS__', { value: renderDiagnostics, configurable: true });
-createRoot(root).render(<RenderBoundary><Suspense fallback={<p>正在载入界面…</p>}>{live ? <LiveCollaboration standalone /> : preview ? <ChatPreview standalone /> : <App />}</Suspense></RenderBoundary>);
+createRoot(root).render(<RenderBoundary><Suspense fallback={<p>正在载入界面…</p>}>{live ? <LiveCollaboration standalone /> : preview ? <ChatPreview standalone /> : <AccountBootstrap><App /></AccountBootstrap>}</Suspense></RenderBoundary>);

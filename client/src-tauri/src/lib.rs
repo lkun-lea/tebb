@@ -111,6 +111,23 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[tauri::command]
+async fn restart_for_account(app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<BackendProcess>();
+        let mut guard = state.0.lock().map_err(|_| "后台状态不可用，尚未切换账号。".to_string())?;
+        if let Some(mut child) = guard.take() {
+            if let Err(error) = stop_backend(&mut child, &app.state::<BackendInfo>()) {
+                *guard = Some(child);
+                return Err(error);
+            }
+        }
+        drop(guard);
+        app.request_restart();
+        Ok(())
+    }).await.map_err(|_| "后台收尾未确认，尚未重启或切换账号。".to_string())?
+}
+
 /// 只打开 http/https。走 ShellExecute，不经过 cmd，避免链接里的符号被当成命令。
 #[tauri::command]
 fn open_link(url: String) -> Result<(), String> {
@@ -193,6 +210,9 @@ fn gen_token() -> String {
 }
 
 fn backend_exit_error(code: Option<i32>) -> String {
+    if code == Some(74) {
+        return "账号空间初始化失败，未打开其他账号。请保留本机账号记录并查看 backend.log。".into();
+    }
     if code == Some(73) {
         "该数据目录已有运行实例，请使用已有客户端或先退出该实例。".into()
     } else {
@@ -352,6 +372,7 @@ pub fn run() {
             show_main,
             open_today,
             open_link,
+            restart_for_account,
             quit_app
         ];
             handler(invoke)
@@ -364,7 +385,7 @@ pub fn run() {
                     if let Ok(mut guard) = state.0.lock() {
                         if let Some(mut child) = guard.take() {
                             let backend = app.state::<BackendInfo>();
-                            stop_backend(&mut child, &backend);
+                            if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
                         }
                     }
                 }
@@ -372,7 +393,7 @@ pub fn run() {
         });
 }
 
-fn stop_backend(child: &mut Child, info: &BackendInfo) {
+fn stop_backend(child: &mut Child, info: &BackendInfo) -> Result<(), String> {
     // 先通知后端关闭自有 CLI 消费者，不能杀掉其他消费者共用的 bus。
     let url = format!("http://127.0.0.1:{}/shutdown", info.port);
     let _ = ureq::get(&url)
@@ -381,11 +402,14 @@ fn stop_backend(child: &mut Child, info: &BackendInfo) {
         .call();
     // 官方 VM 需要停止回执；给并行项目清理与既有任务收尾留出总窗口。
     for _ in 0..1000 {
-        if matches!(child.try_wait(), Ok(Some(_))) { return; }
+        if matches!(child.try_wait(), Ok(Some(_))) { return Ok(()); }
         std::thread::sleep(Duration::from_millis(100));
     }
-    let _ = child.kill();
-    let _ = child.wait();
+    if child.kill().is_err() && !matches!(child.try_wait(), Ok(Some(_))) {
+        return Err("旧后台未确认退出，尚未切换账号。请保留当前客户端并重试。".into());
+    }
+    child.wait().map_err(|_| "旧后台退出状态未确认，尚未切换账号。".to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -442,7 +466,7 @@ server.server_close()
         std::io::BufReader::new(child.stdout.take().unwrap()).read_line(&mut port_line).unwrap();
         let info = BackendInfo { port: port_line.trim().parse().unwrap(), token: "test-only".into() };
         let started = std::time::Instant::now();
-        stop_backend(&mut child, &info);
+        stop_backend(&mut child, &info).unwrap();
         assert!(child.try_wait().unwrap().unwrap().success());
         assert!(started.elapsed() < Duration::from_secs(4));
     }
@@ -479,10 +503,12 @@ fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child
     let log_path = data_dir.join("backend.log");
     let log = std::fs::OpenOptions::new().create(true).append(true).open(&log_path).map_err(|err| err.to_string())?;
     let mut command = Command::new(python);
-    command.args(["-u", "-m", "desk_companion.local_api.server", "--port"])
+    command.args(["-u", "-m", "desk_companion.account_server", "--port"])
         .arg(port.to_string()).arg("--token").arg(token)
         .current_dir(working_dir)
         .env("DESK_COMPANION_DATA_DIR", &data_dir)
+        .env("DESK_COMPANION_HOME_DIR", &data_dir)
+        .env("DESK_COMPANION_ACCOUNT_BOOTSTRAP", "1")
         .env("DESK_COMPANION_ASSET_DIR", &assets_dir)
         .env("PYTHONUTF8", "1")
         .stdin(Stdio::null())

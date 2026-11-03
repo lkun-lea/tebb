@@ -36,6 +36,8 @@ class HeadlessApp:
 
     def __init__(self) -> None:
         self.turn_lock = threading.RLock()
+        from ..accounts import AccountService
+        self.accounts = AccountService()
         self._tasks = None
         self._tasks_lock = threading.Lock()
         # 坐标仅供旧桌面使用；已有坐标照读，后台不读取显示器。

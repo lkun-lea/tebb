@@ -1,3 +1,5 @@
+import {accountStorage} from './account-storage';
+import {AccountsPane} from './accounts';
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Fragment, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -117,7 +119,7 @@ export function App() {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [guideModel, setGuideModel] = useState<ModelSetupState | null>(null);
-  const [dark, setDark] = useState(() => { try { return localStorage.getItem("tebb.theme") !== "light"; } catch { return true; } });
+  const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") !== "light"; } catch { return true; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
   const [settingsSection,setSettingsSection] = useState(debugKind==='usage'?'usage':debugKind==='feishu'||debugKind==='video'?'connections':"assistant");
   const [workspaceModalOpen,setWorkspaceModalOpen] = useState(false);
@@ -277,7 +279,7 @@ export function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.classList.toggle("light", !dark);
-    try { localStorage.setItem("tebb.theme", dark ? "dark" : "light"); } catch { /* theme stays active */ }
+    try { accountStorage().setItem("tebb.theme", dark ? "dark" : "light"); } catch { /* theme stays active */ }
   }, [dark]);
 
   useEffect(() => {
@@ -2180,7 +2182,8 @@ export function App() {
               key="settings"
               className="flex-1 overflow-y-auto px-8 py-6"
             >
-              <nav className="workspace-tabs" aria-label="设置分类">{[['assistant','模型与人设'],['connections','连接与网络'],['appearance','界面外观'],['usage','个人使用'],['about','版本与诊断']].map(([id,label])=><button type="button" key={id} aria-pressed={settingsSection===id} onClick={()=>setSettingsSection(id)}>{label}</button>)}</nav>
+              <nav className="workspace-tabs" aria-label="设置分类">{[['assistant','模型与人设'],['account','账号与空间'],['connections','连接与网络'],['appearance','界面外观'],['usage','个人使用'],['about','版本与诊断']].map(([id,label])=><button type="button" key={id} aria-pressed={settingsSection===id} onClick={()=>setSettingsSection(id)}>{label}</button>)}</nav>
+              {settingsSection==='account'&&<AccountsPane info={info} debug={!!debugKind}/>}
               {settingsSection==='assistant'&&<ReminderSettings info={info} debug={!!debugKind}/>}
               <div hidden={settingsSection!=='usage'}><PersonalUsagePane info={info} debug={!!debugKind} visible={settingsSection==='usage'}/></div>
               <div hidden={settingsSection!=='about'}><ReleaseSettings info={info} onShowIntro={releaseIntro.show}/>{developerMode&&<button type="button" className="desk-menu-item" onClick={()=>setAgentDebugOpen(true)}>调用调试</button>}</div>

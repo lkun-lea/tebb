@@ -7,6 +7,12 @@ from . import workbench_queries
 
 
 class Bridge:
+    def account_session(self, operation_id=''):
+        return self._host.accounts.status(operation_id)
+
+    def account_action(self, payload):
+        return self._host.accounts.action(payload)
+
     def development_team(self):
         from .development_team import snapshot
         return snapshot()

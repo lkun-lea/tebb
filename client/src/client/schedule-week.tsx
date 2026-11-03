@@ -1,3 +1,4 @@
+import {accountStorage} from './account-storage';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -68,8 +69,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const wire=useMemo(()=>transport||((method:string,args:Record<string,unknown>)=>{
     if(!info)throw Error('后端尚未连接。');return rpc(info,method,args,{timeoutMs:120000});
   }),[transport,info?.port,info?.token]);
-  const controller=useMemo(()=>new ScheduleWeekController(wire,target.day||beijingDay(),typeof window!=='undefined'?window.localStorage:undefined),[wire]);
-  const local=useMemo(()=>new LocalCalendarController(wire,typeof window!=='undefined'?window.localStorage:undefined),[wire]);
+  const controller=useMemo(()=>new ScheduleWeekController(wire,target.day||beijingDay(),typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[wire]);
+  const local=useMemo(()=>new LocalCalendarController(wire,typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[wire]);
   const monday=calendarWeekStart(day);
   useEffect(()=>{lastBlankClick.current=null;return()=>{if(blankDoubleTimer.current!==undefined)window.clearTimeout(blankDoubleTimer.current);};},[view,day]);
   const event=controller.event(selected),owner=controller.page.links.find(link=>calendarKey(link.event)===selected);

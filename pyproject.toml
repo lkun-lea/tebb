@@ -5,6 +5,7 @@ description = "tebb 个人 Agent 工作台：对话、记忆、任务与协作"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
 dependencies = [
+    "supabase-auth==2.33.0",
     "httpx[socks]>=0.27,<1",
     "pypdf>=5.0",
     "psutil>=7.0,<8",

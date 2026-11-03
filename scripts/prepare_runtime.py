@@ -20,6 +20,10 @@ def run(*args, **kwargs):
     subprocess.run(args, check=True, **kwargs)
 
 
+def write_sitecustomize(site):
+    (site / 'sitecustomize.py').write_text('from desk_companion.account_bootstrap import initialize_runtime\ninitialize_runtime(only_marked=True)\nfrom desk_companion.runtime_extensions import activate\nactivate()\n',encoding='utf-8')
+
+
 def export_atlas(source, destination):
     """Export only the pinned, committed source; shared by build and offline QA."""
     archive = subprocess.check_output(["git", "-C", str(source), "archive", "--format=zip", ATLAS_REF, "atlas", "LICENSE", "THIRD_PARTY_NOTICES.md"])
@@ -80,7 +84,7 @@ def main():
     (output / "runtime-packages.txt").write_text(lock, encoding="utf-8")
     # Source interpreters are unchanged. Only the packaged interpreter activates
     # a compatible, explicitly installed user extension generation at startup.
-    (site / 'sitecustomize.py').write_text('from desk_companion.runtime_extensions import activate\nactivate()\n',encoding='utf-8')
+    write_sitecustomize(site)
     print(output)
 
 

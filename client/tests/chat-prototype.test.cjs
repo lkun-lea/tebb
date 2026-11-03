@@ -302,6 +302,7 @@ test('standalone preview loads no real App; normal startup still loads the real 
       if (id.endsWith('.css')) return {};
       if (id === 'react-dom/client') return { createRoot: () => ({ render(value) { element = value; } }) };
       if (id === './render-boundary') return load('render-boundary');
+      if (id === './account-bootstrap') return {AccountBootstrap:({children})=>children};
       if (id === './App') { appLoads++; return { App: () => React.createElement('div', { 'data-real-app': '' }) }; }
       if (id === './chat-prototype') { previewLoads++; return { ChatPrototype: props => { receivedProps = props; return React.createElement('div', { 'data-preview': '' }); } }; }
       return original(id);

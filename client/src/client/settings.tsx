@@ -1,3 +1,4 @@
+import {accountStorage} from './account-storage';
 import { useEffect, useRef, useState } from "react";
 import type { ModelSetupState } from './onboarding-state';
 
@@ -69,13 +70,13 @@ export function isStoredBackground(value: string): boolean {
 export function readStoredBackground(): { url: string; error: string } {
   let raw = "";
   try {
-    raw = localStorage.getItem(BG_STORAGE_KEY) || "";
+    raw = accountStorage().getItem(BG_STORAGE_KEY) || "";
   } catch (err) {
     return { url: "", error: `读不到已保存的背景。${String(err)} 恢复：在设置里再选一张图。` };
   }
   if (!raw) return { url: "", error: "" };
   if (!isStoredBackground(raw)) {
-    localStorage.removeItem(BG_STORAGE_KEY);
+    accountStorage().removeItem(BG_STORAGE_KEY);
     return { url: "", error: "保存的背景打不开。恢复：在设置里再选一张 png、jpg 或 webp。" };
   }
   return { url: raw, error: "" };
@@ -89,7 +90,7 @@ export function storeBackground(url: string): { url: string; error: string } {
     return { url: "", error: "这张图太大，放不进本机记录。恢复：换一张更小的图。" };
   }
   try {
-    localStorage.setItem(BG_STORAGE_KEY, url);
+    accountStorage().setItem(BG_STORAGE_KEY, url);
   } catch (err) {
     return { url: "", error: `这张图太大，放不进本机记录。${String(err)} 恢复：换一张更小的图。` };
   }
@@ -97,7 +98,7 @@ export function storeBackground(url: string): { url: string; error: string } {
 }
 
 export function clearStoredBackground(): void {
-  localStorage.removeItem(BG_STORAGE_KEY);
+  accountStorage().removeItem(BG_STORAGE_KEY);
 }
 
 function acceptedImage(file: File): boolean {

@@ -1,3 +1,4 @@
+import {accountStorage} from './account-storage';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { rpc, type BackendInfo } from './api';
 import { DateTimeField } from './datetime-field';
@@ -22,7 +23,7 @@ export function SchedulePane({info,debug=false,transport,target,onClose,onReturn
   const changes=useRef(onChange);changes.current=onChange;
   const controller=useMemo(()=>new ScheduleController(transport||(async(method,args)=>{
     if(!info)throw Error('后端尚未连接。');return rpc<SchedulePage>(info,method,args,{timeoutMs:120000});
-  }),target.item_id||'',target.day||beijingDay(),typeof window!=='undefined'?window.localStorage:undefined),[transport,info?.port,info?.token,target.item_id]);
+  }),target.item_id||'',target.day||beijingDay(),typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[transport,info?.port,info?.token,target.item_id]);
   const [,redraw]=useReducer(value=>value+1,0);
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>{if(!active)return;let live=true;void(async()=>{await controller.read(day);if(live){const checked=await controller.read(day,true);if(live){changes.current();if(checked&&initialLocate.current){initialLocate.current=false;const event=controller.page.links.find(link=>key(link.event)===`${target.calendar_id}/${target.event_id}`)?.event;if(event?.verification==='confirmed'&&event.start.includes('T')){setDay(beijingDay(event.start));setSelection(key(event));}}}}})();

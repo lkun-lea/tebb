@@ -1,3 +1,4 @@
+import {accountStorage} from './account-storage';
 import { ClarificationCard } from './clarification-card';
 import { openProjectRuntime } from './project-runtime-events';
 import { ContextDebug } from './context-debug';
@@ -91,7 +92,7 @@ function GroupForm({ editing, agents, projects, projectId, onCreate, onClose, re
 export function ChatPrototype({ standalone = false, live, composeRequest, navigation, developerMode, onDeveloperMode, backend, onAttach, attachments: providedAttachments = [], onDetach, onProject, onFile, onTerminal, onCalendar }: { backend?: BackendInfo | null; onAttach?: () => void; attachments?: LocalSource[]; onDetach?: (id: string) => void; onProject?: () => void; onFile?: () => void; onTerminal?: () => void; onCalendar?: () => void; standalone?: boolean; composeRequest?: { id: number; text: string }; navigation?: ReactNode; developerMode?: boolean; onDeveloperMode?: (value: boolean) => void; live?: { state: DemoState; act: (action: DemoAction) => Promise<boolean>; confirmAction?: (id:string)=>void; busy: boolean; error: string } }) {
   const [demoState, demoDispatch] = useReducer(demoReducer, undefined, () => {
     if (live) return initialDemo();
-    try { return restoreDemo(localStorage.getItem(DEMO_STORAGE)); } catch { return initialDemo(); }
+    try { return restoreDemo(accountStorage().getItem(DEMO_STORAGE)); } catch { return initialDemo(); }
   });
   const state = live?.state || demoState;
   const real = !!live;
@@ -187,7 +188,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   },[state.conversations,state.messages,state.selected,live?.busy,newConversation.draft?.attempt,newConversation.active]);
   useEffect(() => {
     if (real) return;
-    try { localStorage.setItem(DEMO_STORAGE, JSON.stringify(state)); setStorageError(""); }
+    try { accountStorage().setItem(DEMO_STORAGE, JSON.stringify(state)); setStorageError(""); }
     catch { setStorageError("原型状态未能保存，刷新后可能丢失。可继续体验。原型中不要填写敏感资料。"); }
   }, [state, real]);
   useEffect(() => { if (standalone) startupReady(); }, [standalone]);

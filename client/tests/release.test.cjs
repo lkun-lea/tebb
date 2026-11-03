@@ -12,7 +12,7 @@ function load(name, mocks = {}) {
   const mod = new Module(filename, module);
   mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = mod.require.bind(mod);
-  mod.require = id => Object.hasOwn(mocks, id) ? mocks[id] : id.endsWith('.png') ? 'poster.png' : original(id);
+  mod.require = id => Object.hasOwn(mocks, id) ? mocks[id] : id==='./account-storage'?load('account-storage.ts'):id.endsWith('.png') ? 'poster.png' : original(id);
   mod._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, filename);
   return mod.exports;

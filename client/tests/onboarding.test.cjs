@@ -5,7 +5,7 @@ const React=require('react'),{create,act}=require('react-test-renderer');
 function load(name,mocks={}){
   const file=path.resolve(__dirname,'../src/client',name),mod=new Module(file,module);
   mod.filename=file;mod.paths=Module._nodeModulePaths(path.dirname(file));const original=mod.require.bind(mod);
-  mod.require=id=>Object.hasOwn(mocks,id)?mocks[id]:id.endsWith('.css')?{}:original(id);
+  mod.require=id=>Object.hasOwn(mocks,id)?mocks[id]:id==='./account-storage'?load('account-storage.ts'):id.endsWith('.css')?{}:original(id);
   mod._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,file);return mod.exports;
 }
 const state=load('onboarding-state.ts');

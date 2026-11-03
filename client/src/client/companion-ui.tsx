@@ -1,12 +1,13 @@
+import {accountStorage} from './account-storage';
 import { useState, type ReactNode } from "react";
 import type { DemoAgent } from "./chat-prototype-state";
 
 export const DEVELOPER_KEY = "tebb.developer-mode";
 export function readDeveloperMode() {
-  try { return localStorage.getItem(DEVELOPER_KEY) === "true"; } catch { return false; }
+  try { return accountStorage().getItem(DEVELOPER_KEY) === "true"; } catch { return false; }
 }
 export function saveDeveloperMode(value: boolean) {
-  try { localStorage.setItem(DEVELOPER_KEY, String(value)); return ""; }
+  try { accountStorage().setItem(DEVELOPER_KEY, String(value)); return ""; }
   catch { return "开发者模式偏好未能保存，重启后会恢复默认。"; }
 }
 
