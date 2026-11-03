@@ -4,6 +4,77 @@
 
 ## 执行
 
+### 高频失败固定集（#245，契约25）
+
+`--suite failures` 固定选择12案，与 `--case` 互斥：缺失日程/目标的澄清、同根追问恢复、公开正文读取、搜索后读取正文、局部阅读反馈、legacy/Atlas并行研究交付、附件图表、工作流草稿、长历史未知回执及活跃模型取消。它针对既有失败类型做定点复现，不以这12个样本估算所有对话的失败率。
+
+| 案例 | 必须核对的失败边界 |
+| --- | --- |
+| clarify_calendar / clarify_target | 缺少信息须追问，不虚构时间、对象或操作结果 |
+| clarify_resume_root | 追问后同根恢复，补充数值后确实完成 |
+| research_public_source | 读取实际正文、范围和引用均有证据 |
+| research_search_fetch | 搜索与下载均成功，不凭已有知识绕过工具失败 |
+| feedback_partial_read | 只读局部资料时保留未核实状态 |
+| readonly_legacy_parallel / readonly_atlas_parallel | 子任务、证据和根交付完整，分别保留失败与超时 |
+| chart_from_evidence | 真正读取附件并生成可解码、内容匹配的图表 |
+| workflow_authoring | 持久草稿可重新加载，无需执行或发布 |
+| context_long_receipt | 长历史中未知操作状态保持未知、不重复执行 |
+| cancel_active_model | 请求活跃时取消，本地worker确实退出 |
+
+```powershell
+python scripts/eval_agent.py --suite failures --samples 1 --timeout 300 --output ../output/failure-fixture-new
+python scripts/eval_agent.py --live --suite failures --samples 1 --timeout 300 --research-corpus ../output/research-171-corpus-real --output ../output/failure-live-new
+```
+
+真实模式使用当前模型/网络配置。每案一次预定采样，不重试失败，不继承业务历史或真实飞书写入权限；可通过 `--samples` 事先安排更多独立样本。两案公开资料通过实际搜索/下载链验证，两个并行研究案则明确使用经哈希核对的冻结真实公开资料，隔离网络波动以比较研究交付链。冻结资料路径是显式前置，缺失时在调用模型前拒绝启动。
+
+已有 `research-171-corpus-real` 可直接复用。其他环境先下载固定两份RFC并保存原UTF-8字节及获取时间，再将新目录传给 `--research-corpus`；此步骤只下载公开资料、不调用模型：
+
+```powershell
+@'
+import datetime, hashlib, json, urllib.request
+from pathlib import Path
+from desk_companion.agent_eval_research import URLS, load_corpus
+folder = Path('../output/research-corpus-new')
+folder.mkdir(parents=True, exist_ok=False)
+sources = []
+for number, url in URLS.items():
+    with urllib.request.urlopen(url, timeout=30) as response:
+        raw = response.read(1500001)
+    if len(raw) > 1500000: raise ValueError('source too large')
+    text = raw.decode('utf-8')
+    name = f'rfc{number}.txt'
+    (folder/name).write_bytes(raw)
+    sources.append(dict(url=url, file=name, sha256=hashlib.sha256(raw).hexdigest(),
+        characters=len(text), fetched_at=datetime.datetime.now(datetime.timezone.utc).isoformat()))
+(folder/'manifest.json').write_text(json.dumps(dict(version=1,
+    scope='frozen_real_public_sources', sources=sources), indent=2), encoding='utf-8')
+load_corpus(folder)
+'@ | python -
+```
+
+新增 `research_search_fetch` 要求实际成功的 `web_search`、`web_fetch` 回执、同根正文快照、第2/3节阅读范围、正确事实和已读来源引用；只输出正确事实不能通过。fixture明确使用合成搜索/正文，不冒充真实网络成绩。取消案以本地活跃调用及worker退出为验收对象，不能证明供应商停止计费。当前未验证的输出上限不自动补造；用量缺失和费用未知均保留。
+
+报告增加 `suite` 和启动前固定的 `planned_cases`，执行源码副本、全部失败、超时、待补充与跳过沿用统一报告保存。预算应核对每案实际 `task_budget`：历史报告中的静态 `call_budget`/阶段轮数只是执行器提示，不能替代根任务预算的权威上限。
+
+#### 2026-11-03 首轮真实模型结果
+
+使用当前 `mimo-v2.6-flash`、direct网络，每案1个预定样本，无失败重跑。12案全部启动，49次真实模型调用、21个阶段任务；5通过、2失败、5超时，没有skip/incomplete/false_success。逐案耗时合计约31分22秒。5个通过中包括“预期取消且本地worker退出”，不表示该任务正常完成或供应商已停止推理。
+
+| 结果 | 案例 |
+| --- | --- |
+| 通过（5） | clarify_calendar、clarify_target、cancel_active_model、context_long_receipt、feedback_partial_read |
+| 失败（2） | chart_from_evidence、clarify_resume_root |
+| 超时（5） | research_public_source、research_search_fetch、readonly_legacy_parallel、readonly_atlas_parallel、workflow_authoring |
+
+五个超时样本最后未正常结束的调用均处于 `feedback_review`，HTTP200，但没有finish_reason/usage终止帧；本地取消/预算事件可关联，不能仅据截断就认定网关主动断流。两个公开资料案取得正文和正确候选后，审阅分别持续约238/259秒；legacy两条采集已成功，根交付审阅未完成；Atlas一条采集的审阅被取消。工作流保存了1个能力和1个草稿，布局/引用核验通过且未执行，仍在审阅时耗尽simple根预算（180秒，真实进展触发一次25%扩展至225秒）。其他四个超时案采用300秒测试上限，不能据此声称默认360秒研究预算已完成验收。
+
+图表实际产物可解码且内容正确，但审阅输入 `verified_checks=[]`，模型选择reading/format后找不到可引用规则，两次审阅均为unknown而交付失败。追问恢复保持同根，模型两次返回正确业务JSON `{"total":18,"checked":true}`，却未符合路由控制协议，根任务失败。分拆修复：[审阅绝对时限 #247](https://github.com/lkun-lea/tebb/issues/247)、[审阅规则契约 #248](https://github.com/lkun-lea/tebb/issues/248)、[业务JSON路由 #249](https://github.com/lkun-lea/tebb/issues/249)。这些新定位缺陷尚未因测试集提交而修复。
+
+本地原始报告在工作区上级 `output/failure-245-live-20261103-v1/report.json`，流结束统计为同目录 `stream-analysis.json`。使用e087bcb基线及执行前dirty源码副本，59个执行文件在整轮中哈希一致；固定Atlas正式提交fdafaecab45303314829f4f5af4fee10365c6dc0。原报告全局预算版本旧标签为1，但实际各案 `task_budget.policy_version` 均为2；入口现已改为读取产品常量，保留原报告不改写。后续提交合入的无关源码不算本轮真实模型验收。
+
+已回报用量为input 156123/output 20525 tokens，部分中断调用缺usage，不能当完整用量或据此计算费用（cost=null）。模型/网络临时凭据已删除，已观测worker均退出。评测相关47项回归断言通过，但测试后台出现BrokenPipe/临时SQLite清理告警，日志保留在 `output/failure-245-eval-regression.log`，不作为本轮真实模型失败归因。另有新增搜索链fixture验收通过，不计入49次真实调用。
+
 在仓库根目录，使用已安装项目依赖与对应 Atlas 的 Python：
 
 ```powershell
@@ -19,7 +90,7 @@ python scripts/eval_agent.py --live --project-sdk official --samples 3 --output 
 
 评测使用新数据目录，不读取历史会话或重放旧任务；不给模型飞书工具，也没有外部写入节点。继承的父终端RPC环境被清除，research/writer伙伴不包含tebb或扩展业务工具。正常结束及初始化异常清理临时 `models.json` 与可能含代理认证的 `model-network.json`，恢复原环境；报告不输出密钥。输出目录保留合成任务、请求响应、工具回执与报告，供本地诊断。
 
-输出目录必须不存在；不覆盖旧失败、自动重试或为成功筛选样本。`--case` 可重复选择多个案例，`--limit` 是最多不同案例数（1–30），`--samples` 是每案预定独立样本数（1–5，质量采样推荐3）。每样本新工作区、会话和请求编号；日程不会跨样本累加，工作流不会命中上个样本的去重回执。
+输出目录必须不存在；不覆盖旧失败、自动重试或为成功筛选样本。`--case` 可重复选择多个案例，`--limit` 是最多不同案例数（1–41），`--samples` 是每案预定独立样本数（1–5，质量采样推荐3）。每样本新工作区、会话和请求编号；日程不会跨样本累加，工作流不会命中上个样本的去重回执。
 
 `--timeout` 默认120秒、上限300秒，超时取消后最多再观察8秒，实际终态和超时判定分别保留。文本/路由最多2轮、日程/研究4轮、图表5轮；多阶段澄清恢复最多12次、单writer委派20次、活跃模型取消观察最多10次（路由与任务阶段合计）。项目案最多16次，另用 `--project-timeout`（默认600秒、20–1200秒），结果核对最多90秒、模型worker退出观察8秒、父后台退出110秒；各窗口和实际阶段写入报告。逐案记录 call_budget；根 budget 的 collaboration_rounds 是单阶段最大值，max_case_model_calls 是跨阶段上限。传输关闭自动重试，工作流每案只有一个AI节点。#170另有共享根预算；只有明确验证过的模型/路由生成参数才请求输出硬上限，其余情况只计量并明确未知。仍无金额硬上限，费用保持 `null`。失败/假成功/超时/未实现返回非零；有前置skip时必须查看报告，退出码零不等于所有功能已验收。
 
@@ -34,7 +105,7 @@ python scripts/eval_agent.py --live --project-sdk official --case coder_read_mod
 
 ## 清单与证据
 
-机器清单位于 `desk_companion/agent_evals.py`，契约版本15，共30案（原23案加上下文3案与反馈4案）。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
+机器清单位于 `desk_companion/agent_evals.py`，当前契约版本25，共41案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
 
 | 案例 | 固定任务/前置 | 机器核对证据 |
 | --- | --- | --- |

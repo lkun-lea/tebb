@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from desk_companion.agent_evals import CASES, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
+from desk_companion.agent_evals import CASES, FAILURE_CASES, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
 from desk_companion.agent_eval_projects import ProjectPrerequisiteMissing
 
 # Also cleaned if setup fails before TaskManager is available.
@@ -136,7 +136,10 @@ class Fixture(BaseHTTPRequestHandler):
             elif 'submit_deliverable' in names:
                 delta=tool('submit_deliverable',dict(report=json.dumps(value),complete=True,missing=[],limitations=[]))
         elif executor=='public_source':
-            if not receipts:delta=tool('web_fetch',dict(url=FIXTURE_URL))
+            if spec.get('search_budget') and not any(c['function']['name']=='web_search' for m in request['messages'] for c in m.get('tool_calls',[])):
+                delta=tool('web_search',dict(query='RFC 2606 official'))
+            elif not any(c['function']['name']=='web_fetch' for m in request['messages'] for c in m.get('tool_calls',[])):
+                delta=tool('web_fetch',dict(url=FIXTURE_URL))
             else:
                 actual=json.loads(receipts[-1]['content']);text=actual['text']
                 delta=dict(content=json.dumps(dict(tlds=re.findall(r'\.[a-z]+',text.split('2. 保留TLD\n')[1].split('3.')[0]),
@@ -180,6 +183,7 @@ def main():
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--live',action='store_true')
     parser.add_argument('--case',action='append',default=[])
+    parser.add_argument('--suite',choices=['failures'],help='Fixed high-frequency failure cohort; cannot combine with --case')
     parser.add_argument('--limit',type=int,default=len(CASES))
     parser.add_argument('--samples',type=int,default=1)
     parser.add_argument('--project-sdk',choices=['disabled','official'],default='disabled')
@@ -192,7 +196,9 @@ def main():
     if not 1<=args.limit<=len(CASES) or not 20<=args.timeout<=300 or not 1<=args.samples<=5:parser.error(f'limit 1..{len(CASES)}, timeout 20..300, samples 1..5')
     if args.output.exists():parser.error('--output must be a new directory; earlier failures are retained')
     if args.output_limit_bindings and(not args.live or not args.output_limit_bindings.is_file()):parser.error('output-limit-bindings requires --live and an existing verified SQLite snapshot')
-    selected=[s for s in CASES if not args.case or s['id'] in args.case][:args.limit]
+    if args.suite and args.case:parser.error('--suite and --case are mutually exclusive')
+    selected_ids=FAILURE_CASES if args.suite=='failures'else args.case
+    selected=[s for s in CASES if not selected_ids or s['id'] in selected_ids][:args.limit]
     if not selected or set(args.case)-{s['id'] for s in CASES}:parser.error('unknown or empty case selection')
     projects=any(s.get('executor')=='project'for s in selected)
     readonly=any(s.get('scenario')=='readonly'for s in selected)
@@ -235,7 +241,7 @@ def main():
         research_corpus=prepare_corpus(profile,args.research_corpus,live=args.live)
     os.environ['DESK_COMPANION_DATA_DIR']=str(profile)
     for key in ('DESK_TERMINAL_PORT','DESK_TERMINAL_TOKEN'):os.environ.pop(key,None)
-    report=dict(schema_version=1,contract_version=CONTRACT_VERSION,mode='live' if args.live else 'fixture',model=model['model'],cases=[],attempts=1,
+    report=dict(schema_version=1,contract_version=CONTRACT_VERSION,mode='live' if args.live else 'fixture',suite=args.suite,planned_cases=[s['id']for s in selected],model=model['model'],cases=[],attempts=1,
                 samples_per_case=args.samples,sampling_plan='independent; no retry or success selection',
                 network_mode=policy['mode'],budget=dict(max_cases=args.limit,max_samples=args.limit*args.samples,case_timeout_seconds=args.timeout,
                     project_timeout_seconds=args.project_timeout if projects else None,project_variant=args.project_variant,project_sdk=('official'if args.live else'fixture')if projects else'disabled',
@@ -244,7 +250,8 @@ def main():
     import subprocess
     report['source_commit']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     report['source_dirty']=bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],cwd=ROOT,text=True).strip())
-    report['root_budget_policy_version']=1
+    from desk_companion.task_budgets import VERSION as budget_policy_version
+    report['root_budget_policy_version']=budget_policy_version
     if research_corpus:report['research_corpus']=research_corpus
     report['verified_output_binding_snapshot']=bool(args.output_limit_bindings)
     report['capacity_snapshot']=dict(window=capacity.get('window'),output_reserve=capacity.get('output_reserve'),
@@ -351,7 +358,7 @@ def main():
                         row['error']=accepted.get('error','workflow admission rejected');raise ValueError('workflow admission rejected')
                     run=accepted['run'];task_id=run['task_id'];row['workflow_run']=run['id']
                 else:
-                    task_id=manager.submit(context['prompt'],'eval-'+run_id,'collaboration',workflow='collaboration',kind=spec.get('kind','chat'),role=dict(id='research',name='验收助手',role='按实际输入完成可验证任务',tools=spec.get('tools',[])),selection=context['selection'],context=context.get('history',[]),members=[],model_id=model['id'],collab_run=run_id,collab_path=str(workspace),budget=spec.get('budget',2),search_budget=0,fetch_budget=spec.get('fetch_budget',0),task_limits=dict(call_timeout=min(args.timeout,90),task_timeout=args.timeout),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),**context.get('request_extra',{}))
+                    task_id=manager.submit(context['prompt'],'eval-'+run_id,'collaboration',workflow='collaboration',kind=spec.get('kind','chat'),role=dict(id='research',name='验收助手',role='按实际输入完成可验证任务',tools=spec.get('tools',[])),selection=context['selection'],context=context.get('history',[]),members=[],model_id=model['id'],collab_run=run_id,collab_path=str(workspace),budget=spec.get('budget',2),search_budget=spec.get('search_budget',0),fetch_budget=spec.get('fetch_budget',0),task_limits=dict(call_timeout=min(args.timeout,90),task_timeout=args.timeout),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),**context.get('request_extra',{}))
                 row['task_id']=task_id;save()
                 if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:row['task_ids']=[task_id]
                 row['stage']='wait'

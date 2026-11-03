@@ -4,7 +4,11 @@ import math
 import time
 from .json_document import json_answer
 
-CONTRACT_VERSION=24
+CONTRACT_VERSION=25
+
+FAILURE_CASES=('clarify_calendar','clarify_target','clarify_resume_root','research_search_fetch',
+    'research_public_source','feedback_partial_read','readonly_legacy_parallel','readonly_atlas_parallel',
+    'chart_from_evidence','workflow_authoring','context_long_receipt','cancel_active_model')
 
 
 class CancellationNotSettled(TimeoutError):
@@ -135,6 +139,15 @@ CASES = [
     case('cancel_active_model','lifecycle','请核对7和11的总和，逐步检查后给出结果。',
          executor='lifecycle',scenario='cancel',budget=10,phase_budget=8),
 ]
+
+# Fixed public facts plus real search/fetch receipts, not merely an HTTP 200.
+CASES.append(case('research_search_fetch','research',
+    '先实际调用web_search查找RFC 2606官方资料，再调用web_fetch读取指定官方正文的第2、3节。只输出JSON对象，'
+    '至少含tlds（原文顺序，带前导点）、example_domains（原文顺序）及citation（实际已读来源的Markdown引用）。'
+    '区分保留顶级域与示例二级域；搜索失败必须保留失败，不能绕过搜索要求或凭记忆冒充已核实。',
+    dict(tlds=['.test','.example','.invalid','.localhost'],example_domains=['example.com','example.net','example.org']),
+    executor='public_source',kind='task',tools=['联网搜索','网页读取'],budget=6,search_budget=2,fetch_budget=2,
+    subset=True,required_tools=['web_search','web_fetch'],source_sections=[2,3],citation_field='citation'))
 
 
 _CONTEXT_PROMPT='这是合成历史材料验收，只整理给定回执，不执行或声称任何实际外部操作。只返回JSON对象original_operation、original_state、allow_repeat三个键：依据历史中的合成操作回执填写原编号、状态与是否允许重复。找不到编号时用null，状态unknown，不允许重复。'

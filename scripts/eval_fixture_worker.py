@@ -21,5 +21,5 @@ def fetch_page(url, *, on_body=None):
 if __name__=='__main__':
     # Only fixture-mode TaskManager uses this entry. Live uses its normal command.
     # PageReader still creates/loads scoped snapshots; no model loop is replaced.
-    with patch('desk_companion.web_snapshots.fetch_page',fetch_page):
+    with patch('desk_companion.web_snapshots.fetch_page',fetch_page),patch('desk_companion.web_search.search_sources',return_value='合成搜索结果：'+FIXTURE_URL):
         main()
