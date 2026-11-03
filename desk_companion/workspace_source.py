@@ -1,5 +1,6 @@
 """Bounded source navigation and revision-checked edits in a granted workspace."""
 import ast
+from difflib import get_close_matches
 import io
 import os
 from pathlib import Path
@@ -110,7 +111,11 @@ def read_symbol(root, relative, symbol=None, start_line=None, end_line=None, *, 
         rows = list(symbols(text))
         matches = [r for r in rows if r[0]==symbol] or [r for r in rows if r[0].split('.')[-1]==symbol]
         if len(matches)!=1:
-            raise ValueError('符号不存在或不唯一，请搜索限定名或改用行号')
+            names = get_close_matches(symbol,[r[0] for r in rows],n=5,cutoff=0.35)
+            choices = matches or [row for row in rows if row[0] in names] or rows
+            hints = '；'.join(f'{name[:90]} ({a}–{b})' for name,a,b in choices[:5])
+            raise ValueError(f'符号不存在或不唯一。可用限定名及行号：{hints or "无定义"}。'
+                             f'也可省略 symbol，传 start_line/end_line（文件共 {last} 行）。')
         _,first,last = matches[0]
     elif start_line is None:
         raise ValueError('需要符号名或起始行号')

@@ -23,7 +23,19 @@ def main():
     parser.add_argument('--live', action='store_true', required=True)
     parser.add_argument('--repo', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--repro-events', type=Path, help='Use the previously observed #208 command and output as the starting evidence.')
     args = parser.parse_args()
+    goal = GOAL
+    if args.repro_events:
+        records = [json.loads(line) for line in args.repro_events.read_text('utf-8').splitlines()]
+        repro = next((e['data'] for e in records if e.get('kind')=='verification'
+                      and '--- source_catalog with bad url ---' in e['data'].get('output','')
+                      and 'RAISED ValueError Invalid IPv6 URL' in e['data']['output']),None)
+        if not repro:
+            parser.error('未找到 #208 原生复现回执')
+        goal = goal.replace('请先运行最小失败样例，在输出中展示期望与实际，再实现修改并验证。',
+                            '复现已完成。编码伙伴从下方真实回执开始，在 desk_companion/web_sources.py 读取相关函数并局部修改，随后运行验证。')
+        goal += '\n先前的复现命令和实际输出：\n'+repro['command']+'\n'+repro['output']
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     tests = {name:git(args.repo,'show',sha+':tests/'+name+'.py').decode() for name,sha in
@@ -50,13 +62,14 @@ sys.exit(0 if len(rows)==12 and all(rows.values()) else 1)
         with (out/'events.jsonl').open('a', encoding='utf-8') as stream:
             for name,manager in service.managers.items():
                 with manager.db() as db:
-                    for e in db.execute("SELECT seq,ts,task,kind,data FROM events WHERE seq>? AND kind IN ('tool_start','tool_end','file_change','verification') ORDER BY seq",(cursors.get(name,0),)):
+                    for e in db.execute("SELECT seq,ts,task,kind,data FROM events WHERE seq>? AND kind IN ('llm_start','llm_end','usage','tool_start','tool_end','file_change','verification') ORDER BY seq",(cursors.get(name,0),)):
                         json.dump(dict(seconds=round(e['ts']-started,2), task=e['task'],kind=e['kind'],data=json.loads(e['data'])),stream,ensure_ascii=False)
                         stream.write('\n')
                         cursors[name]=e['seq']
 
     result = trial('team',out,model_catalog.require_active(),model_network.load(),
-                   seed=seed,goal=GOAL,holdout=holdout,observe=observe)
+                   seed=seed,goal=goal,holdout=holdout,observe=observe)
+    result['starting_point'] = 'observed_reproduction' if args.repro_events else 'cold'
     (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
     print(result['delivery'],result['checks'],flush=True)
 

@@ -25,6 +25,11 @@ class SourceToolTests(unittest.TestCase):
         hits = workspace_source.search('main','','value','symbol',config=self.config)
         self.assertEqual(hits,dict(ok=True,matches=[dict(path='mod.py',symbol='Box.value',start_line=2,end_line=4)],limited=False))
         read = workspace_source.read_symbol('main','mod.py','Box.value',config=self.config)
+        with self.assertRaisesRegex(ValueError,r'Box\.value \(2–4\)'):
+            workspace_source.read_symbol('main','mod.py','Box.val',config=self.config)
+        hit = hits['matches'][0]
+        self.assertEqual(workspace_source.read_symbol('main',hit['path'],start_line=hit['start_line'],
+                         end_line=hit['end_line'],config=self.config)['text'],read['text'])
         self.assertTrue(read['text'].startswith('    @staticmethod\r\n'))
         self.assertNotIn('# after',read['text'])
         receipt = workspace_source.patch('mod.py','return 1','return 2',read['revision'],config=self.config)
@@ -46,7 +51,7 @@ class SourceToolTests(unittest.TestCase):
 
     def test_pages_ambiguous_names_and_ambiguous_edits(self):
         self.file.write_text('class A:\n    def get(self): pass\nclass B:\n    def get(self): pass\n'+'# n\n'*130,'utf-8')
-        with self.assertRaisesRegex(ValueError,'不唯一'):
+        with self.assertRaisesRegex(ValueError,r'A\.get \(2–2\).*B\.get \(4–4\)'):
             workspace_source.read_symbol('main','mod.py','get',config=self.config)
         page = workspace_source.read_symbol('main','mod.py',start_line=1,config=self.config)
         self.assertEqual(page['next_line'],121)
