@@ -30,7 +30,7 @@ v4仅允许claim_support、numeric_comparability、task_acceptance三个语义�
 
 #247增加独立审阅时间窗口：首审和审阅协议修正共享最多60秒，并受当前call_timeout及根剩余时间减5秒收尾余量约束。持续reasoning/token/心跳不延长窗口；传输首字节等待也使用剩余窗口，SDK副本只借用原HTTP连接并在调用后恢复。模型协作取消检查负责正常收尾，父TaskManager另设窗口加5秒的硬保护。审阅超时保留原候选/工具回执并标unknown，不重写正确候选或重放操作，不把未核验当成功。legacy和Atlas只读任务复用同一审阅入口。
 
-审阅调用保留温度等采样设置，但不自动注入业务任务的reasoning_effort，从而不通过该参数自动打开thinking；不声称供应商默认一定不推理。业务任务采样不变，实际请求与可能缺失的usage继续记录。未验证的输出硬上限仍不擅自添加。
+审阅保留温度等采样设置，其他模型不自动注入业务reasoning_effort。对已验证的 `mimo-v2.6-flash`，审阅显式发送 `thinking.type=disabled`；省略effort并不保证该接口停止推理。[MiMo官方参数](https://mimo.mi.com/docs/en-US/quick-start/usage-guide/other/deep-thinking)与同路由一次真实审阅探针确认：HTTP200、零推理字符、约8.13秒、正确拒绝错误年份，单列于 `output/failure-v2-thinking-disabled-probe/result.json`，不混入24案。业务任务参数保留，其他模型不盲加MiMo参数。SDK审阅副本只缩短既有connect/read/write/pool时限，不延长调用方配置；借用连接恢复和业务参数隔离均有回归。60秒窗口与未知不算通过的门槛继续生效，未验证输出上限仍不擅加。
 
 真实写入/执行回执仍unknown时保留待核对，不因最终文字改成完成；后续只有同operation的真实新回执才能解除未知，不按名称或另一个成功操作推断。只读查询如实返回unknown可以完成查询本身。修订中不会再次创建。SDK准入释放/归档仍由#203处理。
 

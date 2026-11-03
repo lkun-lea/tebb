@@ -11,6 +11,19 @@ SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
 
 
 class StreamingTests(unittest.TestCase):
+    def test_mimo_review_explicitly_disables_thinking_without_changing_business_turns(self):
+        from desk_companion.review_limits import ReviewWindow
+        seen=[]
+        def handle(request):
+            seen.append(json.loads(request.content))
+            return httpx.Response(200,text='data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
+        client=httpx.Client(transport=httpx.MockTransport(handle));self.addCleanup(client.close)
+        llm=CollaborationLLM({**MODEL,'model':'mimo-v2.6-flash'},SAMPLING,20,client)
+        with ReviewWindow(dict(limits=dict(call_timeout=20))).active():llm.chat([])
+        llm.chat([])
+        self.assertEqual(seen[0]['thinking'],dict(type='disabled'));self.assertNotIn('reasoning_effort',seen[0])
+        self.assertEqual(seen[1]['thinking'],dict(type='enabled'));self.assertEqual(seen[1]['reasoning_effort'],'low')
+
     def test_review_deadline_stops_continuous_reasoning_and_restores_borrowed_client(self):
         import time
         from desk_companion.review_limits import ReviewWindow,ReviewTimeout
@@ -29,7 +42,8 @@ class StreamingTests(unittest.TestCase):
         llm=self.llm(handle)
         with window.active(),self.assertRaises(ReviewTimeout):llm.chat([])
         self.assertTrue(closed);self.assertFalse(llm.client.is_closed)
-        self.assertNotIn('reasoning_effort',seen[0][0]);self.assertLessEqual(seen[0][1]['read'],20)
+        self.assertNotIn('reasoning_effort',seen[0][0]);self.assertLessEqual(seen[0][1]['read'],5)
+        self.assertLessEqual(seen[0][1]['connect'],5);self.assertNotIn('thinking',seen[0][0])
         llm.chat([])
         self.assertEqual(seen[1][0]['reasoning_effort'],'low')
 

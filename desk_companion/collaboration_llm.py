@@ -53,9 +53,17 @@ class CollaborationLLM:
             self._llm = ExecutionLLM(model=self.model['model'],client=sdk,context_model_id=self.model.get('id',''),
                                      on_context=lambda report:self.on_context(report)if self.on_context else None)
         extra = {'thinking': {'clear_thinking': False}, 'tool_stream': True} if self.preserve_reasoning else None
+        if review and self.model['model'].lower()=='mimo-v2.6-flash':
+            # Omitting reasoning_effort does not disable this provider's thinking.
+            extra={'thinking':{'type':'disabled'}}
         try:
             driver=self._llm;client=driver.client
-            if review:driver.bind_client(client.with_options(timeout=min(self.timeout,review.remaining())))
+            if review:
+                import httpx
+                configured=httpx.Timeout(client.timeout);remaining=min(self.timeout,review.remaining())
+                bounded=httpx.Timeout(**{name:min(value,remaining)if value is not None else remaining
+                    for name,value in configured.as_dict().items()})
+                driver.bind_client(client.with_options(timeout=bounded))
             try:
                 return driver.chat(messages, tools, options=ChatOptions(
                     sampling={k:v for k,v in self.sampling.items()if k!='reasoning_effort'}if review else self.sampling,
