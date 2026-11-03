@@ -6,6 +6,27 @@ from desk_companion.web_sources import source_catalog,render_citations,check_cit
 
 
 class FeedbackTests(unittest.TestCase):
+    def test_complete_json_citations_are_data_even_without_an_inferred_format_contract(self):
+        from desk_companion.delivery_feedback import assess
+        from desk_companion.json_document import json_answer
+        source=dict(level='body',url='https://example.org/rfc',text='RFC 8259 published in 2017.')
+        ident=source_catalog([source])[0]['id']
+        goal='实际读取头部，只返回JSON number/year/citation。'
+        self.assertIsNone(feedback.output_contract(goal))
+        original=dict(number=8259,year=2017,citation=f'[{ident}]',code=f'[{ident}]')
+        text='```json\n'+json.dumps(original)+'\n```'
+        rendered,checks,audit=assess(dict(text=goal,collab_run='test'),text,[source],None,[])
+        value=json_answer(rendered)
+        self.assertTrue(audit['ok']);self.assertEqual(audit['checked'],1)
+        self.assertEqual(value['number'],8259);self.assertEqual(value['year'],2017)
+        self.assertEqual(value['code'],original['code']);self.assertIn(source['url'],value['citation'])
+        unknown={**original,'citation':'[S000000000000]'}
+        _,_,audit=assess(dict(text=goal,collab_run='test'),json.dumps(unknown),[source],None,[])
+        self.assertFalse(audit['ok'])
+        example='仅供解释的JSON示例：\n'+text
+        rendered,_,_=assess(dict(text='解释示例。',collab_run='test'),example,[source],None,[])
+        self.assertEqual(rendered,example)
+
     def test_wire_references_preserve_exact_whitespace_and_cannot_invent_source(self):
         from desk_companion.feedback_review import review,excerpt_packet,material
         source=dict(level='body',url='https://example.org/fact',text='    .test\n\t.example\n  observed in 2020.')

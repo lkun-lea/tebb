@@ -12,8 +12,13 @@ def assess(request,text,sources,delivery,receipts,*,goal=None):
     checks=feedback.check_output(text,goal,declared)
     audit=None
     if sources:
-        text,unknown=render_citations(text,sources,structured=structured)
-        audit=check_citations(text,sources,structured=structured)
+        from .json_document import json_answer
+        citation_json=structured
+        if not citation_json:
+            try:json_answer(text);citation_json=True
+            except (ValueError,TypeError,RecursionError):pass
+        text,unknown=render_citations(text,sources,structured=citation_json)
+        audit=check_citations(text,sources,structured=citation_json)
         if unknown:audit.update(ok=False,unknown_ids=unknown)
         # A user-selected strict data schema must not gain citation fields.
         required=not structured or bool(re.search(r'citation|reference|引用|来源',goal,re.I))
