@@ -8,8 +8,8 @@ from desk_companion.agent_evals import CASES, CancellationNotSettled, aggregate_
 class EvalVerdictTests(unittest.TestCase):
     def test_failure_cohort_is_fixed_and_covers_real_search_and_lifecycle(self):
         from desk_companion.agent_evals import FAILURE_CASES
-        self.assertEqual(len(FAILURE_CASES),12)
-        self.assertEqual(len(set(FAILURE_CASES)),12)
+        self.assertEqual(len(FAILURE_CASES),24)
+        self.assertEqual(len(set(FAILURE_CASES)),24)
         self.assertTrue(set(FAILURE_CASES)<={c['id']for c in CASES})
         self.assertTrue({'research_search_fetch','readonly_legacy_parallel','readonly_atlas_parallel','clarify_resume_root','workflow_authoring'}<=set(FAILURE_CASES))
     def test_search_case_requires_both_search_and_actual_body_proof(self):
@@ -19,6 +19,14 @@ class EvalVerdictTests(unittest.TestCase):
         task['events'].append(dict(kind='tool_end',data=dict(tool='web_search',status='success')))
         self.assertEqual(evaluate(spec,task,verification=dict(verified=False))[0],'false_success')
         self.assertEqual(evaluate(spec,task,verification=dict(verified=True))[0],'success')
+
+    def test_route_control_success_cannot_hide_incorrect_business_json(self):
+        for ident in ['route_json_object','route_json_array','route_json_mode_field','route_json_null_unknown']:
+            spec=next(c for c in CASES if c['id']==ident)
+            task=dict(state='succeeded',answer=json.dumps(dict(mode='answer',text='{}')),events=[])
+            self.assertEqual(evaluate(spec,task)[0],'false_success')
+            task['answer']=json.dumps(dict(mode='answer',text=json.dumps(spec['business_expected'])))
+            self.assertEqual(evaluate(spec,task)[0],'success')
     def test_actual_http_status_is_preserved_from_call_record(self):
         for status in (200,429,None):
             self.assertEqual(call_evidence(dict(id='call',status=status))['http_status'],status)
@@ -42,7 +50,7 @@ class EvalVerdictTests(unittest.TestCase):
         self.assertEqual(wait_task(Queue(),'task',0),(dict(state='succeeded'),False))
 
     def test_named_cases_have_explicit_conditions_and_separate_cancellation_scopes(self):
-        self.assertEqual(len(CASES),41)
+        self.assertEqual(len(CASES),47)
         self.assertEqual(len({c['id'] for c in CASES}),len(CASES))
         self.assertEqual({c['research_mode']for c in CASES if c.get('scenario')=='readonly'},{'serial','legacy_parallel','atlas_parallel'})
         self.assertTrue(all('expected_state' in c and 'prerequisite' in c for c in CASES))

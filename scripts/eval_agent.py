@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from desk_companion.agent_evals import CASES, FAILURE_CASES, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
+from desk_companion.agent_evals import CASES, FAILURE_CASES, FAILURE_CASES_V1, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
 from desk_companion.agent_eval_projects import ProjectPrerequisiteMissing
 
 # Also cleaned if setup fails before TaskManager is available.
@@ -51,6 +51,8 @@ class Fixture(BaseHTTPRequestHandler):
         delta=dict(content=json.dumps(value,ensure_ascii=False))
         def tool(name,arguments):
             return dict(tool_calls=[dict(index=0,id=uuid.uuid4().hex,type='function',function=dict(name=name,arguments=json.dumps(arguments,ensure_ascii=False)))])
+        if spec.get('kind')=='route'and not spec.get('executor'):
+            delta=tool('request_clarification',dict(question='请补充目标、日期和时间。'))if value['mode']=='clarify'else dict(content=json.dumps(spec['business_expected'],ensure_ascii=False)if 'business_expected'in spec else '幂等表示重复执行产生相同效果。')
         receipts=[m for m in request['messages'] if m.get('role')=='tool']
         executor=spec.get('executor')
         available={v.get('function',{}).get('name')for v in request.get('tools',[])}
@@ -60,8 +62,8 @@ class Fixture(BaseHTTPRequestHandler):
             status='supported';dimension='task_acceptance';evidence=[row['excerpts'][0]['id']]
             if executor=='feedback':
                 scenario=spec['scenario']
-                status='contradicted'if scenario in{'unsupported','incomparable'}else'unverified'if scenario=='partial'else'supported'
-                dimension='numeric_comparability'if scenario=='incomparable'else'claim_support'if scenario=='unsupported'else'task_acceptance'
+                status='contradicted'if scenario in{'unsupported','incomparable','instruction'}else'unverified'if scenario=='partial'else'supported'
+                dimension='numeric_comparability'if scenario=='incomparable'else'claim_support'if scenario in{'unsupported','supported','instruction'}else'task_acceptance'
                 if scenario=='incomparable':evidence=[m['excerpts'][0]['id']for m in material if m['level']=='body']
             delta=dict(content=json.dumps(dict(requirements=[dict(requirement='模拟交付检查',dimension=dimension,status=status,
                 reason='受控模拟审阅，不构成真实语义验收',evidence=evidence)]),ensure_ascii=False))
@@ -158,7 +160,7 @@ class Fixture(BaseHTTPRequestHandler):
                 nodes=actual['text'].split('：',1)[1].split('。',1)[0].split('→')
                 delta=tool('build_chart',dict(type='flow',title='交付流程',source_ids=[],nodes=nodes,edges=[[0,1],[1,2]],flow_style='steps'))
             else:delta=dict(content=json.loads(receipts[-1]['content'])['markdown']+'\n关系示意。')
-        if self.spec.get('executor')=='local_calendar':
+        if self.spec.get('executor')=='local_calendar'and not request['messages'][0].get('content','').startswith('反馈审阅协议'):
             receipt=next((m for m in reversed(request['messages']) if m.get('role')=='tool'),None)
             if receipt:
                 actual=json.loads(receipt['content'])
@@ -270,7 +272,7 @@ def main():
             'desk_companion/project_tools.py','desk_companion/project_receipts.py','desk_companion/project_integrity.py','desk_companion/docker_sandboxes.py',
             'desk_companion/worker_rpc.py','desk_companion/bridge.py','desk_companion/local_api/host.py','desk_companion/local_api/server.py',
             'desk_companion/execution_context.py','desk_companion/model_capacity.py','desk_companion/model_tokenizer.py',
-            'desk_companion/task_budgets.py','desk_companion/model_generation.py',
+            'desk_companion/task_budgets.py','desk_companion/review_limits.py','desk_companion/model_generation.py',
             'desk_companion/context_pack.py','desk_companion/assistant.py','desk_companion/model_catalog.py',
             'desk_companion/json_document.py','desk_companion/feedback.py','desk_companion/feedback_review.py',
             'desk_companion/delivery_feedback.py','desk_companion/web_sources.py','desk_companion/project_workspace.py')
@@ -292,6 +294,10 @@ def main():
     from desk_companion.agent_eval_tools import prepare,verify
     def save():
         report['summary'],report['totals']=summarize(report['cases'])
+        if args.suite=='failures':
+            subset=[row for row in report['cases']if row['case_id']in FAILURE_CASES_V1]
+            counts,totals=summarize(subset)
+            report['comparison_subsets']=dict(failure_v1=dict(planned_cases=list(FAILURE_CASES_V1),summary=counts,totals=totals))
         (output/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),'utf-8')
     try:
         for spec,sample in [(spec,sample) for spec in selected for sample in range(1,args.samples+1)]:

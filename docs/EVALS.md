@@ -4,9 +4,9 @@
 
 ## 执行
 
-### 高频失败固定集（#245，契约25）
+### 高频失败固定集（#245/#251，当前契约26）
 
-`--suite failures` 固定选择12案，与 `--case` 互斥：缺失日程/目标的澄清、同根追问恢复、公开正文读取、搜索后读取正文、局部阅读反馈、legacy/Atlas并行研究交付、附件图表、工作流草稿、长历史未知回执及活跃模型取消。它针对既有失败类型做定点复现，不以这12个样本估算所有对话的失败率。
+`--suite failures` 当前固定选择24案，与 `--case` 互斥。保留首轮全部12案：澄清、同根恢复、公开资料读取、搜索后读取、局部阅读反馈、legacy/Atlas并行研究、附件图表、工作流草稿、长历史与活跃调用取消。新增6案检查业务JSON对象/数组/业务mode/未知值、正确事实审阅和来源指令干扰；纳入既有6案检查错误断言、不可比数值、缺失产物、本地日历、日程提案与真实委派。这是固定任务回归，不估算所有对话失败率。
 
 | 案例 | 必须核对的失败边界 |
 | --- | --- |
@@ -20,6 +20,10 @@
 | workflow_authoring | 持久草稿可重新加载，无需执行或发布 |
 | context_long_receipt | 长历史中未知操作状态保持未知、不重复执行 |
 | cancel_active_model | 请求活跃时取消，本地worker确实退出 |
+| route_json_object / route_json_array / route_json_mode_field / route_json_null_unknown | 逐项核对业务JSON内容和未知值类型，不能只看路由成功 |
+| feedback_supported / feedback_instruction_data | 正确候选应通过，来源干扰指令不能批准错误年份 |
+| feedback_unsupported / feedback_incomparable / feedback_missing_artifact | 识别事实矛盾、口径不可比、退出0但产物缺失 |
+| calendar_read_only / calendar_proposal / delegate_deliver | 本地读取无写入、提案未同步、真实委派与根交付完整 |
 
 ```powershell
 python scripts/eval_agent.py --suite failures --samples 1 --timeout 300 --output ../output/failure-fixture-new
@@ -57,6 +61,8 @@ load_corpus(folder)
 
 报告增加 `suite` 和启动前固定的 `planned_cases`，执行源码副本、全部失败、超时、待补充与跳过沿用统一报告保存。预算应核对每案实际 `task_budget`：历史报告中的静态 `call_budget`/阶段轮数只是执行器提示，不能替代根任务预算的权威上限。
 
+契约26在 `comparison_subsets.failure_v1` 单独汇总首轮12个同题，新增12题不混入前后对比。保持一案一采样，原失败目录不覆盖，真实执行中不改源码或判定规则。审阅v4选择系统excerpt编号，只做语义判断；#247管理独立60秒窗口，#248管理证据和规则职责，#249分离路由正文与工具控制。新结果另记，不把模拟成绩当真实模型结果。
+
 #### 2026-11-03 首轮真实模型结果
 
 使用当前 `mimo-v2.6-flash`、direct网络，每案1个预定样本，无失败重跑。12案全部启动，49次真实模型调用、21个阶段任务；5通过、2失败、5超时，没有skip/incomplete/false_success。逐案耗时合计约31分22秒。5个通过中包括“预期取消且本地worker退出”，不表示该任务正常完成或供应商已停止推理。
@@ -90,7 +96,7 @@ python scripts/eval_agent.py --live --project-sdk official --samples 3 --output 
 
 评测使用新数据目录，不读取历史会话或重放旧任务；不给模型飞书工具，也没有外部写入节点。继承的父终端RPC环境被清除，research/writer伙伴不包含tebb或扩展业务工具。正常结束及初始化异常清理临时 `models.json` 与可能含代理认证的 `model-network.json`，恢复原环境；报告不输出密钥。输出目录保留合成任务、请求响应、工具回执与报告，供本地诊断。
 
-输出目录必须不存在；不覆盖旧失败、自动重试或为成功筛选样本。`--case` 可重复选择多个案例，`--limit` 是最多不同案例数（1–41），`--samples` 是每案预定独立样本数（1–5，质量采样推荐3）。每样本新工作区、会话和请求编号；日程不会跨样本累加，工作流不会命中上个样本的去重回执。
+输出目录必须不存在；不覆盖旧失败、自动重试或为成功筛选样本。`--case` 可重复选择多个案例，`--limit` 是最多不同案例数（1–47），`--samples` 是每案预定独立样本数（1–5，质量采样推荐3）。每样本新工作区、会话和请求编号；日程不会跨样本累加，工作流不会命中上个样本的去重回执。
 
 `--timeout` 默认120秒、上限300秒，超时取消后最多再观察8秒，实际终态和超时判定分别保留。文本/路由最多2轮、日程/研究4轮、图表5轮；多阶段澄清恢复最多12次、单writer委派20次、活跃模型取消观察最多10次（路由与任务阶段合计）。项目案最多16次，另用 `--project-timeout`（默认600秒、20–1200秒），结果核对最多90秒、模型worker退出观察8秒、父后台退出110秒；各窗口和实际阶段写入报告。逐案记录 call_budget；根 budget 的 collaboration_rounds 是单阶段最大值，max_case_model_calls 是跨阶段上限。传输关闭自动重试，工作流每案只有一个AI节点。#170另有共享根预算；只有明确验证过的模型/路由生成参数才请求输出硬上限，其余情况只计量并明确未知。仍无金额硬上限，费用保持 `null`。失败/假成功/超时/未实现返回非零；有前置skip时必须查看报告，退出码零不等于所有功能已验收。
 
@@ -105,7 +111,7 @@ python scripts/eval_agent.py --live --project-sdk official --case coder_read_mod
 
 ## 清单与证据
 
-机器清单位于 `desk_companion/agent_evals.py`，当前契约版本25，共41案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
+机器清单位于 `desk_companion/agent_evals.py`，当前契约版本26，共47案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
 
 | 案例 | 固定任务/前置 | 机器核对证据 |
 | --- | --- | --- |
