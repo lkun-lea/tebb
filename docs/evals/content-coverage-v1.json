@@ -216,7 +216,7 @@
         "service",
         "model"
       ],
-      "status": "planned_not_implemented_not_run",
+      "status": "executor_implemented_live_validation_pending",
       "evidence": [
         "task/root/call关联",
         "来源版本与本次/累计已读区间",
@@ -224,8 +224,7 @@
         "预算及交接前后实际输入"
       ],
       "existing_entrypoints": [
-        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
-        "现有PageReader/local_sources/workspace_source及领域服务测试"
+        "scripts/eval_agent.py --case attachment_tail"
       ],
       "prerequisites": [
         "isolated_profile",
@@ -234,6 +233,11 @@
       "live_sampling": {
         "samples": 3,
         "planned": true
+      },
+      "automation": {
+        "eval_case_id": "attachment_tail",
+        "entrypoint": "scripts/eval_agent.py --case attachment_tail",
+        "contract_version": 28
       }
     },
     {

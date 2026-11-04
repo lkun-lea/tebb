@@ -61,7 +61,8 @@ class ResearchTools:
                 diagnostic=exc.diagnostic()if callable(getattr(exc,'diagnostic',None))else None,attempts=getattr(exc,'attempts',[])))
             self.errors.append(reason)
             return ToolOutcome(False,'来源工具失败，没有取得该来源。'+reason+'。可在剩余预算内重试或读取已提供的公开链接；不能据此编造结论。')
-        self.emit('tool_end',dict(tool=name,status='success',provider=evidence.get('provider'),url=evidence.get('url'),truncated=evidence.get('truncated',False)))
+        self.emit('tool_end',dict(tool=name,status='success',provider=evidence.get('provider'),url=evidence.get('url'),truncated=evidence.get('truncated',False),
+            coverage={k:evidence[k]for k in ('characters','read_ranges','next_offset','complete','content_method')if k in evidence}))
         self.successes+=1;self.sources.extend(ledger)
         if current():
             for source in ledger:

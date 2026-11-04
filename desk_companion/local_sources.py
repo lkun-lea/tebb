@@ -289,7 +289,8 @@ def read_page(source_id, offset=0, limit=12000):
         raise ValueError('正文 offset 必须为非负字数，limit 为 1～24000。')
     text = source['text']; end = min(len(text), offset+limit)
     return {**public(source), 'text': text[offset:end], 'offset': offset,
-            'next_offset': end if end < len(text) else None, 'complete': offset == 0 and end == len(text)}
+            'next_offset': end if end < len(text) else None, 'complete': offset == 0 and end == len(text),
+            'read_ranges':[[offset,end]],'content_method':'selected_file_snapshot','truncated':offset>0 or end<len(text)}
 
 
 def turn_block(ids):

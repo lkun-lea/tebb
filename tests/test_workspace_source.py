@@ -8,6 +8,18 @@ from desk_companion import project_workspace, workspace_source
 
 
 class SourceToolTests(unittest.TestCase):
+    def test_search_reports_unsearched_and_skipped_scope_and_can_be_narrowed(self):
+        for i in range(40):(self.main/f'f{i:02}.txt.md').write_text('needle\n','utf-8')
+        (self.main/'bad.py').write_bytes(b'\xffbad encoding')
+        found=workspace_source.search('main','','needle','text',config=self.config)
+        self.assertTrue(found['limited'])
+        self.assertIn('result_limit',found['coverage']['stop_reasons'])
+        self.assertEqual(found['coverage']['skipped']['encoding'],1)
+        self.assertFalse(found['coverage']['complete'])
+        narrowed=workspace_source.search('main','f39.txt.md','needle','text',config=self.config)
+        self.assertFalse(narrowed['limited']);self.assertTrue(narrowed['coverage']['complete'])
+        self.assertEqual(narrowed['matches'][0]['path'],'f39.txt.md')
+
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -23,7 +35,8 @@ class SourceToolTests(unittest.TestCase):
 
     def test_search_slice_patch_round_trip_and_stale(self):
         hits = workspace_source.search('main','','value','symbol',config=self.config)
-        self.assertEqual(hits,dict(ok=True,matches=[dict(path='mod.py',symbol='Box.value',start_line=2,end_line=4)],hit_count=1,limited=False))
+        self.assertEqual({k:v for k,v in hits.items()if k!='coverage'},dict(ok=True,matches=[dict(path='mod.py',symbol='Box.value',start_line=2,end_line=4)],hit_count=1,limited=False))
+        self.assertTrue(hits['coverage']['complete'])
         read = workspace_source.read_symbol('main','mod.py','Box.value',config=self.config)
         with self.assertRaisesRegex(ValueError,r'Box\.value \(2–4\)'):
             workspace_source.read_symbol('main','mod.py','Box.val',config=self.config)

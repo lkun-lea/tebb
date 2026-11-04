@@ -151,6 +151,14 @@ class Fixture(BaseHTTPRequestHandler):
                 text=json.dumps(request['messages'],ensure_ascii=False);ident=re.search(r'item_id=([A-Za-z0-9_-]+)',text)[1]
                 delta=tool('calendar_propose',{**spec['proposal_fields'],'item_id':ident})
             else:delta=dict(content='已生成可确认的日程提案，尚未保存或同步。')
+        elif executor=='attachment_tail':
+            if not receipts:
+                source_id=re.search(r'source_id=([a-f0-9]{32})','\n'.join(str(m.get('content',''))for m in request['messages']))[1]
+                delta=tool('read_local_source',dict(source_id=source_id))
+            else:
+                actual=json.loads(receipts[-1]['content'])
+                if actual.get('next_offset')is not None:delta=tool('read_local_source',dict(source_id=actual['id'],offset=actual['next_offset']))
+                else:delta=dict(content=json.dumps(spec['expected']))
         elif executor=='chart':
             if not receipts:
                 source_id=re.search(r'source_id=([a-f0-9]{32})','\n'.join(str(m.get('content','')) for m in request['messages']))[1]
@@ -275,7 +283,8 @@ def main():
             'desk_companion/task_budgets.py','desk_companion/review_limits.py','desk_companion/clarification.py','desk_companion/model_generation.py',
             'desk_companion/context_pack.py','desk_companion/assistant.py','desk_companion/model_catalog.py',
             'desk_companion/json_document.py','desk_companion/feedback.py','desk_companion/feedback_review.py',
-            'desk_companion/delivery_feedback.py','desk_companion/web_sources.py','desk_companion/project_workspace.py')
+            'desk_companion/delivery_feedback.py','desk_companion/web_sources.py','desk_companion/project_workspace.py',
+            'desk_companion/web_snapshots.py','desk_companion/local_sources.py','desk_companion/workspace_source.py')
     hashes={}
     for name in source_paths:
         raw=(ROOT/name).read_bytes()

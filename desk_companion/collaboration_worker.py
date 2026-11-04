@@ -493,7 +493,9 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                 f"最终交付预留{view['finish_reserve']['time_ms']//1000}秒；采集子任务须更早交接。"
                 '路由只给必要的目标与策略；规划只给必需分工、依赖和验收，不重复长篇背景。')
         if kind=='task' and sources:
-            catalog_message=replace_owned_message(messages,catalog_message,'引用即使放在JSON字符串字段内，也必须是"[完整证据id]"，保留方括号；裸id不会成为引用。以下id只是格式变量，复制本清单实际id，不照抄示例。当前实际证据编号（仅body为已读正文；snippet仅摘要）：'+json.dumps([{k:s.get(k) for k in ('id','url','level','title','truncated')} for s in source_catalog(sources)],ensure_ascii=False))
+            from .web_snapshots import coverage_catalog
+            catalog_message=replace_owned_message(messages,catalog_message,'引用即使放在JSON字符串字段内，也必须是"[完整证据id]"，保留方括号；裸id不会成为引用。以下id只是格式变量，复制本清单实际id，不照抄示例。当前实际证据与已读范围（body只指已取到的正文片段；snippet仅摘要）：'+json.dumps(coverage_catalog(sources),ensure_ascii=False)+
+                f'\n剩余网页读取额度{max(0,research.fetch_limit-research.fetch_count)}。目标必要内容未读时，优先按section/query定位同快照段落，或使用next_read补首个缺口；不要先耗尽额度抓多个首页。只有明确要求全文才补齐全部范围，头部任务无需强读全文。预算不足必须保留未读目标，不把静态正文、搜索未命中或尾页冒充完整界面/全库/全文。')
         reserve=2 if scope or not set(role.get('tools',[])) & {'文件编辑','终端','项目环境'} else 1
         if scope and request.get('development_task') and request.get('parent_run') and changes and checks:
             last_checks={c['command']:c for c in checks}

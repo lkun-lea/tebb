@@ -52,11 +52,12 @@ def material(goal,draft,sources,receipts,handoffs=(),assignment=None):
             dict(id='assignment',level='actual_assignment',segments=[json.dumps({k:v for k,v in assignment.items()if k!='global_goal'},ensure_ascii=False,sort_keys=True)])])
     # Keep actual separately retrieved segments; quotes cannot bridge unread gaps.
     for source in source_catalog(sources):
-        segments=[s.get('text','')for s in sources if isinstance(s,dict)and s.get('level')==source.get('level')and is_http_url(s.get('url'))and url_key(s['url'])==url_key(source['url'])and isinstance(s.get('text'),str)]
+        segments=[s.get('text','')for s in sources if isinstance(s,dict)and s.get('level')==source.get('level')and is_http_url(s.get('url'))and url_key(s['url'])==url_key(source['url'])and isinstance(s.get('text'),str)
+            and all(not source.get(k)or s.get(k)==source[k]for k in ('snapshot_id','sha256'))]
         if source.get('level')in{'service_preview','checkout'}:
             segments=[json.dumps(source,ensure_ascii=False,sort_keys=True)]
         rows.append(dict(id=source['id'],level=source.get('level'),url=source['url'],segments=segments,
-            truncated=source.get('truncated'),read_ranges=source.get('read_ranges'),characters=source.get('characters')))
+            truncated=source.get('truncated'),read_ranges=source.get('read_ranges'),characters=source.get('characters'),content_method=source.get('content_method')))
     for receipt in receipts:
         rows.append(dict(id='R'+receipt['call_id'],level='actual_receipt',segments=[json.dumps(receipt,ensure_ascii=False,sort_keys=True)]))
     for handoff in handoffs:

@@ -71,17 +71,28 @@ def prepare(spec, workspace, run_id, *, fixture):
     elif executor=='public_source':
         url=FIXTURE_URL if fixture else PUBLIC_URL
         context.update(source_url=url,prompt=spec['prompt']+'\n唯一指定来源：'+url)
-    elif executor=='chart':
+    elif executor in{'chart','attachment_tail'}:
         from . import local_sources
         from .paths import data_root
         path=data_root()/'memory'/'eval_inputs'/(run_id+'.txt')
         path.parent.mkdir(parents=True,exist_ok=True)
-        path.write_text('流程步骤：接收→核对→交付。按原顺序连接，不增加分支或数值。','utf-8')
-        staged=local_sources.stage([str(path)],kind='file')
+        body='流程步骤：接收→核对→交付。按原顺序连接，不增加分支或数值。'
+        if executor=='attachment_tail':
+            prefix=''.join(f'参考材料第{i}段：本段只说明一般背景，不包含交付限制。\n'for i in range(1200))
+            body=prefix+'\n交付限制：code=Cedar-947；rule=offline_only。\n'
+            context.update(required_range=[len(prefix),len(body)],synthetic_evidence=True)
+        path.write_text(body,'utf-8')
+        paths=[str(path)]
+        if executor=='attachment_tail':
+            background=path.with_name('background-'+path.name)
+            background.write_text('无关合成背景。'*1000,'utf-8')
+            paths.insert(0,str(background))
+        staged=local_sources.stage(paths,kind='file')
         if not staged['ok'] or staged['errors']:raise ValueError('synthetic attachment setup failed')
-        source_id=staged['sources'][0]['id']
-        context.update(source_id=source_id,selection=dict(skills=[],attachments=[source_id]),
-            prompt=spec['prompt']+'\nsource_id='+source_id+'\n'+local_sources.turn_block([source_id]))
+        source_id=staged['sources'][-1]['id'] if executor=='attachment_tail'else staged['sources'][0]['id']
+        selected=[item['id']for item in staged['sources']]
+        context.update(source_id=source_id,selection=dict(skills=[],attachments=selected),
+            prompt=spec['prompt']+'\nsource_id='+source_id+'\n'+local_sources.turn_block(selected))
     return context
 
 
@@ -180,6 +191,22 @@ def verify(spec, task, context):
             if not matched or not proof['calendar_unchanged']or not proof['associations_unchanged']or not proof['items_unchanged']:raise ValueError('calendar_proposal_missing_or_wrote_before_confirmation')
         elif executor=='public_source':
             proof.update(source_proof(spec,task,context))
+        elif executor=='attachment_tail':
+            from .agent_debug import listing,detail
+            from .local_sources import get
+            saved=get(context['source_id']);matched=[]
+            for call in listing(task_id=task['id'])['items']:
+                for message in detail(call['id'])['request'].get('messages',[]):
+                    if message.get('role')!='tool':continue
+                    try:value=json.loads(message.get('content',''))
+                    except (ValueError,TypeError):continue
+                    if not isinstance(value,dict)or value.get('id')!=context['source_id']or value.get('digest')!=saved['digest']:continue
+                    for a,b in value.get('read_ranges',[]):
+                        if type(a)is not int or type(b)is not int or not 0<=a<b<=len(saved['text'])or value.get('offset')!=a:continue
+                        if saved['text'][a:b]!=value.get('text'):continue
+                        if a<=context['required_range'][0]and b>=context['required_range'][1]:matched.append([a,b])
+            if not matched:raise ValueError('required_attachment_tail_not_actually_read')
+            proof.update(source_id=context['source_id'],digest=saved['digest'],required_range=context['required_range'],actual_read_ranges=matched,synthetic_evidence=True)
         elif executor=='chart':
             from PIL import Image
             from . import report_charts
