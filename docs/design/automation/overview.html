@@ -1,0 +1,3027 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com https://persistent.oaistatic.com/plugins/visualize/; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Overview.fragment</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Overview.fragment" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com https://persistent.oaistatic.com/plugins/visualize/; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Overview.fragment&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 16px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans:
+    -apple-system-body, ui-sans-serif, -apple-system, system-ui, &quot;Segoe UI&quot;,
+    Helvetica, &quot;Apple Color Emoji&quot;, Arial, sans-serif, &quot;Segoe UI Emoji&quot;,
+    &quot;Segoe UI Symbol&quot;;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 8px);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-weight: var(--font-weight-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+  text-underline-offset: 2px;
+  font-weight: inherit;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+.table {
+  font-family: var(--font-sans);
+}
+
+h1 {
+  font-size: calc(var(--font-size-base) * 1.5);
+  line-height: 1.3333333333;
+}
+
+h2 {
+  font-size: calc(var(--font-size-base) * 1.25);
+  line-height: 1.4;
+}
+h3 {
+  font-size: calc(var(--font-size-base) * 1.125);
+  line-height: 1.5555555556;
+}
+h4 {
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+h5,
+h6 {
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+b,
+strong,
+th {
+  font-weight: 600;
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+pre,
+pre code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: calc(var(--font-size-base) * 0.875);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-family: var(--font-sans);
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.table :is(th, td):not(:last-child) {
+  padding-inline-end: calc(var(--font-size-base) * 1.5);
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead :is(th, td) {
+  border-bottom-color: var(--border-strong, var(--input));
+  padding-block: calc(var(--font-size-base) / 2);
+  line-height: var(--font-size-base);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+.table tbody :is(th, td) {
+  padding-block: calc(var(--font-size-base) * 0.625);
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 8px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget &gt; :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  border: 1px solid var(--border);
+  corner-shape: var(--corner-shape);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-sans);
+  padding: 5px 12px;
+  border-color: color-mix(
+    in oklab,
+    light-dark(var(--primary-foreground), var(--foreground)) 5%,
+    transparent
+  );
+  border-radius: var(--radius-2xl);
+  color: light-dark(var(--primary-foreground), var(--foreground));
+  background: light-dark(var(--foreground), var(--popover));
+  box-shadow: 0 8px 18px rgb(15 23 42 / 20%);
+  letter-spacing: -0.15px;
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: color-mix(in srgb, var(--foreground) 40%, var(--muted-foreground));
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-family: var(--font-sans);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
+}
+
+small,
+.text-small {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+/* Match inline alignment without overriding a containing flex or grid layout. */
+.btn,
+.nav-link,
+.form-control,
+.form-select,
+.form-range,
+.form-check {
+  vertical-align: middle;
+}
+
+.btn,
+.nav-link {
+  --btn-size: calc(12px + 2 * var(--control-spacing, 12px));
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: inherit;
+  font-family: var(--font-sans);
+  height: fit-content;
+  min-height: var(--btn-size);
+  padding-inline: var(--control-spacing, 12px);
+  border-color: transparent;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.btn {
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+}
+
+/* Codex Button size=&quot;compact&quot;; appearance stays with the button variant. */
+.btn-sm {
+  --btn-size: 24px;
+  padding-inline: 8px;
+  font-size: calc(var(--font-size-base) * 12 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 12 / 16), 1px);
+  line-height: 16px;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.btn-primary {
+  border-color: var(--border);
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: border-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: border-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--muted-foreground);
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(&gt; .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel &gt; [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel &gt; [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host&#x27;s design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+/* Keep authored mockup button styles out of the shared carousel chrome. */
+.viz-carousel-controls button,
+.viz-carousel-picker &gt; summary {
+  display: flex !important;
+  height: auto !important;
+  min-height: 30px;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px;
+  padding: 0 6px !important;
+  -webkit-app-region: no-drag;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: inherit !important;
+  background: transparent !important;
+  font: inherit !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-picker &gt; summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls &gt; button {
+  --icon-size: 16px;
+  width: 30px !important;
+  padding: 0 !important;
+}
+
+.viz-carousel-picker &gt; summary {
+  padding-inline: 12px !important;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls &gt; button &gt; svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls &gt; button::before,
+.viz-carousel-picker &gt; summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: &quot;&quot;;
+  pointer-events: none;
+}
+
+.viz-carousel-controls &gt; button:hover::before,
+.viz-carousel-picker &gt; summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker &gt; summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options &gt; button {
+  border-radius: max(0px, calc(var(--radius-lg) - 5px)) !important;
+  width: 100% !important;
+  min-height: 28px;
+  justify-content: flex-start !important;
+  padding: 4px 8px !important;
+  font-size: var(--font-size-small) !important;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options &gt; [aria-current=&quot;true&quot;],
+.viz-carousel-options &gt; button:hover {
+  background: var(--viz-carousel-hover) !important;
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding-inline: calc(4px + var(--control-spacing, 12px) / 2);
+  border-color: var(--input);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--popover) 96%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.4285714286;
+}
+.form-control:is(
+  [type=&quot;file&quot;],
+  [type=&quot;date&quot;],
+  [type=&quot;datetime-local&quot;],
+  [type=&quot;month&quot;],
+  [type=&quot;week&quot;],
+  [type=&quot;color&quot;]
+) {
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  line-height: 18px;
+}
+.form-control:is(
+  [type=&quot;date&quot;],
+  [type=&quot;datetime-local&quot;],
+  [type=&quot;month&quot;],
+  [type=&quot;week&quot;]
+) {
+  padding-inline: var(--control-spacing, 12px);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+  padding: 0;
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+  min-height: calc(10px + 2 * var(--control-spacing, 12px));
+  padding-inline: var(--control-spacing, 12px);
+  margin-inline-end: var(--control-spacing, 12px);
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  resize: vertical;
+  min-height: 96px;
+  padding: 8px 10px;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: none;
+}
+.form-control:disabled {
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  opacity: 1;
+}
+.form-control[aria-invalid=&quot;true&quot;] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 20%, transparent);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: fit-content;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  margin: 0;
+  /* The secondary icon role is 14px at compact density and 16px at web density. */
+  --icon-size: calc(10px + var(--control-spacing, 12px) / 2);
+  /* Settings dropdowns retain a 12px inset and a 4px text-to-chevron gap. */
+  padding: 0 calc(16px + var(--icon-size)) 0 12px;
+  outline: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    );
+  background-position:
+    calc(100% - 12px - var(--icon-size) / 2) 50%,
+    calc(100% - 12px - var(--icon-size) * 0.18) 50%;
+  background-repeat: no-repeat;
+  background-size: calc(var(--icon-size) * 0.32) calc(var(--icon-size) * 0.32);
+  cursor: var(--cursor-interaction, default);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.form-select :is(option, optgroup) {
+  color: var(--popover-foreground);
+  background-color: var(--popover);
+}
+
+.form-select :is(option, optgroup):disabled {
+  color: var(--muted-foreground);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.form-select:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.form-select:disabled {
+  opacity: 0.4;
+}
+
+.form-check {
+  display: flex;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  corner-shape: round;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  width: calc(10px + var(--control-spacing, 12px) / 2);
+  height: calc(10px + var(--control-spacing, 12px) / 2);
+  border-color: var(--border-strong, var(--input));
+  border-radius: calc(var(--radius-sm) / 2);
+  background-color: transparent;
+  color: var(--foreground);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:is(:checked, :indeterminate) {
+  border-color: var(--border-strong, var(--input));
+  background-color: color-mix(in srgb, var(--popover) 96%, transparent);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+  background-color: var(--foreground);
+}
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:indeterminate::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 65%;
+  height: 6.65%;
+  margin: auto;
+  border-radius: var(--radius-full);
+  background: var(--foreground);
+  mask: none;
+  content: &quot;&quot;;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  border-radius: var(--radius-full);
+  width: 16px;
+  height: 16px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--input);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 0;
+  background: radial-gradient(
+    circle,
+    var(--primary-foreground) 0 3px,
+    var(--foreground) 3px
+  );
+  box-shadow: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:focus-visible {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+.form-check:not(.form-switch) .form-check-input[type=&quot;radio&quot;]:disabled,
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;radio&quot;]:disabled
+  + .form-check-label {
+  opacity: 0.5;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+  border-color: #fff;
+  background: #fff;
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--blue);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+  outline: none;
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--primary);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  outline: none;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: transparent;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  margin-top: -9px;
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Outline the native track and thumb, preserving the larger input hit area. */
+.form-range:focus-visible::-webkit-slider-runnable-track {
+  outline: 2px auto Highlight;
+  outline-color: -webkit-focus-ring-color;
+}
+
+.form-range::-moz-range-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid Highlight;
+  outline-offset: 2px;
+}
+
+.form-range:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--blue);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Web recipes are the default, including on renderers without inline style queries. */
+@supports (border-radius: if(style(--corner-shape: round): 1px; else: 2px)) {
+  /* Match the host&#x27;s proportional text-sm scale at every text preference. */
+  .tooltip,
+  .viz-badge,
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    font-size: if(
+      style(--corner-shape: round): round(
+          nearest,
+          calc(var(--font-size-base) * 14 / 16),
+          1px
+        );
+        else: round(nearest, calc(var(--font-size-base) * 13 / 14), 1px)
+    );
+  }
+
+  .btn-sm {
+    font-size: if(
+      style(--corner-shape: round): round(
+          nearest,
+          calc(var(--font-size-base) * 12 / 16),
+          1px
+        );
+        else: round(nearest, calc(var(--font-size-base) * 12 / 14), 1px)
+    );
+  }
+
+  .btn,
+  .nav-link,
+  .form-select {
+    border-radius: if(
+      style(--corner-shape: round): var(--radius-full); else: var(--radius-lg)
+    );
+  }
+
+  .form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+    border-radius: if(
+      style(--corner-shape: round): calc(var(--radius-sm) / 2);
+        else: calc(var(--radius-lg) * 0.4)
+    );
+  }
+
+  .tooltip {
+    font-weight: if(
+      style(--corner-shape: round): 600; else: var(--font-weight-normal)
+    );
+  }
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(&gt; .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker &gt; summary,
+  .form-control,
+  .form-select {
+    --btn-size: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+  .form-control:is(
+    [type=&quot;file&quot;],
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;week&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;color&quot;]
+  ) {
+    height: 44px;
+    min-height: 44px;
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;div id=&quot;tebb-automation-review&quot;&gt;
+  &lt;div aria-label=&quot;自动化界面设计&quot;&gt;
+    &lt;section aria-label=&quot;卡片首页与画布工作台&quot;&gt;
+      &lt;div class=&quot;tw-shell&quot; data-layout=&quot;workspace&quot; aria-label=&quot;画布工作台&quot;&gt;
+        &lt;aside class=&quot;tw-nav&quot;&gt;
+          &lt;div class=&quot;tw-brand&quot;&gt;&lt;i data-lucide=&quot;circle-dot&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong&gt;tebb&lt;/strong&gt;&lt;/div&gt;
+          &lt;span class=&quot;tw-nav-caption&quot;&gt;工作台&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item&quot;&gt;&lt;i data-lucide=&quot;messages-square&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;AI 伙伴&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item&quot;&gt;&lt;i data-lucide=&quot;panels-top-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;事项看板&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item&quot;&gt;&lt;i data-lucide=&quot;calendar-days&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;日程&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item tw-nav-active&quot;&gt;&lt;i data-lucide=&quot;workflow&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;自动化&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-caption&quot;&gt;资源&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item&quot;&gt;&lt;i data-lucide=&quot;notebook-pen&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;笔记&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;tw-nav-item&quot;&gt;&lt;i data-lucide=&quot;library&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;知识库&lt;/span&gt;&lt;/span&gt;
+          &lt;div class=&quot;tw-nav-bottom&quot;&gt;&lt;i data-lucide=&quot;settings-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;设置&lt;/span&gt;&lt;span class=&quot;tw-online-dot&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;/aside&gt;
+        &lt;main class=&quot;tw-main&quot;&gt;
+          &lt;header class=&quot;tw-heading&quot;&gt;&lt;div&gt;&lt;span class=&quot;tw-eyebrow&quot;&gt;WORKSPACE / AUTOMATION&lt;/span&gt;&lt;h2&gt;自动化&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;tw-preview-tag&quot;&gt;设计预览 · 示例数据&lt;/span&gt;&lt;/header&gt;
+          &lt;div class=&quot;tw-editor&quot;&gt;&lt;/div&gt;
+        &lt;/main&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+#tebb-automation-review{width:100%;color-scheme:inherit}
+#tebb-automation-review *{box-sizing:border-box}
+#tebb-automation-review [hidden]{display:none!important}
+#tebb-automation-review .tw-shell{--tw-bg:light-dark(#dfe2ec,#1b1e29);--tw-surface:light-dark(#f7f8fc,#262a38);--tw-soft:light-dark(#eef0f6,#212532);--tw-card:light-dark(#fff,#303546);--tw-ink:light-dark(#252937,#e9eaf4);--tw-sub:light-dark(#626a7c,#b5bdd0);--tw-line:light-dark(#d8dce8,#434a60);--tw-accent:#7b7fb2;--tw-accent-ink:light-dark(#65699d,#c4c8ff);--tw-tint:light-dark(#e8e9f5,#3b3e59);--tw-green:light-dark(#387765,#8fc7b4);--tw-amber:light-dark(#91631f,#efc47c);--tw-shadow:light-dark(#59627d20,#00000035);--tw-radius:13px;--tw-gap:22px;container-type:inline-size;container-name:tw-shell;position:relative;display:grid;grid-template-columns:132px minmax(0,1fr);min-height:794px;overflow:clip;border:1px solid var(--tw-line);border-radius:18px;background:linear-gradient(145deg,var(--tw-bg),var(--tw-soft));color:var(--tw-ink);font-family:Inter,&quot;Segoe UI&quot;,&quot;Microsoft YaHei&quot;,sans-serif;font-size:13px;line-height:1.5}
+#tebb-automation-review .tw-shell[data-layout=studio],#tebb-automation-review .tw-shell.tw-focus{grid-template-columns:minmax(0,1fr)}
+#tebb-automation-review .tw-shell.tw-focus .tw-nav{display:none}
+#tebb-automation-review button,#tebb-automation-review input,#tebb-automation-review textarea,#tebb-automation-review select{font:inherit;color:inherit}
+#tebb-automation-review button{cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review button:disabled{opacity:.5;cursor:default}
+#tebb-automation-review button{border:0;background:none}
+#tebb-automation-review h2,#tebb-automation-review h3,#tebb-automation-review p{margin:0}
+#tebb-automation-review h2{font-size:20px;font-weight:600;letter-spacing:-.6px}
+#tebb-automation-review h3{font-size:14px;font-weight:600}
+#tebb-automation-review .tw-nav{padding:22px 10px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--tw-line);background:color-mix(in srgb,var(--tw-surface) 80%,transparent);backdrop-filter:blur(20px)}
+#tebb-automation-review .tw-brand{display:flex;align-items:center;gap:7px;padding:0 10px 28px;color:var(--tw-accent-ink);font-size:23px;letter-spacing:-1px}
+#tebb-automation-review .tw-brand svg{width:24px;height:24px}
+#tebb-automation-review .tw-nav-caption{font-size:11px;color:var(--tw-sub);padding:14px 12px 7px;letter-spacing:1px}
+#tebb-automation-review .tw-nav-item{display:flex;align-items:center;gap:10px;border-radius:9px;padding:10px 12px;white-space:nowrap;color:var(--tw-sub)}
+#tebb-automation-review .tw-nav-item svg,#tebb-automation-review .tw-nav-bottom svg{width:16px;height:16px;flex:none}
+#tebb-automation-review .tw-nav-active{color:var(--tw-accent-ink);background:var(--tw-card);box-shadow:0 2px 6px var(--tw-shadow);font-weight:600}
+#tebb-automation-review .tw-nav-bottom{display:flex;align-items:center;gap:8px;padding:12px;margin-top:auto;color:var(--tw-sub)}
+#tebb-automation-review .tw-online-dot{width:6px;height:6px;border-radius:50%;background:var(--tw-green);margin-left:auto}
+#tebb-automation-review .tw-shell.tw-on-home{min-height:700px}
+#tebb-automation-review .tw-home{padding:20px;min-width:0;flex:1;border:1px solid var(--tw-line);border-radius:14px;background:color-mix(in srgb,var(--tw-surface) 70%,transparent)}
+#tebb-automation-review .tw-home-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+#tebb-automation-review .tw-home-title{display:flex;align-items:center;gap:9px}
+#tebb-automation-review .tw-home-count{font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(224px,100%),1fr));gap:15px;align-items:start}
+#tebb-automation-review .tw-flow-card{min-width:0;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:15px;box-shadow:0 3px 10px var(--tw-shadow);overflow:clip}
+#tebb-automation-review .tw-card-head{display:flex;align-items:center;gap:8px;padding:15px 15px 10px;min-width:0}
+#tebb-automation-review .tw-card-title{display:flex;align-items:center;gap:8px;flex:1;min-width:0;text-align:left;padding:0;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+#tebb-automation-review .tw-card-title svg{width:16px;height:16px;color:var(--tw-accent-ink);flex:none}
+#tebb-automation-review .tw-plan-switch{position:relative;width:29px;height:17px;border-radius:20px;border:1px solid var(--tw-line);background:var(--tw-soft);padding:0;flex:none}
+#tebb-automation-review .tw-plan-switch:after{content:&quot;&quot;;position:absolute;left:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--tw-sub)}
+#tebb-automation-review .tw-plan-switch[aria-checked=true]{background:var(--tw-accent);border-color:var(--tw-accent)}
+#tebb-automation-review .tw-plan-switch[aria-checked=true]:after{left:14px;background:#fff}
+#tebb-automation-review .tw-manual-label{font-size:10px;white-space:nowrap;color:var(--tw-sub);background:var(--tw-soft);padding:2px 6px;border-radius:5px}
+#tebb-automation-review .tw-card-preview{display:block;width:100%;padding:0 15px;text-align:left}
+#tebb-automation-review .tw-thumbnail{height:126px;position:relative;border-radius:9px;background-color:var(--tw-soft);background-image:radial-gradient(var(--tw-line) .8px,transparent .8px);background-size:12px 12px;overflow:clip}
+#tebb-automation-review .tw-mini-lines{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#tebb-automation-review .tw-mini-lines path{stroke:var(--tw-accent);stroke-width:1.2;fill:none;opacity:.7;vector-effect:non-scaling-stroke}
+#tebb-automation-review .tw-mini-node{position:absolute;transform:translate(-50%,-50%);font-size:11px;line-height:1.45;color:var(--tw-ink);background:var(--tw-card);border:1px solid var(--tw-line);border-radius:5px;padding:3px 4px;white-space:nowrap}
+#tebb-automation-review .tw-mini-node.tw-mini-write{border-style:dashed}
+#tebb-automation-review .tw-card-details{padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-card-trigger{display:flex;align-items:center;gap:5px}
+#tebb-automation-review .tw-card-trigger svg{width:12px;height:12px}
+#tebb-automation-review .tw-card-recent{margin:0 15px 12px;display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-card-outcome{display:flex;align-items:center;gap:5px;color:var(--tw-green)}
+#tebb-automation-review .tw-card-outcome.tw-card-wait{color:var(--tw-amber)}
+#tebb-automation-review .tw-card-outcome.tw-card-empty{color:var(--tw-sub)}
+#tebb-automation-review .tw-card-outcome:before{content:&quot;&quot;;width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+#tebb-automation-review .tw-card-footer{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:1px solid var(--tw-line);background:var(--tw-surface);gap:6px}
+#tebb-automation-review .tw-card-footer .tw-button{font-size:11px;padding:4px 5px;min-height:26px}
+#tebb-automation-review .tw-home-note{font-size:11px;line-height:1.7;color:var(--tw-sub);margin-top:17px;min-height:19px}
+#tebb-automation-review .tw-home-templates{margin:0 0 18px;padding:15px;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:11px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#tebb-automation-review .tw-home-templates h3{margin-right:auto}
+#tebb-automation-review .tw-home-templates&gt;small{width:100%;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-back-divider{height:18px;border-left:1px solid var(--tw-line);margin:0 3px}
+@media(prefers-reduced-motion:no-preference){#tebb-automation-review .tw-flow-card{transition:box-shadow .15s,border-color .15s}#tebb-automation-review .tw-flow-card:hover{box-shadow:0 7px 20px var(--tw-shadow);border-color:var(--tw-accent)}}
+@container tw-shell (max-width:480px){#tebb-automation-review .tw-home{padding:12px}#tebb-automation-review .tw-card-grid{gap:12px}#tebb-automation-review .tw-card-details{flex-wrap:wrap}#tebb-automation-review .tw-home-toolbar{gap:12px}#tebb-automation-review .tw-home .tw-actions{gap:5px}#tebb-automation-review .tw-card-head{padding:13px 12px 10px}#tebb-automation-review .tw-card-preview{padding:0 12px}#tebb-automation-review .tw-card-recent{margin-left:12px;margin-right:12px}}
+#tebb-automation-review .tw-main{min-width:0;padding:16px;display:flex;flex-direction:column;gap:14px}
+#tebb-automation-review .tw-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:8px 10px}
+#tebb-automation-review .tw-eyebrow{font-size:10px;letter-spacing:1.6px;color:var(--tw-sub)}
+#tebb-automation-review .tw-preview-tag{font-size:11px;color:var(--tw-sub);padding:5px 9px;border-radius:7px;background:var(--tw-surface);white-space:nowrap;margin-right:58px}
+#tebb-automation-review .tw-heading-back{display:flex;align-items:center;gap:14px}
+#tebb-automation-review .tw-heading-back&gt;svg{width:19px;height:19px}
+#tebb-automation-review .tw-editor{position:relative;flex:1;display:flex;flex-direction:column;border:1px solid var(--tw-line);border-radius:14px;background:var(--tw-surface);min-width:0;overflow:clip}
+#tebb-automation-review .tw-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--tw-line);background:var(--tw-card)}
+#tebb-automation-review .tw-flow-title{display:flex;align-items:center;gap:8px;min-width:0}
+#tebb-automation-review .tw-flow-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--tw-tint);color:var(--tw-accent-ink);flex:none}
+#tebb-automation-review .tw-flow-icon svg{width:17px;height:17px}
+#tebb-automation-review .tw-flow-select{max-width:270px;min-width:0;border:0;background:var(--tw-card);font-weight:600;padding:5px 20px 5px 0;font-size:14px}
+#tebb-automation-review .tw-save-state{color:var(--tw-sub);font-size:11px;white-space:nowrap}
+#tebb-automation-review .tw-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#tebb-automation-review .tw-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 10px;border-radius:8px;background:var(--tw-surface);border:1px solid var(--tw-line);white-space:nowrap;font-size:12px}
+#tebb-automation-review .tw-button svg{width:14px;height:14px;flex:none}
+#tebb-automation-review .tw-button:hover{background:var(--tw-tint)}
+#tebb-automation-review .tw-button.tw-primary{background:var(--tw-accent);color:#fff;border-color:var(--tw-accent)}
+#tebb-automation-review .tw-button.tw-ghost{background:transparent;border-color:transparent}
+#tebb-automation-review .tw-button[aria-pressed=true]{background:var(--tw-tint);border-color:var(--tw-accent);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-underbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 16px;flex-wrap:wrap;border-bottom:1px solid var(--tw-line);color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-underbar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#tebb-automation-review .tw-underbar .tw-button{min-height:26px;font-size:11px;padding:3px 7px}
+#tebb-automation-review .tw-version{display:flex;align-items:center;gap:5px}
+#tebb-automation-review .tw-version&gt;span{width:5px;height:5px;background:var(--tw-green);border-radius:50%}
+#tebb-automation-review .tw-body{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);position:relative;flex:1}
+#tebb-automation-review .tw-body.tw-with-panel{grid-template-columns:minmax(0,1fr) 238px}
+#tebb-automation-review .tw-shell[data-layout=studio] .tw-body{grid-template-columns:112px minmax(0,1fr) 238px}
+#tebb-automation-review .tw-shell[data-layout=studio] .tw-body:not(.tw-with-panel){grid-template-columns:112px minmax(0,1fr)}
+#tebb-automation-review .tw-node-rail{background:var(--tw-card);border-right:1px solid var(--tw-line);padding:16px 8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+#tebb-automation-review .tw-node-rail&gt;span{font-size:11px;color:var(--tw-sub);padding:0 8px 10px}
+#tebb-automation-review .tw-node-rail .tw-button{justify-content:flex-start;padding:8px;min-height:36px}
+#tebb-automation-review .tw-canvas{position:relative;min-width:0;height:550px;overflow:clip;background-color:var(--tw-soft);background-image:radial-gradient(var(--tw-line) .9px,transparent .9px);background-size:20px 20px;touch-action:none}
+#tebb-automation-review .tw-stage-caption{position:absolute;top:17px;left:19px;font-size:11px;color:var(--tw-sub);pointer-events:none;z-index:1}
+#tebb-automation-review .tw-canvas svg.tw-lines{position:absolute;width:100%;height:100%;inset:0;overflow:visible;pointer-events:none}
+#tebb-automation-review .tw-lines .tw-edge{stroke:var(--tw-accent);stroke-width:1.7;fill:none;opacity:.65;pointer-events:stroke;cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review .tw-lines .tw-edge-hit{stroke:transparent;stroke-width:14;fill:none;pointer-events:stroke;cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review .tw-lines .tw-edge.tw-edge-selected{stroke-width:3;opacity:1}
+#tebb-automation-review .tw-lines .tw-temp-edge{stroke:var(--tw-accent);stroke-width:2;fill:none;stroke-dasharray:5 4}
+#tebb-automation-review .tw-lines .tw-guide{stroke:var(--tw-accent);stroke-width:1;stroke-dasharray:3 4;opacity:.8;pointer-events:none}
+#tebb-automation-review .tw-node{position:absolute;display:flex;flex-direction:column;gap:10px;width:var(--tw-node-width,158px);min-height:81px;padding:12px 13px;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:var(--tw-radius);box-shadow:0 3px 9px var(--tw-shadow);cursor:grab;user-select:none;touch-action:none;z-index:2;outline-offset:3px}
+#tebb-automation-review .tw-node.tw-selected{border-color:var(--tw-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--tw-accent) 18%,transparent),0 4px 12px var(--tw-shadow)}
+#tebb-automation-review .tw-node.tw-running{box-shadow:0 0 0 3px color-mix(in srgb,var(--tw-accent) 30%,transparent)}
+#tebb-automation-review .tw-node-head{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;font-weight:600}
+#tebb-automation-review .tw-node-select{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%;padding:0;text-align:left;cursor:grab}
+#tebb-automation-review .tw-node-head .tw-symbol{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:7px;background:var(--tw-tint);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-symbol svg{width:14px;height:14px}
+#tebb-automation-review .tw-node-sub{font-size:11px;display:flex;align-items:center;gap:5px;color:var(--tw-sub)}
+#tebb-automation-review .tw-node-sub.tw-needs{color:var(--tw-amber)}
+#tebb-automation-review .tw-node-sub .tw-status-dot{width:5px;height:5px;flex:none;border-radius:50%;background:currentColor}
+#tebb-automation-review .tw-port{display:grid;place-items:center;position:absolute;left:calc(50% - 12px);width:24px;height:24px;border-radius:50%;padding:0;z-index:4;background:transparent;cursor:crosshair}
+#tebb-automation-review .tw-port:before{content:&quot;&quot;;width:8px;height:8px;background:var(--tw-card);border:1.5px solid var(--tw-accent);border-radius:50%}
+#tebb-automation-review .tw-port:hover:before{background:var(--tw-accent);box-shadow:0 0 0 4px var(--tw-tint)}
+#tebb-automation-review .tw-port-in{top:-13px}
+#tebb-automation-review .tw-port-out{bottom:-13px}
+#tebb-automation-review .tw-canvas-toolbar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:2px;padding:5px;border:1px solid var(--tw-line);border-radius:12px;background:var(--tw-card);box-shadow:0 5px 15px var(--tw-shadow);max-width:calc(100% - 20px)}
+#tebb-automation-review .tw-canvas-toolbar .tw-button{border:0;background:transparent;min-width:29px;padding:5px 7px;min-height:29px}
+#tebb-automation-review .tw-canvas-toolbar .tw-button:hover{background:var(--tw-tint)}
+#tebb-automation-review .tw-canvas-toolbar .tw-separator{align-self:center;height:16px;border-left:1px solid var(--tw-line);margin:0 3px}
+#tebb-automation-review .tw-inspector{min-width:0;padding:16px;background:var(--tw-card);border-left:1px solid var(--tw-line);display:flex;flex-direction:column;gap:16px}
+#tebb-automation-review .tw-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+#tebb-automation-review .tw-panel-eyebrow{font-size:10px;letter-spacing:1px;color:var(--tw-sub);margin-bottom:5px}
+#tebb-automation-review .tw-panel-close{padding:2px;color:var(--tw-sub);font-size:19px;line-height:1}
+#tebb-automation-review .tw-tabs{display:flex;border-bottom:1px solid var(--tw-line);gap:14px;font-size:12px}
+#tebb-automation-review .tw-tabs button{padding:0 0 9px;color:var(--tw-sub);border-bottom:2px solid transparent}
+#tebb-automation-review .tw-tabs button[aria-selected=true]{border-bottom-color:var(--tw-accent);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-fields{display:flex;flex-direction:column;gap:14px;min-width:0}
+#tebb-automation-review .tw-field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--tw-sub);min-width:0}
+#tebb-automation-review .tw-field input,#tebb-automation-review .tw-field textarea,#tebb-automation-review .tw-field select{width:100%;min-width:0;background:var(--tw-soft);border:1px solid var(--tw-line);border-radius:7px;padding:8px 9px;color:var(--tw-ink);font-size:12px}
+#tebb-automation-review .tw-field textarea{resize:vertical;min-height:86px;line-height:1.65}
+#tebb-automation-review .tw-binding{padding:8px 10px;border:1px dashed var(--tw-line);border-radius:7px;color:var(--tw-accent-ink);font-size:11px;overflow-wrap:anywhere}
+#tebb-automation-review .tw-field-help{font-size:11px;color:var(--tw-sub);line-height:1.7}
+#tebb-automation-review .tw-output-preview{font-size:12px;line-height:1.9;overflow-wrap:anywhere}
+#tebb-automation-review .tw-output-preview strong{font-weight:600}
+#tebb-automation-review .tw-panel-foot{margin-top:auto;border-top:1px solid var(--tw-line);padding-top:12px;display:flex;justify-content:space-between;align-items:center;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-flow-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid var(--tw-line);background:var(--tw-card);font-size:11px;flex-wrap:wrap}
+#tebb-automation-review .tw-flow-foot-left{display:flex;gap:12px;align-items:center;color:var(--tw-sub);flex-wrap:wrap}
+#tebb-automation-review .tw-foot-feedback{display:flex;align-items:center;gap:5px;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-foot-feedback svg{width:12px;height:12px}
+#tebb-automation-review .tw-palette{position:absolute;left:16px;top:14px;width:228px;max-width:calc(100% - 32px);padding:14px;z-index:9;border:1px solid var(--tw-line);border-radius:12px;box-shadow:0 12px 30px var(--tw-shadow);background:var(--tw-card);display:flex;flex-direction:column;gap:8px}
+#tebb-automation-review .tw-palette .tw-button{justify-content:flex-start;min-height:36px;background:var(--tw-surface)}
+#tebb-automation-review .tw-palette-label{font-size:11px;color:var(--tw-sub);margin:5px 0}
+#tebb-automation-review .tw-status{min-height:22px;color:var(--tw-sub);font-size:11px;padding:7px 14px;background:var(--tw-card);border-top:1px solid var(--tw-line)}
+#tebb-automation-review .tw-run-panel{padding:14px 17px;background:var(--tw-card);border-top:1px solid var(--tw-line)}
+#tebb-automation-review .tw-run-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+#tebb-automation-review .tw-run-state{font-size:11px;color:var(--tw-amber)}
+#tebb-automation-review .tw-run-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:7px 0;border-top:1px solid var(--tw-line);font-size:12px}
+#tebb-automation-review .tw-run-row&gt;span:first-child{color:var(--tw-green)}
+#tebb-automation-review .tw-run-row&gt;small{font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-run-row.tw-wait&gt;span:first-child{color:var(--tw-amber)}
+#tebb-automation-review .tw-schedule{display:flex;flex-direction:column;gap:12px}
+#tebb-automation-review .tw-empty-panel{padding-top:70px;text-align:center;color:var(--tw-sub);font-size:12px;line-height:1.9}
+#tebb-automation-review .tw-empty-panel i{display:block;margin-bottom:10px}
+#tebb-automation-review .tw-empty-panel svg{width:26px;height:26px;margin:auto;color:var(--tw-accent-ink)}
+@container tw-shell (max-width:880px){#tebb-automation-review .tw-body.tw-with-panel,#tebb-automation-review .tw-shell[data-layout=studio] .tw-body.tw-with-panel{grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-shell[data-layout=studio] .tw-body:not(.tw-with-panel){grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-node-rail{display:none}#tebb-automation-review .tw-inspector{border-left:0;border-top:1px solid var(--tw-line);gap:12px}#tebb-automation-review .tw-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#tebb-automation-review .tw-panel-foot{margin-top:0}#tebb-automation-review .tw-empty-panel{padding:10px}#tebb-automation-review .tw-preview-tag{margin-right:32px}}
+@container tw-shell (max-width:720px){#tebb-automation-review .tw-nav{padding:20px 5px}#tebb-automation-review .tw-nav-item{justify-content:center;padding:12px 8px}#tebb-automation-review .tw-nav-item span,#tebb-automation-review .tw-nav-caption,#tebb-automation-review .tw-brand strong,#tebb-automation-review .tw-nav-bottom span{display:none}#tebb-automation-review .tw-brand{padding:0 5px 18px;justify-content:center}#tebb-automation-review .tw-nav-bottom{justify-content:center;padding:10px 0}#tebb-automation-review .tw-main{padding:10px}#tebb-automation-review .tw-heading{padding:6px;gap:8px}#tebb-automation-review .tw-top{padding:10px}#tebb-automation-review .tw-underbar{padding:8px 10px}#tebb-automation-review .tw-preview-tag{margin-right:30px;font-size:10px}#tebb-automation-review .tw-save-state{display:none}}
+@media(max-width:760px){#tebb-automation-review .tw-shell[data-layout=workspace]:not(.tw-focus){grid-template-columns:48px minmax(0,1fr)}}
+@container tw-shell (max-width:480px){#tebb-automation-review .tw-heading{align-items:flex-start;flex-direction:column}#tebb-automation-review .tw-eyebrow{font-size:9px}#tebb-automation-review .tw-preview-tag{margin:0}#tebb-automation-review .tw-actions{width:100%}#tebb-automation-review .tw-flow-select{max-width:220px;font-size:12px}#tebb-automation-review .tw-canvas{height:915px}#tebb-automation-review .tw-fields{grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-canvas-toolbar{bottom:12px;gap:0}#tebb-automation-review .tw-canvas-toolbar .tw-button{padding:4px;min-width:27px;font-size:11px}#tebb-automation-review .tw-stage-caption{left:12px;font-size:10px}#tebb-automation-review .tw-underbar-group{gap:2px}#tebb-automation-review .tw-heading h2{font-size:18px}#tebb-automation-review .tw-flow-foot{padding:8px}#tebb-automation-review .tw-run-panel{padding:12px}}
+@media(pointer:coarse){#tebb-automation-review .tw-button{min-height:42px}#tebb-automation-review .tw-port{width:36px;height:36px;left:calc(50% - 18px)}#tebb-automation-review .tw-port-in{top:-19px}#tebb-automation-review .tw-port-out{bottom:-19px}#tebb-automation-review .tw-field input,#tebb-automation-review .tw-field select,#tebb-automation-review .tw-field textarea{font-size:16px}}
+@media(prefers-reduced-motion:no-preference){#tebb-automation-review .tw-button{transition:background .15s,box-shadow .15s}#tebb-automation-review .tw-node:not(.tw-dragging){transition:border-color .15s,box-shadow .15s}}
+&lt;/style&gt;
+&lt;script&gt;
+(()=&gt;{
+const root=document.getElementById(&#x27;tebb-automation-review&#x27;);
+if(!root)return;
+const esc=s=&gt;String(s??&#x27;&#x27;).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g,c=&gt;({&#x27;&amp;&#x27;:&#x27;&amp;amp;&#x27;,&#x27;&lt;&#x27;:&#x27;&amp;lt;&#x27;,&#x27;&gt;&#x27;:&#x27;&amp;gt;&#x27;,&#x27;&quot;&#x27;:&#x27;&amp;quot;&#x27;,&quot;&#x27;&quot;:&#x27;&amp;#39;&#x27;}[c]));
+const icon=n=&gt;`&lt;i data-lucide=&quot;${n}&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;`;
+const icons=()=&gt;{if(globalThis.lucide)globalThis.lucide.createIcons({attrs:{width:16,height:16}})};
+const catalog=[[&#x27;read&#x27;,&#x27;读取网页&#x27;,&#x27;file-text&#x27;],[&#x27;search&#x27;,&#x27;搜索资料&#x27;,&#x27;search&#x27;],[&#x27;ai&#x27;,&#x27;AI 处理&#x27;,&#x27;sparkles&#x27;],[&#x27;condition&#x27;,&#x27;条件判断&#x27;,&#x27;git-branch&#x27;],[&#x27;document&#x27;,&#x27;创建文档&#x27;,&#x27;file-plus-2&#x27;],[&#x27;base&#x27;,&#x27;写入表格&#x27;,&#x27;table-2&#x27;],[&#x27;message&#x27;,&#x27;发送群消息&#x27;,&#x27;send&#x27;]];
+const makeNews=()=&gt;({name:&#x27;大厂开源与技术动向&#x27;,nodes:[{id:&#x27;trigger&#x27;,kind:&#x27;trigger&#x27;,name:&#x27;定时触发&#x27;,sub:&#x27;每天 09:00&#x27;,x:.5,y:86},{id:&#x27;sources&#x27;,kind:&#x27;search&#x27;,name:&#x27;采集官方来源&#x27;,sub:&#x27;近 3 天 · 最多 8 条&#x27;,x:.5,y:210},{id:&#x27;report&#x27;,kind:&#x27;ai&#x27;,name:&#x27;整理技术日报&#x27;,sub:&#x27;输出 5 条技术动向&#x27;,x:.5,y:334},{id:&#x27;doc&#x27;,kind:&#x27;document&#x27;,name:&#x27;创建飞书文档&#x27;,sub:&#x27;待确认云盘位置&#x27;,x:.17,y:446,missing:true},{id:&#x27;base&#x27;,kind:&#x27;base&#x27;,name:&#x27;写入多维表格&#x27;,sub:&#x27;结果表 · 按回执去重&#x27;,x:.5,y:446},{id:&#x27;msg&#x27;,kind:&#x27;message&#x27;,name:&#x27;发送群消息&#x27;,sub:&#x27;待选择目标群&#x27;,x:.83,y:446,missing:true}],edges:[[&#x27;trigger&#x27;,&#x27;sources&#x27;],[&#x27;sources&#x27;,&#x27;report&#x27;],[&#x27;report&#x27;,&#x27;doc&#x27;],[&#x27;report&#x27;,&#x27;base&#x27;],[&#x27;report&#x27;,&#x27;msg&#x27;]]});
+const makeVideo=()=&gt;({name:&#x27;视频学习笔记&#x27;,nodes:[{id:&#x27;trigger&#x27;,kind:&#x27;trigger&#x27;,name:&#x27;手动触发&#x27;,sub:&#x27;输入视频链接&#x27;,x:.5,y:64},{id:&#x27;video&#x27;,kind:&#x27;read&#x27;,name:&#x27;读取视频字幕&#x27;,sub:&#x27;核对字幕完整性&#x27;,x:.5,y:200},{id:&#x27;report&#x27;,kind:&#x27;ai&#x27;,name:&#x27;整理学习笔记&#x27;,sub:&#x27;保留时间点与来源&#x27;,x:.5,y:336},{id:&#x27;doc&#x27;,kind:&#x27;document&#x27;,name:&#x27;保存飞书文档&#x27;,sub:&#x27;待确认保存位置&#x27;,x:.5,y:472,missing:true}],edges:[[&#x27;trigger&#x27;,&#x27;video&#x27;],[&#x27;video&#x27;,&#x27;report&#x27;],[&#x27;report&#x27;,&#x27;doc&#x27;]]});
+const makeBlank=()=&gt;({name:&#x27;新的工作流&#x27;,nodes:[{id:&#x27;trigger&#x27;,kind:&#x27;trigger&#x27;,name:&#x27;手动触发&#x27;,sub:&#x27;从这里开始&#x27;,x:.5,y:90}],edges:[]});
+const makeDocument=()=&gt;({name:&#x27;飞书文档发布&#x27;,lastRun:{label:&#x27;已完成&#x27;,time:&#x27;今天 10:42&#x27;,tone:&#x27;done&#x27;},nodes:[{id:&#x27;trigger&#x27;,kind:&#x27;trigger&#x27;,name:&#x27;手动触发&#x27;,sub:&#x27;输入发布正文&#x27;,x:.5,y:130},{id:&#x27;doc&#x27;,kind:&#x27;document&#x27;,name:&#x27;创建飞书文档&#x27;,sub:&#x27;云盘 · 工作记录&#x27;,target:&#x27;云盘 / 工作记录（示例）&#x27;,x:.5,y:320,missing:false}],edges:[[&#x27;trigger&#x27;,&#x27;doc&#x27;]]});
+root.querySelectorAll(&#x27;.tw-shell&#x27;).forEach((app,appIndex)=&gt;{
+ const studio=app.dataset.layout===&#x27;studio&#x27;,editor=app.querySelector(&#x27;.tw-editor&#x27;);
+ const state={view:&#x27;home&#x27;,flow:&#x27;news&#x27;,drafts:{news:makeNews(),video:makeVideo(),document:makeDocument()},selected:studio?[&#x27;report&#x27;]:[],pane:studio?&#x27;node&#x27;:&#x27;&#x27;,tab:&#x27;配置&#x27;,focus:false,guides:true,dirty:false,trace:false,connecting:&#x27;&#x27;,edge:null,runStep:0,running:false,version:&#x27;v3&#x27;,theme:&#x27;inherit&#x27;,radius:13};
+ state.drafts.news.lastRun={label:&#x27;等待确认发布目标&#x27;,time:&#x27;今天 09:00&#x27;,tone:&#x27;wait&#x27;};
+ const current=()=&gt;state.drafts[state.flow];
+ const persist=()=&gt;{if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{design:&#x27;自动化界面&#x27;,layout:&#x27;卡片首页与画布&#x27;,view:state.view,workflow:state.flow,panel:state.pane,focus:state.focus},privateContent:null}).catch(()=&gt;{})};
+ editor.innerHTML=`&lt;div class=&quot;tw-top&quot;&gt;&lt;div class=&quot;tw-flow-title&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;home&quot;&gt;${icon(&#x27;arrow-left&#x27;)}工作流&lt;/button&gt;&lt;span class=&quot;tw-back-divider&quot;&gt;&lt;/span&gt;&lt;span class=&quot;tw-flow-icon&quot;&gt;${icon(&#x27;workflow&#x27;)}&lt;/span&gt;&lt;select class=&quot;tw-flow-select&quot; aria-label=&quot;切换已有工作流&quot;&gt;&lt;option value=&quot;news&quot;&gt;大厂开源与技术动向&lt;/option&gt;&lt;option value=&quot;video&quot;&gt;视频学习笔记&lt;/option&gt;&lt;option value=&quot;document&quot;&gt;飞书文档发布&lt;/option&gt;&lt;/select&gt;&lt;span class=&quot;tw-save-state&quot;&gt;已保存&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;new&quot;&gt;${icon(&#x27;plus&#x27;)}新建&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;save&quot;&gt;保存&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-primary&quot; data-action=&quot;run&quot;&gt;${icon(&#x27;play&#x27;)}试运行&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;tw-underbar&quot;&gt;&lt;div class=&quot;tw-underbar-group&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;schedule&quot;&gt;${icon(&#x27;clock-3&#x27;)}&lt;span data-schedule-label&gt;每天 09:00&lt;/span&gt;&lt;/button&gt;&lt;span&gt;·&lt;/span&gt;&lt;span class=&quot;tw-version&quot;&gt;&lt;span&gt;&lt;/span&gt;草稿与运行分开&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;history&quot;&gt;${icon(&#x27;history&#x27;)}运行记录&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;focus&quot;&gt;${icon(&#x27;maximize-2&#x27;)}&lt;span data-focus-label&gt;专注画布&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;tw-body ${studio?&#x27;tw-with-panel&#x27;:&#x27;&#x27;}&quot;&gt;${studio?`&lt;aside class=&quot;tw-node-rail&quot;&gt;&lt;span&gt;原子能力&lt;/span&gt;${catalog.map(([kind,name,ico])=&gt;`&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; draggable=&quot;true&quot; data-add=&quot;${kind}&quot;&gt;${icon(ico)}${name.replace(&#x27;飞书&#x27;,&#x27;&#x27;)}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;assistant&quot;&gt;${icon(&#x27;bot&#x27;)}伙伴搭建&lt;/button&gt;&lt;/aside&gt;`:&#x27;&#x27;}&lt;div class=&quot;tw-canvas&quot; aria-label=&quot;可拖动和连接的工作流画布&quot;&gt;&lt;span class=&quot;tw-stage-caption&quot;&gt;${studio?&#x27;设计 / 大厂开源与技术动向&#x27;:&#x27;工作流 / 大厂开源与技术动向&#x27;}&lt;/span&gt;&lt;svg class=&quot;tw-lines&quot; role=&quot;img&quot; aria-label=&quot;工作流节点之间的连接关系&quot;&gt;&lt;/svg&gt;&lt;div class=&quot;tw-node-layer&quot;&gt;&lt;/div&gt;&lt;div class=&quot;tw-palette&quot; hidden&gt;&lt;/div&gt;&lt;div class=&quot;tw-canvas-toolbar&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;palette&quot; aria-label=&quot;添加节点&quot;&gt;${icon(&#x27;plus&#x27;)}&lt;/button&gt;&lt;span class=&quot;tw-separator&quot;&gt;&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;fit&quot; aria-label=&quot;整理并适应画布&quot;&gt;${icon(&#x27;scan&#x27;)}&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;horizontal&quot; aria-label=&quot;多选节点后水平对齐&quot;&gt;${icon(&#x27;align-vertical-justify-center&#x27;)}&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;vertical&quot; aria-label=&quot;多选节点后竖直对齐&quot;&gt;${icon(&#x27;align-horizontal-justify-center&#x27;)}&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;guides&quot; aria-pressed=&quot;true&quot; aria-label=&quot;切换对齐吸附&quot;&gt;${icon(&#x27;magnet&#x27;)}&lt;/button&gt;&lt;span class=&quot;tw-separator&quot;&gt;&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;assistant&quot;&gt;${icon(&#x27;sparkles&#x27;)}伙伴&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;aside class=&quot;tw-inspector&quot; ${studio?&#x27;&#x27;:&#x27;hidden&#x27;} aria-label=&quot;节点及工作流设置&quot;&gt;&lt;/aside&gt;&lt;/div&gt;
+ &lt;div class=&quot;tw-run-panel&quot; ${studio?&#x27;&#x27;:&#x27;hidden&#x27;} aria-label=&quot;试运行与节点回执&quot;&gt;&lt;/div&gt;
+ &lt;div class=&quot;tw-flow-foot&quot;&gt;&lt;div class=&quot;tw-flow-foot-left&quot;&gt;&lt;span data-node-count&gt;6 个节点 · 5 条连接&lt;/span&gt;&lt;span&gt;Shift 多选 · 拖动圆点连线&lt;/span&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;debug&quot;&gt;${icon(&#x27;panel-bottom&#x27;)}逐步调试&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;tw-status&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;点击节点查看设置；拖动节点可看到对齐参考线。&lt;/div&gt;`;
+ const canvas=editor.querySelector(&#x27;.tw-canvas&#x27;),layer=editor.querySelector(&#x27;.tw-node-layer&#x27;),svg=editor.querySelector(&#x27;.tw-lines&#x27;),panel=editor.querySelector(&#x27;.tw-inspector&#x27;),body=editor.querySelector(&#x27;.tw-body&#x27;),palette=editor.querySelector(&#x27;.tw-palette&#x27;),runPanel=editor.querySelector(&#x27;.tw-run-panel&#x27;),status=editor.querySelector(&#x27;.tw-status&#x27;);
+ const home=document.createElement(&#x27;section&#x27;);home.className=&#x27;tw-home&#x27;;home.setAttribute(&#x27;aria-label&#x27;,&#x27;已有工作流卡片总览&#x27;);editor.before(home);
+ let gesture=null,hoverPoint=null,timer=null;
+ const tell=message=&gt;{status.textContent=message};
+ const dirty=()=&gt;{state.dirty=true;current().dirty=true;editor.querySelector(&#x27;.tw-save-state&#x27;).textContent=&#x27;有未保存修改&#x27;};
+ const selectedNode=()=&gt;current().nodes.find(n=&gt;n.id===state.selected[0]);
+ const small=()=&gt;canvas.clientWidth&lt;360;
+ const nodeWidth=()=&gt;small()?Math.min(188,canvas.clientWidth-34):Math.max(124,Math.min(174,(canvas.clientWidth-52)/3));
+ function position(n,index){const w=nodeWidth(),width=canvas.clientWidth;if(small())return {x:(width-w)/2,y:62+index*132};return {x:Math.max(12,Math.min(width-w-12,n.x*width-w/2)),y:n.y-40}}
+ function renderNodes(){
+   if(!canvas.clientWidth)return;
+   const g=current();canvas.style.setProperty(&#x27;--tw-node-width&#x27;,nodeWidth()+&#x27;px&#x27;);
+   layer.innerHTML=g.nodes.map((n,i)=&gt;{const p=position(n,i),ico=n.kind===&#x27;trigger&#x27;?&#x27;clock-3&#x27;:catalog.find(v=&gt;v[0]===n.kind)?.[2]||&#x27;file-text&#x27;;return `&lt;div class=&quot;tw-node ${state.selected.includes(n.id)?&#x27;tw-selected&#x27;:&#x27;&#x27;}&quot; role=&quot;group&quot; aria-label=&quot;${esc(n.name)}&quot; data-id=&quot;${n.id}&quot; style=&quot;left:${p.x}px;top:${p.y}px&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-node-select&quot; aria-label=&quot;打开${esc(n.name)}设置&quot; aria-pressed=&quot;${state.selected.includes(n.id)}&quot; data-node-select=&quot;${n.id}&quot;&gt;&lt;span class=&quot;tw-node-head&quot;&gt;&lt;span class=&quot;tw-symbol&quot;&gt;${icon(ico)}&lt;/span&gt;&lt;span&gt;${esc(n.name)}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;tw-node-sub ${n.missing?&#x27;tw-needs&#x27;:&#x27;&#x27;}&quot;&gt;&lt;span class=&quot;tw-status-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;${esc(n.sub)}&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;${n.kind!==&#x27;trigger&#x27;?`&lt;button type=&quot;button&quot; class=&quot;tw-port tw-port-in&quot; data-port=&quot;in&quot; aria-label=&quot;连接到${esc(n.name)}&quot;&gt;&lt;/button&gt;`:&#x27;&#x27;}&lt;button type=&quot;button&quot; class=&quot;tw-port tw-port-out&quot; data-port=&quot;out&quot; aria-label=&quot;从${esc(n.name)}连接&quot;&gt;&lt;/button&gt;&lt;/div&gt;`}).join(&#x27;&#x27;);
+   editor.querySelector(&#x27;[data-node-count]&#x27;).textContent=`${g.nodes.length} 个节点 · ${g.edges.length} 条连接`;
+   icons();draw();
+ }
+ function box(id){const el=layer.querySelector(`[data-id=&quot;${id}&quot;]`);if(!el)return null;return {x:parseFloat(el.style.left)+el.offsetWidth/2,y:parseFloat(el.style.top),h:el.offsetHeight}}
+ function curve(a,b){const delta=Math.max(28,Math.abs(b.y-a.y)*.48);return `M${a.x},${a.y} C${a.x},${a.y+delta} ${b.x},${b.y-delta} ${b.x},${b.y}`}
+ function draw(guides=[]){
+   if(!canvas.clientWidth)return;
+   let paths=current().edges.map(([a,b],i)=&gt;{const x=box(a),y=box(b);if(!x||!y)return &#x27;&#x27;;let d=curve({x:x.x,y:x.y+x.h},{x:y.x,y:y.y});const branches=current().edges.filter(e=&gt;e[0]===a);if(small()&amp;&amp;branches.length&gt;1){const k=branches.findIndex(e=&gt;e[1]===b),lane=k%2?canvas.clientWidth-12:12+k*5,from=x.y+x.h;d=`M${x.x},${from} C${x.x},${from+22} ${lane},${from+22} ${lane},${from+32} L${lane},${y.y-20} Q${lane},${y.y} ${y.x},${y.y}`;}return `&lt;path class=&quot;tw-edge-hit&quot; d=&quot;${d}&quot; data-edge=&quot;${i}&quot;/&gt;&lt;path class=&quot;tw-edge ${state.edge===i?&#x27;tw-edge-selected&#x27;:&#x27;&#x27;}&quot; d=&quot;${d}&quot; data-edge=&quot;${i}&quot;/&gt;`}).join(&#x27;&#x27;);
+   if(state.connecting&amp;&amp;hoverPoint){const a=box(state.connecting);if(a)paths+=`&lt;path class=&quot;tw-temp-edge&quot; d=&quot;${curve({x:a.x,y:a.y+a.h},hoverPoint)}&quot;/&gt;`}
+   paths+=guides.map(v=&gt;v.axis===&#x27;x&#x27;?`&lt;line class=&quot;tw-guide&quot; x1=&quot;${v.at}&quot; x2=&quot;${v.at}&quot; y1=&quot;30&quot; y2=&quot;${canvas.clientHeight-60}&quot;/&gt;`:`&lt;line class=&quot;tw-guide&quot; x1=&quot;12&quot; x2=&quot;${canvas.clientWidth-12}&quot; y1=&quot;${v.at}&quot; y2=&quot;${v.at}&quot;/&gt;`).join(&#x27;&#x27;);
+   svg.innerHTML=paths;
+ }
+ function setPanel(kind){state.pane=kind;panel.hidden=!kind;body.classList.toggle(&#x27;tw-with-panel&#x27;,!!kind);renderPanel();requestAnimationFrame(renderNodes);persist()}
+ function panelHeader(title,sub=&#x27;NODE SETTINGS&#x27;){return `&lt;div class=&quot;tw-panel-heading&quot;&gt;&lt;div&gt;&lt;div class=&quot;tw-panel-eyebrow&quot;&gt;${sub}&lt;/div&gt;&lt;h3&gt;${title}&lt;/h3&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-panel-close&quot; data-action=&quot;close-panel&quot; aria-label=&quot;关闭面板&quot;&gt;×&lt;/button&gt;&lt;/div&gt;`}
+ function field(label,value,extra=&#x27;&#x27;,type=&#x27;input&#x27;){return `&lt;label class=&quot;tw-field&quot;&gt;${label}${type===&#x27;textarea&#x27;?`&lt;textarea ${extra}&gt;${esc(value)}&lt;/textarea&gt;`:`&lt;input value=&quot;${esc(value)}&quot; ${extra}&gt;`}&lt;/label&gt;`}
+ function renderPanel(){
+   if(!state.pane)return;
+   if(state.pane===&#x27;schedule&#x27;){
+     panel.innerHTML=panelHeader(&#x27;触发与计划&#x27;,&#x27;TRIGGER&#x27;)+`&lt;div class=&quot;tw-schedule&quot;&gt;&lt;label class=&quot;tw-field&quot;&gt;触发方式&lt;select data-schedule-kind&gt;&lt;option value=&quot;每天&quot;&gt;每天&lt;/option&gt;&lt;option value=&quot;工作日&quot;&gt;工作日&lt;/option&gt;&lt;option value=&quot;手动&quot;&gt;仅手动&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;${field(&#x27;触发时间&#x27;,&#x27;09:00&#x27;,&#x27;data-schedule-time type=&quot;time&quot;&#x27;)}&lt;span class=&quot;tw-field-help&quot;&gt;北京时间 · 计划绑定已保存版本&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-primary&quot; data-action=&quot;apply-schedule&quot;&gt;保存计划（演示）&lt;/button&gt;&lt;/div&gt;`;
+   }else if(state.pane===&#x27;assistant&#x27;){
+     panel.innerHTML=panelHeader(&#x27;让伙伴帮你搭建&#x27;,&#x27;AI COMPANION&#x27;)+`&lt;div class=&quot;tw-field-help&quot;&gt;描述你想完成的任务，先生成可检查的流程草稿。&lt;/div&gt;${field(&#x27;我想要…&#x27;,&#x27;读取视频字幕，整理成带时间点的学习笔记，保存到飞书文档。&#x27;,&#x27;data-ai-prompt&#x27;,&#x27;textarea&#x27;)}&lt;button type=&quot;button&quot; class=&quot;tw-button tw-primary&quot; data-action=&quot;ai-build&quot;&gt;${icon(&#x27;sparkles&#x27;)}生成草稿（演示）&lt;/button&gt;&lt;div class=&quot;tw-binding&quot;&gt;发布目标由你指定，生成草稿不会执行。&lt;/div&gt;&lt;div class=&quot;tw-panel-foot&quot;&gt;&lt;span&gt;能力也可以复用&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;capability&quot;&gt;新增能力&lt;/button&gt;&lt;/div&gt;`;
+   }else if(state.pane===&#x27;capability&#x27;){
+     panel.innerHTML=panelHeader(&#x27;新增原子能力&#x27;,&#x27;REUSABLE CAPABILITY&#x27;)+field(&#x27;能力名称&#x27;,&#x27;官方文档读取&#x27;,&#x27;data-capability-name&#x27;)+`&lt;label class=&quot;tw-field&quot;&gt;基于已有能力&lt;select&gt;&lt;option&gt;读取网页&lt;/option&gt;&lt;option&gt;搜索资料&lt;/option&gt;&lt;option&gt;AI 处理&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;`+field(&#x27;能力说明&#x27;,&#x27;读取指定官方文档，保留来源与正文。&#x27;,&#x27;&#x27;,&#x27;textarea&#x27;)+`&lt;button type=&quot;button&quot; class=&quot;tw-button tw-primary&quot; data-action=&quot;add-capability&quot;&gt;放入画布（演示）&lt;/button&gt;&lt;span class=&quot;tw-field-help&quot;&gt;保存为能力后，可供其他工作流和 AI 伙伴复用。&lt;/span&gt;`;
+   }else if(state.pane===&#x27;edge&#x27;){
+     const e=current().edges[state.edge];panel.innerHTML=panelHeader(&#x27;连接关系&#x27;,&#x27;CONNECTION&#x27;)+(e?`&lt;div class=&quot;tw-binding&quot;&gt;${esc(current().nodes.find(n=&gt;n.id===e[0])?.name)}&lt;br&gt;↓&lt;br&gt;${esc(current().nodes.find(n=&gt;n.id===e[1])?.name)}&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;delete-edge&quot;&gt;删除这条连接&lt;/button&gt;`:&#x27;&lt;p class=&quot;tw-field-help&quot;&gt;选择画布上的连接线。&lt;/p&gt;&#x27;);
+   }else if(state.pane===&#x27;history&#x27;){
+     panel.innerHTML=panelHeader(&#x27;运行记录&#x27;,&#x27;RUN HISTORY&#x27;)+`&lt;div class=&quot;tw-panel-eyebrow&quot;&gt;示例记录&lt;/div&gt;&lt;div class=&quot;tw-binding&quot;&gt;今天 09:00 · 待确认发布目标&lt;br&gt;技术动向日报 · v3&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;debug&quot;&gt;查看节点回执&lt;/button&gt;&lt;span class=&quot;tw-field-help&quot;&gt;运行快照单独查看，不替换正在编辑的草稿。&lt;/span&gt;`;
+   }else{
+     const n=selectedNode();if(!n){panel.innerHTML=panelHeader(&#x27;节点设置&#x27;)+`&lt;div class=&quot;tw-empty-panel&quot;&gt;${icon(&#x27;mouse-pointer-2&#x27;)}&lt;p&gt;选中一个节点&lt;br&gt;查看配置、输入和输出&lt;/p&gt;&lt;/div&gt;`;icons();return;}
+     const tabs=[&#x27;配置&#x27;,&#x27;输入&#x27;,&#x27;输出&#x27;];let content=&#x27;&#x27;;
+     if(state.tab===&#x27;输入&#x27;)content=`&lt;div class=&quot;tw-panel-eyebrow&quot;&gt;来自上游节点&lt;/div&gt;&lt;div class=&quot;tw-binding&quot;&gt;${n.kind===&#x27;ai&#x27;?&#x27;采集官方来源 → 已核实材料&#x27;:n.kind===&#x27;trigger&#x27;?&#x27;手动文字或已保存的定时输入&#x27;:&#x27;整理技术日报 → 报告正文&#x27;}&lt;/div&gt;&lt;span class=&quot;tw-field-help&quot;&gt;连接决定执行顺序，字段引用决定使用哪些资料。&lt;/span&gt;`;
+     else if(state.tab===&#x27;输出&#x27;)content=`&lt;div class=&quot;tw-output-preview&quot;&gt;&lt;strong&gt;示例输出结构&lt;/strong&gt;&lt;br&gt;${n.kind===&#x27;ai&#x27;?&#x27;报告正文&lt;br&gt;技术动向条目 × 5&lt;br&gt;对应来源链接&#x27;:n.kind===&#x27;search&#x27;?&#x27;来源列表&lt;br&gt;标题、链接与已读取正文&#x27;:n.kind===&#x27;trigger&#x27;?&#x27;触发文字&lt;br&gt;本次运行时间&#x27;:&#x27;目标编号&lt;br&gt;结果地址&lt;br&gt;节点回执&#x27;}&lt;/div&gt;&lt;div class=&quot;tw-binding&quot;&gt;实际输出在运行后查看&lt;/div&gt;`;
+     else if(n.kind===&#x27;ai&#x27;)content=field(&#x27;节点名称&#x27;,n.name,&#x27;data-node-name&#x27;)+field(&#x27;处理要求&#x27;,n.prompt||&#x27;基于上游已核实材料整理 5 条技术动向，说明关键变化，并保留来源。&#x27;,&#x27;data-node-prompt&#x27;,&#x27;textarea&#x27;)+`&lt;div class=&quot;tw-field&quot;&gt;使用材料&lt;div class=&quot;tw-binding&quot;&gt;↳ 采集官方来源 · 正文&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;tw-field-help&quot;&gt;模型：跟随当前已选模型&lt;/div&gt;`;
+     else if([&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind))content=field(&#x27;节点名称&#x27;,n.name,&#x27;data-node-name&#x27;)+field(n.kind===&#x27;document&#x27;?&#x27;保存位置&#x27;:n.kind===&#x27;message&#x27;?&#x27;目标群&#x27;:&#x27;多维表格 / 数据表&#x27;,n.target||&#x27;&#x27;,&#x27;data-node-target placeholder=&quot;选择或填写目标&quot;&#x27;)+`&lt;div class=&quot;tw-field&quot;&gt;写入内容&lt;div class=&quot;tw-binding&quot;&gt;↳ 整理技术日报 · 报告正文&lt;/div&gt;&lt;/div&gt;`+(n.kind===&#x27;base&#x27;?field(&#x27;去重字段&#x27;,&#x27;回执&#x27;):field(&#x27;发布标题&#x27;,current().name))+`&lt;span class=&quot;tw-field-help&quot;&gt;发布前展示目标与内容；结果不明时先核对原回执。&lt;/span&gt;`;
+     else if(n.kind===&#x27;trigger&#x27;)content=field(&#x27;节点名称&#x27;,n.name,&#x27;data-node-name&#x27;)+`&lt;div class=&quot;tw-binding&quot;&gt;${n.sub}&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;schedule&quot;&gt;修改触发计划&lt;/button&gt;`;
+     else content=field(&#x27;节点名称&#x27;,n.name,&#x27;data-node-name&#x27;)+field(n.kind===&#x27;condition&#x27;?&#x27;判断条件&#x27;:&#x27;检索与读取范围&#x27;,n.kind===&#x27;condition&#x27;?&#x27;上游正文不为空&#x27;:&#x27;AI Agent 开源项目\n大厂模型与推理工具&#x27;,&#x27;&#x27;,&#x27;textarea&#x27;)+`&lt;span class=&quot;tw-field-help&quot;&gt;${n.kind===&#x27;condition&#x27;?&#x27;满足与不满足分别连接下一步。&#x27;:&#x27;仅使用实际取得的资料，保留来源与时间范围。&#x27;}&lt;/span&gt;`;
+     panel.innerHTML=panelHeader(esc(n.name))+`&lt;div class=&quot;tw-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;节点详情&quot;&gt;${tabs.map(t=&gt;`&lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;${state.tab===t}&quot; data-tab=&quot;${t}&quot;&gt;${t}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;tw-fields&quot;&gt;${content}&lt;/div&gt;&lt;div class=&quot;tw-panel-foot&quot;&gt;&lt;span&gt;${n.kind===&#x27;trigger&#x27;?&#x27;触发节点&#x27;:&#x27;修改后形成新草稿&#x27;}&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;apply-node&quot;&gt;完成&lt;/button&gt;&lt;/div&gt;`;
+   }
+   icons();
+ }
+ function renderTrace(){runPanel.hidden=!state.trace;if(!state.trace)return;const reads=current().nodes.filter(n=&gt;n.kind!==&#x27;trigger&#x27;&amp;&amp;![&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind)),write=current().nodes.find(n=&gt;[&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind));runPanel.innerHTML=`&lt;div class=&quot;tw-run-heading&quot;&gt;&lt;div&gt;&lt;h3&gt;逐步调试&lt;/h3&gt;&lt;span class=&quot;tw-field-help&quot;&gt;演示记录 · ${esc(current().name)} · v3&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-actions&quot;&gt;&lt;span class=&quot;tw-run-state&quot;&gt;${write?&#x27;等待确认目标&#x27;:&#x27;演示记录&#x27;}&lt;/span&gt;${write?&#x27;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-action=&quot;inspect-targets&quot;&gt;检查目标&lt;/button&gt;&#x27;:&#x27;&#x27;}&lt;button type=&quot;button&quot; class=&quot;tw-panel-close&quot; data-action=&quot;hide-debug&quot; aria-label=&quot;收起调试&quot;&gt;×&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;${reads.map(n=&gt;`&lt;div class=&quot;tw-run-row&quot;&gt;&lt;span&gt;✓&lt;/span&gt;&lt;span&gt;${esc(n.name)} &lt;span class=&quot;tw-field-help&quot;&gt;· 示例产物&lt;/span&gt;&lt;/span&gt;&lt;small&gt;演示完成&lt;/small&gt;&lt;/div&gt;`).join(&#x27;&#x27;)}${write?`&lt;div class=&quot;tw-run-row tw-wait&quot;&gt;&lt;span&gt;○&lt;/span&gt;&lt;span&gt;${esc(write.name)} &lt;span class=&quot;tw-field-help&quot;&gt;· 待确认目标与正文&lt;/span&gt;&lt;/span&gt;&lt;small&gt;尚未写入&lt;/small&gt;&lt;/div&gt;`:&#x27;&lt;div class=&quot;tw-field-help&quot;&gt;尚无外部写入节点。&lt;/div&gt;&#x27;}`}
+ function load(key){if(state.running){tell(&#x27;请先停止试运行演示，再切换工作流。&#x27;);return;}state.flow=key;state.selected=[];state.edge=null;state.connecting=&#x27;&#x27;;state.dirty=!!current().dirty;state.trace=false;editor.querySelector(&#x27;.tw-save-state&#x27;).textContent=state.dirty?&#x27;有未保存修改&#x27;:&#x27;已保存&#x27;;editor.querySelector(&#x27;.tw-flow-select&#x27;).value=key;editor.querySelector(&#x27;.tw-stage-caption&#x27;).textContent=&#x27;工作流 / &#x27;+current().name;editor.querySelector(&#x27;[data-schedule-label]&#x27;).textContent=current().nodes.find(n=&gt;n.kind===&#x27;trigger&#x27;)?.sub||&#x27;手动触发&#x27;;setPanel(&#x27;&#x27;);renderNodes();renderTrace();tell(&#x27;已切换已有工作流；其他流程的草稿和节点位置保留。&#x27;);persist()}
+ function miniature(g){const depths={},visiting=new Set();function depth(id){if(id in depths)return depths[id];if(visiting.has(id))return 0;visiting.add(id);const parents=g.edges.filter(e=&gt;e[1]===id);const d=parents.length?Math.max(...parents.map(e=&gt;depth(e[0])))+1:0;visiting.delete(id);return depths[id]=d;}g.nodes.forEach(n=&gt;depth(n.id));const max=Math.max(1,...Object.values(depths)),points={};g.nodes.forEach(n=&gt;{const siblings=g.nodes.filter(v=&gt;depths[v.id]===depths[n.id]),index=siblings.findIndex(v=&gt;v.id===n.id);points[n.id]={x:10+depths[n.id]/max*80,y:16+(index+.5)/siblings.length*68};});const labels={trigger:&#x27;触发&#x27;,search:&#x27;来源&#x27;,read:&#x27;读取&#x27;,ai:&#x27;AI&#x27;,condition:&#x27;条件&#x27;,document:&#x27;文档&#x27;,base:&#x27;表格&#x27;,message:&#x27;消息&#x27;};return `&lt;div class=&quot;tw-thumbnail&quot; aria-hidden=&quot;true&quot;&gt;&lt;svg class=&quot;tw-mini-lines&quot; viewBox=&quot;0 0 100 100&quot; preserveAspectRatio=&quot;none&quot;&gt;${g.edges.map(([a,b])=&gt;{const x=points[a],y=points[b];return x&amp;&amp;y?`&lt;path d=&quot;M${x.x},${x.y} C${(x.x+y.x)/2},${x.y} ${(x.x+y.x)/2},${y.y} ${y.x},${y.y}&quot;/&gt;`:&#x27;&#x27;}).join(&#x27;&#x27;)}&lt;/svg&gt;${g.nodes.map(n=&gt;`&lt;span class=&quot;tw-mini-node ${[&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind)?&#x27;tw-mini-write&#x27;:&#x27;&#x27;}&quot; style=&quot;left:${points[n.id].x}%;top:${points[n.id].y}%&quot;&gt;${labels[n.kind]||&#x27;能力&#x27;}&lt;/span&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;`}
+ function renderHome(){home.innerHTML=`&lt;div class=&quot;tw-home-toolbar&quot;&gt;&lt;div class=&quot;tw-home-title&quot;&gt;&lt;h3&gt;我的工作流&lt;/h3&gt;&lt;span class=&quot;tw-home-count&quot;&gt;${Object.keys(state.drafts).length} 个&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-home-action=&quot;assistant&quot;&gt;${icon(&#x27;sparkles&#x27;)}伙伴搭建&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-home-action=&quot;templates&quot;&gt;从示例创建&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-primary&quot; data-home-action=&quot;new&quot;&gt;${icon(&#x27;plus&#x27;)}新建工作流&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;tw-home-templates&quot; hidden&gt;&lt;h3&gt;从示例创建新工作流&lt;/h3&gt;&lt;button type=&quot;button&quot; class=&quot;tw-panel-close&quot; data-home-action=&quot;close-templates&quot; aria-label=&quot;关闭示例&quot;&gt;×&lt;/button&gt;&lt;small&gt;选择后生成独立草稿，填写自己的目标再运行。&lt;/small&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-create-template=&quot;news&quot;&gt;技术动向日报&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-create-template=&quot;video&quot;&gt;视频学习笔记&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;tw-card-grid&quot;&gt;${Object.entries(state.drafts).map(([key,g])=&gt;{const scheduled=g.nodes[0]?.name===&#x27;定时触发&#x27;,last=g.lastRun||{label:&#x27;未运行&#x27;,time:&#x27;暂无&#x27;,tone:&#x27;empty&#x27;},trigger=scheduled?g.nodes[0].sub:&#x27;手动触发&#x27;;return `&lt;article class=&quot;tw-flow-card&quot; aria-label=&quot;${esc(g.name)}工作流卡片&quot;&gt;&lt;div class=&quot;tw-card-head&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-card-title&quot; data-open-flow=&quot;${key}&quot; aria-label=&quot;编辑${esc(g.name)}&quot;&gt;${icon(&#x27;workflow&#x27;)}&lt;span&gt;${esc(g.name)}&lt;/span&gt;&lt;/button&gt;${scheduled?`&lt;button type=&quot;button&quot; class=&quot;tw-plan-switch&quot; role=&quot;switch&quot; aria-checked=&quot;${!!g.planEnabled}&quot; data-toggle-plan=&quot;${key}&quot; aria-label=&quot;启用${esc(g.name)}的定时计划&quot;&gt;&lt;/button&gt;`:&#x27;&lt;span class=&quot;tw-manual-label&quot;&gt;手动&lt;/span&gt;&#x27;}&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;tw-card-preview&quot; data-open-flow=&quot;${key}&quot; aria-label=&quot;打开${esc(g.name)}画布&quot;&gt;${miniature(g)}&lt;/button&gt;&lt;div class=&quot;tw-card-details&quot;&gt;&lt;span class=&quot;tw-card-trigger&quot;&gt;${icon(scheduled?&#x27;clock-3&#x27;:&#x27;mouse-pointer-2&#x27;)}${esc(trigger)}&lt;/span&gt;&lt;span&gt;${g.nodes.length} 节点&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-card-recent&quot;&gt;&lt;span class=&quot;tw-card-outcome ${last.tone===&#x27;wait&#x27;?&#x27;tw-card-wait&#x27;:last.tone===&#x27;empty&#x27;?&#x27;tw-card-empty&#x27;:&#x27;&#x27;}&quot;&gt;${esc(last.label)}${g.dirty?&#x27; · 有草稿修改&#x27;:&#x27;&#x27;}&lt;/span&gt;&lt;span&gt;上次运行：${esc(last.time)}${scheduled?&#x27; · &#x27;+(g.planEnabled?&#x27;计划已启用&#x27;:&#x27;计划已暂停&#x27;):&#x27;&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;tw-card-footer&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-flow-history=&quot;${key}&quot;&gt;${icon(&#x27;history&#x27;)}运行记录&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-open-flow=&quot;${key}&quot; aria-label=&quot;进入${esc(g.name)}编排&quot;&gt;打开画布 ${icon(&#x27;arrow-up-right&#x27;)}&lt;/button&gt;&lt;/div&gt;&lt;/article&gt;`}).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;tw-home-note&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;选择一个已有工作流，进入画布查看或编辑。&lt;/div&gt;`;icons();}
+ function showHome(remember=true){state.view=&#x27;home&#x27;;state.focus=false;app.classList.remove(&#x27;tw-focus&#x27;);app.classList.add(&#x27;tw-on-home&#x27;);editor.querySelector(&#x27;[data-focus-label]&#x27;).textContent=&#x27;专注画布&#x27;;editor.hidden=true;home.hidden=false;renderHome();if(remember)persist();}
+ function openEditor(key){state.view=&#x27;editor&#x27;;app.classList.remove(&#x27;tw-on-home&#x27;);home.hidden=true;editor.hidden=false;load(key);requestAnimationFrame(renderNodes);}
+ function createWorkflow(kind){const key=&#x27;copy&#x27;+Date.now();state.drafts[key]=kind===&#x27;blank&#x27;?makeBlank():kind===&#x27;video&#x27;?makeVideo():makeNews();if(kind!==&#x27;blank&#x27;)state.drafts[key].name+=&#x27; · 副本&#x27;;const option=document.createElement(&#x27;option&#x27;);option.value=key;option.textContent=state.drafts[key].name;editor.querySelector(&#x27;.tw-flow-select&#x27;).append(option);palette.hidden=true;openEditor(key);dirty();tell(kind===&#x27;blank&#x27;?&#x27;已打开新的空白工作流。&#x27;:&#x27;已从示例创建独立工作流草稿。&#x27;);}
+ home.addEventListener(&#x27;click&#x27;,event=&gt;{const open=event.target.closest(&#x27;[data-open-flow]&#x27;)?.dataset.openFlow,history=event.target.closest(&#x27;[data-flow-history]&#x27;)?.dataset.flowHistory,toggle=event.target.closest(&#x27;[data-toggle-plan]&#x27;)?.dataset.togglePlan,template=event.target.closest(&#x27;[data-create-template]&#x27;)?.dataset.createTemplate,action=event.target.closest(&#x27;[data-home-action]&#x27;)?.dataset.homeAction;if(open){openEditor(open);return;}if(history){openEditor(history);setPanel(&#x27;history&#x27;);return;}if(toggle){const g=state.drafts[toggle],missing=g.nodes.find(n=&gt;n.missing);if(!g.planEnabled&amp;&amp;missing){openEditor(toggle);state.selected=[missing.id];state.tab=&#x27;配置&#x27;;setPanel(&#x27;node&#x27;);tell(&#x27;请先补齐发布目标，再确认启用定时计划。&#x27;);return;}g.planEnabled=!g.planEnabled;renderHome();home.querySelector(&#x27;.tw-home-note&#x27;).textContent=g.planEnabled?&#x27;定时计划已启用（演示）。&#x27;:&#x27;定时计划已暂停（演示），仍可进入画布手动运行。&#x27;;persist();return;}if(template){createWorkflow(template);return;}if(action===&#x27;new&#x27;)createWorkflow(&#x27;blank&#x27;);else if(action===&#x27;templates&#x27;)home.querySelector(&#x27;.tw-home-templates&#x27;).hidden=false;else if(action===&#x27;close-templates&#x27;)home.querySelector(&#x27;.tw-home-templates&#x27;).hidden=true;else if(action===&#x27;assistant&#x27;){openEditor(state.flow);setPanel(&#x27;assistant&#x27;);}});
+ function paletteOpen(mode=&#x27;nodes&#x27;){palette.hidden=false;palette.innerHTML=`&lt;div class=&quot;tw-panel-heading&quot;&gt;&lt;h3&gt;${mode===&#x27;new&#x27;?&#x27;新建工作流&#x27;:&#x27;添加节点&#x27;}&lt;/h3&gt;&lt;button type=&quot;button&quot; class=&quot;tw-panel-close&quot; data-action=&quot;close-palette&quot; aria-label=&quot;关闭节点库&quot;&gt;×&lt;/button&gt;&lt;/div&gt;`+(mode===&#x27;new&#x27;?`&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-template=&quot;blank&quot;&gt;${icon(&#x27;plus&#x27;)}从空白开始&lt;/button&gt;&lt;span class=&quot;tw-palette-label&quot;&gt;从示例新建&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-template=&quot;news&quot;&gt;技术动向日报&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; data-template=&quot;video&quot;&gt;视频学习笔记&lt;/button&gt;`:`&lt;span class=&quot;tw-palette-label&quot;&gt;点击加入，或拖到画布&lt;/span&gt;${catalog.map(([kind,name,ico])=&gt;`&lt;button type=&quot;button&quot; class=&quot;tw-button&quot; draggable=&quot;true&quot; data-add=&quot;${kind}&quot;&gt;${icon(ico)}${name}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;button type=&quot;button&quot; class=&quot;tw-button tw-ghost&quot; data-action=&quot;capability&quot;&gt;${icon(&#x27;sparkles&#x27;)}新增可复用能力&lt;/button&gt;`);icons()}
+ function addNode(kind,point,name){const entry=catalog.find(v=&gt;v[0]===kind)||catalog[0],id=&#x27;n&#x27;+Date.now().toString(36)+Math.floor(Math.random()*100),r=canvas.getBoundingClientRect();current().nodes.push({id,kind,name:name||entry[1],sub:kind===&#x27;condition&#x27;?&#x27;满足 / 不满足&#x27;:&#x27;待设置&#x27;,x:point?Math.max(.12,Math.min(.88,(point.x-r.left)/r.width)):.5,y:point?Math.max(70,Math.min(450,point.y-r.top)):235,missing:[&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(kind)});state.selected=[id];state.tab=&#x27;配置&#x27;;palette.hidden=true;dirty();renderNodes();setPanel(&#x27;node&#x27;);tell(&#x27;节点已加入。拖动圆点连接，或先点输出再点输入。&#x27;);persist()}
+ function connect(from,to){state.connecting=&#x27;&#x27;;hoverPoint=null;if(from===to){tell(&#x27;不能连接节点自身。&#x27;);draw();return;}const seen=new Set();function reaches(id){if(id===from)return true;if(seen.has(id))return false;seen.add(id);return current().edges.filter(e=&gt;e[0]===id).some(e=&gt;reaches(e[1]))}if(reaches(to)){tell(&#x27;这条连接会形成循环，未添加。&#x27;);draw();return;}if(current().edges.some(e=&gt;e[0]===from&amp;&amp;e[1]===to)){tell(&#x27;这条连接已存在。&#x27;);draw();return;}current().edges.push([from,to]);dirty();renderNodes();tell(&#x27;连接已建立。点击线条可以查看或删除。&#x27;);persist()}
+ function focus(){state.focus=!state.focus;app.classList.toggle(&#x27;tw-focus&#x27;,state.focus);editor.querySelector(&#x27;[data-focus-label]&#x27;).textContent=state.focus?&#x27;退出专注&#x27;:&#x27;专注画布&#x27;;setPanel(&#x27;&#x27;);palette.hidden=true;tell(state.focus?&#x27;专注模式：全局导航已收起，Esc 返回，当前草稿保留。&#x27;:&#x27;已回到工作台，草稿和画布位置保留。&#x27;);requestAnimationFrame(renderNodes);persist()}
+ function simulate(){if(state.running){clearTimeout(timer);state.running=false;layer.querySelectorAll(&#x27;.tw-running&#x27;).forEach(el=&gt;el.classList.remove(&#x27;tw-running&#x27;));tell(&#x27;试运行演示已停止；未调用模型或外部服务。&#x27;);editor.querySelector(&#x27;[data-action=run]&#x27;).innerHTML=icon(&#x27;play&#x27;)+&#x27;试运行&#x27;;icons();return;}state.running=true;state.trace=true;state.runStep=0;setPanel(&#x27;&#x27;);renderTrace();editor.querySelector(&#x27;[data-action=run]&#x27;).innerHTML=icon(&#x27;square&#x27;)+&#x27;停止&#x27;;const list=current().nodes.filter(n=&gt;![&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind));function step(){if(!state.running)return;layer.querySelectorAll(&#x27;.tw-running&#x27;).forEach(el=&gt;el.classList.remove(&#x27;tw-running&#x27;));if(state.runStep&lt;list.length){const n=list[state.runStep++];layer.querySelector(`[data-id=&quot;${n.id}&quot;]`)?.classList.add(&#x27;tw-running&#x27;);tell(&#x27;演示中：&#x27;+n.name);timer=setTimeout(step,650);}else{state.running=false;editor.querySelector(&#x27;[data-action=run]&#x27;).innerHTML=icon(&#x27;play&#x27;)+&#x27;试运行&#x27;;icons();tell(&#x27;演示暂停在发布前：请检查目标与正文。没有实际写入。&#x27;);renderTrace();}}step()}
+ editor.addEventListener(&#x27;click&#x27;,event=&gt;{
+   if(event.detail===0){const port=event.target.closest(&#x27;[data-port]&#x27;),id=event.target.closest(&#x27;[data-node-select]&#x27;)?.dataset.nodeSelect;if(port){const n=port.closest(&#x27;.tw-node&#x27;).dataset.id;if(port.dataset.port===&#x27;out&#x27;){state.connecting=n;tell(&#x27;已选择输出，请点击目标输入圆点。&#x27;)}else if(state.connecting)connect(state.connecting,n);return;}if(id){state.selected=[id];state.tab=&#x27;配置&#x27;;setPanel(&#x27;node&#x27;);renderNodes();return;}}
+   const action=event.target.closest(&#x27;[data-action]&#x27;)?.dataset.action,add=event.target.closest(&#x27;[data-add]&#x27;)?.dataset.add,template=event.target.closest(&#x27;[data-template]&#x27;)?.dataset.template,tab=event.target.closest(&#x27;[data-tab]&#x27;)?.dataset.tab;
+   if(add){addNode(add);return;}if(template){createWorkflow(template);return;}
+   if(tab){state.tab=tab;renderPanel();return;}
+   if(!action)return;
+   if(action===&#x27;home&#x27;)showHome();
+   else if(action===&#x27;palette&#x27;)palette.hidden?paletteOpen():palette.hidden=true;
+   else if(action===&#x27;new&#x27;)paletteOpen(&#x27;new&#x27;);
+   else if(action===&#x27;close-palette&#x27;)palette.hidden=true;
+   else if(action===&#x27;close-panel&#x27;)setPanel(&#x27;&#x27;);
+   else if(action===&#x27;assistant&#x27;)setPanel(&#x27;assistant&#x27;);
+   else if(action===&#x27;capability&#x27;)setPanel(&#x27;capability&#x27;);
+   else if(action===&#x27;schedule&#x27;)setPanel(&#x27;schedule&#x27;);
+   else if(action===&#x27;history&#x27;)setPanel(&#x27;history&#x27;);
+   else if(action===&#x27;focus&#x27;)focus();
+   else if(action===&#x27;save&#x27;){state.dirty=false;current().dirty=false;editor.querySelector(&#x27;.tw-save-state&#x27;).textContent=&#x27;已保存（演示）&#x27;;tell(&#x27;当前草稿已在预览中保留，尚未修改客户端。&#x27;);persist();}
+   else if(action===&#x27;guides&#x27;){state.guides=!state.guides;editor.querySelector(&#x27;[data-action=guides]&#x27;).setAttribute(&#x27;aria-pressed&#x27;,String(state.guides));tell(state.guides?&#x27;对齐参考线与吸附已开启。&#x27;:&#x27;对齐辅助已关闭。&#x27;);}
+   else if(action===&#x27;horizontal&#x27;||action===&#x27;vertical&#x27;){const picked=current().nodes.filter(n=&gt;state.selected.includes(n.id));if(picked.length&lt;2){tell(&#x27;按住 Shift 点击两个或更多节点，再选择水平或竖直对齐。&#x27;);return;}if(action===&#x27;horizontal&#x27;){const y=picked.reduce((v,n)=&gt;v+n.y,0)/picked.length;picked.forEach(n=&gt;n.y=y);}else{const x=picked.reduce((v,n)=&gt;v+n.x,0)/picked.length;picked.forEach(n=&gt;n.x=x);}dirty();renderNodes();tell(&#x27;所选节点已&#x27;+(action===&#x27;horizontal&#x27;?&#x27;水平&#x27;:&#x27;竖直&#x27;)+&#x27;对齐。&#x27;);}
+   else if(action===&#x27;fit&#x27;){const original=state.flow===&#x27;video&#x27;?makeVideo():makeNews();current().nodes.forEach((n,i)=&gt;{const origin=original.nodes.find(v=&gt;v.id===n.id);if(origin){n.x=origin.x;n.y=origin.y;}else{n.x=.5;n.y=Math.min(452,90+i*90)}});renderNodes();dirty();tell(&#x27;节点已整理回可见区域。&#x27;);}
+   else if(action===&#x27;debug&#x27;){state.trace=!state.trace;renderTrace();persist();}
+   else if(action===&#x27;hide-debug&#x27;){state.trace=false;renderTrace();}
+   else if(action===&#x27;inspect-targets&#x27;){const n=current().nodes.find(n=&gt;[&#x27;document&#x27;,&#x27;base&#x27;,&#x27;message&#x27;].includes(n.kind));if(n){state.selected=[n.id];state.tab=&#x27;配置&#x27;;renderNodes();setPanel(&#x27;node&#x27;);}}
+   else if(action===&#x27;apply-schedule&#x27;){const kind=panel.querySelector(&#x27;[data-schedule-kind]&#x27;).value,time=panel.querySelector(&#x27;[data-schedule-time]&#x27;).value;const n=current().nodes.find(n=&gt;n.kind===&#x27;trigger&#x27;);n.name=kind===&#x27;手动&#x27;?&#x27;手动触发&#x27;:&#x27;定时触发&#x27;;n.sub=kind===&#x27;手动&#x27;?&#x27;输入文字后触发&#x27;:`${kind} ${time}`;editor.querySelector(&#x27;[data-schedule-label]&#x27;).textContent=n.sub;dirty();renderNodes();tell(&#x27;触发计划已更新到演示草稿。&#x27;);setPanel(&#x27;&#x27;);}
+   else if(action===&#x27;apply-node&#x27;){const n=selectedNode();if(n){const name=panel.querySelector(&#x27;[data-node-name]&#x27;),prompt=panel.querySelector(&#x27;[data-node-prompt]&#x27;),target=panel.querySelector(&#x27;[data-node-target]&#x27;);if(name)n.name=name.value||n.name;if(prompt)n.prompt=prompt.value;if(target){n.target=target.value;n.missing=!n.target.trim();n.sub=n.missing?&#x27;待选择发布目标&#x27;:n.target+&#x27; · 发布前确认&#x27;;}dirty();renderNodes();tell(&#x27;节点配置已保留在当前草稿。&#x27;);}setPanel(&#x27;&#x27;);}
+   else if(action===&#x27;ai-build&#x27;){const prompt=panel.querySelector(&#x27;[data-ai-prompt]&#x27;).value;const key=&#x27;ai&#x27;+Date.now();state.drafts[key]=prompt.includes(&#x27;视频&#x27;)?makeVideo():makeNews();state.drafts[key].name+=&#x27; · 伙伴草稿&#x27;;const opt=document.createElement(&#x27;option&#x27;);opt.value=key;opt.textContent=state.drafts[key].name;editor.querySelector(&#x27;.tw-flow-select&#x27;).append(opt);load(key);dirty();tell(&#x27;演示草稿已放入画布，待检查发布目标；没有调用模型或执行流程。&#x27;);}
+   else if(action===&#x27;add-capability&#x27;){const name=panel.querySelector(&#x27;[data-capability-name]&#x27;).value;addNode(&#x27;read&#x27;,null,name||&#x27;官方文档读取&#x27;);tell(&#x27;已在演示画布加入可复用能力；正式保存入口将在设计确认后实现。&#x27;);}
+   else if(action===&#x27;delete-edge&#x27;&amp;&amp;state.edge!==null){current().edges.splice(state.edge,1);state.edge=null;dirty();setPanel(&#x27;&#x27;);renderNodes();tell(&#x27;连接已删除，节点和配置仍保留。&#x27;);}
+   else if(action===&#x27;run&#x27;)simulate();
+ });
+ editor.querySelector(&#x27;.tw-flow-select&#x27;).addEventListener(&#x27;change&#x27;,event=&gt;load(event.target.value));
+ panel.addEventListener(&#x27;input&#x27;,event=&gt;{const n=selectedNode();if(!n||state.pane!==&#x27;node&#x27;)return;if(event.target.matches(&#x27;[data-node-name]&#x27;))n.name=event.target.value;if(event.target.matches(&#x27;[data-node-prompt]&#x27;))n.prompt=event.target.value;if(event.target.matches(&#x27;[data-node-target]&#x27;)){n.target=event.target.value;n.missing=!n.target.trim();n.sub=n.missing?&#x27;待选择发布目标&#x27;:n.target+&#x27; · 发布前确认&#x27;;}dirty();renderNodes();});
+ canvas.addEventListener(&#x27;dragover&#x27;,event=&gt;event.preventDefault());
+ editor.addEventListener(&#x27;dragstart&#x27;,event=&gt;{const item=event.target.closest(&#x27;[data-add]&#x27;);if(item)event.dataTransfer.setData(&#x27;text/plain&#x27;,item.dataset.add)});
+ canvas.addEventListener(&#x27;drop&#x27;,event=&gt;{event.preventDefault();const kind=event.dataTransfer.getData(&#x27;text/plain&#x27;);if(catalog.some(c=&gt;c[0]===kind))addNode(kind,{x:event.clientX,y:event.clientY})});
+ canvas.addEventListener(&#x27;pointerdown&#x27;,event=&gt;{
+   const el=event.target.closest(&#x27;.tw-node&#x27;),port=event.target.closest(&#x27;[data-port]&#x27;);
+   if(port){event.stopPropagation();if(port.dataset.port===&#x27;out&#x27;){state.connecting=el.dataset.id;hoverPoint=null;gesture={type:&#x27;connect&#x27;,startX:event.clientX,startY:event.clientY};canvas.setPointerCapture(event.pointerId);tell(&#x27;把连线拖到另一个节点的上方圆点，也可以点选输入圆点。&#x27;);}else if(state.connecting)connect(state.connecting,el.dataset.id);return;}
+   const edge=event.target.closest(&#x27;[data-edge]&#x27;);if(edge){state.edge=Number(edge.dataset.edge);state.selected=[];setPanel(&#x27;edge&#x27;);renderNodes();return;}
+   if(!el){if(event.target===canvas||event.target===svg){state.selected=[];state.connecting=&#x27;&#x27;;hoverPoint=null;draw();setPanel(&#x27;&#x27;);renderNodes();}return;}
+   if(event.button!==0)return;const id=el.dataset.id,n=current().nodes.find(v=&gt;v.id===id);
+   if(event.shiftKey){state.selected=state.selected.includes(id)?state.selected.filter(v=&gt;v!==id):[...state.selected,id];renderNodes();tell(`已选 ${state.selected.length} 个节点，可使用底部对齐工具。`);return;}
+   if(!state.selected.includes(id))state.selected=[id];
+   gesture={type:&#x27;move&#x27;,id,element:el,startX:event.clientX,startY:event.clientY,left:parseFloat(el.style.left),top:parseFloat(el.style.top),moved:false};canvas.setPointerCapture(event.pointerId);
+ });
+ canvas.addEventListener(&#x27;pointermove&#x27;,event=&gt;{
+   const r=canvas.getBoundingClientRect();
+   if(state.connecting){hoverPoint={x:event.clientX-r.left,y:event.clientY-r.top};draw();}
+   if(gesture?.type!==&#x27;move&#x27;)return;
+   const dx=event.clientX-gesture.startX,dy=event.clientY-gesture.startY;if(Math.abs(dx)+Math.abs(dy)&lt;4)return;gesture.moved=true;
+   const el=gesture.element;el.classList.add(&#x27;tw-dragging&#x27;);const w=el.offsetWidth,h=el.offsetHeight;let left=Math.max(10,Math.min(canvas.clientWidth-w-10,gesture.left+dx)),top=Math.max(34,Math.min(canvas.clientHeight-h-64,gesture.top+dy)),guides=[];
+   if(state.guides)current().nodes.filter(v=&gt;v.id!==gesture.id).forEach(n=&gt;{const b=box(n.id);if(!b)return;if(Math.abs(left+w/2-b.x)&lt;8){left=b.x-w/2;guides.push({axis:&#x27;x&#x27;,at:b.x})}if(Math.abs(top+h/2-(b.y+b.h/2))&lt;8){top=b.y+b.h/2-h/2;guides.push({axis:&#x27;y&#x27;,at:b.y+b.h/2})}});
+   el.style.left=left+&#x27;px&#x27;;el.style.top=top+&#x27;px&#x27;;const n=current().nodes.find(v=&gt;v.id===gesture.id);n.x=(left+w/2)/canvas.clientWidth;n.y=top+40;draw(guides);
+ });
+ canvas.addEventListener(&#x27;pointerup&#x27;,event=&gt;{
+   if(gesture?.type===&#x27;connect&#x27;){const end=document.elementFromPoint(event.clientX,event.clientY)?.closest(&#x27;[data-port=in]&#x27;);if(end)connect(state.connecting,end.closest(&#x27;.tw-node&#x27;).dataset.id);gesture=null;return;}
+   if(gesture?.type===&#x27;move&#x27;){const moved=gesture.moved;gesture.element.classList.remove(&#x27;tw-dragging&#x27;);gesture=null;if(moved){dirty();renderNodes();tell(&#x27;节点位置已更新；参考线只在拖动时出现。&#x27;);}else{state.tab=&#x27;配置&#x27;;setPanel(&#x27;node&#x27;);renderNodes();}persist();}
+ });
+ canvas.addEventListener(&#x27;pointercancel&#x27;,()=&gt;{gesture=null;draw()});
+ app.addEventListener(&#x27;keydown&#x27;,event=&gt;{if(event.key===&#x27;Escape&#x27;){state.connecting=&#x27;&#x27;;hoverPoint=null;palette.hidden=true;if(state.focus)focus();else setPanel(&#x27;&#x27;);draw();}});
+ let lastWidth=-1;new ResizeObserver(()=&gt;{const w=canvas.clientWidth;if(w&amp;&amp;Math.abs(w-lastWidth)&gt;1){lastWidth=w;requestAnimationFrame(renderNodes)}}).observe(canvas);
+ renderNodes();renderPanel();renderTrace();
+ function restore(saved){const v=saved?.modelContent||saved;if(v?.design!==&#x27;自动化界面&#x27;||v.layout!==(studio?&#x27;独立编排页&#x27;:&#x27;画布工作台&#x27;))return;let changed=false;if([&#x27;news&#x27;,&#x27;video&#x27;].includes(v.workflow)&amp;&amp;v.workflow!==state.flow){state.flow=v.workflow;state.selected=[];state.pane=&#x27;&#x27;;editor.querySelector(&#x27;.tw-flow-select&#x27;).value=state.flow;editor.querySelector(&#x27;.tw-stage-caption&#x27;).textContent=&#x27;工作流 / &#x27;+current().name;changed=true;}if(typeof v.focus===&#x27;boolean&#x27;&amp;&amp;v.focus!==state.focus){state.focus=v.focus;app.classList.toggle(&#x27;tw-focus&#x27;,state.focus);editor.querySelector(&#x27;[data-focus-label]&#x27;).textContent=state.focus?&#x27;退出专注&#x27;:&#x27;专注画布&#x27;;changed=true;}if(changed){panel.hidden=!state.pane;body.classList.toggle(&#x27;tw-with-panel&#x27;,!!state.pane);renderNodes();renderPanel();}}
+ showHome(false);window.addEventListener(&#x27;openai:set_globals&#x27;,event=&gt;{const saved=event.detail?.globals?.widgetState,v=saved?.modelContent||saved;if(v?.design===&#x27;自动化界面&#x27;&amp;&amp;v.layout===&#x27;卡片首页与画布&#x27;&amp;&amp;v.view===&#x27;editor&#x27;&amp;&amp;state.drafts[v.workflow]&amp;&amp;state.view===&#x27;editor&#x27;)restore(saved);});
+ if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:()=&gt;{app.style.setProperty(&#x27;--tw-radius&#x27;,state.radius+&#x27;px&#x27;);app.style.colorScheme=state.theme;requestAnimationFrame(draw)}});tweak.addSlider(state,&#x27;radius&#x27;,{label:&#x27;节点圆角&#x27;,min:6,max:20,unit:&#x27;px&#x27;});tweak.addSelect(state,&#x27;theme&#x27;,{label:&#x27;界面外观&#x27;,options:[{label:&#x27;跟随界面&#x27;,value:&#x27;inherit&#x27;},{label:&#x27;浅色玻璃&#x27;,value:&#x27;light&#x27;},{label:&#x27;深色玻璃&#x27;,value:&#x27;dark&#x27;}]});}
+});icons();
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) =&gt; {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest(&quot;[data-tooltip]&quot;);
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) =&gt; {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) =&gt; {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll(&quot;*&quot;)) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) =&gt; {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) =&gt; {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host &amp;&amp; !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger &amp;&amp; !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () =&gt; {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-carousel&quot;&gt;
+  (() =&gt; {
+    for (const root of document.querySelectorAll(&quot;.viz-carousel&quot;)) {
+      const panels = Array.from(
+        root.querySelectorAll(&quot;:scope &gt; [data-variant]&quot;),
+      );
+      if (panels.length === 0) {
+        continue;
+      }
+      root.setAttribute(&quot;role&quot;, &quot;group&quot;);
+      panels.forEach((panel, index) =&gt; {
+        panel.hidden = index !== 0;
+        panel.setAttribute(&quot;role&quot;, &quot;group&quot;);
+        if (!panel.hasAttribute(&quot;aria-label&quot;)) {
+          panel.setAttribute(&quot;aria-label&quot;, panel.dataset.variant);
+        }
+      });
+      root.dataset.activeVariant = panels[0].dataset.variant;
+      if (panels.length === 1) {
+        continue;
+      }
+
+      const controls = document.createElement(&quot;div&quot;);
+      controls.className = &quot;viz-carousel-controls&quot;;
+      // Portable copy of the settings dropdown&#x27;s legacy glyph; no 14px icon-package preset matches it.
+      // https://github.com/openai/openai/blob/master/codex/codex-apps/webview/src/icons/chevron.svg
+      controls.innerHTML = `
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-previous cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;details class=&quot;viz-carousel-picker&quot;&gt;
+        &lt;summary class=&quot;cursor-interaction&quot;&gt;
+          &lt;span class=&quot;viz-carousel-count tabular-nums&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;viz-carousel-name&quot;&gt;&lt;/span&gt;
+          &lt;svg class=&quot;viz-carousel-caret&quot; width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 20 21&quot; fill=&quot;none&quot; aria-hidden=&quot;true&quot; focusable=&quot;false&quot;&gt;
+            &lt;path d=&quot;M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z&quot; fill=&quot;currentColor&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;0.6&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/summary&gt;
+        &lt;div class=&quot;viz-carousel-options&quot;&gt;&lt;/div&gt;
+      &lt;/details&gt;
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-next cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;`;
+      const previous = controls.querySelector(&quot;.viz-carousel-previous&quot;);
+      const next = controls.querySelector(&quot;.viz-carousel-next&quot;);
+      const picker = controls.querySelector(&quot;.viz-carousel-picker&quot;);
+      const summary = picker.querySelector(&quot;summary&quot;);
+      const count = controls.querySelector(&quot;.viz-carousel-count&quot;);
+      const name = controls.querySelector(&quot;.viz-carousel-name&quot;);
+      const options = controls.querySelector(&quot;.viz-carousel-options&quot;);
+      const status = document.createElement(&quot;span&quot;);
+      status.className = &quot;sr-only&quot;;
+      status.setAttribute(&quot;role&quot;, &quot;status&quot;);
+      status.setAttribute(&quot;aria-live&quot;, &quot;polite&quot;);
+      status.setAttribute(&quot;aria-atomic&quot;, &quot;true&quot;);
+      previous.setAttribute(
+        &quot;aria-label&quot;,
+        root.dataset.previousLabel ?? &quot;Previous variant&quot;,
+      );
+      next.setAttribute(&quot;aria-label&quot;, root.dataset.nextLabel ?? &quot;Next variant&quot;);
+
+      let active = 0;
+      let mousePointerId = null;
+      let summaryPointerHandled = false;
+      summary.addEventListener(&quot;pointerdown&quot;, (event) =&gt; {
+        summaryPointerHandled =
+          event.pointerType === &quot;mouse&quot; &amp;&amp; event.button === 0 &amp;&amp; !event.ctrlKey;
+        if (!summaryPointerHandled) {
+          return;
+        }
+        event.preventDefault();
+        summary.focus({ preventScroll: true });
+        picker.open = !picker.open;
+        mousePointerId = picker.open ? event.pointerId : null;
+      });
+      summary.addEventListener(&quot;click&quot;, (event) =&gt; {
+        if (summaryPointerHandled &amp;&amp; event.detail &gt; 0) {
+          event.preventDefault();
+        }
+      });
+      const choices = panels.map((panel, index) =&gt; {
+        const choice = document.createElement(&quot;button&quot;);
+        choice.type = &quot;button&quot;;
+        choice.className = &quot;cursor-interaction&quot;;
+        choice.textContent = panel.dataset.variant;
+        choice.addEventListener(&quot;click&quot;, () =&gt; {
+          select(index);
+          summary.focus();
+        });
+        choice.addEventListener(&quot;pointerup&quot;, (event) =&gt; {
+          if (
+            picker.open &amp;&amp;
+            event.pointerType === &quot;mouse&quot; &amp;&amp;
+            event.button === 0 &amp;&amp;
+            event.pointerId === mousePointerId
+          ) {
+            choice.click();
+          }
+        });
+        options.appendChild(choice);
+        return choice;
+      });
+      const select = (index) =&gt; {
+        const changed = active !== index;
+        active = index;
+        panels.forEach((panel, position) =&gt; {
+          panel.hidden = position !== active;
+          choices[position].setAttribute(
+            &quot;aria-current&quot;,
+            String(position === active),
+          );
+        });
+        root.dataset.activeVariant = panels[active].dataset.variant;
+        count.textContent = `${active + 1} / ${panels.length}`;
+        name.textContent = panels[active].dataset.variant;
+        picker.open = false;
+        mousePointerId = null;
+        if (changed) {
+          status.textContent = `${count.textContent}: ${name.textContent}`;
+        }
+      };
+      previous.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + panels.length - 1) % panels.length),
+      );
+      next.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + 1) % panels.length),
+      );
+      picker.addEventListener(&quot;keydown&quot;, (event) =&gt; {
+        if (event.key === &quot;Escape&quot; &amp;&amp; picker.open) {
+          event.preventDefault();
+          picker.open = false;
+          mousePointerId = null;
+          summary.focus();
+          return;
+        }
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+        const index = choices.indexOf(document.activeElement);
+        let nextIndex;
+        if (event.key === &quot;ArrowDown&quot;) {
+          nextIndex = index &lt; 0 ? active : (index + 1) % choices.length;
+        } else if (event.key === &quot;ArrowUp&quot;) {
+          nextIndex = index &lt; 0 ? active : (index + choices.length - 1) % choices.length;
+        } else if (picker.open &amp;&amp; event.key === &quot;Home&quot;) {
+          nextIndex = 0;
+        } else if (picker.open &amp;&amp; event.key === &quot;End&quot;) {
+          nextIndex = choices.length - 1;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        picker.open = true;
+        choices[nextIndex].focus();
+      });
+      picker.addEventListener(&quot;focusout&quot;, (event) =&gt; {
+        if (!picker.contains(event.relatedTarget)) {
+          picker.open = false;
+          mousePointerId = null;
+        }
+      });
+      const dismiss = (event) =&gt; {
+        if (!summary.contains(event.target)) {
+          mousePointerId = null;
+        }
+        if (!picker.contains(event.target)) {
+          picker.open = false;
+        }
+      };
+      const endPointerSelection = () =&gt; {
+        mousePointerId = null;
+      };
+      const sizePicker = () =&gt; {
+        root.style.setProperty(
+          &quot;--viz-carousel-picker-height&quot;,
+          `${picker.open ? options.offsetHeight : 0}px`,
+        );
+      };
+      picker.addEventListener(&quot;toggle&quot;, sizePicker);
+      window.addEventListener(&quot;resize&quot;, sizePicker);
+      document.addEventListener(&quot;pointerdown&quot;, dismiss);
+      document.addEventListener(&quot;pointerup&quot;, endPointerSelection);
+      document.addEventListener(&quot;pointercancel&quot;, endPointerSelection);
+      window.addEventListener(&quot;blur&quot;, endPointerSelection);
+      window.addEventListener(
+        &quot;pagehide&quot;,
+        () =&gt; {
+          document.removeEventListener(&quot;pointerdown&quot;, dismiss);
+          document.removeEventListener(&quot;pointerup&quot;, endPointerSelection);
+          document.removeEventListener(&quot;pointercancel&quot;, endPointerSelection);
+          window.removeEventListener(&quot;blur&quot;, endPointerSelection);
+          window.removeEventListener(&quot;resize&quot;, sizePicker);
+        },
+        { once: true },
+      );
+      root.append(controls, status);
+      select(0);
+    }
+  })();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  const isShare = document.documentElement.classList.contains(
+    "visualization-share-root",
+  );
+  let viewportHeight = globalThis.innerHeight;
+  let sizeFingerprint = null;
+  let sizeWriteTimeout;
+  let lastSize = null;
+  let pendingSize = null;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const sizeStorageKey = `${storageKey}:share-size-v1`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const persistSize = () => {
+    globalThis.clearTimeout(sizeWriteTimeout);
+    if (pendingSize == null) {
+      return;
+    }
+    try {
+      storage?.setItem(sizeStorageKey, pendingSize);
+    } catch {
+      // A denied or full cache must not affect the visualization.
+    }
+    pendingSize = null;
+  };
+  if (isShare) {
+    globalThis.addEventListener("pagehide", persistSize);
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height !== "number" ||
+        !Number.isFinite(height) ||
+        height < 0
+      ) {
+        return;
+      }
+      if (height <= 10_000) {
+        const width = isShare && storage != null ? frame.clientWidth : null;
+        frame.style.height = Math.ceil(height) + "px";
+        if (isShare && storage != null) {
+          const size = JSON.stringify({
+            fingerprint: sizeFingerprint,
+            width,
+            viewportHeight: globalThis.innerHeight,
+            dark: globalThis.matchMedia("(prefers-color-scheme: dark)").matches,
+            scale: globalThis.devicePixelRatio,
+            height: Math.ceil(height),
+          });
+          if (size !== lastSize) {
+            lastSize = size;
+            pendingSize = size;
+            globalThis.clearTimeout(sizeWriteTimeout);
+            sizeWriteTimeout = globalThis.setTimeout(persistSize, 100);
+          }
+        }
+      }
+      if (isShare) {
+        // Keep unusually tall content accessible without accepting an unbounded height.
+        if (height > 10_000 && Number.parseFloat(frame.style.height) === 0) {
+          frame.style.removeProperty("height");
+        }
+        frame.scrolling = height > 10_000 ? "auto" : "no";
+        document.documentElement.classList.add("visualization-share-ready");
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!isShare && (!Number.isFinite(height) || height <= viewportHeight)) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  const frameHtml = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  if (isShare && storage != null) {
+    // Fingerprint the rendered document, including restored widget state, without
+    // storing its content. This is a layout cache, not a security identity.
+    let hash = 5381;
+    for (let index = 0; index < frameHtml.length; index += 1) {
+      hash = (hash * 33 + frameHtml.charCodeAt(index)) % 4_294_967_296;
+    }
+    sizeFingerprint = hash.toString(36);
+    try {
+      const size = JSON.parse(storage.getItem(sizeStorageKey) ?? "null");
+      if (
+        size?.fingerprint === sizeFingerprint &&
+        size.width === frame.clientWidth &&
+        size.viewportHeight === globalThis.innerHeight &&
+        size.dark ===
+          globalThis.matchMedia("(prefers-color-scheme: dark)").matches &&
+        size.scale === globalThis.devicePixelRatio &&
+        typeof size.height === "number" &&
+        Number.isFinite(size.height) &&
+        size.height >= 0 &&
+        size.height <= 10_000
+      ) {
+        frame.style.height = size.height + "px";
+      }
+    } catch {
+      // Ignore missing or invalid cache entries and measure the live frame.
+    }
+  }
+  frame.srcdoc = frameHtml;
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>

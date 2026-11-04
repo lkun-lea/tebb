@@ -1,0 +1,343 @@
+<div id="tebb-automation-review">
+  <div aria-label="自动化界面设计">
+    <section aria-label="卡片首页与画布工作台">
+      <div class="tw-shell" data-layout="workspace" aria-label="画布工作台">
+        <aside class="tw-nav">
+          <div class="tw-brand"><i data-lucide="circle-dot" aria-hidden="true"></i><strong>tebb</strong></div>
+          <span class="tw-nav-caption">工作台</span>
+          <span class="tw-nav-item"><i data-lucide="messages-square" aria-hidden="true"></i><span>AI 伙伴</span></span>
+          <span class="tw-nav-item"><i data-lucide="panels-top-left" aria-hidden="true"></i><span>事项看板</span></span>
+          <span class="tw-nav-item"><i data-lucide="calendar-days" aria-hidden="true"></i><span>日程</span></span>
+          <span class="tw-nav-item tw-nav-active"><i data-lucide="workflow" aria-hidden="true"></i><span>自动化</span></span>
+          <span class="tw-nav-caption">资源</span>
+          <span class="tw-nav-item"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>笔记</span></span>
+          <span class="tw-nav-item"><i data-lucide="library" aria-hidden="true"></i><span>知识库</span></span>
+          <div class="tw-nav-bottom"><i data-lucide="settings-2" aria-hidden="true"></i><span>设置</span><span class="tw-online-dot"></span></div>
+        </aside>
+        <main class="tw-main">
+          <header class="tw-heading"><div><span class="tw-eyebrow">WORKSPACE / AUTOMATION</span><h2>自动化</h2></div><span class="tw-preview-tag">设计预览 · 示例数据</span></header>
+          <div class="tw-editor"></div>
+        </main>
+      </div>
+    </section>
+  </div>
+</div>
+<style>
+#tebb-automation-review{width:100%;color-scheme:inherit}
+#tebb-automation-review *{box-sizing:border-box}
+#tebb-automation-review [hidden]{display:none!important}
+#tebb-automation-review .tw-shell{--tw-bg:light-dark(#dfe2ec,#1b1e29);--tw-surface:light-dark(#f7f8fc,#262a38);--tw-soft:light-dark(#eef0f6,#212532);--tw-card:light-dark(#fff,#303546);--tw-ink:light-dark(#252937,#e9eaf4);--tw-sub:light-dark(#626a7c,#b5bdd0);--tw-line:light-dark(#d8dce8,#434a60);--tw-accent:#7b7fb2;--tw-accent-ink:light-dark(#65699d,#c4c8ff);--tw-tint:light-dark(#e8e9f5,#3b3e59);--tw-green:light-dark(#387765,#8fc7b4);--tw-amber:light-dark(#91631f,#efc47c);--tw-shadow:light-dark(#59627d20,#00000035);--tw-radius:13px;--tw-gap:22px;container-type:inline-size;container-name:tw-shell;position:relative;display:grid;grid-template-columns:132px minmax(0,1fr);min-height:794px;overflow:clip;border:1px solid var(--tw-line);border-radius:18px;background:linear-gradient(145deg,var(--tw-bg),var(--tw-soft));color:var(--tw-ink);font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;font-size:13px;line-height:1.5}
+#tebb-automation-review .tw-shell[data-layout=studio],#tebb-automation-review .tw-shell.tw-focus{grid-template-columns:minmax(0,1fr)}
+#tebb-automation-review .tw-shell.tw-focus .tw-nav{display:none}
+#tebb-automation-review button,#tebb-automation-review input,#tebb-automation-review textarea,#tebb-automation-review select{font:inherit;color:inherit}
+#tebb-automation-review button{cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review button:disabled{opacity:.5;cursor:default}
+#tebb-automation-review button{border:0;background:none}
+#tebb-automation-review h2,#tebb-automation-review h3,#tebb-automation-review p{margin:0}
+#tebb-automation-review h2{font-size:20px;font-weight:600;letter-spacing:-.6px}
+#tebb-automation-review h3{font-size:14px;font-weight:600}
+#tebb-automation-review .tw-nav{padding:22px 10px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--tw-line);background:color-mix(in srgb,var(--tw-surface) 80%,transparent);backdrop-filter:blur(20px)}
+#tebb-automation-review .tw-brand{display:flex;align-items:center;gap:7px;padding:0 10px 28px;color:var(--tw-accent-ink);font-size:23px;letter-spacing:-1px}
+#tebb-automation-review .tw-brand svg{width:24px;height:24px}
+#tebb-automation-review .tw-nav-caption{font-size:11px;color:var(--tw-sub);padding:14px 12px 7px;letter-spacing:1px}
+#tebb-automation-review .tw-nav-item{display:flex;align-items:center;gap:10px;border-radius:9px;padding:10px 12px;white-space:nowrap;color:var(--tw-sub)}
+#tebb-automation-review .tw-nav-item svg,#tebb-automation-review .tw-nav-bottom svg{width:16px;height:16px;flex:none}
+#tebb-automation-review .tw-nav-active{color:var(--tw-accent-ink);background:var(--tw-card);box-shadow:0 2px 6px var(--tw-shadow);font-weight:600}
+#tebb-automation-review .tw-nav-bottom{display:flex;align-items:center;gap:8px;padding:12px;margin-top:auto;color:var(--tw-sub)}
+#tebb-automation-review .tw-online-dot{width:6px;height:6px;border-radius:50%;background:var(--tw-green);margin-left:auto}
+#tebb-automation-review .tw-shell.tw-on-home{min-height:700px}
+#tebb-automation-review .tw-home{padding:20px;min-width:0;flex:1;border:1px solid var(--tw-line);border-radius:14px;background:color-mix(in srgb,var(--tw-surface) 70%,transparent)}
+#tebb-automation-review .tw-home-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+#tebb-automation-review .tw-home-title{display:flex;align-items:center;gap:9px}
+#tebb-automation-review .tw-home-count{font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(224px,100%),1fr));gap:15px;align-items:start}
+#tebb-automation-review .tw-flow-card{min-width:0;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:15px;box-shadow:0 3px 10px var(--tw-shadow);overflow:clip}
+#tebb-automation-review .tw-card-head{display:flex;align-items:center;gap:8px;padding:15px 15px 10px;min-width:0}
+#tebb-automation-review .tw-card-title{display:flex;align-items:center;gap:8px;flex:1;min-width:0;text-align:left;padding:0;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+#tebb-automation-review .tw-card-title svg{width:16px;height:16px;color:var(--tw-accent-ink);flex:none}
+#tebb-automation-review .tw-plan-switch{position:relative;width:29px;height:17px;border-radius:20px;border:1px solid var(--tw-line);background:var(--tw-soft);padding:0;flex:none}
+#tebb-automation-review .tw-plan-switch:after{content:"";position:absolute;left:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--tw-sub)}
+#tebb-automation-review .tw-plan-switch[aria-checked=true]{background:var(--tw-accent);border-color:var(--tw-accent)}
+#tebb-automation-review .tw-plan-switch[aria-checked=true]:after{left:14px;background:#fff}
+#tebb-automation-review .tw-manual-label{font-size:10px;white-space:nowrap;color:var(--tw-sub);background:var(--tw-soft);padding:2px 6px;border-radius:5px}
+#tebb-automation-review .tw-card-preview{display:block;width:100%;padding:0 15px;text-align:left}
+#tebb-automation-review .tw-thumbnail{height:126px;position:relative;border-radius:9px;background-color:var(--tw-soft);background-image:radial-gradient(var(--tw-line) .8px,transparent .8px);background-size:12px 12px;overflow:clip}
+#tebb-automation-review .tw-mini-lines{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#tebb-automation-review .tw-mini-lines path{stroke:var(--tw-accent);stroke-width:1.2;fill:none;opacity:.7;vector-effect:non-scaling-stroke}
+#tebb-automation-review .tw-mini-node{position:absolute;transform:translate(-50%,-50%);font-size:11px;line-height:1.45;color:var(--tw-ink);background:var(--tw-card);border:1px solid var(--tw-line);border-radius:5px;padding:3px 4px;white-space:nowrap}
+#tebb-automation-review .tw-mini-node.tw-mini-write{border-style:dashed}
+#tebb-automation-review .tw-card-details{padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-card-trigger{display:flex;align-items:center;gap:5px}
+#tebb-automation-review .tw-card-trigger svg{width:12px;height:12px}
+#tebb-automation-review .tw-card-recent{margin:0 15px 12px;display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-card-outcome{display:flex;align-items:center;gap:5px;color:var(--tw-green)}
+#tebb-automation-review .tw-card-outcome.tw-card-wait{color:var(--tw-amber)}
+#tebb-automation-review .tw-card-outcome.tw-card-empty{color:var(--tw-sub)}
+#tebb-automation-review .tw-card-outcome:before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+#tebb-automation-review .tw-card-footer{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:1px solid var(--tw-line);background:var(--tw-surface);gap:6px}
+#tebb-automation-review .tw-card-footer .tw-button{font-size:11px;padding:4px 5px;min-height:26px}
+#tebb-automation-review .tw-home-note{font-size:11px;line-height:1.7;color:var(--tw-sub);margin-top:17px;min-height:19px}
+#tebb-automation-review .tw-home-templates{margin:0 0 18px;padding:15px;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:11px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#tebb-automation-review .tw-home-templates h3{margin-right:auto}
+#tebb-automation-review .tw-home-templates>small{width:100%;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-back-divider{height:18px;border-left:1px solid var(--tw-line);margin:0 3px}
+@media(prefers-reduced-motion:no-preference){#tebb-automation-review .tw-flow-card{transition:box-shadow .15s,border-color .15s}#tebb-automation-review .tw-flow-card:hover{box-shadow:0 7px 20px var(--tw-shadow);border-color:var(--tw-accent)}}
+@container tw-shell (max-width:480px){#tebb-automation-review .tw-home{padding:12px}#tebb-automation-review .tw-card-grid{gap:12px}#tebb-automation-review .tw-card-details{flex-wrap:wrap}#tebb-automation-review .tw-home-toolbar{gap:12px}#tebb-automation-review .tw-home .tw-actions{gap:5px}#tebb-automation-review .tw-card-head{padding:13px 12px 10px}#tebb-automation-review .tw-card-preview{padding:0 12px}#tebb-automation-review .tw-card-recent{margin-left:12px;margin-right:12px}}
+#tebb-automation-review .tw-main{min-width:0;padding:16px;display:flex;flex-direction:column;gap:14px}
+#tebb-automation-review .tw-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:8px 10px}
+#tebb-automation-review .tw-eyebrow{font-size:10px;letter-spacing:1.6px;color:var(--tw-sub)}
+#tebb-automation-review .tw-preview-tag{font-size:11px;color:var(--tw-sub);padding:5px 9px;border-radius:7px;background:var(--tw-surface);white-space:nowrap;margin-right:58px}
+#tebb-automation-review .tw-heading-back{display:flex;align-items:center;gap:14px}
+#tebb-automation-review .tw-heading-back>svg{width:19px;height:19px}
+#tebb-automation-review .tw-editor{position:relative;flex:1;display:flex;flex-direction:column;border:1px solid var(--tw-line);border-radius:14px;background:var(--tw-surface);min-width:0;overflow:clip}
+#tebb-automation-review .tw-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--tw-line);background:var(--tw-card)}
+#tebb-automation-review .tw-flow-title{display:flex;align-items:center;gap:8px;min-width:0}
+#tebb-automation-review .tw-flow-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--tw-tint);color:var(--tw-accent-ink);flex:none}
+#tebb-automation-review .tw-flow-icon svg{width:17px;height:17px}
+#tebb-automation-review .tw-flow-select{max-width:270px;min-width:0;border:0;background:var(--tw-card);font-weight:600;padding:5px 20px 5px 0;font-size:14px}
+#tebb-automation-review .tw-save-state{color:var(--tw-sub);font-size:11px;white-space:nowrap}
+#tebb-automation-review .tw-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#tebb-automation-review .tw-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 10px;border-radius:8px;background:var(--tw-surface);border:1px solid var(--tw-line);white-space:nowrap;font-size:12px}
+#tebb-automation-review .tw-button svg{width:14px;height:14px;flex:none}
+#tebb-automation-review .tw-button:hover{background:var(--tw-tint)}
+#tebb-automation-review .tw-button.tw-primary{background:var(--tw-accent);color:#fff;border-color:var(--tw-accent)}
+#tebb-automation-review .tw-button.tw-ghost{background:transparent;border-color:transparent}
+#tebb-automation-review .tw-button[aria-pressed=true]{background:var(--tw-tint);border-color:var(--tw-accent);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-underbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 16px;flex-wrap:wrap;border-bottom:1px solid var(--tw-line);color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-underbar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#tebb-automation-review .tw-underbar .tw-button{min-height:26px;font-size:11px;padding:3px 7px}
+#tebb-automation-review .tw-version{display:flex;align-items:center;gap:5px}
+#tebb-automation-review .tw-version>span{width:5px;height:5px;background:var(--tw-green);border-radius:50%}
+#tebb-automation-review .tw-body{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);position:relative;flex:1}
+#tebb-automation-review .tw-body.tw-with-panel{grid-template-columns:minmax(0,1fr) 238px}
+#tebb-automation-review .tw-shell[data-layout=studio] .tw-body{grid-template-columns:112px minmax(0,1fr) 238px}
+#tebb-automation-review .tw-shell[data-layout=studio] .tw-body:not(.tw-with-panel){grid-template-columns:112px minmax(0,1fr)}
+#tebb-automation-review .tw-node-rail{background:var(--tw-card);border-right:1px solid var(--tw-line);padding:16px 8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+#tebb-automation-review .tw-node-rail>span{font-size:11px;color:var(--tw-sub);padding:0 8px 10px}
+#tebb-automation-review .tw-node-rail .tw-button{justify-content:flex-start;padding:8px;min-height:36px}
+#tebb-automation-review .tw-canvas{position:relative;min-width:0;height:550px;overflow:clip;background-color:var(--tw-soft);background-image:radial-gradient(var(--tw-line) .9px,transparent .9px);background-size:20px 20px;touch-action:none}
+#tebb-automation-review .tw-stage-caption{position:absolute;top:17px;left:19px;font-size:11px;color:var(--tw-sub);pointer-events:none;z-index:1}
+#tebb-automation-review .tw-canvas svg.tw-lines{position:absolute;width:100%;height:100%;inset:0;overflow:visible;pointer-events:none}
+#tebb-automation-review .tw-lines .tw-edge{stroke:var(--tw-accent);stroke-width:1.7;fill:none;opacity:.65;pointer-events:stroke;cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review .tw-lines .tw-edge-hit{stroke:transparent;stroke-width:14;fill:none;pointer-events:stroke;cursor:var(--cursor-interaction,pointer)}
+#tebb-automation-review .tw-lines .tw-edge.tw-edge-selected{stroke-width:3;opacity:1}
+#tebb-automation-review .tw-lines .tw-temp-edge{stroke:var(--tw-accent);stroke-width:2;fill:none;stroke-dasharray:5 4}
+#tebb-automation-review .tw-lines .tw-guide{stroke:var(--tw-accent);stroke-width:1;stroke-dasharray:3 4;opacity:.8;pointer-events:none}
+#tebb-automation-review .tw-node{position:absolute;display:flex;flex-direction:column;gap:10px;width:var(--tw-node-width,158px);min-height:81px;padding:12px 13px;background:var(--tw-card);border:1px solid var(--tw-line);border-radius:var(--tw-radius);box-shadow:0 3px 9px var(--tw-shadow);cursor:grab;user-select:none;touch-action:none;z-index:2;outline-offset:3px}
+#tebb-automation-review .tw-node.tw-selected{border-color:var(--tw-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--tw-accent) 18%,transparent),0 4px 12px var(--tw-shadow)}
+#tebb-automation-review .tw-node.tw-running{box-shadow:0 0 0 3px color-mix(in srgb,var(--tw-accent) 30%,transparent)}
+#tebb-automation-review .tw-node-head{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;font-weight:600}
+#tebb-automation-review .tw-node-select{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%;padding:0;text-align:left;cursor:grab}
+#tebb-automation-review .tw-node-head .tw-symbol{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:7px;background:var(--tw-tint);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-symbol svg{width:14px;height:14px}
+#tebb-automation-review .tw-node-sub{font-size:11px;display:flex;align-items:center;gap:5px;color:var(--tw-sub)}
+#tebb-automation-review .tw-node-sub.tw-needs{color:var(--tw-amber)}
+#tebb-automation-review .tw-node-sub .tw-status-dot{width:5px;height:5px;flex:none;border-radius:50%;background:currentColor}
+#tebb-automation-review .tw-port{display:grid;place-items:center;position:absolute;left:calc(50% - 12px);width:24px;height:24px;border-radius:50%;padding:0;z-index:4;background:transparent;cursor:crosshair}
+#tebb-automation-review .tw-port:before{content:"";width:8px;height:8px;background:var(--tw-card);border:1.5px solid var(--tw-accent);border-radius:50%}
+#tebb-automation-review .tw-port:hover:before{background:var(--tw-accent);box-shadow:0 0 0 4px var(--tw-tint)}
+#tebb-automation-review .tw-port-in{top:-13px}
+#tebb-automation-review .tw-port-out{bottom:-13px}
+#tebb-automation-review .tw-canvas-toolbar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:2px;padding:5px;border:1px solid var(--tw-line);border-radius:12px;background:var(--tw-card);box-shadow:0 5px 15px var(--tw-shadow);max-width:calc(100% - 20px)}
+#tebb-automation-review .tw-canvas-toolbar .tw-button{border:0;background:transparent;min-width:29px;padding:5px 7px;min-height:29px}
+#tebb-automation-review .tw-canvas-toolbar .tw-button:hover{background:var(--tw-tint)}
+#tebb-automation-review .tw-canvas-toolbar .tw-separator{align-self:center;height:16px;border-left:1px solid var(--tw-line);margin:0 3px}
+#tebb-automation-review .tw-inspector{min-width:0;padding:16px;background:var(--tw-card);border-left:1px solid var(--tw-line);display:flex;flex-direction:column;gap:16px}
+#tebb-automation-review .tw-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+#tebb-automation-review .tw-panel-eyebrow{font-size:10px;letter-spacing:1px;color:var(--tw-sub);margin-bottom:5px}
+#tebb-automation-review .tw-panel-close{padding:2px;color:var(--tw-sub);font-size:19px;line-height:1}
+#tebb-automation-review .tw-tabs{display:flex;border-bottom:1px solid var(--tw-line);gap:14px;font-size:12px}
+#tebb-automation-review .tw-tabs button{padding:0 0 9px;color:var(--tw-sub);border-bottom:2px solid transparent}
+#tebb-automation-review .tw-tabs button[aria-selected=true]{border-bottom-color:var(--tw-accent);color:var(--tw-accent-ink)}
+#tebb-automation-review .tw-fields{display:flex;flex-direction:column;gap:14px;min-width:0}
+#tebb-automation-review .tw-field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--tw-sub);min-width:0}
+#tebb-automation-review .tw-field input,#tebb-automation-review .tw-field textarea,#tebb-automation-review .tw-field select{width:100%;min-width:0;background:var(--tw-soft);border:1px solid var(--tw-line);border-radius:7px;padding:8px 9px;color:var(--tw-ink);font-size:12px}
+#tebb-automation-review .tw-field textarea{resize:vertical;min-height:86px;line-height:1.65}
+#tebb-automation-review .tw-binding{padding:8px 10px;border:1px dashed var(--tw-line);border-radius:7px;color:var(--tw-accent-ink);font-size:11px;overflow-wrap:anywhere}
+#tebb-automation-review .tw-field-help{font-size:11px;color:var(--tw-sub);line-height:1.7}
+#tebb-automation-review .tw-output-preview{font-size:12px;line-height:1.9;overflow-wrap:anywhere}
+#tebb-automation-review .tw-output-preview strong{font-weight:600}
+#tebb-automation-review .tw-panel-foot{margin-top:auto;border-top:1px solid var(--tw-line);padding-top:12px;display:flex;justify-content:space-between;align-items:center;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-flow-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid var(--tw-line);background:var(--tw-card);font-size:11px;flex-wrap:wrap}
+#tebb-automation-review .tw-flow-foot-left{display:flex;gap:12px;align-items:center;color:var(--tw-sub);flex-wrap:wrap}
+#tebb-automation-review .tw-foot-feedback{display:flex;align-items:center;gap:5px;color:var(--tw-sub);font-size:11px}
+#tebb-automation-review .tw-foot-feedback svg{width:12px;height:12px}
+#tebb-automation-review .tw-palette{position:absolute;left:16px;top:14px;width:228px;max-width:calc(100% - 32px);padding:14px;z-index:9;border:1px solid var(--tw-line);border-radius:12px;box-shadow:0 12px 30px var(--tw-shadow);background:var(--tw-card);display:flex;flex-direction:column;gap:8px}
+#tebb-automation-review .tw-palette .tw-button{justify-content:flex-start;min-height:36px;background:var(--tw-surface)}
+#tebb-automation-review .tw-palette-label{font-size:11px;color:var(--tw-sub);margin:5px 0}
+#tebb-automation-review .tw-status{min-height:22px;color:var(--tw-sub);font-size:11px;padding:7px 14px;background:var(--tw-card);border-top:1px solid var(--tw-line)}
+#tebb-automation-review .tw-run-panel{padding:14px 17px;background:var(--tw-card);border-top:1px solid var(--tw-line)}
+#tebb-automation-review .tw-run-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+#tebb-automation-review .tw-run-state{font-size:11px;color:var(--tw-amber)}
+#tebb-automation-review .tw-run-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:7px 0;border-top:1px solid var(--tw-line);font-size:12px}
+#tebb-automation-review .tw-run-row>span:first-child{color:var(--tw-green)}
+#tebb-automation-review .tw-run-row>small{font-size:11px;color:var(--tw-sub)}
+#tebb-automation-review .tw-run-row.tw-wait>span:first-child{color:var(--tw-amber)}
+#tebb-automation-review .tw-schedule{display:flex;flex-direction:column;gap:12px}
+#tebb-automation-review .tw-empty-panel{padding-top:70px;text-align:center;color:var(--tw-sub);font-size:12px;line-height:1.9}
+#tebb-automation-review .tw-empty-panel i{display:block;margin-bottom:10px}
+#tebb-automation-review .tw-empty-panel svg{width:26px;height:26px;margin:auto;color:var(--tw-accent-ink)}
+@container tw-shell (max-width:880px){#tebb-automation-review .tw-body.tw-with-panel,#tebb-automation-review .tw-shell[data-layout=studio] .tw-body.tw-with-panel{grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-shell[data-layout=studio] .tw-body:not(.tw-with-panel){grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-node-rail{display:none}#tebb-automation-review .tw-inspector{border-left:0;border-top:1px solid var(--tw-line);gap:12px}#tebb-automation-review .tw-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#tebb-automation-review .tw-panel-foot{margin-top:0}#tebb-automation-review .tw-empty-panel{padding:10px}#tebb-automation-review .tw-preview-tag{margin-right:32px}}
+@container tw-shell (max-width:720px){#tebb-automation-review .tw-nav{padding:20px 5px}#tebb-automation-review .tw-nav-item{justify-content:center;padding:12px 8px}#tebb-automation-review .tw-nav-item span,#tebb-automation-review .tw-nav-caption,#tebb-automation-review .tw-brand strong,#tebb-automation-review .tw-nav-bottom span{display:none}#tebb-automation-review .tw-brand{padding:0 5px 18px;justify-content:center}#tebb-automation-review .tw-nav-bottom{justify-content:center;padding:10px 0}#tebb-automation-review .tw-main{padding:10px}#tebb-automation-review .tw-heading{padding:6px;gap:8px}#tebb-automation-review .tw-top{padding:10px}#tebb-automation-review .tw-underbar{padding:8px 10px}#tebb-automation-review .tw-preview-tag{margin-right:30px;font-size:10px}#tebb-automation-review .tw-save-state{display:none}}
+@media(max-width:760px){#tebb-automation-review .tw-shell[data-layout=workspace]:not(.tw-focus){grid-template-columns:48px minmax(0,1fr)}}
+@container tw-shell (max-width:480px){#tebb-automation-review .tw-heading{align-items:flex-start;flex-direction:column}#tebb-automation-review .tw-eyebrow{font-size:9px}#tebb-automation-review .tw-preview-tag{margin:0}#tebb-automation-review .tw-actions{width:100%}#tebb-automation-review .tw-flow-select{max-width:220px;font-size:12px}#tebb-automation-review .tw-canvas{height:915px}#tebb-automation-review .tw-fields{grid-template-columns:minmax(0,1fr)}#tebb-automation-review .tw-canvas-toolbar{bottom:12px;gap:0}#tebb-automation-review .tw-canvas-toolbar .tw-button{padding:4px;min-width:27px;font-size:11px}#tebb-automation-review .tw-stage-caption{left:12px;font-size:10px}#tebb-automation-review .tw-underbar-group{gap:2px}#tebb-automation-review .tw-heading h2{font-size:18px}#tebb-automation-review .tw-flow-foot{padding:8px}#tebb-automation-review .tw-run-panel{padding:12px}}
+@media(pointer:coarse){#tebb-automation-review .tw-button{min-height:42px}#tebb-automation-review .tw-port{width:36px;height:36px;left:calc(50% - 18px)}#tebb-automation-review .tw-port-in{top:-19px}#tebb-automation-review .tw-port-out{bottom:-19px}#tebb-automation-review .tw-field input,#tebb-automation-review .tw-field select,#tebb-automation-review .tw-field textarea{font-size:16px}}
+@media(prefers-reduced-motion:no-preference){#tebb-automation-review .tw-button{transition:background .15s,box-shadow .15s}#tebb-automation-review .tw-node:not(.tw-dragging){transition:border-color .15s,box-shadow .15s}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('tebb-automation-review');
+if(!root)return;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon=n=>`<i data-lucide="${n}" aria-hidden="true"></i>`;
+const icons=()=>{if(globalThis.lucide)globalThis.lucide.createIcons({attrs:{width:16,height:16}})};
+const catalog=[['read','读取网页','file-text'],['search','搜索资料','search'],['ai','AI 处理','sparkles'],['condition','条件判断','git-branch'],['document','创建文档','file-plus-2'],['base','写入表格','table-2'],['message','发送群消息','send']];
+const makeNews=()=>({name:'大厂开源与技术动向',nodes:[{id:'trigger',kind:'trigger',name:'定时触发',sub:'每天 09:00',x:.5,y:86},{id:'sources',kind:'search',name:'采集官方来源',sub:'近 3 天 · 最多 8 条',x:.5,y:210},{id:'report',kind:'ai',name:'整理技术日报',sub:'输出 5 条技术动向',x:.5,y:334},{id:'doc',kind:'document',name:'创建飞书文档',sub:'待确认云盘位置',x:.17,y:446,missing:true},{id:'base',kind:'base',name:'写入多维表格',sub:'结果表 · 按回执去重',x:.5,y:446},{id:'msg',kind:'message',name:'发送群消息',sub:'待选择目标群',x:.83,y:446,missing:true}],edges:[['trigger','sources'],['sources','report'],['report','doc'],['report','base'],['report','msg']]});
+const makeVideo=()=>({name:'视频学习笔记',nodes:[{id:'trigger',kind:'trigger',name:'手动触发',sub:'输入视频链接',x:.5,y:64},{id:'video',kind:'read',name:'读取视频字幕',sub:'核对字幕完整性',x:.5,y:200},{id:'report',kind:'ai',name:'整理学习笔记',sub:'保留时间点与来源',x:.5,y:336},{id:'doc',kind:'document',name:'保存飞书文档',sub:'待确认保存位置',x:.5,y:472,missing:true}],edges:[['trigger','video'],['video','report'],['report','doc']]});
+const makeBlank=()=>({name:'新的工作流',nodes:[{id:'trigger',kind:'trigger',name:'手动触发',sub:'从这里开始',x:.5,y:90}],edges:[]});
+const makeDocument=()=>({name:'飞书文档发布',lastRun:{label:'已完成',time:'今天 10:42',tone:'done'},nodes:[{id:'trigger',kind:'trigger',name:'手动触发',sub:'输入发布正文',x:.5,y:130},{id:'doc',kind:'document',name:'创建飞书文档',sub:'云盘 · 工作记录',target:'云盘 / 工作记录（示例）',x:.5,y:320,missing:false}],edges:[['trigger','doc']]});
+root.querySelectorAll('.tw-shell').forEach((app,appIndex)=>{
+ const studio=app.dataset.layout==='studio',editor=app.querySelector('.tw-editor');
+ const state={view:'home',flow:'news',drafts:{news:makeNews(),video:makeVideo(),document:makeDocument()},selected:studio?['report']:[],pane:studio?'node':'',tab:'配置',focus:false,guides:true,dirty:false,trace:false,connecting:'',edge:null,runStep:0,running:false,version:'v3',theme:'inherit',radius:13};
+ state.drafts.news.lastRun={label:'等待确认发布目标',time:'今天 09:00',tone:'wait'};
+ const current=()=>state.drafts[state.flow];
+ const persist=()=>{if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{design:'自动化界面',layout:'卡片首页与画布',view:state.view,workflow:state.flow,panel:state.pane,focus:state.focus},privateContent:null}).catch(()=>{})};
+ editor.innerHTML=`<div class="tw-top"><div class="tw-flow-title"><button type="button" class="tw-button tw-ghost" data-action="home">${icon('arrow-left')}工作流</button><span class="tw-back-divider"></span><span class="tw-flow-icon">${icon('workflow')}</span><select class="tw-flow-select" aria-label="切换已有工作流"><option value="news">大厂开源与技术动向</option><option value="video">视频学习笔记</option><option value="document">飞书文档发布</option></select><span class="tw-save-state">已保存</span></div><div class="tw-actions"><button type="button" class="tw-button tw-ghost" data-action="new">${icon('plus')}新建</button><button type="button" class="tw-button" data-action="save">保存</button><button type="button" class="tw-button tw-primary" data-action="run">${icon('play')}试运行</button></div></div>
+ <div class="tw-underbar"><div class="tw-underbar-group"><button type="button" class="tw-button tw-ghost" data-action="schedule">${icon('clock-3')}<span data-schedule-label>每天 09:00</span></button><span>·</span><span class="tw-version"><span></span>草稿与运行分开</span></div><div class="tw-actions"><button type="button" class="tw-button tw-ghost" data-action="history">${icon('history')}运行记录</button><button type="button" class="tw-button tw-ghost" data-action="focus">${icon('maximize-2')}<span data-focus-label>专注画布</span></button></div></div>
+ <div class="tw-body ${studio?'tw-with-panel':''}">${studio?`<aside class="tw-node-rail"><span>原子能力</span>${catalog.map(([kind,name,ico])=>`<button type="button" class="tw-button tw-ghost" draggable="true" data-add="${kind}">${icon(ico)}${name.replace('飞书','')}</button>`).join('')}<button type="button" class="tw-button tw-ghost" data-action="assistant">${icon('bot')}伙伴搭建</button></aside>`:''}<div class="tw-canvas" aria-label="可拖动和连接的工作流画布"><span class="tw-stage-caption">${studio?'设计 / 大厂开源与技术动向':'工作流 / 大厂开源与技术动向'}</span><svg class="tw-lines" role="img" aria-label="工作流节点之间的连接关系"></svg><div class="tw-node-layer"></div><div class="tw-palette" hidden></div><div class="tw-canvas-toolbar"><button type="button" class="tw-button" data-action="palette" aria-label="添加节点">${icon('plus')}</button><span class="tw-separator"></span><button type="button" class="tw-button" data-action="fit" aria-label="整理并适应画布">${icon('scan')}</button><button type="button" class="tw-button" data-action="horizontal" aria-label="多选节点后水平对齐">${icon('align-vertical-justify-center')}</button><button type="button" class="tw-button" data-action="vertical" aria-label="多选节点后竖直对齐">${icon('align-horizontal-justify-center')}</button><button type="button" class="tw-button" data-action="guides" aria-pressed="true" aria-label="切换对齐吸附">${icon('magnet')}</button><span class="tw-separator"></span><button type="button" class="tw-button" data-action="assistant">${icon('sparkles')}伙伴</button></div></div><aside class="tw-inspector" ${studio?'':'hidden'} aria-label="节点及工作流设置"></aside></div>
+ <div class="tw-run-panel" ${studio?'':'hidden'} aria-label="试运行与节点回执"></div>
+ <div class="tw-flow-foot"><div class="tw-flow-foot-left"><span data-node-count>6 个节点 · 5 条连接</span><span>Shift 多选 · 拖动圆点连线</span></div><button type="button" class="tw-button tw-ghost" data-action="debug">${icon('panel-bottom')}逐步调试</button></div><div class="tw-status" role="status" aria-live="polite">点击节点查看设置；拖动节点可看到对齐参考线。</div>`;
+ const canvas=editor.querySelector('.tw-canvas'),layer=editor.querySelector('.tw-node-layer'),svg=editor.querySelector('.tw-lines'),panel=editor.querySelector('.tw-inspector'),body=editor.querySelector('.tw-body'),palette=editor.querySelector('.tw-palette'),runPanel=editor.querySelector('.tw-run-panel'),status=editor.querySelector('.tw-status');
+ const home=document.createElement('section');home.className='tw-home';home.setAttribute('aria-label','已有工作流卡片总览');editor.before(home);
+ let gesture=null,hoverPoint=null,timer=null;
+ const tell=message=>{status.textContent=message};
+ const dirty=()=>{state.dirty=true;current().dirty=true;editor.querySelector('.tw-save-state').textContent='有未保存修改'};
+ const selectedNode=()=>current().nodes.find(n=>n.id===state.selected[0]);
+ const small=()=>canvas.clientWidth<360;
+ const nodeWidth=()=>small()?Math.min(188,canvas.clientWidth-34):Math.max(124,Math.min(174,(canvas.clientWidth-52)/3));
+ function position(n,index){const w=nodeWidth(),width=canvas.clientWidth;if(small())return {x:(width-w)/2,y:62+index*132};return {x:Math.max(12,Math.min(width-w-12,n.x*width-w/2)),y:n.y-40}}
+ function renderNodes(){
+   if(!canvas.clientWidth)return;
+   const g=current();canvas.style.setProperty('--tw-node-width',nodeWidth()+'px');
+   layer.innerHTML=g.nodes.map((n,i)=>{const p=position(n,i),ico=n.kind==='trigger'?'clock-3':catalog.find(v=>v[0]===n.kind)?.[2]||'file-text';return `<div class="tw-node ${state.selected.includes(n.id)?'tw-selected':''}" role="group" aria-label="${esc(n.name)}" data-id="${n.id}" style="left:${p.x}px;top:${p.y}px"><button type="button" class="tw-node-select" aria-label="打开${esc(n.name)}设置" aria-pressed="${state.selected.includes(n.id)}" data-node-select="${n.id}"><span class="tw-node-head"><span class="tw-symbol">${icon(ico)}</span><span>${esc(n.name)}</span></span><span class="tw-node-sub ${n.missing?'tw-needs':''}"><span class="tw-status-dot"></span><span>${esc(n.sub)}</span></span></button>${n.kind!=='trigger'?`<button type="button" class="tw-port tw-port-in" data-port="in" aria-label="连接到${esc(n.name)}"></button>`:''}<button type="button" class="tw-port tw-port-out" data-port="out" aria-label="从${esc(n.name)}连接"></button></div>`}).join('');
+   editor.querySelector('[data-node-count]').textContent=`${g.nodes.length} 个节点 · ${g.edges.length} 条连接`;
+   icons();draw();
+ }
+ function box(id){const el=layer.querySelector(`[data-id="${id}"]`);if(!el)return null;return {x:parseFloat(el.style.left)+el.offsetWidth/2,y:parseFloat(el.style.top),h:el.offsetHeight}}
+ function curve(a,b){const delta=Math.max(28,Math.abs(b.y-a.y)*.48);return `M${a.x},${a.y} C${a.x},${a.y+delta} ${b.x},${b.y-delta} ${b.x},${b.y}`}
+ function draw(guides=[]){
+   if(!canvas.clientWidth)return;
+   let paths=current().edges.map(([a,b],i)=>{const x=box(a),y=box(b);if(!x||!y)return '';let d=curve({x:x.x,y:x.y+x.h},{x:y.x,y:y.y});const branches=current().edges.filter(e=>e[0]===a);if(small()&&branches.length>1){const k=branches.findIndex(e=>e[1]===b),lane=k%2?canvas.clientWidth-12:12+k*5,from=x.y+x.h;d=`M${x.x},${from} C${x.x},${from+22} ${lane},${from+22} ${lane},${from+32} L${lane},${y.y-20} Q${lane},${y.y} ${y.x},${y.y}`;}return `<path class="tw-edge-hit" d="${d}" data-edge="${i}"/><path class="tw-edge ${state.edge===i?'tw-edge-selected':''}" d="${d}" data-edge="${i}"/>`}).join('');
+   if(state.connecting&&hoverPoint){const a=box(state.connecting);if(a)paths+=`<path class="tw-temp-edge" d="${curve({x:a.x,y:a.y+a.h},hoverPoint)}"/>`}
+   paths+=guides.map(v=>v.axis==='x'?`<line class="tw-guide" x1="${v.at}" x2="${v.at}" y1="30" y2="${canvas.clientHeight-60}"/>`:`<line class="tw-guide" x1="12" x2="${canvas.clientWidth-12}" y1="${v.at}" y2="${v.at}"/>`).join('');
+   svg.innerHTML=paths;
+ }
+ function setPanel(kind){state.pane=kind;panel.hidden=!kind;body.classList.toggle('tw-with-panel',!!kind);renderPanel();requestAnimationFrame(renderNodes);persist()}
+ function panelHeader(title,sub='NODE SETTINGS'){return `<div class="tw-panel-heading"><div><div class="tw-panel-eyebrow">${sub}</div><h3>${title}</h3></div><button type="button" class="tw-panel-close" data-action="close-panel" aria-label="关闭面板">×</button></div>`}
+ function field(label,value,extra='',type='input'){return `<label class="tw-field">${label}${type==='textarea'?`<textarea ${extra}>${esc(value)}</textarea>`:`<input value="${esc(value)}" ${extra}>`}</label>`}
+ function renderPanel(){
+   if(!state.pane)return;
+   if(state.pane==='schedule'){
+     panel.innerHTML=panelHeader('触发与计划','TRIGGER')+`<div class="tw-schedule"><label class="tw-field">触发方式<select data-schedule-kind><option value="每天">每天</option><option value="工作日">工作日</option><option value="手动">仅手动</option></select></label>${field('触发时间','09:00','data-schedule-time type="time"')}<span class="tw-field-help">北京时间 · 计划绑定已保存版本</span><button type="button" class="tw-button tw-primary" data-action="apply-schedule">保存计划（演示）</button></div>`;
+   }else if(state.pane==='assistant'){
+     panel.innerHTML=panelHeader('让伙伴帮你搭建','AI COMPANION')+`<div class="tw-field-help">描述你想完成的任务，先生成可检查的流程草稿。</div>${field('我想要…','读取视频字幕，整理成带时间点的学习笔记，保存到飞书文档。','data-ai-prompt','textarea')}<button type="button" class="tw-button tw-primary" data-action="ai-build">${icon('sparkles')}生成草稿（演示）</button><div class="tw-binding">发布目标由你指定，生成草稿不会执行。</div><div class="tw-panel-foot"><span>能力也可以复用</span><button type="button" class="tw-button tw-ghost" data-action="capability">新增能力</button></div>`;
+   }else if(state.pane==='capability'){
+     panel.innerHTML=panelHeader('新增原子能力','REUSABLE CAPABILITY')+field('能力名称','官方文档读取','data-capability-name')+`<label class="tw-field">基于已有能力<select><option>读取网页</option><option>搜索资料</option><option>AI 处理</option></select></label>`+field('能力说明','读取指定官方文档，保留来源与正文。','','textarea')+`<button type="button" class="tw-button tw-primary" data-action="add-capability">放入画布（演示）</button><span class="tw-field-help">保存为能力后，可供其他工作流和 AI 伙伴复用。</span>`;
+   }else if(state.pane==='edge'){
+     const e=current().edges[state.edge];panel.innerHTML=panelHeader('连接关系','CONNECTION')+(e?`<div class="tw-binding">${esc(current().nodes.find(n=>n.id===e[0])?.name)}<br>↓<br>${esc(current().nodes.find(n=>n.id===e[1])?.name)}</div><button type="button" class="tw-button" data-action="delete-edge">删除这条连接</button>`:'<p class="tw-field-help">选择画布上的连接线。</p>');
+   }else if(state.pane==='history'){
+     panel.innerHTML=panelHeader('运行记录','RUN HISTORY')+`<div class="tw-panel-eyebrow">示例记录</div><div class="tw-binding">今天 09:00 · 待确认发布目标<br>技术动向日报 · v3</div><button type="button" class="tw-button" data-action="debug">查看节点回执</button><span class="tw-field-help">运行快照单独查看，不替换正在编辑的草稿。</span>`;
+   }else{
+     const n=selectedNode();if(!n){panel.innerHTML=panelHeader('节点设置')+`<div class="tw-empty-panel">${icon('mouse-pointer-2')}<p>选中一个节点<br>查看配置、输入和输出</p></div>`;icons();return;}
+     const tabs=['配置','输入','输出'];let content='';
+     if(state.tab==='输入')content=`<div class="tw-panel-eyebrow">来自上游节点</div><div class="tw-binding">${n.kind==='ai'?'采集官方来源 → 已核实材料':n.kind==='trigger'?'手动文字或已保存的定时输入':'整理技术日报 → 报告正文'}</div><span class="tw-field-help">连接决定执行顺序，字段引用决定使用哪些资料。</span>`;
+     else if(state.tab==='输出')content=`<div class="tw-output-preview"><strong>示例输出结构</strong><br>${n.kind==='ai'?'报告正文<br>技术动向条目 × 5<br>对应来源链接':n.kind==='search'?'来源列表<br>标题、链接与已读取正文':n.kind==='trigger'?'触发文字<br>本次运行时间':'目标编号<br>结果地址<br>节点回执'}</div><div class="tw-binding">实际输出在运行后查看</div>`;
+     else if(n.kind==='ai')content=field('节点名称',n.name,'data-node-name')+field('处理要求',n.prompt||'基于上游已核实材料整理 5 条技术动向，说明关键变化，并保留来源。','data-node-prompt','textarea')+`<div class="tw-field">使用材料<div class="tw-binding">↳ 采集官方来源 · 正文</div></div><div class="tw-field-help">模型：跟随当前已选模型</div>`;
+     else if(['document','base','message'].includes(n.kind))content=field('节点名称',n.name,'data-node-name')+field(n.kind==='document'?'保存位置':n.kind==='message'?'目标群':'多维表格 / 数据表',n.target||'','data-node-target placeholder="选择或填写目标"')+`<div class="tw-field">写入内容<div class="tw-binding">↳ 整理技术日报 · 报告正文</div></div>`+(n.kind==='base'?field('去重字段','回执'):field('发布标题',current().name))+`<span class="tw-field-help">发布前展示目标与内容；结果不明时先核对原回执。</span>`;
+     else if(n.kind==='trigger')content=field('节点名称',n.name,'data-node-name')+`<div class="tw-binding">${n.sub}</div><button type="button" class="tw-button" data-action="schedule">修改触发计划</button>`;
+     else content=field('节点名称',n.name,'data-node-name')+field(n.kind==='condition'?'判断条件':'检索与读取范围',n.kind==='condition'?'上游正文不为空':'AI Agent 开源项目\n大厂模型与推理工具','','textarea')+`<span class="tw-field-help">${n.kind==='condition'?'满足与不满足分别连接下一步。':'仅使用实际取得的资料，保留来源与时间范围。'}</span>`;
+     panel.innerHTML=panelHeader(esc(n.name))+`<div class="tw-tabs" role="tablist" aria-label="节点详情">${tabs.map(t=>`<button type="button" role="tab" aria-selected="${state.tab===t}" data-tab="${t}">${t}</button>`).join('')}</div><div class="tw-fields">${content}</div><div class="tw-panel-foot"><span>${n.kind==='trigger'?'触发节点':'修改后形成新草稿'}</span><button type="button" class="tw-button tw-ghost" data-action="apply-node">完成</button></div>`;
+   }
+   icons();
+ }
+ function renderTrace(){runPanel.hidden=!state.trace;if(!state.trace)return;const reads=current().nodes.filter(n=>n.kind!=='trigger'&&!['document','base','message'].includes(n.kind)),write=current().nodes.find(n=>['document','base','message'].includes(n.kind));runPanel.innerHTML=`<div class="tw-run-heading"><div><h3>逐步调试</h3><span class="tw-field-help">演示记录 · ${esc(current().name)} · v3</span></div><div class="tw-actions"><span class="tw-run-state">${write?'等待确认目标':'演示记录'}</span>${write?'<button type="button" class="tw-button" data-action="inspect-targets">检查目标</button>':''}<button type="button" class="tw-panel-close" data-action="hide-debug" aria-label="收起调试">×</button></div></div>${reads.map(n=>`<div class="tw-run-row"><span>✓</span><span>${esc(n.name)} <span class="tw-field-help">· 示例产物</span></span><small>演示完成</small></div>`).join('')}${write?`<div class="tw-run-row tw-wait"><span>○</span><span>${esc(write.name)} <span class="tw-field-help">· 待确认目标与正文</span></span><small>尚未写入</small></div>`:'<div class="tw-field-help">尚无外部写入节点。</div>'}`}
+ function load(key){if(state.running){tell('请先停止试运行演示，再切换工作流。');return;}state.flow=key;state.selected=[];state.edge=null;state.connecting='';state.dirty=!!current().dirty;state.trace=false;editor.querySelector('.tw-save-state').textContent=state.dirty?'有未保存修改':'已保存';editor.querySelector('.tw-flow-select').value=key;editor.querySelector('.tw-stage-caption').textContent='工作流 / '+current().name;editor.querySelector('[data-schedule-label]').textContent=current().nodes.find(n=>n.kind==='trigger')?.sub||'手动触发';setPanel('');renderNodes();renderTrace();tell('已切换已有工作流；其他流程的草稿和节点位置保留。');persist()}
+ function miniature(g){const depths={},visiting=new Set();function depth(id){if(id in depths)return depths[id];if(visiting.has(id))return 0;visiting.add(id);const parents=g.edges.filter(e=>e[1]===id);const d=parents.length?Math.max(...parents.map(e=>depth(e[0])))+1:0;visiting.delete(id);return depths[id]=d;}g.nodes.forEach(n=>depth(n.id));const max=Math.max(1,...Object.values(depths)),points={};g.nodes.forEach(n=>{const siblings=g.nodes.filter(v=>depths[v.id]===depths[n.id]),index=siblings.findIndex(v=>v.id===n.id);points[n.id]={x:10+depths[n.id]/max*80,y:16+(index+.5)/siblings.length*68};});const labels={trigger:'触发',search:'来源',read:'读取',ai:'AI',condition:'条件',document:'文档',base:'表格',message:'消息'};return `<div class="tw-thumbnail" aria-hidden="true"><svg class="tw-mini-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${g.edges.map(([a,b])=>{const x=points[a],y=points[b];return x&&y?`<path d="M${x.x},${x.y} C${(x.x+y.x)/2},${x.y} ${(x.x+y.x)/2},${y.y} ${y.x},${y.y}"/>`:''}).join('')}</svg>${g.nodes.map(n=>`<span class="tw-mini-node ${['document','base','message'].includes(n.kind)?'tw-mini-write':''}" style="left:${points[n.id].x}%;top:${points[n.id].y}%">${labels[n.kind]||'能力'}</span>`).join('')}</div>`}
+ function renderHome(){home.innerHTML=`<div class="tw-home-toolbar"><div class="tw-home-title"><h3>我的工作流</h3><span class="tw-home-count">${Object.keys(state.drafts).length} 个</span></div><div class="tw-actions"><button type="button" class="tw-button tw-ghost" data-home-action="assistant">${icon('sparkles')}伙伴搭建</button><button type="button" class="tw-button" data-home-action="templates">从示例创建</button><button type="button" class="tw-button tw-primary" data-home-action="new">${icon('plus')}新建工作流</button></div></div><div class="tw-home-templates" hidden><h3>从示例创建新工作流</h3><button type="button" class="tw-panel-close" data-home-action="close-templates" aria-label="关闭示例">×</button><small>选择后生成独立草稿，填写自己的目标再运行。</small><button type="button" class="tw-button" data-create-template="news">技术动向日报</button><button type="button" class="tw-button" data-create-template="video">视频学习笔记</button></div><div class="tw-card-grid">${Object.entries(state.drafts).map(([key,g])=>{const scheduled=g.nodes[0]?.name==='定时触发',last=g.lastRun||{label:'未运行',time:'暂无',tone:'empty'},trigger=scheduled?g.nodes[0].sub:'手动触发';return `<article class="tw-flow-card" aria-label="${esc(g.name)}工作流卡片"><div class="tw-card-head"><button type="button" class="tw-card-title" data-open-flow="${key}" aria-label="编辑${esc(g.name)}">${icon('workflow')}<span>${esc(g.name)}</span></button>${scheduled?`<button type="button" class="tw-plan-switch" role="switch" aria-checked="${!!g.planEnabled}" data-toggle-plan="${key}" aria-label="启用${esc(g.name)}的定时计划"></button>`:'<span class="tw-manual-label">手动</span>'}</div><button type="button" class="tw-card-preview" data-open-flow="${key}" aria-label="打开${esc(g.name)}画布">${miniature(g)}</button><div class="tw-card-details"><span class="tw-card-trigger">${icon(scheduled?'clock-3':'mouse-pointer-2')}${esc(trigger)}</span><span>${g.nodes.length} 节点</span></div><div class="tw-card-recent"><span class="tw-card-outcome ${last.tone==='wait'?'tw-card-wait':last.tone==='empty'?'tw-card-empty':''}">${esc(last.label)}${g.dirty?' · 有草稿修改':''}</span><span>上次运行：${esc(last.time)}${scheduled?' · '+(g.planEnabled?'计划已启用':'计划已暂停'):''}</span></div><div class="tw-card-footer"><button type="button" class="tw-button tw-ghost" data-flow-history="${key}">${icon('history')}运行记录</button><button type="button" class="tw-button tw-ghost" data-open-flow="${key}" aria-label="进入${esc(g.name)}编排">打开画布 ${icon('arrow-up-right')}</button></div></article>`}).join('')}</div><div class="tw-home-note" role="status" aria-live="polite">选择一个已有工作流，进入画布查看或编辑。</div>`;icons();}
+ function showHome(remember=true){state.view='home';state.focus=false;app.classList.remove('tw-focus');app.classList.add('tw-on-home');editor.querySelector('[data-focus-label]').textContent='专注画布';editor.hidden=true;home.hidden=false;renderHome();if(remember)persist();}
+ function openEditor(key){state.view='editor';app.classList.remove('tw-on-home');home.hidden=true;editor.hidden=false;load(key);requestAnimationFrame(renderNodes);}
+ function createWorkflow(kind){const key='copy'+Date.now();state.drafts[key]=kind==='blank'?makeBlank():kind==='video'?makeVideo():makeNews();if(kind!=='blank')state.drafts[key].name+=' · 副本';const option=document.createElement('option');option.value=key;option.textContent=state.drafts[key].name;editor.querySelector('.tw-flow-select').append(option);palette.hidden=true;openEditor(key);dirty();tell(kind==='blank'?'已打开新的空白工作流。':'已从示例创建独立工作流草稿。');}
+ home.addEventListener('click',event=>{const open=event.target.closest('[data-open-flow]')?.dataset.openFlow,history=event.target.closest('[data-flow-history]')?.dataset.flowHistory,toggle=event.target.closest('[data-toggle-plan]')?.dataset.togglePlan,template=event.target.closest('[data-create-template]')?.dataset.createTemplate,action=event.target.closest('[data-home-action]')?.dataset.homeAction;if(open){openEditor(open);return;}if(history){openEditor(history);setPanel('history');return;}if(toggle){const g=state.drafts[toggle],missing=g.nodes.find(n=>n.missing);if(!g.planEnabled&&missing){openEditor(toggle);state.selected=[missing.id];state.tab='配置';setPanel('node');tell('请先补齐发布目标，再确认启用定时计划。');return;}g.planEnabled=!g.planEnabled;renderHome();home.querySelector('.tw-home-note').textContent=g.planEnabled?'定时计划已启用（演示）。':'定时计划已暂停（演示），仍可进入画布手动运行。';persist();return;}if(template){createWorkflow(template);return;}if(action==='new')createWorkflow('blank');else if(action==='templates')home.querySelector('.tw-home-templates').hidden=false;else if(action==='close-templates')home.querySelector('.tw-home-templates').hidden=true;else if(action==='assistant'){openEditor(state.flow);setPanel('assistant');}});
+ function paletteOpen(mode='nodes'){palette.hidden=false;palette.innerHTML=`<div class="tw-panel-heading"><h3>${mode==='new'?'新建工作流':'添加节点'}</h3><button type="button" class="tw-panel-close" data-action="close-palette" aria-label="关闭节点库">×</button></div>`+(mode==='new'?`<button type="button" class="tw-button" data-template="blank">${icon('plus')}从空白开始</button><span class="tw-palette-label">从示例新建</span><button type="button" class="tw-button" data-template="news">技术动向日报</button><button type="button" class="tw-button" data-template="video">视频学习笔记</button>`:`<span class="tw-palette-label">点击加入，或拖到画布</span>${catalog.map(([kind,name,ico])=>`<button type="button" class="tw-button" draggable="true" data-add="${kind}">${icon(ico)}${name}</button>`).join('')}<button type="button" class="tw-button tw-ghost" data-action="capability">${icon('sparkles')}新增可复用能力</button>`);icons()}
+ function addNode(kind,point,name){const entry=catalog.find(v=>v[0]===kind)||catalog[0],id='n'+Date.now().toString(36)+Math.floor(Math.random()*100),r=canvas.getBoundingClientRect();current().nodes.push({id,kind,name:name||entry[1],sub:kind==='condition'?'满足 / 不满足':'待设置',x:point?Math.max(.12,Math.min(.88,(point.x-r.left)/r.width)):.5,y:point?Math.max(70,Math.min(450,point.y-r.top)):235,missing:['document','base','message'].includes(kind)});state.selected=[id];state.tab='配置';palette.hidden=true;dirty();renderNodes();setPanel('node');tell('节点已加入。拖动圆点连接，或先点输出再点输入。');persist()}
+ function connect(from,to){state.connecting='';hoverPoint=null;if(from===to){tell('不能连接节点自身。');draw();return;}const seen=new Set();function reaches(id){if(id===from)return true;if(seen.has(id))return false;seen.add(id);return current().edges.filter(e=>e[0]===id).some(e=>reaches(e[1]))}if(reaches(to)){tell('这条连接会形成循环，未添加。');draw();return;}if(current().edges.some(e=>e[0]===from&&e[1]===to)){tell('这条连接已存在。');draw();return;}current().edges.push([from,to]);dirty();renderNodes();tell('连接已建立。点击线条可以查看或删除。');persist()}
+ function focus(){state.focus=!state.focus;app.classList.toggle('tw-focus',state.focus);editor.querySelector('[data-focus-label]').textContent=state.focus?'退出专注':'专注画布';setPanel('');palette.hidden=true;tell(state.focus?'专注模式：全局导航已收起，Esc 返回，当前草稿保留。':'已回到工作台，草稿和画布位置保留。');requestAnimationFrame(renderNodes);persist()}
+ function simulate(){if(state.running){clearTimeout(timer);state.running=false;layer.querySelectorAll('.tw-running').forEach(el=>el.classList.remove('tw-running'));tell('试运行演示已停止；未调用模型或外部服务。');editor.querySelector('[data-action=run]').innerHTML=icon('play')+'试运行';icons();return;}state.running=true;state.trace=true;state.runStep=0;setPanel('');renderTrace();editor.querySelector('[data-action=run]').innerHTML=icon('square')+'停止';const list=current().nodes.filter(n=>!['document','base','message'].includes(n.kind));function step(){if(!state.running)return;layer.querySelectorAll('.tw-running').forEach(el=>el.classList.remove('tw-running'));if(state.runStep<list.length){const n=list[state.runStep++];layer.querySelector(`[data-id="${n.id}"]`)?.classList.add('tw-running');tell('演示中：'+n.name);timer=setTimeout(step,650);}else{state.running=false;editor.querySelector('[data-action=run]').innerHTML=icon('play')+'试运行';icons();tell('演示暂停在发布前：请检查目标与正文。没有实际写入。');renderTrace();}}step()}
+ editor.addEventListener('click',event=>{
+   if(event.detail===0){const port=event.target.closest('[data-port]'),id=event.target.closest('[data-node-select]')?.dataset.nodeSelect;if(port){const n=port.closest('.tw-node').dataset.id;if(port.dataset.port==='out'){state.connecting=n;tell('已选择输出，请点击目标输入圆点。')}else if(state.connecting)connect(state.connecting,n);return;}if(id){state.selected=[id];state.tab='配置';setPanel('node');renderNodes();return;}}
+   const action=event.target.closest('[data-action]')?.dataset.action,add=event.target.closest('[data-add]')?.dataset.add,template=event.target.closest('[data-template]')?.dataset.template,tab=event.target.closest('[data-tab]')?.dataset.tab;
+   if(add){addNode(add);return;}if(template){createWorkflow(template);return;}
+   if(tab){state.tab=tab;renderPanel();return;}
+   if(!action)return;
+   if(action==='home')showHome();
+   else if(action==='palette')palette.hidden?paletteOpen():palette.hidden=true;
+   else if(action==='new')paletteOpen('new');
+   else if(action==='close-palette')palette.hidden=true;
+   else if(action==='close-panel')setPanel('');
+   else if(action==='assistant')setPanel('assistant');
+   else if(action==='capability')setPanel('capability');
+   else if(action==='schedule')setPanel('schedule');
+   else if(action==='history')setPanel('history');
+   else if(action==='focus')focus();
+   else if(action==='save'){state.dirty=false;current().dirty=false;editor.querySelector('.tw-save-state').textContent='已保存（演示）';tell('当前草稿已在预览中保留，尚未修改客户端。');persist();}
+   else if(action==='guides'){state.guides=!state.guides;editor.querySelector('[data-action=guides]').setAttribute('aria-pressed',String(state.guides));tell(state.guides?'对齐参考线与吸附已开启。':'对齐辅助已关闭。');}
+   else if(action==='horizontal'||action==='vertical'){const picked=current().nodes.filter(n=>state.selected.includes(n.id));if(picked.length<2){tell('按住 Shift 点击两个或更多节点，再选择水平或竖直对齐。');return;}if(action==='horizontal'){const y=picked.reduce((v,n)=>v+n.y,0)/picked.length;picked.forEach(n=>n.y=y);}else{const x=picked.reduce((v,n)=>v+n.x,0)/picked.length;picked.forEach(n=>n.x=x);}dirty();renderNodes();tell('所选节点已'+(action==='horizontal'?'水平':'竖直')+'对齐。');}
+   else if(action==='fit'){const original=state.flow==='video'?makeVideo():makeNews();current().nodes.forEach((n,i)=>{const origin=original.nodes.find(v=>v.id===n.id);if(origin){n.x=origin.x;n.y=origin.y;}else{n.x=.5;n.y=Math.min(452,90+i*90)}});renderNodes();dirty();tell('节点已整理回可见区域。');}
+   else if(action==='debug'){state.trace=!state.trace;renderTrace();persist();}
+   else if(action==='hide-debug'){state.trace=false;renderTrace();}
+   else if(action==='inspect-targets'){const n=current().nodes.find(n=>['document','base','message'].includes(n.kind));if(n){state.selected=[n.id];state.tab='配置';renderNodes();setPanel('node');}}
+   else if(action==='apply-schedule'){const kind=panel.querySelector('[data-schedule-kind]').value,time=panel.querySelector('[data-schedule-time]').value;const n=current().nodes.find(n=>n.kind==='trigger');n.name=kind==='手动'?'手动触发':'定时触发';n.sub=kind==='手动'?'输入文字后触发':`${kind} ${time}`;editor.querySelector('[data-schedule-label]').textContent=n.sub;dirty();renderNodes();tell('触发计划已更新到演示草稿。');setPanel('');}
+   else if(action==='apply-node'){const n=selectedNode();if(n){const name=panel.querySelector('[data-node-name]'),prompt=panel.querySelector('[data-node-prompt]'),target=panel.querySelector('[data-node-target]');if(name)n.name=name.value||n.name;if(prompt)n.prompt=prompt.value;if(target){n.target=target.value;n.missing=!n.target.trim();n.sub=n.missing?'待选择发布目标':n.target+' · 发布前确认';}dirty();renderNodes();tell('节点配置已保留在当前草稿。');}setPanel('');}
+   else if(action==='ai-build'){const prompt=panel.querySelector('[data-ai-prompt]').value;const key='ai'+Date.now();state.drafts[key]=prompt.includes('视频')?makeVideo():makeNews();state.drafts[key].name+=' · 伙伴草稿';const opt=document.createElement('option');opt.value=key;opt.textContent=state.drafts[key].name;editor.querySelector('.tw-flow-select').append(opt);load(key);dirty();tell('演示草稿已放入画布，待检查发布目标；没有调用模型或执行流程。');}
+   else if(action==='add-capability'){const name=panel.querySelector('[data-capability-name]').value;addNode('read',null,name||'官方文档读取');tell('已在演示画布加入可复用能力；正式保存入口将在设计确认后实现。');}
+   else if(action==='delete-edge'&&state.edge!==null){current().edges.splice(state.edge,1);state.edge=null;dirty();setPanel('');renderNodes();tell('连接已删除，节点和配置仍保留。');}
+   else if(action==='run')simulate();
+ });
+ editor.querySelector('.tw-flow-select').addEventListener('change',event=>load(event.target.value));
+ panel.addEventListener('input',event=>{const n=selectedNode();if(!n||state.pane!=='node')return;if(event.target.matches('[data-node-name]'))n.name=event.target.value;if(event.target.matches('[data-node-prompt]'))n.prompt=event.target.value;if(event.target.matches('[data-node-target]')){n.target=event.target.value;n.missing=!n.target.trim();n.sub=n.missing?'待选择发布目标':n.target+' · 发布前确认';}dirty();renderNodes();});
+ canvas.addEventListener('dragover',event=>event.preventDefault());
+ editor.addEventListener('dragstart',event=>{const item=event.target.closest('[data-add]');if(item)event.dataTransfer.setData('text/plain',item.dataset.add)});
+ canvas.addEventListener('drop',event=>{event.preventDefault();const kind=event.dataTransfer.getData('text/plain');if(catalog.some(c=>c[0]===kind))addNode(kind,{x:event.clientX,y:event.clientY})});
+ canvas.addEventListener('pointerdown',event=>{
+   const el=event.target.closest('.tw-node'),port=event.target.closest('[data-port]');
+   if(port){event.stopPropagation();if(port.dataset.port==='out'){state.connecting=el.dataset.id;hoverPoint=null;gesture={type:'connect',startX:event.clientX,startY:event.clientY};canvas.setPointerCapture(event.pointerId);tell('把连线拖到另一个节点的上方圆点，也可以点选输入圆点。');}else if(state.connecting)connect(state.connecting,el.dataset.id);return;}
+   const edge=event.target.closest('[data-edge]');if(edge){state.edge=Number(edge.dataset.edge);state.selected=[];setPanel('edge');renderNodes();return;}
+   if(!el){if(event.target===canvas||event.target===svg){state.selected=[];state.connecting='';hoverPoint=null;draw();setPanel('');renderNodes();}return;}
+   if(event.button!==0)return;const id=el.dataset.id,n=current().nodes.find(v=>v.id===id);
+   if(event.shiftKey){state.selected=state.selected.includes(id)?state.selected.filter(v=>v!==id):[...state.selected,id];renderNodes();tell(`已选 ${state.selected.length} 个节点，可使用底部对齐工具。`);return;}
+   if(!state.selected.includes(id))state.selected=[id];
+   gesture={type:'move',id,element:el,startX:event.clientX,startY:event.clientY,left:parseFloat(el.style.left),top:parseFloat(el.style.top),moved:false};canvas.setPointerCapture(event.pointerId);
+ });
+ canvas.addEventListener('pointermove',event=>{
+   const r=canvas.getBoundingClientRect();
+   if(state.connecting){hoverPoint={x:event.clientX-r.left,y:event.clientY-r.top};draw();}
+   if(gesture?.type!=='move')return;
+   const dx=event.clientX-gesture.startX,dy=event.clientY-gesture.startY;if(Math.abs(dx)+Math.abs(dy)<4)return;gesture.moved=true;
+   const el=gesture.element;el.classList.add('tw-dragging');const w=el.offsetWidth,h=el.offsetHeight;let left=Math.max(10,Math.min(canvas.clientWidth-w-10,gesture.left+dx)),top=Math.max(34,Math.min(canvas.clientHeight-h-64,gesture.top+dy)),guides=[];
+   if(state.guides)current().nodes.filter(v=>v.id!==gesture.id).forEach(n=>{const b=box(n.id);if(!b)return;if(Math.abs(left+w/2-b.x)<8){left=b.x-w/2;guides.push({axis:'x',at:b.x})}if(Math.abs(top+h/2-(b.y+b.h/2))<8){top=b.y+b.h/2-h/2;guides.push({axis:'y',at:b.y+b.h/2})}});
+   el.style.left=left+'px';el.style.top=top+'px';const n=current().nodes.find(v=>v.id===gesture.id);n.x=(left+w/2)/canvas.clientWidth;n.y=top+40;draw(guides);
+ });
+ canvas.addEventListener('pointerup',event=>{
+   if(gesture?.type==='connect'){const end=document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-port=in]');if(end)connect(state.connecting,end.closest('.tw-node').dataset.id);gesture=null;return;}
+   if(gesture?.type==='move'){const moved=gesture.moved;gesture.element.classList.remove('tw-dragging');gesture=null;if(moved){dirty();renderNodes();tell('节点位置已更新；参考线只在拖动时出现。');}else{state.tab='配置';setPanel('node');renderNodes();}persist();}
+ });
+ canvas.addEventListener('pointercancel',()=>{gesture=null;draw()});
+ app.addEventListener('keydown',event=>{if(event.key==='Escape'){state.connecting='';hoverPoint=null;palette.hidden=true;if(state.focus)focus();else setPanel('');draw();}});
+ let lastWidth=-1;new ResizeObserver(()=>{const w=canvas.clientWidth;if(w&&Math.abs(w-lastWidth)>1){lastWidth=w;requestAnimationFrame(renderNodes)}}).observe(canvas);
+ renderNodes();renderPanel();renderTrace();
+ function restore(saved){const v=saved?.modelContent||saved;if(v?.design!=='自动化界面'||v.layout!==(studio?'独立编排页':'画布工作台'))return;let changed=false;if(['news','video'].includes(v.workflow)&&v.workflow!==state.flow){state.flow=v.workflow;state.selected=[];state.pane='';editor.querySelector('.tw-flow-select').value=state.flow;editor.querySelector('.tw-stage-caption').textContent='工作流 / '+current().name;changed=true;}if(typeof v.focus==='boolean'&&v.focus!==state.focus){state.focus=v.focus;app.classList.toggle('tw-focus',state.focus);editor.querySelector('[data-focus-label]').textContent=state.focus?'退出专注':'专注画布';changed=true;}if(changed){panel.hidden=!state.pane;body.classList.toggle('tw-with-panel',!!state.pane);renderNodes();renderPanel();}}
+ showHome(false);window.addEventListener('openai:set_globals',event=>{const saved=event.detail?.globals?.widgetState,v=saved?.modelContent||saved;if(v?.design==='自动化界面'&&v.layout==='卡片首页与画布'&&v.view==='editor'&&state.drafts[v.workflow]&&state.view==='editor')restore(saved);});
+ if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:()=>{app.style.setProperty('--tw-radius',state.radius+'px');app.style.colorScheme=state.theme;requestAnimationFrame(draw)}});tweak.addSlider(state,'radius',{label:'节点圆角',min:6,max:20,unit:'px'});tweak.addSelect(state,'theme',{label:'界面外观',options:[{label:'跟随界面',value:'inherit'},{label:'浅色玻璃',value:'light'},{label:'深色玻璃',value:'dark'}]});}
+});icons();
+})();
+</script>

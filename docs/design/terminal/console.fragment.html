@@ -1,0 +1,150 @@
+<div id="tebb-terminal-preview" class="viz-carousel viz-dotted-background" aria-label="tebb 终端设计方案" data-previous-label="上一方案" data-next-label="下一方案">
+  <section data-variant="项目控制台" aria-label="项目控制台设计">
+    <div class="tt-stage">
+      <div class="tt-window" data-layout="console" aria-label="项目控制台">
+        <header class="tt-chrome"><div class="tt-title"><i data-lucide="terminal" aria-hidden="true"></i><strong>终端</strong><span class="tt-sub">tebb / demo-project</span></div><span class="tt-demo">设计示例 · 不执行命令</span></header>
+        <div class="tt-environment"><div><span class="tt-dot"></span><strong>环境已就绪</strong><span class="tt-sub">WSL · Ubuntu</span></div><button class="tt-link cursor-interaction" type="button" data-action="environment">查看环境<i data-lucide="chevron-down" aria-hidden="true"></i></button></div>
+        <div class="tt-env-detail" hidden>当前方案展示现有环境：Bash · 网络关闭 · 项目目录可写。沙箱后端另行设计。</div>
+        <div class="tt-main">
+          <aside class="tt-history" aria-label="执行记录"><div class="tt-section-label">执行记录 <span>3</span></div><button class="tt-record cursor-interaction" type="button" data-job="dev" aria-pressed="true"><span><i data-lucide="loader-circle" aria-hidden="true"></i><b>启动开发服务</b></span><code>pnpm dev</code><small>Agent · 执行中</small></button><button class="tt-record cursor-interaction" type="button" data-job="test" aria-pressed="false"><span><i data-lucide="circle-x" aria-hidden="true"></i><b>运行测试</b></span><code>pnpm test</code><small>Agent · 退出码 1</small></button><button class="tt-record cursor-interaction" type="button" data-job="install" aria-pressed="false"><span><i data-lucide="circle-check" aria-hidden="true"></i><b>安装依赖</b></span><code>pnpm install</code><small>手动 · 退出码 0</small></button></aside>
+          <div class="tt-detail"><div class="tt-output-toolbar"><div><strong data-label="job-title">启动开发服务</strong><span class="tt-status" data-label="job-state">执行中</span></div><button class="tt-button tt-stop cursor-interaction" data-action="stop" type="button"><i data-lucide="square" aria-hidden="true"></i>停止</button></div><div class="tt-command-heading"><span class="tt-prompt">❯</span><code data-label="job-command">pnpm dev</code><span class="tt-sub">/workspace</span></div><pre class="tt-output" aria-label="终端输出示例"><code data-label="output">&gt; demo-project@1.0.0 dev
+&gt; vite --host 0.0.0.0
+
+  VITE v5.4.11  ready in 286 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  press h + enter to show help
+
+  23:10:42 [vite] page reload src/App.tsx</code></pre><div class="tt-receipt" aria-live="polite" data-label="receipt">进程仍在运行 · 尚无退出码</div></div>
+        </div>
+        <form class="tt-composer"><label class="tt-section-label" for="tt-command-console">运行命令<span>Ctrl + Enter</span></label><div class="tt-input-row"><span class="tt-prompt">❯</span><input id="tt-command-console" value="pnpm run build" aria-label="命令示例" autocomplete="off" spellcheck="false"><button class="tt-button tt-primary cursor-interaction" type="submit"><i data-lucide="play" aria-hidden="true"></i>执行</button></div><div class="tt-composer-footer"><span><i data-lucide="folder" aria-hidden="true"></i>/workspace</span><label>时限 <select aria-label="命令时限"><option>60 秒</option><option>120 秒</option><option>300 秒</option></select></label></div></form>
+        <footer class="tt-footer"><span><i data-lucide="shield-check" aria-hidden="true"></i>网络关闭</span><div><button type="button" class="tt-link cursor-interaction" data-action="reuse">复用命令</button><button type="button" class="tt-link cursor-interaction" data-action="explain">交给 tebb 解读</button></div></footer><div class="tt-feedback" role="status" hidden></div>
+      </div>
+    </div>
+  </section>
+  <section data-variant="命令工作流" aria-label="命令工作流设计" hidden>
+    <div class="tt-stage">
+      <div class="tt-window" data-layout="workflow" aria-label="命令工作流">
+        <header class="tt-chrome"><div class="tt-title"><i data-lucide="terminal" aria-hidden="true"></i><strong>终端</strong><span class="tt-sub">tebb / demo-project</span></div><span class="tt-demo">设计示例 · 不执行命令</span></header>
+        <div class="tt-environment"><div><span class="tt-dot"></span><strong>环境已就绪</strong><span class="tt-sub">WSL · Ubuntu</span></div><button class="tt-link cursor-interaction" type="button" data-action="environment">查看环境<i data-lucide="chevron-down" aria-hidden="true"></i></button></div><div class="tt-env-detail" hidden>Bash · 网络关闭 · /workspace。环境状态与命令结果分别展示。</div>
+        <nav class="tt-run-tabs" aria-label="选择执行记录"><button class="tt-tab cursor-interaction" type="button" data-job="install" aria-pressed="false"><i data-lucide="circle-check" aria-hidden="true"></i>安装依赖</button><button class="tt-tab cursor-interaction" type="button" data-job="test" aria-pressed="false"><i data-lucide="circle-x" aria-hidden="true"></i>运行测试</button><button class="tt-tab cursor-interaction" type="button" data-job="dev" aria-pressed="true"><i data-lucide="loader-circle" aria-hidden="true"></i>启动服务</button></nav>
+        <div class="tt-focus-detail"><div class="tt-output-toolbar"><div><strong data-label="job-title">启动开发服务</strong><span class="tt-status" data-label="job-state">执行中</span></div><button class="tt-button tt-stop cursor-interaction" data-action="stop" type="button"><i data-lucide="square" aria-hidden="true"></i>停止</button></div><div class="tt-command-heading"><span class="tt-prompt">❯</span><code data-label="job-command">pnpm dev</code><span class="tt-sub">Agent · /workspace</span></div><pre class="tt-output" aria-label="终端输出示例"><code data-label="output">&gt; demo-project@1.0.0 dev
+&gt; vite --host 0.0.0.0
+
+  VITE v5.4.11  ready in 286 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  press h + enter to show help
+
+  23:10:42 [vite] page reload src/App.tsx</code></pre><div class="tt-receipt" aria-live="polite" data-label="receipt">进程仍在运行 · 尚无退出码</div></div>
+        <form class="tt-composer"><label class="tt-section-label" for="tt-command-workflow">下一条命令<span>Ctrl + Enter</span></label><div class="tt-input-row"><span class="tt-prompt">❯</span><input id="tt-command-workflow" value="pnpm run build" aria-label="命令示例" autocomplete="off" spellcheck="false"><button class="tt-button tt-primary cursor-interaction" type="submit"><i data-lucide="play" aria-hidden="true"></i>执行</button></div><div class="tt-composer-footer"><span><i data-lucide="folder" aria-hidden="true"></i>/workspace</span><label>时限 <select aria-label="命令时限"><option>60 秒</option><option>120 秒</option><option>300 秒</option></select></label></div></form>
+        <footer class="tt-footer"><span><i data-lucide="shield-check" aria-hidden="true"></i>网络关闭</span><div><button type="button" class="tt-link cursor-interaction" data-action="reuse">复用命令</button><button type="button" class="tt-link cursor-interaction" data-action="explain">交给 tebb 解读</button></div></footer><div class="tt-feedback" role="status" hidden></div>
+      </div>
+    </div>
+  </section>
+</div>
+<style>
+#tebb-terminal-preview .tt-window{--tt-bg:light-dark(#fafbf8,#191d19);--tt-panel:light-dark(#f0f2ec,#232923);--tt-text:light-dark(#293229,#e2e9df);--tt-muted:light-dark(#5c6859,#a5b2a0);--tt-line:light-dark(#dce2d7,#394236);--tt-accent:light-dark(#4f6648,#b0c6a5);--tt-selected:light-dark(#e2e9dc,#35412f);--tt-error:light-dark(#9c4036,#eea196);--tt-error-bg:light-dark(#f8ebe7,#3a2825);--tt-term:light-dark(#f8faf5,#171c16);--tt-success:light-dark(#3e6949,#a4c6a4);color:var(--tt-text);background:var(--tt-bg);border:1px solid var(--tt-line);border-radius:12px;overflow:hidden;font:13px/1.55 "Segoe UI","Microsoft YaHei",sans-serif;max-width:720px;width:100%;box-shadow:0 12px 35px light-dark(#2932290b,#00000024)}
+#tebb-terminal-preview .tt-stage{min-height:750px;padding:20px 8px;display:flex;justify-content:center;align-items:flex-start}
+#tebb-terminal-preview .tt-window *{box-sizing:border-box}
+#tebb-terminal-preview .tt-window strong,#tebb-terminal-preview .tt-window b{font-weight:500}
+#tebb-terminal-preview .tt-window button,#tebb-terminal-preview .tt-window input,#tebb-terminal-preview .tt-window select{font:inherit;color:inherit}
+#tebb-terminal-preview .tt-window button{display:inline-flex;align-items:center;gap:6px}
+#tebb-terminal-preview .tt-window svg{width:15px;height:15px;flex:none}
+#tebb-terminal-preview .tt-chrome{padding:14px 16px;display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid var(--tt-line);flex-wrap:wrap}
+#tebb-terminal-preview .tt-title{display:flex;align-items:center;gap:9px;min-width:0}
+#tebb-terminal-preview .tt-sub{color:var(--tt-muted);font-size:12px;overflow-wrap:anywhere}
+#tebb-terminal-preview .tt-demo{font-size:11px;color:var(--tt-muted);padding:3px 7px;background:var(--tt-panel);border-radius:4px}
+#tebb-terminal-preview .tt-environment{padding:10px 16px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;background:var(--tt-panel);border-bottom:1px solid var(--tt-line)}
+#tebb-terminal-preview .tt-environment>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tebb-terminal-preview .tt-dot{width:6px;height:6px;background:var(--tt-success);border-radius:50%;display:inline-block}
+#tebb-terminal-preview .tt-link{background:transparent;border:0;padding:3px 0;color:var(--tt-muted);white-space:nowrap;font-size:12px!important}
+#tebb-terminal-preview .tt-link:hover{color:var(--tt-text);text-decoration:underline}
+#tebb-terminal-preview .tt-env-detail{padding:10px 16px;color:var(--tt-muted);font-size:12px;border-bottom:1px solid var(--tt-line)}
+#tebb-terminal-preview .tt-main{display:grid;grid-template-columns:150px minmax(0,1fr)}
+#tebb-terminal-preview .tt-history{border-right:1px solid var(--tt-line);background:var(--tt-panel);padding:12px 8px}
+#tebb-terminal-preview .tt-section-label{display:flex;justify-content:space-between;gap:8px;color:var(--tt-muted);font-size:12px;margin:0 4px 9px;align-items:center}
+#tebb-terminal-preview .tt-section-label span{font-size:11px}
+#tebb-terminal-preview .tt-record{width:100%;display:flex!important;flex-direction:column;align-items:flex-start!important;gap:4px!important;text-align:left;padding:10px 8px;margin-bottom:5px;border:0;border-radius:6px;background:transparent;overflow-wrap:anywhere}
+#tebb-terminal-preview .tt-record[aria-pressed=true]{background:var(--tt-selected)}
+#tebb-terminal-preview .tt-record>span{display:flex;gap:6px;align-items:center}
+#tebb-terminal-preview .tt-record b{font-size:12px}
+#tebb-terminal-preview .tt-record code,#tebb-terminal-preview .tt-record small{font-size:11px;color:var(--tt-muted);font-family:inherit}
+#tebb-terminal-preview .tt-detail{min-width:0;background:var(--tt-term)}
+#tebb-terminal-preview .tt-output-toolbar{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;gap:8px;flex-wrap:wrap}
+#tebb-terminal-preview .tt-output-toolbar>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+#tebb-terminal-preview .tt-status{font-size:11px;background:var(--tt-selected);color:var(--tt-accent);padding:2px 6px;border-radius:4px}
+#tebb-terminal-preview .tt-window[data-state=failed] .tt-status{color:var(--tt-error);background:var(--tt-error-bg)}
+#tebb-terminal-preview .tt-button{border:1px solid var(--tt-line);background:var(--tt-bg);padding:5px 9px;border-radius:5px;font-size:12px!important}
+#tebb-terminal-preview .tt-button:disabled{opacity:.5}
+#tebb-terminal-preview .tt-primary{background:var(--tt-selected);color:var(--tt-text);border-color:transparent}
+#tebb-terminal-preview .tt-command-heading{display:flex;gap:9px;align-items:center;padding:3px 14px 8px;flex-wrap:wrap}
+#tebb-terminal-preview .tt-command-heading code{font:12px/1.6 "Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+#tebb-terminal-preview .tt-command-heading .tt-sub{font-size:11px}
+#tebb-terminal-preview .tt-prompt{color:var(--tt-accent);font-family:Consolas,monospace}
+#tebb-terminal-preview .tt-output{font:12px/1.8 "Cascadia Mono",Consolas,monospace;background:transparent;margin:0;padding:8px 14px 16px;min-height:225px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--tt-text)}
+#tebb-terminal-preview .tt-output code{font:inherit;color:inherit;background:transparent;padding:0}
+#tebb-terminal-preview .tt-receipt{font-size:11px;color:var(--tt-muted);padding:9px 14px;border-top:1px solid var(--tt-line)}
+#tebb-terminal-preview .tt-window[data-state=failed] .tt-receipt{color:var(--tt-error);background:var(--tt-error-bg)}
+#tebb-terminal-preview .tt-composer{padding:13px 14px 10px;border-top:1px solid var(--tt-line)}
+#tebb-terminal-preview .tt-input-row{display:flex;align-items:center;gap:9px;background:var(--tt-term);border:1px solid var(--tt-line);border-radius:6px;padding:7px 8px}
+#tebb-terminal-preview .tt-input-row input{min-width:0;flex:1;background:transparent;border:0;font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
+#tebb-terminal-preview .tt-composer-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--tt-muted);font-size:11px;margin-top:8px}
+#tebb-terminal-preview .tt-composer-footer>span{display:flex;gap:5px;align-items:center}
+#tebb-terminal-preview .tt-composer-footer label{display:flex;align-items:center;gap:6px}
+#tebb-terminal-preview .tt-composer-footer select{background:var(--tt-bg);border:0;font-size:11px;padding:2px}
+#tebb-terminal-preview .tt-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--tt-line);color:var(--tt-muted);font-size:11px}
+#tebb-terminal-preview .tt-footer>span,#tebb-terminal-preview .tt-footer>div{display:flex;gap:12px;align-items:center}
+#tebb-terminal-preview .tt-footer>span{gap:5px}
+#tebb-terminal-preview .tt-feedback{background:var(--tt-panel);padding:9px 14px;border-top:1px solid var(--tt-line);color:var(--tt-muted);font-size:12px}
+#tebb-terminal-preview .tt-run-tabs{display:flex;gap:4px;padding:12px 14px 0;flex-wrap:wrap}
+#tebb-terminal-preview .tt-tab{padding:6px 8px;border:0;background:transparent;color:var(--tt-muted);border-radius:5px;font-size:12px!important}
+#tebb-terminal-preview .tt-tab[aria-pressed=true]{background:var(--tt-selected);color:var(--tt-text)}
+#tebb-terminal-preview .tt-focus-detail{background:var(--tt-term);margin:10px 14px 14px;border:1px solid var(--tt-line);border-radius:7px;overflow:hidden}
+#tebb-terminal-preview [data-layout=workflow] .tt-output{min-height:196px}
+@media(max-width:510px){#tebb-terminal-preview .tt-stage{min-height:850px;padding:12px 0}#tebb-terminal-preview .tt-title .tt-sub{display:none}#tebb-terminal-preview .tt-main{grid-template-columns:minmax(0,1fr)}#tebb-terminal-preview .tt-history{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-right:0;border-bottom:1px solid var(--tt-line)}#tebb-terminal-preview .tt-history .tt-section-label{width:100%;margin-bottom:3px}#tebb-terminal-preview .tt-record{width:auto;flex:1;min-width:80px;padding:7px 5px;margin:0}#tebb-terminal-preview .tt-record span svg{display:none}#tebb-terminal-preview .tt-record code{display:none}#tebb-terminal-preview .tt-record b{font-size:11px}#tebb-terminal-preview .tt-footer>div{gap:12px}#tebb-terminal-preview .tt-chrome{padding:12px}#tebb-terminal-preview .tt-output{min-height:240px}}
+@media(pointer:coarse){#tebb-terminal-preview .tt-window button{min-height:44px}#tebb-terminal-preview .tt-window input,#tebb-terminal-preview .tt-window select{font-size:16px}}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('tebb-terminal-preview');
+  const jobs = {
+    dev: { title: '启动开发服务', command: 'pnpm dev', state: 'running', status: '执行中', receipt: '进程仍在运行 · 尚无退出码', output: '> demo-project@1.0.0 dev\n> vite --host 0.0.0.0\n\n  VITE v5.4.11  ready in 286 ms\n\n  ➜  Local:   http://localhost:5173/\n  ➜  press h + enter to show help\n\n  23:10:42 [vite] page reload src/App.tsx' },
+    test: { title: '运行测试', command: 'pnpm test', state: 'failed', status: '失败', receipt: '进程已退出 · 退出码 1 · 失败输出已保留', output: '> demo-project@1.0.0 test\n> vitest run\n\n ✓ src/utils.test.ts (8 tests)\n ❯ src/App.test.tsx (3 tests | 1 failed)\n\n FAIL  src/App.test.tsx > displays welcome\n Expected: "Hello, tebb"\n Received: "Hello, world"\n\n Test Files  1 failed | 1 passed\n      Tests  1 failed | 10 passed' },
+    install: { title: '安装依赖', command: 'pnpm install', state: 'succeeded', status: '已完成', receipt: '进程已退出 · 退出码 0 · 用时 4.2 秒', output: 'Lockfile is up to date\nResolution step is skipped\nPackages: +126\n\nProgress: resolved 126, reused 126,\ndownloaded 0, added 126, done\n\nDone in 4.2s' }
+  };
+  const saved = window.openai?.widgetState?.privateContent || {};
+  const windows = [...root.querySelectorAll('.tt-window')];
+  windows.forEach((panel, index) => {
+    const state = { job: ['dev','test','install'].includes(saved[index]?.job) ? saved[index].job : 'dev', density: 14, borderRadius: 12, stopped: false, custom: '' };
+    panel._previewState = state;
+    function render() {
+      const job = state.custom ? { ...jobs.dev, title: '手动命令', command: state.custom, output: '$ ' + state.custom + '\n\n正在运行…\n\n此处仅预览命令运行时的界面。' } : jobs[state.job];
+      panel.dataset.state = state.stopped ? 'cancelled' : job.state;
+      panel.querySelector('[data-label=job-title]').textContent = job.title;
+      panel.querySelector('[data-label=job-command]').textContent = job.command;
+      panel.querySelector('[data-label=job-state]').textContent = state.stopped ? '已停止' : job.status;
+      panel.querySelector('[data-label=receipt]').textContent = state.stopped ? '停止状态示例 · 未启动或终止任何真实进程' : job.receipt;
+      panel.querySelector('[data-label=output]').textContent = job.output;
+      panel.querySelector('[data-action=stop]').disabled = state.stopped || job.state !== 'running';
+      panel.querySelectorAll('[data-job]').forEach(button => button.setAttribute('aria-pressed', String(!state.custom && button.dataset.job === state.job)));
+      panel.style.borderRadius = state.borderRadius + 'px';
+      panel.querySelector('.tt-output').style.paddingLeft = state.density + 'px';
+      panel.querySelector('.tt-output').style.paddingRight = state.density + 'px';
+    }
+    function persist() { window.openai?.setWidgetState?.({ modelContent: { preview: 'tebb 终端样式', variants: ['项目控制台','命令工作流'] }, privateContent: windows.map(w => ({ job: w._previewState.job })) }).catch(() => {}); }
+    function feedback(text) { const node = panel.querySelector('.tt-feedback'); node.hidden = false; node.textContent = text; }
+    panel.querySelectorAll('[data-job]').forEach(button => button.addEventListener('click', () => { state.job = button.dataset.job; state.stopped = false; state.custom = ''; panel.querySelector('.tt-feedback').hidden = true; render(); persist(); }));
+    panel.querySelector('[data-action=stop]').addEventListener('click', () => { state.stopped = true; render(); feedback('已切换到停止后的设计状态，命令输出继续保留。'); });
+    panel.querySelector('[data-action=environment]').addEventListener('click', () => { const details = panel.querySelector('.tt-env-detail'); details.hidden = !details.hidden; });
+    panel.querySelector('[data-action=reuse]').addEventListener('click', () => { panel.querySelector('input').value = state.custom || jobs[state.job].command; feedback('命令已放入输入框，尚未执行。'); });
+    panel.querySelector('[data-action=explain]').addEventListener('click', () => feedback('设计效果：将当前命令、状态、退出码和选定输出加入聊天草稿，由你发送。'));
+    panel.querySelector('form').addEventListener('submit', event => { event.preventDefault(); const command = panel.querySelector('input').value.trim(); if (!command) { feedback('请输入要预览的命令。'); return; } state.custom = command; state.stopped = false; render(); feedback('仅切换运行状态示例，没有执行任何命令。'); });
+    panel.querySelector('input').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing) { event.preventDefault(); panel.querySelector('form').requestSubmit(); } });
+    panel._renderPreview = render;
+    render();
+    if (globalThis.Tweak) { const tweak = new Tweak({ container: panel, onChange: render }); tweak.addSlider(state, 'density', { label: '输出左右留白', min: 8, max: 24, unit: 'px' }); tweak.addSlider(state, 'borderRadius', { label: '面板圆角', min: 0, max: 16, unit: 'px' }); }
+  });
+  window.addEventListener('openai:set_globals', event => { const state = event.detail?.globals?.widgetState?.privateContent; if (!Array.isArray(state)) return; windows.forEach((panel,index) => { const key = state[index]?.job; if (jobs[key]) { panel._previewState.job = key; panel._previewState.stopped = false; panel._previewState.custom = ''; panel._renderPreview(); } }); });
+})();
+</script>
