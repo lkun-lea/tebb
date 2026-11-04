@@ -70,6 +70,10 @@ def main():
     init.add_argument("--rounds", type=int, default=3)
     init.add_argument("--max-launches", type=int, default=12)
     commands.add_parser("import-history").add_argument("pair", type=Path)
+    native = commands.add_parser('import-native', help='登记已结束的原生实验，仅回放，不执行')
+    native.add_argument('folder', type=Path)
+    native.add_argument('--issue', type=int, required=True)
+    native.add_argument('--title', required=True)
     commands.add_parser("status")
     account = commands.add_parser("account", help="登记某一组实测的额外人工与维护成本")
     account.add_argument("pair", type=Path)
@@ -89,6 +93,9 @@ def main():
         print(create(args))
     elif args.command == "import-history":
         print(register(args.pair, historical=True))
+    elif args.command == 'import-native':
+        from desk_companion.development_team import register_native
+        print(register_native(args.folder, args.issue, args.title))
     elif args.command == "status":
         print(json.dumps(snapshot(), ensure_ascii=False, indent=2))
     elif args.command == "account":

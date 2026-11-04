@@ -97,7 +97,7 @@ def trial(arm, output, model, policy, *, seed=None, goal=GOAL, holdout=HOLDOUT, 
                 root=next(r for r in runs if r['id']==rid)
                 if observe:
                     observe(service, started)
-                rows=[{k:r.get(k) for k in ('id','parent','agent','kind','state','status','calls','input_tokens','output_tokens','error')} for r in runs]
+                rows=[{k:r.get(k) for k in ('id','parent','agent','kind','task','stage','integration_verification','state','status','calls','input_tokens','output_tokens','error')} for r in runs]
                 (output/(arm+'-progress.json')).write_text(json.dumps(rows,ensure_ascii=False,indent=2),'utf-8')
                 if root['state'] not in {'running','pending','queued','waiting','cancelling'}:break
                 time.sleep(1)

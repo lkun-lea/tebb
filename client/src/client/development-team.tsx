@@ -1,45 +1,35 @@
-import {useEffect, useState} from "react";
-import {rpc, type BackendInfo} from "./api";
+import {useEffect,useState} from "react";
+import {rpc,type BackendInfo} from "./api";
 import {usePageActive} from "./page-stack";
 import {NativeDevelopmentTeam} from "./native-development-team";
+import {ExperimentFlow,NativeTrialFlow,type Experiment,type NativeTrial} from "./experiment-flow";
 
-import {ExperimentFlow,type Experiment} from "./experiment-flow";
-
-export function DevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>;onSetup?:()=>void}) {
+type History={experiments:Experiment[];native_trials:NativeTrial[]};
+export function DevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>;onSetup?:()=>void}){
  const active=usePageActive();
- const [items,setItems]=useState<Experiment[]|null>(null);
- const [historyOpen,setHistoryOpen]=useState(false);
- const [id,select]=useState("");
- const [error,setError]=useState("");
+ const [mode,setMode]=useState("start"),[history,setHistory]=useState<History|null>(null),[id,select]=useState(""),[error,setError]=useState("");
+ useEffect(()=>{setHistory(null);select("");setError("");},[info]);
  useEffect(()=>{
-   if(!historyOpen||!active||!info)return;
-   let alive=true;
-   let timer:ReturnType<typeof setTimeout>;
-   async function refresh(){
-     try {
-       const result=await rpc<{experiments:Experiment[]}>(info!,"development_team",{});
-       if(alive){setItems(result.experiments);setError("");}
-     } catch(e){if(alive)setError(String(e));}
-     if(alive)timer=setTimeout(refresh,5000);
-   }
-   void refresh();
-   return ()=>{alive=false;clearTimeout(timer);};
- },[active,info,historyOpen]);
- const item=items?.find(x=>x.id===id)??items?.[0];
- return <section className="flex-1 overflow-auto px-8 py-6" data-page="development-team">
-   <h1 className="text-2xl font-semibold">开发团队</h1>
-   <p className="mt-2 text-sm text-muted-foreground">原生团队在项目群执行；外部实验记录用于回看历史对照，两者分别保存。</p>
-   <NativeDevelopmentTeam info={info} onOpen={onOpen} onSetup={onSetup}/>
-   <details onToggle={event=>setHistoryOpen(event.currentTarget.open)}><summary>外部开发流程实验记录</summary>
-   {error&&<p role="alert">刷新失败 · {error}</p>}
-   {!info?<p>等待桌面服务连接</p>:!items?<p>正在读取实验</p>:!items.length?<p className="mt-5">暂无已登记实验。通过项目的开发对照命令创建实验后，可在这里查看团队进度。</p>:<>
-     <label className="mt-4 block">选择实验　<select className="max-w-full rounded-md border bg-card px-3 py-2 text-foreground" value={item?.id} onChange={e=>select(e.target.value)}>
-       {items.map(x=><option key={x.id} value={x.id}>{x.title||x.id} · {x.id.slice(0,6)}</option>)}</select></label>
-     {item?.error?<p role="alert">{item.error}</p>:item&&<>
-       <p className="my-3 text-sm text-muted-foreground">{item.historical?"历史对照":"本次试点"} · 流程 v{item.version} · 基线 {item.base.slice(0,10)}</p>
-       {Object.values(item.arms).some(a=>!a.matched)&&<p role="alert">实验条件已变化，请分别解读两组结果。</p>}
-       <ExperimentFlow key={item.id} item={item}/>
-     </>}
+  if(!active||!info||mode!=="history")return;
+  let live=true,timer:ReturnType<typeof setTimeout>;
+  async function refresh(){try{const result=await rpc<History>(info!,"development_team",{});if(live){setHistory(result);setError("");}}
+   catch(e){if(live)setError(String(e));}if(live)timer=setTimeout(refresh,5000);}
+  void refresh();return()=>{live=false;clearTimeout(timer);};
+ },[active,info,mode]);
+ const choices=[...(history?.native_trials||[]).map(trial=>({id:trial.id,label:"#"+trial.issue+" · "+trial.title,trial,item:undefined as Experiment|undefined})),
+  ...(history?.experiments||[]).map(item=>({id:item.id,label:(item.issue?"#"+item.issue+" · ":"")+"外部对照 · "+(item.title||item.id),item,trial:undefined as NativeTrial|undefined}))];
+ const chosen=choices.find(c=>c.id===id)||choices.find(c=>c.trial?.issue===208)||choices[0];
+ return <section className="flex-1 overflow-auto px-6 py-5" data-page="development-team">
+  <h1 className="text-2xl font-semibold">开发团队</h1><p className="mt-2 text-sm text-muted-foreground">选项目，说清想改什么，点击开始。进度会直接显示在流程图上。</p>
+  <nav className="team-mode" aria-label="开发方式"><button aria-pressed={mode==="start"} onClick={()=>setMode("start")}>开始开发</button>
+   <button aria-pressed={mode==="history"} onClick={()=>setMode("history")}>历史回放 · 含 #208</button></nav>
+  <div hidden={mode!=="start"}><NativeDevelopmentTeam info={mode==="start"?info:null} onOpen={onOpen} onSetup={onSetup}/></div>
+  {mode==="history"&&<section className="team-history">
+   {error&&<p role="alert">读取失败 · {error}</p>}
+   {!info?<p>等待桌面服务连接</p>:!history?<p>正在读取历史记录…</p>:!choices.length?<p>当前账号尚未登记实验。历史记录按账号保存。</p>:<>
+    <label>选择记录　<select aria-label="历史记录" value={chosen?.id} onChange={e=>select(e.target.value)}>{choices.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+    {chosen?.trial?<NativeTrialFlow key={chosen.id} trial={chosen.trial}/>:chosen?.item?.error?<p role="alert">{chosen.item.error}</p>:chosen?.item&&<ExperimentFlow key={chosen.id} item={chosen.item}/>}
    </>}
-   </details></section>;
+  </section>}
+ </section>;
 }

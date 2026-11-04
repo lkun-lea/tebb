@@ -1,6 +1,7 @@
 import {useState} from "react";
 import type {DemoRun,DemoAgent} from "./chat-prototype-state";
 import "./development-flow.css";
+import {FlowCanvas} from "./flow-canvas";
 
 const labels:Record<string,string>={running:"执行中",waiting:"等待前序",pending:"待执行",queued:"排队中",cancelling:"正在停止",
  succeeded:"已完成",failed:"失败",timed_out:"超时",interrupted:"中断",cancelled:"已停止",needs_input:"待补充",unseen:"未开始"};
@@ -32,9 +33,10 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
  const [selected,select]=useState<string>("");
  const [attempt,setAttempt]=useState("");
  const [tab,setTab]=useState("flow");
+ const [detailOpen,showDetail]=useState(false);
  const stages=flowStages(root,runs);
  const family=[root,...runs.filter(r=>r.parent===root.id)];
- const current=stages.find(s=>s.state==="running"||s.state==="failed"||s.state==="timed_out")||stages.find(s=>s.state!=="succeeded")||stages[3];
+ const current=stages.find(s=>s.state==="running")||stages.find(s=>["needs_input","failed","timed_out"].includes(s.state))||stages.find(s=>s.state!=="succeeded")||stages[3];
  const node=stages.find(s=>s.id===selected)||current;
  const attempts=node.id==="develop"?familyFor("develop"):node.id==="verify"?familyFor("verify"):[root];
  function familyFor(stage:string){return runs.filter(r=>r.parent===root.id&&Boolean(r.integration_verification)===(stage==="verify"));}
@@ -54,25 +56,17 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
   <header className="df-heading"><div><h3>{root.title}</h3><small>运行 {root.id.slice(0,8)} · {labels[root.state]}</small></div>
    <div>{onOpen&&<button onClick={onOpen}>打开项目群 / 补充说明</button>}
     {isOpen(root)&&<button disabled={busy||root.state==="cancelling"} onClick={onStop}>停止任务</button>}</div></header>
-  <div className="df-tabs" role="tablist" aria-label="开发视图">{[["flow","流程图"],["events","事件记录"]].map(([id,name])=>
-   <button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id)}>{name}</button>)}</div>
   <div className="df-summary" role="status"><span>当前阶段 <b>{current.title}</b></span><span>{labels[current.state]}</span>
    <span>最近回执 {clock(last?.ts)}</span><span>耗时 {seconds==null?"未知":Math.floor(seconds/60)+" 分 "+seconds%60+" 秒"}</span><span>Token {tokens}</span></div>
+  <FlowCanvas nodes={stages.map(s=>({...s,detail:s.run?.flow_events?.at(-1)?.data.tool}))} current={current.id} selected={selected}
+   onSelect={id=>{select(id);setAttempt("");showDetail(true);}} returning={!!root.integration_repair}/>
+  <p role="status">{root.error||current.summary} · 每 5 秒同步真实运行状态</p>
+  <details open={detailOpen} onToggle={e=>showDetail(e.currentTarget.open)}><summary>查看节点详情与执行记录</summary>
+  <div className="df-tabs" role="tablist" aria-label="开发视图">{[["flow","流程图"],["events","事件记录"]].map(([id,name])=>
+   <button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id)}>{name}</button>)}</div>
+  <button onClick={()=>{select("");setAttempt("");}}>跟随当前节点</button>
   <div className="df-layout">
-   <div>{tab==="flow"?<div className="df-canvas">
-    <div className="df-return-path" aria-hidden="true"/>
-    <span className="df-return-label">{root.integration_repair?"已返回修改":"失败时返回修改"}</span>
-    {stages.map((s,i)=><button key={s.id} className={"df-node df-"+s.id+" state-"+s.state+(node.id===s.id?" selected":"")}
-      aria-pressed={node.id===s.id} onClick={()=>{select(s.id);setAttempt("");}}>
-      <div><strong>{String(i+1).padStart(2,"0")}　{s.title}</strong><span>{labels[s.state]}</span></div>
-      <small>{s.run?agents.find(a=>a.id===s.run?.agent)?.name||s.run.agent:s.role}</small>
-      <p>{s.summary}</p>
-      {s.run&&s.id!=="requirements"&&<small>修改 {s.run.changes?.length||0} 个回执 · 验证 {s.run.checks?.length||0} 次</small>}
-      {s.id==="develop"&&s.run?.flow_events?.filter((e,i,all)=>e.kind==="tool_end"||(e.kind==="tool_start"&&i===all.length-1)).slice(-3).map(e=>
-       <small className="df-operation" key={e.seq}>{e.data.tool} · {e.kind==="tool_start"?"调用中":e.data.status==="failed"?"调用失败":"已返回"}</small>)}
-    </button>)}
-    <div className="df-legend">● 已完成　● 执行中　● 失败 / 超时　○ 未开始</div>
-   </div>:<div className="df-event-list"><h4>执行事件</h4>{events.length?events.map(e=>
+   <div>{tab==="flow"?null:<div className="df-event-list"><h4>执行事件</h4>{events.length?events.map(e=>
     <button key={e.run.id+"-"+e.seq} onClick={()=>{select(e.run.id===root.id?"requirements":e.run.integration_verification?"verify":"develop");setAttempt(e.run.id);}}>
      <time>{clock(e.ts)}</time> <strong>{e.data.tool||e.kind}</strong> {e.data.status||e.data.state} {e.data.error||e.data.query||e.data.path}
     </button>):<p>尚未记录结构化工具事件。</p>}<small>每个任务显示最近 80 条结构化事件。</small></div>}
@@ -103,6 +97,6 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
     <details><summary>验收记录（{checks.length}）</summary>{checks.map((c,i)=><div key={i}><b>{c.command}</b><p>{c.stale?"已失效 · 修改后需重跑":c.state} · 退出码 {c.exit_code??"未知"}</p><pre>{c.output}</pre></div>)}</details>
     <small>模型调用 {run?.calls??"未知"} 次 · {run?.created?"开始于 "+clock(run.created):"尚未开始"}</small>
    </aside>
-  </div>
+  </div></details>
  </section>;
 }

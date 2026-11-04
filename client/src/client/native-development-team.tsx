@@ -4,7 +4,7 @@ import {CollaborationSync,loadCollaboration} from "./collaboration-sync";
 import type {DemoState} from "./chat-prototype-state";
 import {usePageActive} from "./page-stack";
 import {DevelopmentFlow} from "./development-flow";
-import "./experiment-flow.css";
+import {FlowCanvas} from "./flow-canvas";
 
 export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>;onSetup?:()=>void}) {
  const [state,setState]=useState<DemoState|null>(null);
@@ -14,6 +14,7 @@ export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|nu
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
  const [runId,setRunId]=useState("");
+ const [composing,setComposing]=useState(false);
  const pending=useRef<{key:string;id:string}|null>(null), sending=useRef(false);
  const active=usePageActive();
  useEffect(()=>{
@@ -42,7 +43,7 @@ export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|nu
        type:"send",conversation:group.id,target:group.coordinator,text:goal.trim(),mode:"task",
        strategy:"delegate",development_task:true,request_id:pending.current.id}},{timeoutMs:15000});
      if(!reply.ok||!reply.state)throw Error(reply.error||"未取得任务登记回执");
-     setState(reply.state);setRunId("");setGoal("");pending.current=null;setNotice("已登记，可在项目群查看分工、补充需求或停止任务。");
+     setState(reply.state);setRunId("");setGoal("");setComposing(false);pending.current=null;setNotice("已开始，下面的卡片会随实际进度更新。");
    }catch(e){setNotice(String(e));}finally{sending.current=false;setBusy(false);}
  }
  const runs=(state?.runs??[]).filter(r=>r.conversation===group?.id);
@@ -58,35 +59,29 @@ export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|nu
      setState(reply.state);setNotice("停止请求已登记，等待运行状态确认。");
    }catch(e){setNotice(String(e));}finally{setBusy(false);}
  }
- return <div className="my-4 rounded-lg border bg-card p-4">
-   <h2 className="font-semibold">原生开发团队 · 项目群开发</h2>
+ return <div>
+  <div className="team-start">
    {error&&<p role="alert">{error}</p>}
-   <div className="team-selectors">
-    <label>项目群　<select aria-label="项目群" disabled={busy||!group} value={group?.id||""} onChange={e=>{select(e.target.value);setRunId("");setNotice("");}}>
-     {!group&&<option value="">{state?"尚无项目群":"等待协作服务"}</option>}
-     {groups.map(c=><option key={c.id} value={c.id}>{state?.projects?.find(p=>p.id===c.project_id)?.name} · {c.title}</option>)}</select></label>
-    <label>运行记录　<select aria-label="运行记录" disabled={!root} value={root?.id||""} onChange={e=>setRunId(e.target.value)}>
-     {!root&&<option value="">尚无原生开发记录</option>}
-     {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>
-   </div>
-   {!root&&<section className="team-empty-flow" aria-label="开发流程概览">
-    <strong>开发流程 · 尚未运行</strong>
-    <ol>{["需求与分工","实现与自测","独立验收","交付"].map(name=><li key={name}>{name}</li>)}</ol>
-    <p>{!state?"连接协作服务后可选择项目群和历史运行。":!group?"先在伙伴聊天中打开项目文件夹，再创建项目群并加入编码伙伴。":
-     "这个项目群还没有从本页发起的开发任务。填写下方需求并开始团队开发后，这里会展示真实节点进度。"}</p>
-    <small>已有外部实验请展开下方“外部开发流程实验记录”。普通聊天任务不计入此处。</small>
-    {!group&&onSetup&&<button className="mt-3 block rounded border px-3 py-2" onClick={onSetup}>前往伙伴聊天设置项目群</button>}
-   </section>}
-   {!state?<p>等待协作服务</p>:!group?<p>请在伙伴聊天中打开项目文件夹，创建项目群，并加入具备文件编辑和终端权限的编码伙伴。</p>:<>
-   <p className="my-2 text-sm">参与伙伴 · {agents.map(a=>a.name+(a.id===group.coordinator?"（负责人）":"")).join("、")}</p>
-   <textarea aria-label="项目开发需求" disabled={busy} className="block w-full rounded border bg-background p-2" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="描述要完成的用户行为、涉及的模块和验收方式"/>
-   {!capable&&<p>请在项目群加入具备文件编辑和终端权限的编码伙伴。</p>}
-   <button className="mt-2 rounded bg-secondary px-3 py-2" disabled={busy||!capable||!goal.trim()} onClick={()=>void start()}>{busy?"登记中…":"开始团队开发"}</button>
-   {onOpen&&<button className="ml-3" onClick={()=>void onOpen(group.id).catch(e=>setNotice(String(e)))}>打开项目群</button>}
-   {root&&<>
-     <DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
-       onOpen={onOpen?()=>void onOpen(group.id).catch(e=>setNotice(String(e))):undefined}/></>}
-   </>}
+   <label>1. 选择项目　<select aria-label="项目群" disabled={busy||!group} value={group?.id||""} onChange={e=>{select(e.target.value);setRunId("");setNotice("");}}>
+    {!group&&<option value="">{state?"请先打开项目文件夹":"正在连接…"}</option>}
+    {groups.map(c=><option key={c.id} value={c.id}>{state?.projects?.find(p=>p.id===c.project_id)?.name||c.title} · {c.title}</option>)}</select></label>
+   {!group&&state&&<><p>先打开项目文件夹并创建项目群，加入编码伙伴。文件编辑与终端权限在项目中设置。</p>
+    {onSetup&&<button onClick={onSetup}>打开项目设置</button>}</>}
+   {group&&(!root||composing)?<>
+    <label>2. 想改什么？<textarea aria-label="项目开发需求" disabled={busy} value={goal} onChange={e=>setGoal(e.target.value)}
+     placeholder="例如：新建事项后，让它立即出现在周视图旁边；切换日期、重启后也能看到。"/></label>
+    <small>写出现象和希望的结果，或粘贴 issue 正文。团队会自行定位代码、修改和测试。</small>
+    <button disabled={busy||!!goal.trim()} onClick={()=>setGoal("新建事项后，让它立即出现在周视图旁边；切换日期、重启后也能看到。请修复并验证这些操作。")}>填入示例</button>
+    <button className="team-primary ml-3" disabled={busy||!capable||!goal.trim()} onClick={()=>void start()}>{busy?"正在提交…":"3. 开始开发"}</button>
+    {!capable&&<p role="status">还缺具备“文件编辑、终端”权限的编码伙伴。{onOpen&&<button onClick={()=>void onOpen(group.id).catch(e=>setNotice(String(e)))}>去项目群设置</button>}</p>}
+   </>:group&&<button onClick={()=>setComposing(true)}>开始新需求</button>}
+   {root&&<label>本项目运行　<select aria-label="运行记录" value={root.id} onChange={e=>setRunId(e.target.value)}>
+    {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>}
    {notice&&<p role="status">{notice}</p>}
+  </div>
+  {root?<DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
+   onOpen={onOpen?()=>void onOpen(group!.id).catch(e=>setNotice(String(e))):undefined}/>:
+   <section aria-label="开发流程概览"><small>填写需求并点击“开始开发”，下方卡片将显示真实阶段变化。</small>
+    <FlowCanvas nodes={["需求与分工","实现与自测","独立验收","交付"].map((title,i)=>({id:String(i),title,state:"unseen",summary:"尚未开始"}))}/></section>}
  </div>;
 }

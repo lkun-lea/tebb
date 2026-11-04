@@ -81,16 +81,36 @@ def arm_summary(folder, expected):
                 output=tokens.get("output_tokens") if current else None, usage_complete=current and metrics.get("usage_complete", False))
 
 
+def register_native(folder, issue, title):
+    folder = Path(folder).resolve()
+    from .development_replay import native_replay
+    native_replay(folder)  # Validate before adding a visible entry. Never run it.
+    from .video import atomic_write
+    entry = dict(kind='native', folder=str(folder), issue=issue, title=title)
+    ident = digest(str(folder))[:16]
+    path = registry() / (ident + '.json')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, entry)
+    return ident
+
+
 def snapshot():
     rows = []
+    trials = []
     for path in sorted(registry().glob("*.json"), key=lambda p:p.stat().st_mtime, reverse=True):
         try:
             entry = read(path)
             pair = Path(entry["folder"])
+            if entry.get('kind') == 'native':
+                from .development_replay import native_replay
+                trials.append(dict(id=path.stem, title=entry['title'], issue=entry['issue'], **native_replay(pair)))
+                continue
             arms = {name: arm_summary(pair / name, entry["inputs"]) for name in ("direct","workflow")}
+            issue = read(pair / 'workflow' / 'issue.json').get('number')
             rows.append(dict(id=path.stem,title=entry["title"], version=entry["inputs"]["version"],
+                             issue=issue,
                              base=entry["inputs"]["base"], historical=entry["historical"], arms=arms,
                              accounting=entry.get("accounting", {})))
         except (OSError, ValueError, KeyError, TypeError) as error:
             rows.append(dict(id=path.stem, error=f"实验记录无法读取 · {type(error).__name__}"))
-    return {"experiments": rows}
+    return {"experiments": rows, "native_trials": trials}
