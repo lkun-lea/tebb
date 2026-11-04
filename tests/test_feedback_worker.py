@@ -34,6 +34,23 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_proposal_handoff_has_domain_contract_without_claiming_ui_observation(self):
+        from desk_companion.calendar_proposals import build
+        from desk_companion.delivery_feedback import assess
+        proposal=build(dict(summary='合成提案',start='2040-01-02T09:00:00+08:00',end='2040-01-02T10:00:00+08:00'),task_id=self.request['task_id'])
+        receipts=[dict(tool='calendar_propose',call_id='proposal-one',read_only=True,result=proposal)]
+        _,checks,_=assess(self.request,'提案已生成，请打开草稿确认。',[],None,receipts)
+        verified=next(c for c in checks if c['id']=='calendar_proposal_handoff')
+        self.assertEqual(verified['status'],'pass')
+        self.assertFalse(verified['delivery_contract']['ui_observed'])
+        captured=[]
+        from desk_companion.feedback_review import review
+        review('生成可打开的提案','提案已生成',[],receipts,lambda m:(captured.append(m)or dict(message=dict(content='{}'))),verified_checks=checks)
+        self.assertEqual(json.loads(captured[0][1]['content'])['delivery_contract']['kind'],'calendar_proposal')
+        proposal['proposal']['summary']='篡改提案'
+        _,bad,_=assess(self.request,'已生成',[],None,receipts)
+        self.assertEqual(next(c for c in bad if c['id']=='calendar_proposal_handoff')['status'],'fail')
+
     def test_explicit_resume_correction_only_offers_actual_control_actions(self):
         self.request.update(kind='route',require_execution=True,supplemented_at=123,
             text='补充7和11，最终只返回JSON。',budget=2)

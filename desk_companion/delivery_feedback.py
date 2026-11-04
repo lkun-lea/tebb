@@ -48,6 +48,8 @@ def assess(request,text,sources,delivery,receipts,*,goal=None):
             '模型交付声明不独立证明目标完成。'if accepted else '未提交完整交付，或模型明确标记核心目标仍有缺失。',basis='model_declaration',
             missing=delivery.get('missing',[])if delivery else ['缺少submit_deliverable回执']))
     checks.extend(feedback.check_receipts(receipts,request.get('acceptance',[])))
+    from .calendar_proposals import handoff_checks
+    checks.extend(handoff_checks(receipts,request.get('task_id','')))
     # Recheck shape after citation compilation; keys/types must stay intact.
     if structured:checks=feedback.check_output(text,goal,declared)+[c for c in checks if c['dimension']not in {'format','schema'}]
     return text,checks,audit

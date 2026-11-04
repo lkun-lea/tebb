@@ -14,6 +14,8 @@ excerpt是系统从实际已读片段原样切分的，不跨越未读空缺。�
 verified_checks是代码已核对的格式、引用来源、阅读范围、产物等检查，不重复审阅、不输出rule_id，不使用reading/format等维度。你只检查尚需语义判断的目标。actual_assignment仅证明分工；当前子任务无需重做其他阶段。未知副作用保留原编号，不建议重复执行。
 draft始终是submitted_candidate，即模型提交的原始业务文本；提交格式条件只针对draft。rendered_delivery是系统编译引用后的显示文本，不能用它倒推模型是否提交内部编号。citation_provenance检查的是编译后来源映射，不替代事实支持判断。审阅的excerpt编号E开头只用于evidence，不能要求候选将它当业务source_id。previous_protocol_issues仅用于修正自己的协议或证据编号，不能删除真实缺口或改写正确候选。'''
 
+INSTRUCTION+='''\ndelivery_contract是产品领域给出的当前交付阶段。calendar_proposal的awaiting_user_confirmation表示合法提案已生成，下一步由用户打开/调整/保存；“生成可打开的提案”不要求本轮已经点击GUI。不得把用户下一步动作当成本阶段缺口。若当前用户明确要求实际操作或验证界面，则仍须真实观察，不能由此契约宣称已操作。候选声称已保存/同步时仍须对应真实写入回执。'''
+
 
 CANONICAL_SCHEMA=dict(type='object',properties=dict(requirements=dict(type='array',minItems=1,maxItems=6,items=dict(type='object',
     properties=dict(requirement=dict(type='string',minLength=1,maxLength=1000),dimension=dict(enum=['claim_support','numeric_comparability','task_acceptance']),
@@ -119,6 +121,8 @@ def review(goal,draft,sources,receipts,call,*,handoffs=(),verified_checks=(),pro
                  candidate_stage='submitted_candidate',citation_provenance_rule=provenance)
     if rendered_delivery is not None:
         payload['rendered_delivery']=dict(stage='after_citation_resolution',text=rendered_delivery)
+    contract=next((c['delivery_contract']for c in verified if c['id']=='calendar_proposal_handoff'),None)
+    if contract is not None:payload['delivery_contract']=contract
     response=call([dict(role='system',content=INSTRUCTION),dict(role='user',content=json.dumps(payload,ensure_ascii=False))])
     try:
         message=response['message']

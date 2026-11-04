@@ -78,6 +78,27 @@ def task_event(result,task_id,call_id):
     return dict(proposal=validate(result['proposal'],task_id=task_id),call_id=str(call_id))
 
 
+def handoff_checks(receipts,task_id):
+    """Validate the current tool's proposal, without inventing GUI/save facts."""
+    from .feedback import check
+    relevant=[r for r in receipts if r.get('tool')=='calendar_propose']
+    if not relevant:return []
+    try:
+        proposals=[]
+        for receipt in relevant:
+            result=receipt.get('result')
+            if (receipt.get('read_only')is not True or not isinstance(result,dict)
+                    or result.get('ok')is not True or result.get('change_state')!='not_changed'):
+                raise ValueError('缺少成功且未写入的提案工具回执。')
+            proposal=validate(result.get('proposal'),task_id=task_id)
+            proposals.append(dict(id=proposal['id'],save_request_id=proposal['save_request_id'],call_id=receipt['call_id']))
+        contract=dict(kind=KIND,stage='awaiting_user_confirmation',proposals=proposals,ui_observed=False,
+            scope='仅证明本工具生成合法且绑定原任务的提案；没有证明GUI已打开、用户已保存或全局从未发生其他写入。')
+        return [check('calendar_proposal_handoff','artifact','pass','提案字段、任务归属与稳定保存编号已核对；用户可下一步打开草稿确认。',delivery_contract=contract)]
+    except (ValueError,KeyError,TypeError)as exc:
+        return [check('calendar_proposal_handoff','artifact','fail',str(exc))]
+
+
 class CalendarProposalService:
     def __init__(self,board,scheduling,task_lookup):
         self.board=board;self.scheduling=scheduling;self.task_lookup=task_lookup
