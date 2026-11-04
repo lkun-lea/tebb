@@ -63,6 +63,8 @@ test('profile cards show kinds, scope, both conflict versions and field-local er
   const previous=global.localStorage;global.localStorage=memory();let ui;
   try{
     await act(async()=>{ui=create(React.createElement(PersonalizationPane,{info:{port:1,token:'synthetic'}}));});
+    assert.equal(ui.root.findAll(n=>n.type==='button'&&n.props.className==='profile-domain').length,4);
+    await act(async()=>ui.root.findAllByType('button').find(n=>text(n)==='已有资料').props.onClick());
     assert.equal(ui.root.findAll(n=>n.type==='article'&&n.props.className?.includes('profile-card')).length,3);
     assert.match(text(ui.toJSON()),/云端当前版本 · v3/);assert.match(text(ui.toJSON()),/项目 · tebb/);
     const add=ui.root.findAllByType('button').find(n=>text(n).includes('新增资料'));

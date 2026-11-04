@@ -297,7 +297,7 @@ function knowledgeStepSnap(root: ParentNode): { step: string; open: string; labe
   }));
 }
 
-export function debugPane(): "work" | "chat" | "board" | "feishu" | "settings" | "usage" | "memory" | "knowledge" | "note" | "automation" | "monitor" | "video" | null {
+export function debugPane(): "work" | "chat" | "board" | "feishu" | "settings" | "usage" | "memory" | "knowledge" | "note" | "automation" | "monitor" | "video" | "profile" | null {
   if (!import.meta.env.DEV) return null;
   const value = new URLSearchParams(location.search).get("debug");
   if (value === "1" || value === "chat") return "chat";
@@ -308,6 +308,7 @@ export function debugPane(): "work" | "chat" | "board" | "feishu" | "settings" |
   if (value === "automation") return "automation";
   if (value === "monitor") return "monitor";
   if (value === "video") return "video";
+  if (value === "profile") return "profile";
   if (value === "settings") return "settings";
   if (value === "usage") return "usage";
   if (value === "memory") return "memory";
@@ -331,6 +332,7 @@ export type BoardSnap = {
 };
 
 export type StatusSnap = { kind: string; state: string; line: string }[];
+export type ProfileSnap={character:string;category:string;paused:boolean;records:string[];bones:{name:string;transform:string}[]};
 
 export function installDeskDebug(api: {
   seed: (items: ChatItem[]) => void;
@@ -353,6 +355,10 @@ export function installDeskDebug(api: {
 }): void {
   if (!import.meta.env.DEV) return;
   window.__deskDebug = {
+    profileSnapshot():ProfileSnap {
+      const root=document.querySelector('.profile-model');
+      return {character:root?.getAttribute('data-profile-character')||'',category:root?.getAttribute('data-profile-category')||'',paused:root?.getAttribute('data-profile-paused')==='true',records:[...(root?.querySelectorAll('.profile-card[id]')||[])].map(el=>el.id.replace(/^profile-/,'')),bones:[...(root?.querySelectorAll('.profile-character-trigger [data-bone]')||[])].map(el=>({name:el.getAttribute('data-bone')||'',transform:getComputedStyle(el).transform}))};
+    },
     seed: api.seed,
     seedBoard: api.seedBoard,
     seedStatus: api.seedStatus,
@@ -782,6 +788,7 @@ export function installDeskDebug(api: {
 declare global {
   interface Window {
     __deskDebug?: {
+      profileSnapshot:()=>ProfileSnap;
       seed: (items: ChatItem[]) => void;
       seedBoard: (payload: BoardPayload, nowIso: string) => void;
       seedStatus: (raw: Record<string, unknown>) => void;

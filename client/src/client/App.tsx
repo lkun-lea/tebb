@@ -1,6 +1,5 @@
 import {accountStorage} from './account-storage';
 import {AccountsPane} from './accounts';
-import {PersonalizationPane} from './personalization';
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Fragment, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -103,6 +102,7 @@ import {
   type PersonaPublic,
 } from "./settings";
 
+const PersonalizationPane=lazy(()=>import('./personalization').then(module=>({default:module.PersonalizationPane})));
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
 type Pane = "work" | "chat" | "board" | "settings" | "automation" | "monitor" | "collaboration" | "pet" | "team";
 
@@ -122,7 +122,7 @@ export function App() {
   const [guideModel, setGuideModel] = useState<ModelSetupState | null>(null);
   const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") !== "light"; } catch { return true; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
-  const [settingsSection,setSettingsSection] = useState(debugKind==='usage'?'usage':debugKind==='feishu'||debugKind==='video'?'connections':"assistant");
+  const [settingsSection,setSettingsSection] = useState(debugKind==='profile'?'personalization':debugKind==='usage'?'usage':debugKind==='feishu'||debugKind==='video'?'connections':"assistant");
   const [profileTarget,setProfileTarget] = useState<{id:string;nonce:number}|null>(null);
   useEffect(()=>{const open=(event:Event)=>{setProfileTarget({id:(event as CustomEvent<{id:string}>).detail.id,nonce:Date.now()});setSettingsSection('personalization');setPane('settings');};window.addEventListener('tebb-open-personalization',open);return()=>window.removeEventListener('tebb-open-personalization',open);},[]);
   const [workspaceModalOpen,setWorkspaceModalOpen] = useState(false);
@@ -167,7 +167,7 @@ export function App() {
         ? "settings"
         : debugKind === "board"
           ? "board"
-          : debugKind === "settings" || debugKind === "usage"
+          : debugKind === "settings" || debugKind === "usage" || debugKind === "profile"
             ? "settings"
             : debugKind ? "chat" : "collaboration",
   );
@@ -2187,7 +2187,7 @@ export function App() {
             >
               <nav className="workspace-tabs" aria-label="设置分类">{[['assistant','模型与人设'],['account','账号与空间'],['personalization','个人资料'],['connections','连接与网络'],['appearance','界面外观'],['usage','个人使用'],['about','版本与诊断']].map(([id,label])=><button type="button" key={id} aria-pressed={settingsSection===id} onClick={()=>setSettingsSection(id)}>{label}</button>)}</nav>
               {settingsSection==='account'&&<AccountsPane info={info} debug={!!debugKind}/>}
-              {settingsSection==='personalization'&&<PersonalizationPane info={info} debug={!!debugKind} target={profileTarget}/>}
+              {settingsSection==='personalization'&&<Suspense fallback={<p role="status">正在打开个人画像…</p>}><PersonalizationPane info={info} debug={!!debugKind} target={profileTarget} onInspect={()=>setAgentDebugOpen(true)}/></Suspense>}
               {settingsSection==='assistant'&&<ReminderSettings info={info} debug={!!debugKind}/>}
               <div hidden={settingsSection!=='usage'}><PersonalUsagePane info={info} debug={!!debugKind} visible={settingsSection==='usage'}/></div>
               <div hidden={settingsSection!=='about'}><ReleaseSettings info={info} onShowIntro={releaseIntro.show}/>{developerMode&&<button type="button" className="desk-menu-item" onClick={()=>setAgentDebugOpen(true)}>调用调试</button>}</div>
