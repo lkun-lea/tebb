@@ -1,0 +1,820 @@
+{
+  "schema_version": 1,
+  "scope": "sanitized_synthetic_test_evidence_only",
+  "source_commit": "d10cf7557bb2663acb31e9c01ad69568a3a9e239",
+  "original_report": "output/failure-v3-live-20261104-v1/report.json",
+  "summary": {
+    "success": 20,
+    "false_success": 0,
+    "failed": 4,
+    "needs_input": 0,
+    "skip": 0,
+    "incomplete": 0,
+    "timed_out": 0,
+    "cancelled": 0
+  },
+  "unchanged_source_files": 61,
+  "read_only": true,
+  "new_model_calls": 0,
+  "cases": [
+    {
+      "case_id": "calendar_proposal",
+      "outcome": "failed",
+      "elapsed_ms": 106243.5,
+      "error": "交付未完成：材料中没有任何界面观察证据，候选也如实将该项标为unknown，无法证实或证伪",
+      "calls": [
+        {
+          "id": "2ace53232beb4c2cbf810d5cea5148b8",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 23868,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "77d3bcd59afe42219b3284add2fe4594",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 38966,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 1765
+        },
+        {
+          "id": "a4d4711c6fdd43f0ba417b97e772d4c1",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 12323,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "e68c004f17f640af87b07a4d59335d7b",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 9879,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 220
+        },
+        {
+          "id": "a8faecea3e4f4381a8803b5f93a6d3e9",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 8919,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 58
+        }
+      ],
+      "review_requests": [
+        {
+          "call_id": "2ace53232beb4c2cbf810d5cea5148b8",
+          "candidate_stage": "unspecified",
+          "deterministic_passes": [],
+          "draft_excerpt_ids": [
+            "E1.0.0",
+            "E1.0.1"
+          ],
+          "draft_is_rendered_markdown_link": false,
+          "requirements": [
+            {
+              "requirement": "提案字段（标题、起止时间、时区、item_id、提案ID、save_request_id、回执状态）与给定合成信息及实际工具回执一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "候选表格中的各字段值与给定输入及回执中的对应值逐项相符",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0",
+                "E2.0.0",
+                "E2.0.1"
+              ]
+            },
+            {
+              "requirement": "提案已由实际工具生成且未保存、未同步（read_only、change_state=not_changed）",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "回执显示calendar_propose返回ok且read_only=true、change_state=not_changed，候选据此声明未保存未同步",
+              "evidence": [
+                "E1.0.0",
+                "E2.0.0"
+              ]
+            },
+            {
+              "requirement": "生成可在界面打开和调整的日程提案（界面可打开、可调整的验收项）",
+              "dimension": "task_acceptance",
+              "status": "unverified",
+              "reason": "材料中没有任何界面观察证据，候选也如实将该项标为unknown，无法证实或证伪",
+              "evidence": [
+                "E1.0.1"
+              ]
+            }
+          ]
+        },
+        {
+          "call_id": "a4d4711c6fdd43f0ba417b97e772d4c1",
+          "candidate_stage": "unspecified",
+          "deterministic_passes": [],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": false,
+          "requirements": [
+            {
+              "requirement": "提案的标题、起止时间、时区与关联事项须与给定合成信息一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "候选中的标题、时段、时区和item_id与给定输入及工具回执一致",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0",
+                "E2.0.0"
+              ]
+            },
+            {
+              "requirement": "报告须基于实际工具结果，且不保存、不同步",
+              "dimension": "task_acceptance",
+              "status": "supported",
+              "reason": "回执显示ok且change_state为not_changed，候选如实报告未保存未同步",
+              "evidence": [
+                "E1.0.0",
+                "E2.0.0"
+              ]
+            },
+            {
+              "requirement": "提案ID与save_request_id须来自工具回执",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "候选所列两个ID均能在回执中找到",
+              "evidence": [
+                "E1.0.0",
+                "E2.0.0",
+                "E2.0.1"
+              ]
+            },
+            {
+              "requirement": "须生成可在界面打开和调整的日程提案",
+              "dimension": "task_acceptance",
+              "status": "unverified",
+              "reason": "回执仅证明提案对象已生成，未提供界面可打开、可调整的实际观察证据",
+              "evidence": [
+                "E1.0.0",
+                "E2.0.0"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "clarify_resume_root",
+      "outcome": "failed",
+      "elapsed_ms": 46318.73,
+      "error": "模型未返回有效的回答或真实任务申请；仅口头声称提交不算派发，未执行工具，请重试。",
+      "calls": [
+        {
+          "id": "8fd1f4170aae4ca4895dd62e70a287bf",
+          "phase": "route",
+          "state": "complete",
+          "duration_ms": 1057,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 106
+        },
+        {
+          "id": "b6dbcf74cc92499ea1fb1964af9dbdc0",
+          "phase": "route",
+          "state": "complete",
+          "duration_ms": 4603,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 45
+        },
+        {
+          "id": "33224bfa4a764f44af55d155b7b05f0d",
+          "phase": "route",
+          "state": "complete",
+          "duration_ms": 18538,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 1829
+        }
+      ],
+      "review_requests": [],
+      "timeline": [
+        {
+          "state": "queued",
+          "kind": "route",
+          "elapsed_ms": 359
+        },
+        {
+          "state": "running",
+          "kind": "route",
+          "elapsed_ms": 528
+        },
+        {
+          "state": "needs_input",
+          "kind": "route",
+          "elapsed_ms": 11963
+        },
+        {
+          "state": "queued",
+          "kind": "route",
+          "elapsed_ms": 12140
+        },
+        {
+          "state": "running",
+          "kind": "route",
+          "elapsed_ms": 12355
+        },
+        {
+          "state": "failed",
+          "kind": "route",
+          "elapsed_ms": 45802
+        }
+      ],
+      "same_root": true,
+      "route_answers": [
+        {
+          "call_id": "b6dbcf74cc92499ea1fb1964af9dbdc0",
+          "answer": "{\"total\": 18, \"checked\": true}",
+          "tool_names": []
+        },
+        {
+          "call_id": "33224bfa4a764f44af55d155b7b05f0d",
+          "answer": "{\"total\": 18, \"checked\": true}",
+          "tool_names": []
+        }
+      ],
+      "persisted_execution_requirements": [
+        {
+          "task_id": "586a2510daea5f108df52a19f97da56e",
+          "require_execution": true,
+          "kind": "route"
+        },
+        {
+          "task_id": "3e45c70b446756c2896f4b8e843e3324",
+          "require_execution": true,
+          "kind": "route"
+        }
+      ]
+    },
+    {
+      "case_id": "readonly_legacy_parallel",
+      "outcome": "failed",
+      "elapsed_ms": 101683.69,
+      "error": "交付未完成：候选citation为渲染后的Markdown链接\"[1](<url>)\"，不是带方括号的完整实际证据id格式（如[E4.0.0]）；虽系统会渲染，但提交给系统的字段值本身应为方括号包实际id",
+      "calls": [
+        {
+          "id": "b93c867b34a64b1e8849eebd6eef0cb4",
+          "phase": "route",
+          "state": "complete",
+          "duration_ms": 32143,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 153
+        },
+        {
+          "id": "b541d23ea74e44f38057b81d759c13ef",
+          "phase": "plan",
+          "state": "complete",
+          "duration_ms": 2575,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 52
+        },
+        {
+          "id": "5b640bde498847858ef83eeeb4ff07ba",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 6544,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 25
+        },
+        {
+          "id": "08096a4b759e4523bb621b9df2904337",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2862,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 99
+        },
+        {
+          "id": "6fe7240905474569aa7b4a9da36e7b72",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2528,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 41
+        },
+        {
+          "id": "f8f63fa3e15046b5960fdd90c5de8a03",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 1871,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "0ec9630927534f179d4fc30877f84c42",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 3344,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 91
+        },
+        {
+          "id": "145e35d51ef84533a34f24e34366c8e1",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 18263,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 39
+        },
+        {
+          "id": "7c8a7f43a6834148b89aa38449790849",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 10883,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "e3626c07de2646c5b64f3bda88935c5b",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 2558,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        }
+      ],
+      "review_requests": [
+        {
+          "call_id": "f8f63fa3e15046b5960fdd90c5de8a03",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "output_format",
+            "output_schema",
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "number与实际读取的RFC 8259文档头部编号一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部显示Request for Comments: 8259，与候选number 8259一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "year来自实际读到的头部日期",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部日期为December 2017，与候选year 2017一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "citation按\"[完整实际证据id]\"格式提交，保留方括号且为实际证据id",
+              "dimension": "task_acceptance",
+              "status": "contradicted",
+              "reason": "候选citation为Markdown链接形式，未用方括号包裹实际证据id（如[E4.0.0]），不符合给定格式要求",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            }
+          ]
+        },
+        {
+          "call_id": "7c8a7f43a6834148b89aa38449790849",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "output_format",
+            "output_schema",
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "JSON对象含number、year、citation三个键，citation为方括号包裹的完整实际证据id",
+              "dimension": "task_acceptance",
+              "status": "supported",
+              "reason": "候选为含三键的JSON，citation为[1]形式方括号包裹的证据id",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            },
+            {
+              "requirement": "number与头部实际RFC编号一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "头部写明Request for Comments: 7159，候选为7159",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "year取自实际读到的头部发布日期年份",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "头部日期为March 2014，候选年份2014与之一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            }
+          ]
+        },
+        {
+          "call_id": "e3626c07de2646c5b64f3bda88935c5b",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "output_format",
+            "output_schema",
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "RFC编号与头部实际段落一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "候选number=8259与正文头部\"Request for Comments: 8259\"一致",
+              "evidence": [
+                "E1.0.0",
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "年份来自实际读到的头部日期",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "候选year=2017与头部\"December 2017\"一致，来自实际正文",
+              "evidence": [
+                "E1.0.0",
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "citation须为[完整实际证据id]格式的方括号形式",
+              "dimension": "task_acceptance",
+              "status": "contradicted",
+              "reason": "候选citation为渲染后的Markdown链接\"[1](<url>)\"，不是带方括号的完整实际证据id格式（如[E4.0.0]）；虽系统会渲染，但提交给系统的字段值本身应为方括号包实际id",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            },
+            {
+              "requirement": "只返回含number、year、citation三个键的JSON对象",
+              "dimension": "task_acceptance",
+              "status": "supported",
+              "reason": "候选JSON仅含指定三键，无多余键",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            },
+            {
+              "requirement": "仅核对头部，不要求全文",
+              "dimension": "task_acceptance",
+              "status": "supported",
+              "reason": "正文truncated但已读头部范围，头部段落实际取得，符合仅需头部的要求",
+              "evidence": [
+                "E2.0.1",
+                "E4.0.0"
+              ]
+            }
+          ]
+        }
+      ],
+      "worker_overlap": true,
+      "all_tasks_terminal": true,
+      "source_hashes": {
+        "https://www.rfc-editor.org/rfc/rfc8259.txt": "c5e2e1171dd1fb0809fea52c1dc0461988ae348cd83ddcce2a2d8483246490dc",
+        "https://www.rfc-editor.org/rfc/rfc7159.txt": "c4e5c7eda0e9313ce32f92b06e50806b0ad32f0f280f6e4ff53d77ce905722e3"
+      }
+    },
+    {
+      "case_id": "readonly_atlas_parallel",
+      "outcome": "failed",
+      "elapsed_ms": 103322.28,
+      "error": "交付未完成：候选citation为渲染后的Markdown链接\"[1](<...>)\"，不是要求的\"[完整实际证据id]\"方括号格式",
+      "calls": [
+        {
+          "id": "cafe9b04f79142569f8490560fc796ac",
+          "phase": "route",
+          "state": "complete",
+          "duration_ms": 33685,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 2083
+        },
+        {
+          "id": "d0a3eb7db1614c009a2a5ca55ccb5b77",
+          "phase": "plan",
+          "state": "complete",
+          "duration_ms": 17400,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 263
+        },
+        {
+          "id": "2b9784d9f449499c85f200110165a88c",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2138,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 33
+        },
+        {
+          "id": "b6cf07f8ef994a80999219adf2da0775",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2521,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 61
+        },
+        {
+          "id": "e58101ca944242e98da75bb485a54afb",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2016,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 30
+        },
+        {
+          "id": "a51f34ef38764f2caf048831f1e27d8c",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 2871,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 17
+        },
+        {
+          "id": "4b1f4fad20fe4c7793b6c1137a5d2ce0",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 4112,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 85
+        },
+        {
+          "id": "b19244f73fc14e5b88cd34436c1ba5b9",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 1854,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "96ac83c4448144129329ccf67053a041",
+          "phase": "task",
+          "state": "complete",
+          "duration_ms": 4288,
+          "finish_reasons": [
+            "stop"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 94
+        },
+        {
+          "id": "de5f3e59242f49fc80f6dd1d5dd416dd",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 6730,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "eb9331ec52d54b3ca8def526385093c4",
+          "phase": "feedback_review",
+          "state": "complete",
+          "duration_ms": 2579,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "usage_frames": 1,
+          "reasoning_characters": 0
+        },
+        {
+          "id": "5c7e788912534f09a264a85c241199af",
+          "phase": "task",
+          "state": "interrupted",
+          "duration_ms": 2029,
+          "finish_reasons": [],
+          "usage_frames": 0,
+          "reasoning_characters": 0
+        }
+      ],
+      "review_requests": [
+        {
+          "call_id": "b19244f73fc14e5b88cd34436c1ba5b9",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "RFC编号与文档头部实际编号一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部显示Request for Comments: 8259，与候选number 8259一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "发布日期年份与文档头部实际日期一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部日期为December 2017，年份与候选year 2017一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "citation须为方括号包裹的完整实际证据id",
+              "dimension": "task_acceptance",
+              "status": "contradicted",
+              "reason": "候选citation为渲染后的Markdown链接，未按要求保留方括号包裹的完整实际证据id格式",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            }
+          ]
+        },
+        {
+          "call_id": "de5f3e59242f49fc80f6dd1d5dd416dd",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "JSON中的number与year须与RFC 7159文档头部实际的RFC编号及正式发布日期年份一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部显示Request for Comments: 7159、March 2014，与候选number=7159、year=2014一致",
+              "evidence": [
+                "E4.0.0"
+              ]
+            },
+            {
+              "requirement": "citation须为完整实际证据id并保留方括号，不能只填裸id",
+              "dimension": "task_acceptance",
+              "status": "contradicted",
+              "reason": "候选citation是渲染后的Markdown链接，未按要求写成\"[完整实际证据id]\"形式",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            }
+          ]
+        },
+        {
+          "call_id": "eb9331ec52d54b3ca8def526385093c4",
+          "candidate_stage": "after_citation_resolution",
+          "deterministic_passes": [
+            "citation_provenance"
+          ],
+          "draft_excerpt_ids": [
+            "E1.0.0"
+          ],
+          "draft_is_rendered_markdown_link": true,
+          "requirements": [
+            {
+              "requirement": "citation字段须为带方括号的完整实际证据id，而非裸id或渲染后的Markdown链接",
+              "dimension": "task_acceptance",
+              "status": "contradicted",
+              "reason": "候选citation为渲染后的Markdown链接\"[1](<...>)\"，不是要求的\"[完整实际证据id]\"方括号格式",
+              "evidence": [
+                "E0.0.0",
+                "E1.0.0"
+              ]
+            },
+            {
+              "requirement": "RFC编号与正文头部一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部显示Request for Comments: 8259，与候选number 8259一致",
+              "evidence": [
+                "E4.0.0",
+                "E1.0.0"
+              ]
+            },
+            {
+              "requirement": "发布日期年份与正文头部实际日期一致",
+              "dimension": "claim_support",
+              "status": "supported",
+              "reason": "正文头部日期为December 2017，年份与候选year 2017一致",
+              "evidence": [
+                "E4.0.0",
+                "E1.0.0"
+              ]
+            }
+          ]
+        }
+      ],
+      "worker_overlap": true,
+      "all_tasks_terminal": true,
+      "source_hashes": {
+        "https://www.rfc-editor.org/rfc/rfc8259.txt": "c5e2e1171dd1fb0809fea52c1dc0461988ae348cd83ddcce2a2d8483246490dc",
+        "https://www.rfc-editor.org/rfc/rfc7159.txt": "c4e5c7eda0e9313ce32f92b06e50806b0ad32f0f280f6e4ff53d77ce905722e3"
+      }
+    }
+  ]
+}
