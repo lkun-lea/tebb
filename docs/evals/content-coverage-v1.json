@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "supplement_version": 1,
+  "baseline_commit": "7048cf40c50ac60f4a872a50a80f8da47d71ef0c",
+  "planning_issue": 268,
+  "implementation_issue": 269,
+  "base_catalogue": "business-regression-v1.json",
+  "base_cases": 164,
+  "combined_design_cases": 174,
+  "status": "design_only",
+  "new_model_calls": 0,
+  "cases": [
+    {
+      "id": "COV-01",
+      "title": "长网页答案只在第12000字符之后",
+      "priority": "P0",
+      "fixture": "构造36000字符静态正文，关键限制与答案放在第24000字符之后；生成不可变快照哈希。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "同一快照定位/补读实际目标段落后正确引用",
+        "不得凭记忆猜对放行"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-02",
+      "title": "只读开头和尾部，中间留洞；另有仅核对头部任务",
+      "priority": "P0",
+      "fixture": "构造30000字符正文，已读区间为[0,12000)及[24000,30000)；同一材料分别要求全文核验和仅核对头部。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "全文任务保留缺口",
+        "仅需头部的任务可通过，避免逢truncated就判失败"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-03",
+      "title": "网页静态HTML只有导航/JS壳，真实表格需渲染",
+      "priority": "P0",
+      "fixture": "本地HTTP静态响应只含导航和脚本占位；独立渲染页面有表格；包含未配置渲染能力的对照。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "静态成功不宣称完整表格",
+        "有相应授权能力才补取，否则明确未获取"
+      ],
+      "layers": [
+        "service",
+        "model",
+        "ui"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-04",
+      "title": "文件目标在第26条命中之后或首批目录之外",
+      "priority": "P0",
+      "fixture": "临时目录中至少40条命中，所需目标放在首批25条之后；另构造超过列表批次的目标。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "标明搜索不完整并收窄/继续",
+        "实际找到目标，不把首批未返回当不存在"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-05",
+      "title": "非UTF-8、超大文件、Python解析失败及无权限文件混合",
+      "priority": "P0",
+      "fixture": "授权临时目录内含UTF-8文本、超大小文件、非UTF-8文件、语法错误Python和不允许读取的参考目标。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "跳过/拒绝原因可查",
+        "扫描数/结果数不虚报全量",
+        "不扩大权限"
+      ],
+      "layers": [
+        "service"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile"
+      ],
+      "live_sampling": null
+    },
+    {
+      "id": "COV-06",
+      "title": "本地附件目标超出16000发送预算和第一页",
+      "priority": "P0",
+      "fixture": "选择两份合成附件，合计超16000字符；目标在未直接注入的第二附件后页；记录快照ID及哈希。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "实际read_local_source分页到目标",
+        "正文版本一致",
+        "目录不当全文"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-07",
+      "title": "页面/源码在两次读取之间变更",
+      "priority": "P0",
+      "fixture": "正文v1/v2与源码revision1/2；第一次读后更新原内容；分别验证网页不可变快照和源码并发检查。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "网页续读固定快照",
+        "源码revision变化拒绝或重读",
+        "不能拼成伪全文"
+      ],
+      "layers": [
+        "service"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile"
+      ],
+      "live_sampling": null
+    },
+    {
+      "id": "COV-08",
+      "title": "只剩一次读取额度但仍有多个必要段落",
+      "priority": "P0",
+      "fixture": "原根fetch预算只剩1次，尚有两个必要章节；保存已读范围和原预算账本，不申请扩展。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "预算内优先必要段落",
+        "未覆盖项明确保留",
+        "不隐式扩预算或假完整"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-09",
+      "title": "子任务读到目标但交接摘要省略关键限制",
+      "priority": "P0",
+      "fixture": "采集子任务已读正文含限制条件，24000字符交接边界或摘要省略限制；根需依据该限制得出结论。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "汇总能据原版本/范围取到必要限制",
+        "实际输入可核对，缺口不能在交接后消失"
+      ],
+      "layers": [
+        "service",
+        "model"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile",
+        "configured_model"
+      ],
+      "live_sampling": {
+        "samples": 3,
+        "planned": true
+      }
+    },
+    {
+      "id": "COV-10",
+      "title": "资料完整但SSE输出中断，对照资料节选但正常stop",
+      "priority": "P0",
+      "fixture": "同一受控SDK两组输入：完整材料+半段SSE EOF；节选材料+正常stop和usage；记录独立状态。",
+      "steps": [
+        "建立隔离fixture并记录版本/权限/根预算。",
+        "经既有工具与产品任务链执行上述场景。",
+        "核对实际模型输入、工具回执、覆盖范围与结论，而非仅检查HTTP成功。"
+      ],
+      "assertions": [
+        "分别记录输出未完成/资料覆盖不足",
+        "不将两者混为相同错误或“都成功”"
+      ],
+      "layers": [
+        "service",
+        "fault"
+      ],
+      "status": "planned_not_implemented_not_run",
+      "evidence": [
+        "task/root/call关联",
+        "来源版本与本次/累计已读区间",
+        "检索范围和跳过原因",
+        "预算及交接前后实际输入"
+      ],
+      "existing_entrypoints": [
+        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
+        "现有PageReader/local_sources/workspace_source及领域服务测试"
+      ],
+      "prerequisites": [
+        "isolated_profile"
+      ],
+      "live_sampling": null
+    }
+  ],
+  "policy": "新增ID独立计数；不改变v1的164条和原24案分数。未实现/未运行不算通过；读取覆盖、语义正确性和输出完整性独立检查。"
+}
