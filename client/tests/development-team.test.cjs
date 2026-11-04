@@ -142,3 +142,66 @@ test('live cards change yellow to green to red and follow rework without a remou
   assert.match(card('develop').props.className,/tone-yellow.*is-current/);
  }finally{if(view)act(()=>view.unmount());}
 });
+
+test('execution spinner follows the running node and tool, never selection, waiting or terminal states',async()=>{
+ const {FlowCanvas}=canvas();let view;
+ const nodes=[{id:'dev',title:'开发',summary:'修改中',state:'running',steps:[{label:'读取',state:'succeeded'},{label:'修改',state:'running'}]},
+  {id:'qa',title:'验收',summary:'等待',state:'waiting'}];
+ const render=(state='running',activity=true)=>React.createElement(FlowCanvas,{nodes:[{...nodes[0],state},nodes[1]],current:'dev',selected:'qa',activity});
+ const spinners=()=>view.root.findAll(n=>n.type==='i'&&n.props.className?.includes('flow-spinner'));
+ try{
+  await act(async()=>{view=create(render());});assert.equal(spinners().length,2);
+  assert.match(view.root.findByProps({'data-stage':'dev'}).props.className,/is-executing/);
+  assert.doesNotMatch(view.root.findByProps({'data-stage':'qa'}).props.className,/is-executing/);
+  for(const state of ['waiting','needs_input','failed','succeeded','cancelled','timed_out']){
+   await act(async()=>view.update(render(state)));assert.equal(spinners().length,0,state);
+  }
+  await act(async()=>view.update(render('running',false)));assert.equal(spinners().length,0,'paused replay');
+ }finally{if(view)act(()=>view.unmount());}
+});
+
+test('handoffs require observed forward progression or a dispatched return and reject seeks and repeated polls',()=>{
+ const {flowHandoff}=canvas();
+ const nodes=['requirements','develop','verify','deliver'].map(id=>({id,state:'running'}));
+ const check=(a,b,returning=false,allowed=true)=>flowHandoff(a,b,nodes,returning,allowed);
+ assert.equal(check(undefined,{current:'develop'}),null);
+ assert.equal(check({current:'develop'},{current:'develop'}),null);
+ assert.equal(check({current:'develop'},{current:'verify'}),'1-2');
+ assert.equal(check({current:'verify'},{current:'develop'}),null);
+ assert.equal(check({current:'verify'},{current:'develop'},true),'2-1');
+ assert.equal(check({current:'requirements'},{current:'deliver'}),null,'do not invent skipped stages');
+ assert.equal(check({current:'develop',position:2},{current:'verify',position:3}),'1-2');
+ assert.equal(check({current:'develop',position:2},{current:'verify',position:5}),null);
+ assert.equal(check({current:'develop',position:2},{current:'verify',position:3},false,false),null,'slider seek');
+ nodes[2].state='waiting';assert.equal(check({current:'develop'},{current:'verify'}),null);
+});
+
+test('tool rows pair actual returns and do not hide an active tool behind model events',()=>{
+ const {toolSteps}=flow();
+ const run=makeRun('dev',{state:'running',flow_events:[
+  {seq:1,kind:'tool_start',data:{tool:'workspace_read_symbol'}},
+  {seq:2,kind:'tool_end',data:{tool:'workspace_read_symbol',status:'success'}},
+  {seq:3,kind:'tool_start',data:{tool:'workspace_patch'}},
+  {seq:4,kind:'llm_end',data:{}}
+ ]});
+ assert.deepEqual(toolSteps(run).map(r=>r.state),['succeeded','running']);
+ assert.deepEqual(toolSteps({...run,state:'timed_out'}).map(r=>r.state),['succeeded','unconfirmed']);
+});
+
+test('waiting stage starts a handoff only when execution starts and identical polls do not replay it',async()=>{
+ const {FlowCanvas}=canvas();let view;
+ const render=(current,state)=>React.createElement(FlowCanvas,{nodes:[{id:'0',title:'需求',state:'succeeded',summary:''},
+  {id:'1',title:'开发',state:'succeeded',summary:''},{id:'2',title:'验收',state,summary:''}],current});
+ try{
+  await act(async()=>{view=create(render('1','waiting'));});
+  await act(async()=>view.update(render('2','waiting')));
+  assert.equal(view.root.findAllByProps({'data-transfer':'1-2'}).length,0);
+  await act(async()=>view.update(render('2','running')));
+  assert.equal(view.root.findAllByProps({'data-transfer':'1-2'}).length,1);
+  const instance=view.root.findByProps({'data-transfer':'1-2'});
+  await act(async()=>view.update(render('2','running')));
+  assert.equal(view.root.findByProps({'data-transfer':'1-2'}),instance);
+  await act(async()=>view.update(render('2','failed')));
+  assert.equal(view.root.findAllByProps({'data-transfer':'1-2'}).length,0);
+ }finally{if(view)act(()=>view.unmount());}
+});

@@ -1,11 +1,38 @@
 import {useState} from "react";
 import type {DemoRun,DemoAgent} from "./chat-prototype-state";
 import "./development-flow.css";
-import {FlowCanvas,flowTone,toolStepName} from "./flow-canvas";
+import {FlowCanvas,flowTone,toolStepName,type FlowStep} from "./flow-canvas";
 
 const labels:Record<string,string>={running:"执行中",waiting:"等待前序",pending:"待执行",queued:"排队中",cancelling:"正在停止",
  succeeded:"已完成",failed:"失败",timed_out:"超时",interrupted:"中断",cancelled:"已停止",needs_input:"待补充",unseen:"未开始"};
 export const isOpen=(run:DemoRun)=>["running","waiting","pending","queued","cancelling","needs_input"].includes(run.state);
+
+export function toolSteps(run:DemoRun|undefined):FlowStep[]{
+ const rows:{tool:string;label:string;state:string}[]=[];
+ for(const event of run?.flow_events||[]){
+  if(!["tool_start","tool_end"].includes(event.kind))continue;
+  const tool=event.data.tool||event.kind;
+  if(event.kind==="tool_start")rows.push({tool,label:toolStepName(tool),state:"running"});
+  else{
+   const state=event.data.status==="failed"?"failed":event.data.status==="success"?"succeeded":"completed";
+   const pending=rows.findLast(row=>row.tool===tool&&row.state==="running");
+   if(pending)pending.state=state;else rows.push({tool,label:toolStepName(tool),state});
+  }
+ }
+ return rows.map(row=>({...row,state:row.state==="running"&&run?.state!=="running"?"unconfirmed":row.state}));
+}
+
+function stageFacts(run:DemoRun|undefined){
+ if(!run)return [];
+ const facts=[];
+ if(run.changes?.length)facts.push({label:"变更文件",value:String(run.changes.length)});
+ if(run.checks?.length){
+  const fresh=run.checks.filter(c=>!c.stale),passed=fresh.filter(c=>c.state==="succeeded"&&c.exit_code===0).length;
+  facts.push({label:"命令检查",value:fresh.length?`${passed} / ${fresh.length} 通过`:"暂无有效结果"});
+  if(fresh.length!==run.checks.length)facts.push({label:"修改后待重跑",value:String(run.checks.length-fresh.length)});
+ }
+ return facts;
+}
 
 export function flowStages(root:DemoRun,runs:DemoRun[]){
  const children=runs.filter(r=>r.parent===root.id);
@@ -52,7 +79,12 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
  const last=events.at(-1);
  const seconds=root.created?Math.max(0,Math.floor((root.finished||Date.now()/1000)-root.created)):null;
  const clock=(ts?:number)=>ts?new Date(ts*1000).toLocaleTimeString():"时间未记录";
- const eventRows=(r:DemoRun|undefined)=>(r?.flow_events||[]).filter((e,i,all)=>e.kind==="tool_end"||(e.kind==="tool_start"&&i===all.length-1)).slice(-3).map(e=>({label:toolStepName(e.data.tool||e.kind),state:e.kind==="tool_start"?(r&&!isOpen(r)?"unconfirmed":"running"):e.data.status==="failed"?"failed":e.data.status==="success"?"succeeded":"completed"}));
+ const cards=stages.map(s=>({...s,role:s.run?agents.find(a=>a.id===s.run?.agent)?.name||s.role:s.role,
+  round:s.run&&["develop","verify"].includes(s.id)?(s.run.id===root.integration_repair||family.some(r=>r.rechecked_by===s.run?.id)?2:1):undefined,
+  steps:s.id==="requirements"&&family.length>1?[]:toolSteps(s.run),
+  tool:s.id==="requirements"&&family.length>1?undefined:s.run?.flow_events?.filter(e=>e.kind==="tool_start"||e.kind==="tool_end").at(-1)?.data.tool,
+  facts:s.id==="requirements"&&family.length>1?[{label:"已派发任务",value:String(family.length-1)}]:stageFacts(s.run),
+ }));
  return <section className="dev-flow" aria-label="开发流程">
   <div className="df-workbench">
    <div className="df-main">
@@ -61,7 +93,7 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
     <div className="df-tabs" role="tablist" aria-label="开发视图">{[["flow","流程图"],["events","事件记录"]].map(([id,name])=><button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id)}>{name}</button>)}</div>
     <div className="df-summary" role="status"><span>当前阶段 <b>{current.title}</b></span><span className={"flow-state-badge tone-"+flowTone(current.state)}>{labels[current.state]}</span>
      <span>最近回执 {clock(last?.ts)}</span><span>运行 {seconds==null?"未知":Math.floor(seconds/60)+" 分 "+seconds%60+" 秒"}</span><span>Token {tokens}</span></div>
-    {tab==="flow"?<FlowCanvas nodes={stages.map(s=>({...s,role:s.run?agents.find(a=>a.id===s.run?.agent)?.name||s.role:s.role,steps:eventRows(s.run)}))} current={current.id} selected={node.id}
+    {tab==="flow"?<FlowCanvas nodes={cards} current={current.id} selected={node.id}
      onSelect={id=>{select(id);setAttempt("");}} returning={!!root.integration_repair}/>:
      <div className="df-event-list"><h4>执行事件</h4>{events.length?events.map(e=><button key={e.run.id+"-"+e.seq} onClick={()=>{select(e.run.id===root.id?"requirements":e.run.integration_verification?"verify":"develop");setAttempt(e.run.id);}}>
       <time>{clock(e.ts)}</time> <strong>{e.data.tool||e.kind}</strong> {e.data.status||e.data.state} {e.data.error||e.data.query||e.data.path}</button>):<p>尚未记录结构化工具事件。</p>}<small>每个任务显示最近 80 条结构化事件。</small></div>}
