@@ -19,7 +19,7 @@ export function DevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onO
  const choices=[...(history?.native_trials||[]).map(trial=>({id:trial.id,label:"#"+trial.issue+" · "+trial.title,trial,item:undefined as Experiment|undefined})),
   ...(history?.experiments||[]).map(item=>({id:item.id,label:(item.issue?"#"+item.issue+" · ":"")+"外部对照 · "+(item.title||item.id),item,trial:undefined as NativeTrial|undefined}))];
  const chosen=choices.find(c=>c.id===id)||choices.find(c=>c.trial?.issue===208)||choices[0];
- return <section className="flex-1 overflow-auto px-6 py-5" data-page="development-team">
+ return <section className="development-team-page flex-1 overflow-auto px-6 py-5" data-page="development-team">
   <h1 className="text-2xl font-semibold">开发团队</h1><p className="mt-2 text-sm text-muted-foreground">选项目，说清想改什么，点击开始。进度会直接显示在流程图上。</p>
   <nav className="team-mode" aria-label="开发方式"><button aria-pressed={mode==="start"} onClick={()=>setMode("start")}>开始开发</button>
    <button aria-pressed={mode==="history"} onClick={()=>setMode("history")}>历史回放 · 含 #208</button></nav>

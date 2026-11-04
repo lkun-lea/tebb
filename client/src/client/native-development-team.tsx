@@ -60,7 +60,7 @@ export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|nu
    }catch(e){setNotice(String(e));}finally{setBusy(false);}
  }
  return <div>
-  <div className="team-start">
+  <div className={"team-start"+(root&&!composing?" team-start-compact":"")}>
    {error&&<p role="alert">{error}</p>}
    <label>1. 选择项目　<select aria-label="项目群" disabled={busy||!group} value={group?.id||""} onChange={e=>{select(e.target.value);setRunId("");setNotice("");}}>
     {!group&&<option value="">{state?"请先打开项目文件夹":"正在连接…"}</option>}
