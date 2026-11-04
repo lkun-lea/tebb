@@ -89,4 +89,4 @@ python scripts/eval_agent.py --live --suite failures --limit 24 --samples 1 --re
 
 现有冻结批次保持：原12题首轮5通过/2失败/5超时，v27为9/3/0；v27完整24题20通过/4失败/0超时。新164题没有总体实测分数。
 
-2026-11-05补充 [内容覆盖专项方案](CONTENT_COVERAGE_PLAN.md)及[10条扩展定义](evals/content-coverage-v1.json)：覆盖长网页/JS页面、文件搜索上限与跳过、附件续读、版本变化、预算及跨阶段交接。保留v1的164个ID，扩展后计划为174个独立ID；这10条也未接入/执行，不修改原24案分数。
+2026-11-05补充 [内容覆盖专项方案](CONTENT_COVERAGE_PLAN.md)及[10条扩展定义](evals/content-coverage-v1.json)：覆盖长网页/JS页面、文件搜索上限与跳过、附件续读、版本变化、预算及跨阶段交接。保留v1的164个ID，扩展后计划为174个独立ID。后续集中优化已接入COV-06的attachment_tail执行器（当前统一入口48题），首批真实3/3、最终源码1/1；其余9条尚无本轮独立真实执行器成绩。见[验收记录](CAPABILITY_HARDENING_20261105.md)，不修改原24案分数。

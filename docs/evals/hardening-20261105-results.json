@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-05",
+  "scope": "sanitized_synthetic_and_public_source_evaluation_metrics",
+  "cohorts": [
+    {
+      "name": "hardening-live-20261105-v1",
+      "source_commit": "f773c2f89c5ee1167bd32ebdc07aab71c6167ee1",
+      "contract_version": 28,
+      "model": "mimo-v2.6-flash",
+      "source_clean": true,
+      "source_files": 64,
+      "source_changed": [],
+      "summary": {
+        "success": 14,
+        "false_success": 0,
+        "failed": 1,
+        "needs_input": 0,
+        "skip": 0,
+        "incomplete": 0,
+        "timed_out": 0,
+        "cancelled": 0
+      },
+      "totals": {
+        "cases_started": 15,
+        "tasks": 45,
+        "model_calls": 103,
+        "tools": 22,
+        "artifacts": 0,
+        "elapsed_ms": 1327557.5,
+        "usage": {
+          "input_tokens": 617482,
+          "output_tokens": 29275
+        },
+        "usage_complete": true,
+        "cost": null
+      },
+      "cleanup": {
+        "model_credential_removed": true,
+        "network_policy_removed": true,
+        "observed_workers_exited": true,
+        "call_evidence_complete": true,
+        "still_alive_call_ids": []
+      },
+      "cases": [
+        {
+          "case_id": "calendar_proposal",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 33153.56,
+          "error": ""
+        },
+        {
+          "case_id": "calendar_proposal",
+          "sample": 2,
+          "outcome": "failed",
+          "elapsed_ms": 80596.6,
+          "error": "交付未完成：候选称这些数值来自任务说明原文，但提供的 goal 摘录中不含任何秒数，材料无正文或回执可核对"
+        },
+        {
+          "case_id": "calendar_proposal",
+          "sample": 3,
+          "outcome": "success",
+          "elapsed_ms": 48129.52,
+          "error": ""
+        },
+        {
+          "case_id": "clarify_resume_root",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 47715.19,
+          "error": ""
+        },
+        {
+          "case_id": "clarify_resume_root",
+          "sample": 2,
+          "outcome": "success",
+          "elapsed_ms": 81946.74,
+          "error": ""
+        },
+        {
+          "case_id": "clarify_resume_root",
+          "sample": 3,
+          "outcome": "success",
+          "elapsed_ms": 52811.99,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_legacy_parallel",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 173567.41,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_legacy_parallel",
+          "sample": 2,
+          "outcome": "success",
+          "elapsed_ms": 157327.28,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_legacy_parallel",
+          "sample": 3,
+          "outcome": "success",
+          "elapsed_ms": 113238.59,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_atlas_parallel",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 159039.35,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_atlas_parallel",
+          "sample": 2,
+          "outcome": "success",
+          "elapsed_ms": 109337.02,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_atlas_parallel",
+          "sample": 3,
+          "outcome": "success",
+          "elapsed_ms": 137562.56,
+          "error": ""
+        },
+        {
+          "case_id": "attachment_tail",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 36474.56,
+          "error": ""
+        },
+        {
+          "case_id": "attachment_tail",
+          "sample": 2,
+          "outcome": "success",
+          "elapsed_ms": 51800.56,
+          "error": ""
+        },
+        {
+          "case_id": "attachment_tail",
+          "sample": 3,
+          "outcome": "success",
+          "elapsed_ms": 44856.57,
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "hardening-final5-live-20261105-v1",
+      "source_commit": "6da187d4f23135be1b6dcf50f036841b78f94aab",
+      "contract_version": 28,
+      "model": "mimo-v2.6-flash",
+      "source_clean": true,
+      "source_files": 64,
+      "source_changed": [],
+      "summary": {
+        "success": 5,
+        "false_success": 0,
+        "failed": 0,
+        "needs_input": 0,
+        "skip": 0,
+        "incomplete": 0,
+        "timed_out": 0,
+        "cancelled": 0
+      },
+      "totals": {
+        "cases_started": 5,
+        "tasks": 15,
+        "model_calls": 33,
+        "tools": 7,
+        "artifacts": 0,
+        "elapsed_ms": 484366.18,
+        "usage": {
+          "input_tokens": 197203,
+          "output_tokens": 8749
+        },
+        "usage_complete": true,
+        "cost": null
+      },
+      "cleanup": {
+        "model_credential_removed": true,
+        "network_policy_removed": true,
+        "observed_workers_exited": true,
+        "call_evidence_complete": true,
+        "still_alive_call_ids": []
+      },
+      "cases": [
+        {
+          "case_id": "calendar_proposal",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 38129.18,
+          "error": ""
+        },
+        {
+          "case_id": "clarify_resume_root",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 99628.71,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_legacy_parallel",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 132679.57,
+          "error": ""
+        },
+        {
+          "case_id": "readonly_atlas_parallel",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 175493.89,
+          "error": ""
+        },
+        {
+          "case_id": "attachment_tail",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 38434.83,
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "hardening-final-calendar-live-20261105-v1",
+      "source_commit": "6da187d4f23135be1b6dcf50f036841b78f94aab",
+      "contract_version": 28,
+      "model": "mimo-v2.6-flash",
+      "source_clean": true,
+      "source_files": 64,
+      "source_changed": [],
+      "summary": {
+        "success": 2,
+        "false_success": 0,
+        "failed": 0,
+        "needs_input": 0,
+        "skip": 0,
+        "incomplete": 0,
+        "timed_out": 0,
+        "cancelled": 0
+      },
+      "totals": {
+        "cases_started": 2,
+        "tasks": 2,
+        "model_calls": 6,
+        "tools": 2,
+        "artifacts": 0,
+        "elapsed_ms": 64565.77,
+        "usage": {
+          "input_tokens": 12782,
+          "output_tokens": 1287
+        },
+        "usage_complete": true,
+        "cost": null
+      },
+      "cleanup": {
+        "model_credential_removed": true,
+        "network_policy_removed": true,
+        "observed_workers_exited": true,
+        "call_evidence_complete": true,
+        "still_alive_call_ids": []
+      },
+      "cases": [
+        {
+          "case_id": "calendar_proposal",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 27792.67,
+          "error": ""
+        },
+        {
+          "case_id": "calendar_proposal",
+          "sample": 2,
+          "outcome": "success",
+          "elapsed_ms": 36773.1,
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "hardening-public-source-live-20261105-v1",
+      "source_commit": "6da187d4f23135be1b6dcf50f036841b78f94aab",
+      "contract_version": 28,
+      "model": "mimo-v2.6-flash",
+      "source_clean": true,
+      "source_files": 64,
+      "source_changed": [],
+      "summary": {
+        "success": 1,
+        "false_success": 0,
+        "failed": 0,
+        "needs_input": 0,
+        "skip": 0,
+        "incomplete": 0,
+        "timed_out": 0,
+        "cancelled": 0
+      },
+      "totals": {
+        "cases_started": 1,
+        "tasks": 1,
+        "model_calls": 3,
+        "tools": 1,
+        "artifacts": 0,
+        "elapsed_ms": 28218.2,
+        "usage": {
+          "input_tokens": 9255,
+          "output_tokens": 405
+        },
+        "usage_complete": true,
+        "cost": null
+      },
+      "cleanup": {
+        "model_credential_removed": true,
+        "network_policy_removed": true,
+        "observed_workers_exited": true,
+        "call_evidence_complete": true,
+        "still_alive_call_ids": []
+      },
+      "cases": [
+        {
+          "case_id": "research_public_source",
+          "sample": 1,
+          "outcome": "success",
+          "elapsed_ms": 28218.2,
+          "error": ""
+        }
+      ]
+    }
+  ],
+  "final_source_commit": "6da187d4f23135be1b6dcf50f036841b78f94aab",
+  "final_summary": {
+    "success": 8,
+    "failed": 0,
+    "timed_out": 0,
+    "false_success": 0
+  },
+  "final_case_counts": {
+    "calendar_proposal": {
+      "success": 3
+    },
+    "clarify_resume_root": {
+      "success": 1
+    },
+    "readonly_legacy_parallel": {
+      "success": 1
+    },
+    "readonly_atlas_parallel": {
+      "success": 1
+    },
+    "attachment_tail": {
+      "success": 1
+    },
+    "research_public_source": {
+      "success": 1
+    }
+  },
+  "final_totals": {
+    "model_calls": 42,
+    "tasks": 18,
+    "input_tokens": 219240,
+    "output_tokens": 10441,
+    "usage_complete": true,
+    "cost": null
+  },
+  "validation": {
+    "initial_affected_tests": {
+      "run": 358,
+      "skipped": 1,
+      "skip_reason": "OS symlink creation unavailable",
+      "temporary_worker_cleanup_warnings": true
+    },
+    "final_focused_tests": 98,
+    "control_context_affected_tests": 145,
+    "attachment_range_tests": 30,
+    "api_memory_cleanup_tests": 85,
+    "calendar_component_tests": 15
+  },
+  "boundaries": {
+    "official_sandbox": false,
+    "external_business_writes": false,
+    "actual_gui_operation": false,
+    "full_174_case_suite_run": false,
+    "remaining_issue": 269,
+    "remaining": "完整来源UI、动态JS/登录页面能力及其余覆盖专项接入仍未完成。"
+  }
+}
