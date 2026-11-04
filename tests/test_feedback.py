@@ -6,6 +6,14 @@ from desk_companion.web_sources import source_catalog,render_citations,check_cit
 
 
 class FeedbackTests(unittest.TestCase):
+    def test_review_does_not_mix_superseded_source_versions(self):
+        from desk_companion.feedback_review import material
+        old=dict(kind='page',level='body',url='https://example.org/source',text='Old version permits online use.',snapshot_id='a'*32,sha256='1'*64)
+        current={**old,'text':'Current version permits offline use only.','snapshot_id':'b'*32,'sha256':'2'*64}
+        rows=material('check current limits','draft',[old,current],[])
+        body=next(r for r in rows if r['level']=='body')
+        self.assertEqual(body['segments'],[current['text']])
+
     def test_complete_json_citations_are_data_even_without_an_inferred_format_contract(self):
         from desk_companion.delivery_feedback import assess
         from desk_companion.json_document import json_answer
@@ -75,12 +83,14 @@ class FeedbackTests(unittest.TestCase):
             captured.append(messages)
             return dict(message=dict(content='{}'))
         rule=dict(id='citation_provenance',dimension='source_url',status='pass',basis='deterministic')
-        review('goal','draft',[],[],call,verified_checks=[rule])
+        review('goal','draft',[],[],call,verified_checks=[rule],rendered_delivery='compiled')
         payload=json.loads(captured[-1][1]['content'])
-        self.assertEqual(payload['candidate_stage'],'after_citation_resolution');self.assertEqual(payload['citation_provenance_rule'],'citation_provenance')
+        self.assertEqual(payload['candidate_stage'],'submitted_candidate');self.assertEqual(payload['citation_provenance_rule'],'citation_provenance')
+        self.assertEqual(payload['rendered_delivery'],dict(stage='after_citation_resolution',text='compiled'))
         review('goal','draft',[],[],call,verified_checks=[{**rule,'status':'unknown'}])
         self.assertIsNone(json.loads(captured[-1][1]['content'])['citation_provenance_rule'])
-        self.assertEqual(json.loads(captured[-1][1]['content'])['candidate_stage'],'unspecified')
+        self.assertEqual(json.loads(captured[-1][1]['content'])['candidate_stage'],'submitted_candidate')
+        self.assertNotIn('rendered_delivery',json.loads(captured[-1][1]['content']))
 
     def test_structured_review_submission_is_data_only_and_still_strict(self):
         from desk_companion.feedback_review import review

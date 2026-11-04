@@ -4,11 +4,15 @@
 
 ## 执行
 
+2026-11-05[集中优化验收](CAPABILITY_HARDENING_20261105.md)：首批真实15样本14成功/1失败；追加控制消息修复后，最终同源码8/8成功，42次调用，用量完整、费用未知。逐批脱敏指标见[结果JSON](evals/hardening-20261105-results.json)。固定24案、174项设计与本轮样本分别计数，未运行完整174案。
+
 ### 全业务回归设计（#262）
 
 [全业务回归测评集v1](BUSINESS_REGRESSION.md)在现有47个质量执行器之上制定164条设计案例，覆盖18个业务域与8条跨域旅程。新增117条尚待接入，不能称为已跑通的真实模型测试；当前CLI仍不支持business suite。完整逐条定义见[目录](evals/business-regression-v1.json)，最近4个失败项的证据与优化建议见[调查报告](FAILURE_INVESTIGATION_V27.md)。原固定24案及历史分数保持独立。
 
-### 高频失败固定集（#245/#251，当前契约27）
+### 高频失败固定集（#245/#251，当前契约28）
+
+契约28保留原24题输入及独立计分，新增 `attachment_tail`（全局第48题）通过统一入口检查两份合成附件的后页：实际工具回填的来源、digest和区间必须匹配，正确JSON但未读目标章节仍不通过。该题对应内容覆盖专项COV-06，模型真实调用与合成资料来源分别标明；不把新题并入原24同题分数。可用 `--case attachment_tail --samples 3` 单独复跑。当前源码捕获补入web_snapshots、local_sources和workspace_source。
 
 `--suite failures` 当前固定选择24案，与 `--case` 互斥。保留首轮全部12案：澄清、同根恢复、公开资料读取、搜索后读取、局部阅读反馈、legacy/Atlas并行研究、附件图表、工作流草稿、长历史与活跃调用取消。新增6案检查业务JSON对象/数组/业务mode/未知值、正确事实审阅和来源指令干扰；纳入既有6案检查错误断言、不可比数值、缺失产物、本地日历、日程提案与真实委派。这是固定任务回归，不估算所有对话失败率。
 
@@ -147,7 +151,7 @@ python scripts/eval_agent.py --live --project-sdk official --case coder_read_mod
 
 ## 清单与证据
 
-机器清单位于 `desk_companion/agent_evals.py`，当前契约版本27，共47案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
+机器清单位于 `desk_companion/agent_evals.py`，当前契约版本28，共48案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
 
 | 案例 | 固定任务/前置 | 机器核对证据 |
 | --- | --- | --- |

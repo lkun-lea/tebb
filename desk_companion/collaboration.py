@@ -897,7 +897,10 @@ class Collaboration:
                     elif all(dep['state']=='succeeded' for dep in preceding):
                         for dep in preceding:
                             run["context"].append(dict(sender=dep["agent"], text=dep["answer"][:24000]))
-                        run['handoffs']=[dict(id=dep['id'],agent=dep['agent'],state=dep['state'],answer=dep['answer'])for dep in preceding]
+                        from .web_snapshots import coverage_catalog
+                        from .web_sources import evidence_sources
+                        run['handoffs']=[dict(id=dep['id'],agent=dep['agent'],state=dep['state'],answer=dep['answer'],
+                            source_coverage=coverage_catalog(evidence_sources(dep.get('source_evidence',[])+dep.get('evidence',[]))))for dep in preceding]
                         if run.get('development_task'):
                             for handoff, dep in zip(run['handoffs'], preceding):
                                 facts = code_handoff(dep)

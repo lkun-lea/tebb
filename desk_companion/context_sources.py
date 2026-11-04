@@ -39,7 +39,7 @@ def manifest(messages, selection=None):
         sources = copy.deepcopy(getattr(message, 'sources', []))
         # Unannotated tool protocol messages are identifiable by their structural role.
         if not sources:
-            category = 'tool_receipt' if message.get('role') == 'tool' else 'unknown'
+            category = {'tool':'tool_receipt','system':'system'}.get(message.get('role'),'unknown')
             sources = [dict(category=category, start=0, end=len(message.get('content') or ''), source=None)]
         rows.append(dict(index=index, sha256=digest(message), sources=sources))
     return dict(version=1, messages=rows, selection=copy.deepcopy(selection))

@@ -48,3 +48,5 @@ pnpm build
 当前模型wire只表达可见语义：可给一个question文本，或questions数组（每项question及2至4个options字符串），总说明可省略。内部question/option id和隐藏value不再要求模型生成，旧对象型选项不作回退；同题重复可见选项仍拒绝。后台为当前表单生成q1/q2及q1_o1等唯一编号，缺总说明时合并问题文本。生成补充选项的submit_questions也采用同一wire，并要求questions。
 
 持久表单的严格id、run/conversation归属、问题版本、提交去重及自定义输入校验保持由原服务负责。静态日程时长模板仍由后端提供；只读答案只使用用户看见并选择的label，不从隐藏value生成权限或新指令。模型提供内部id/value的旧wire、重复选项、过期或跨会话提交有回归；模拟同根追问恢复实际使用无id、无总说明的questions输入。
+
+#258：显式执行与普通auto聊天分别拥有route职责提示。显式恢复仍沿用require_execution及原根，最终输出约束归task阶段；route仅申请真实开工或必要补充，纠正时不再提供普通直接回答分支。

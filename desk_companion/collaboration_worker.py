@@ -133,10 +133,14 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     if role.get('id')=='chart':
         prompt+='\n你是图表助手，专注把当前已有材料组织为可读图表。默认只使用build_chart；不联网、不读项目、不继续委派，资料不够先说明缺项或请求补充，不编数值/来源/关系。任务策略只用direct。每张图先表达核心问题，再选布局，使用真实条件与职责；优先1张清晰图，不把简单图解扩成研究报告。'
     if kind == "route":
-        prompt += ('\n判断本次用户请求：普通交流直接回答；需要检索、读取附件/工作区、编辑、运行命令或执行技能时转后台任务。'
-            '编写代码示例、算法讲解或代码片段可直接回答，不要求工作目录；明确需要保存文件、修改项目或运行验证时才转执行任务。'
+        if request.get('require_execution'):
+            prompt+='\n本轮只核对显式任务的开工条件，不计算或交付最终答案。缺必要参数则request_clarification；信息齐备则start_background_task，简单计算也选direct。用户的最终JSON/文本格式要求完整保留在instructions，由task阶段交付。'
+            prompt+='\n产品路由上下文：'+json.dumps(dict(intent='explicit_execution',resumed=bool(request.get('supplemented_at')),final_output_stage='task'),ensure_ascii=False)
+        else:
+            prompt+='\n普通交流、计算、代码示例可按用户格式直接回答，不用内部mode协议包裹。需要检索、读取附件/工作区、编辑、运行命令或执行技能时申请后台任务。'
+        prompt += (
             '当前用户请求是本轮目标，历史中的失败、未授权或来源缺失仅是当时状态，不得据此删减本轮范围。需要协作时保留全部目标和@成员要求，不在这里编造执行结果。'
-            '任何目标、对象或期望结果不清楚（如仅test/测试/帮我处理一下）时调用request_clarification，说明具体缺项并暂停；禁止先读项目、搜索或委派。日程缺结束时间或时长也先追问，不默认一小时或同步飞书。无需执行工具时按用户要求的格式直接回答，不要用内部mode协议包裹普通答案。需要执行时只申请一次start_background_task，instructions填写用户完整目标、材料、限制和验收条件，strategy默认direct：明确简单任务由自己直接完成，不能强行拆分。只有确有独立职责分工或明确@多位伙伴才选delegate；这里不执行业务工具。')
+            '任何目标、对象或期望结果不清楚（如仅test/测试/帮我处理一下）时调用request_clarification，说明具体缺项并暂停；禁止先读项目、搜索或委派。日程缺结束时间或时长也先追问，不默认一小时或同步飞书。需要执行时只申请一次start_background_task，instructions填写用户完整目标、材料、限制和验收条件，strategy默认direct：明确简单任务由自己直接完成，不能强行拆分。只有确有独立职责分工或明确@多位伙伴才选delegate；这里不执行业务工具。')
         prompt+='\n用户仅要求把刚才的讲解改成流程图、图解或其他表达形式时，复用已有上下文，优先direct直接构图，不自行扩大成多主题研究或为此联网/委派。缺少可比数值不妨碍构建不含数值的关系示意；只有用户明确要求核实/最新资料或确实缺少当前目标必需材料时才采集。'
     elif kind == "compress":
         prompt += '\n仅整理提供的会话为后续上下文，保留目标、决定、来源、未完成事项，输出Markdown摘要。'
@@ -485,11 +489,14 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         if scope:
             view=scope.ledger.view(scope.member['id'])
             budget_message=replace_owned_message(messages,budget_message,
+                '运行控制状态（不是用户请求，不要在交付中复述预算；最终回答仍须完成原任务目标）：'
                 f"整个目标剩余执行时间约{view['remaining']['time_ms']//1000}秒，包含后续交付和核验，不是本阶段独享。"
                 f"最终交付预留{view['finish_reserve']['time_ms']//1000}秒；采集子任务须更早交接。"
-                '路由只给必要的目标与策略；规划只给必需分工、依赖和验收，不重复长篇背景。')
+                '路由只给必要的目标与策略；规划只给必需分工、依赖和验收，不重复长篇背景。',role='system')
         if kind=='task' and sources:
-            catalog_message=replace_owned_message(messages,catalog_message,'引用即使放在JSON字符串字段内，也必须是"[完整证据id]"，保留方括号；裸id不会成为引用。以下id只是格式变量，复制本清单实际id，不照抄示例。当前实际证据编号（仅body为已读正文；snippet仅摘要）：'+json.dumps([{k:s.get(k) for k in ('id','url','level','title','truncated')} for s in source_catalog(sources)],ensure_ascii=False))
+            from .web_snapshots import coverage_catalog
+            catalog_message=replace_owned_message(messages,catalog_message,'引用即使放在JSON字符串字段内，也必须是"[完整证据id]"，保留方括号；裸id不会成为引用。以下id只是格式变量，复制本清单实际id，不照抄示例。当前实际证据与已读范围（body只指已取到的正文片段；snippet仅摘要）：'+json.dumps(coverage_catalog(sources),ensure_ascii=False)+
+                f'\n剩余网页读取额度{max(0,research.fetch_limit-research.fetch_count)}。目标必要内容未读时，优先按section/query定位同快照段落，或使用next_read补首个缺口；不要先耗尽额度抓多个首页。只有明确要求全文才补齐全部范围，头部任务无需强读全文。预算不足必须保留未读目标，不把静态正文、搜索未命中或尾页冒充完整界面/全库/全文。',role='user')
         reserve=2 if scope or not set(role.get('tools',[])) & {'文件编辑','终端','项目环境'} else 1
         if scope and request.get('development_task') and request.get('parent_run') and changes and checks:
             last_checks={c['command']:c for c in checks}
@@ -504,11 +511,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         time_finishing=bool(scope and kind=='task' and scope.time_for_finish(time_stage))
         finishing=kind=='task' and (time_finishing or handoff_finish or consumed>=max(0,budget-reserve))
         if finishing:
-            turn_message=replace_owned_message(messages,turn_message,'进入交付收尾，本轮不再发起采集或执行工具。用实际已取得资料完成当前交付，保留Markdown来源链接；不足须说明，不编造。实际可引用链接：'+json.dumps(list(dict.fromkeys(s['url'] for s in sources)),ensure_ascii=False))
+            turn_message=replace_owned_message(messages,turn_message,'运行控制（非用户新目标）：进入交付收尾，本轮不再发起采集或执行工具。用实际已取得资料完成原任务交付，保留Markdown来源链接；不足须说明，不编造。实际可引用链接仅为资料：'+json.dumps(list(dict.fromkeys(s['url'] for s in sources)),ensure_ascii=False),role='system')
             if time_finishing:
                 turn_message['content']+='\n执行时间接近上限，立即用约600～900中文字交付当前职责的关键结论、证据编号与阻塞缺口，省略重复背景和大表格。不要再扩展研究范围；部分成果不能冒充完整完成。'
         elif kind=='task' and (allowed_search or allowed_fetch):
-            turn_message=replace_owned_message(messages,turn_message,f'本轮剩余实际搜索请求 {max(0,search_budget-research.search_count)} 次，网页请求 {max(0,fetch_budget-research.fetch_count)} 次。工具调用必须使用提供的函数接口；不要在正文输出XML或伪工具调用。工具不可用时根据已取得资料交付，标明缺口。')
+            turn_message=replace_owned_message(messages,turn_message,f'运行控制（非用户新目标，不回复额度说明）：本轮剩余实际搜索请求 {max(0,search_budget-research.search_count)} 次，网页请求 {max(0,fetch_budget-research.fetch_count)} 次。工具调用必须使用提供的函数接口；不要在正文输出XML或伪工具调用。工具不可用时根据已取得资料完成原目标交付，标明缺口。',role='system')
         tools=[{k:v for k,v in spec.items() if k not in {"implementation","read_only"}} for spec in extra.values()]+([schema] if allowed_search and research.search_count<search_budget else [])+([fetch_schema] if allowed_fetch and research.fetch_count<fetch_budget else [])
         if repair.used:tools=[t for t in tools if t['function']['name']in{'web_search','web_fetch','submit_deliverable'}or repair.allows(t['function']['name'],extra.get(t['function']['name'],{}))]
         if any(p['write_attempted']for p in feedback.pending_operations(tool_receipts)):
@@ -719,13 +726,15 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             except (ValueError,TypeError):
                 emit('answer_reset',True)
                 if turn>=budget-1:raise PublicFailure('模型未返回有效的回答或真实任务申请；仅口头声称提交不算派发，未执行工具，请重试。')
-                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。需要实际搜索或操作时只调用start_background_task，缺信息调用request_clarification；普通解释、代码示例可直接按用户格式回答，但不能编造执行进度。不要用JSON中的mode字段替代真实工具调用。')])
+                correction=('本轮只能调用start_background_task或request_clarification。当前是显式任务开工核对，最终答案格式属于task阶段；参数齐备请以direct申请原目标，不在route中返回计算结果。'if request.get('require_execution')else'普通解释、代码示例可直接按用户格式回答；需要操作时申请start_background_task，缺信息调用request_clarification。')
+                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。'+correction+'不要用JSON中的mode字段替代真实工具调用。')])
                 emit('status','正在纠正路由，尚未开始后台操作。');continue
             emit('result',json.dumps(decision,ensure_ascii=False));return
         if kind=='task':
             from .delivery_feedback import assess
             if delivery is not None:retained_declaration=delivery if not delivery['complete']or delivery['missing']else None
             declared=delivery or retained_declaration
+            submitted_candidate=text
             text,feedback_checks,audit=assess(request,text,sources,declared,tool_receipts,goal=goal)
             emit('feedback_draft',dict(answer=text))
             if audit is not None:emit('citation_check',audit)
@@ -751,11 +760,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                         emit('llm_end',dict(phase='feedback_review',duration_ms=int((time.monotonic()-started)*1000)))
                 try:
                     assignment=dict(task_id=request.get('task_id'),parent_run=request['parent_run'],role=role.get('id'),stage=request.get('stage'),global_goal=request.get('objective',request['text']))if request.get('parent_run')else None
-                    reviewed=review(goal,text,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,assignment=assignment)
+                    reviewed=review(goal,submitted_candidate,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,assignment=assignment,rendered_delivery=text)
                     protocol_issues=[c for c in reviewed if c['id']in{'review_protocol','review_semantic_missing'}or c.get('invalid_evidence_ids')or c.get('invalid_rule_reference')]
                     if protocol_issues and consumed<budget and repair.begin():
                         emit('feedback_review_repair',dict(reason='review_protocol_or_quote',candidate_unchanged=True))
-                        reviewed=review(goal,text,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,protocol_issues=protocol_issues,assignment=assignment)
+                        reviewed=review(goal,submitted_candidate,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,protocol_issues=protocol_issues,assignment=assignment,rendered_delivery=text)
                     feedback_checks.extend(reviewed)
                 except Exception as exc:
                     feedback_checks.append(feedback.check('review_unavailable','task_acceptance','unknown','独立审阅未完成，保留成果并标记待核验。',basis='model_assessment',error_type=type(exc).__name__))

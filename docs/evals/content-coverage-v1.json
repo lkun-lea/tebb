@@ -7,8 +7,9 @@
   "base_catalogue": "business-regression-v1.json",
   "base_cases": 164,
   "combined_design_cases": 174,
-  "status": "design_only",
-  "new_model_calls": 0,
+  "status": "partially_implemented",
+  "design_phase_new_model_calls": 0,
+  "implementation_results": "hardening-20261105-results.json",
   "cases": [
     {
       "id": "COV-01",
@@ -216,7 +217,7 @@
         "service",
         "model"
       ],
-      "status": "planned_not_implemented_not_run",
+      "status": "executor_implemented_live_validated",
       "evidence": [
         "task/root/call关联",
         "来源版本与本次/累计已读区间",
@@ -224,8 +225,7 @@
         "预算及交接前后实际输入"
       ],
       "existing_entrypoints": [
-        "scripts/eval_agent.py（需扩充当前执行器；目前无COV case）",
-        "现有PageReader/local_sources/workspace_source及领域服务测试"
+        "scripts/eval_agent.py --case attachment_tail"
       ],
       "prerequisites": [
         "isolated_profile",
@@ -234,6 +234,15 @@
       "live_sampling": {
         "samples": 3,
         "planned": true
+      },
+      "automation": {
+        "eval_case_id": "attachment_tail",
+        "entrypoint": "scripts/eval_agent.py --case attachment_tail",
+        "contract_version": 28,
+        "live_validation": [
+          {"source_commit": "f773c2f89c5ee1167bd32ebdc07aab71c6167ee1", "samples": 3, "success": 3},
+          {"source_commit": "6da187d4f23135be1b6dcf50f036841b78f94aab", "samples": 1, "success": 1}
+        ]
       }
     },
     {

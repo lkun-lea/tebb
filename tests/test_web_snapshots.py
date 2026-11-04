@@ -11,6 +11,25 @@ from tests.test_web_sources import Response
 
 
 class SnapshotTests(unittest.TestCase):
+    def test_tail_page_does_not_hide_unread_middle_or_change_snapshot(self):
+        from desk_companion.web_snapshots import coverage_catalog
+        self.body='Header\n'+'A'*35000+'\nTail limit: offline only.'
+        first=self.reader.read(self.url)
+        tail=self.reader.read(self.url,query='Tail limit')
+        self.assertIsNone(tail['next_offset'])
+        row=coverage_catalog([first,tail])[0]
+        self.assertFalse(row['complete'])
+        self.assertEqual(row['next_read']['offset'],12000)
+        pages=[first,tail]
+        for _ in range(4):
+            if not row.get('next_read'):break
+            pages.append(self.reader.read(**row['next_read']))
+            row=coverage_catalog(pages)[0]
+        self.assertTrue(row['complete']);self.assertEqual(row['unread_ranges'],[])
+        self.assertTrue(all(p['sha256']==first['sha256']for p in pages))
+        self.assertEqual(self.open.call_count,1)
+        self.assertEqual(row['content_method'],'static_extracted_text')
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.addCleanup(patch.stopall)

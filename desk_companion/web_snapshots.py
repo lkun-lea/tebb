@@ -8,6 +8,27 @@ from .paths import data_root
 from .web_sources import fetch_page,MAX_TEXT,url_key
 
 
+def coverage_catalog(sources):
+    """Derived read coverage; no new storage and no claim of rendered UI access."""
+    from .web_sources import source_catalog
+    rows=[]
+    for source in source_catalog(sources):
+        row={k:source[k]for k in ('id','url','level','title','truncated','snapshot_id','characters','read_ranges','complete','content_method')if k in source}
+        row['scope']='仅实际工具返回的文本；不证明JS/登录态界面完整。'
+        total=source.get('characters');ranges=source.get('read_ranges',[])
+        if source.get('snapshot_id')and type(total)is int and total>=0:
+            end=0;gaps=[]
+            for a,b in ranges:
+                if type(a)is not int or type(b)is not int or not 0<=a<=b<=total:continue
+                if a>end:gaps.append([end,a])
+                end=max(end,b)
+            if end<total:gaps.append([end,total])
+            row['unread_ranges']=gaps
+            if gaps:row['next_read']=dict(url=source['url'],snapshot_id=source['snapshot_id'],offset=gaps[0][0])
+        rows.append(row)
+    return rows
+
+
 def identifier(value):
     if not isinstance(value,str) or not re.fullmatch('[a-f0-9]{32}',value):raise ValueError('网页快照标识无效。')
     return value
@@ -56,4 +77,4 @@ class PageReader:
         end=min(len(text),offset+MAX_TEXT)
         return {k:v for k,v in value.items() if k not in {'scope','text'}}|dict(text=text[offset:end],
             read_start=offset,read_end=end,read_ranges=[[offset,end]],next_offset=end if end<len(text) else None,
-            complete=offset==0 and end==len(text),truncated=offset>0 or end<len(text))
+            complete=offset==0 and end==len(text),truncated=offset>0 or end<len(text),content_method='static_extracted_text')

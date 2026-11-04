@@ -265,8 +265,8 @@ class ExecutionLLM(LLM):
             except Exception:pass
 
 
-def replace_owned_message(messages,previous,content):
+def replace_owned_message(messages,previous,content,*,role):
     """Refresh only the exact worker-owned object, never equal-looking user text."""
     if previous is not None:messages[:]=[value for value in messages if value is not previous]
-    current=dict(role='user',content=content);messages.append(current)
+    current=dict(role=role,content=content);messages.append(current)
     return current

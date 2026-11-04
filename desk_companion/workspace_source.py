@@ -1,5 +1,6 @@
 """Bounded source navigation and revision-checked edits in a granted workspace."""
 import ast
+from collections import Counter
 from difflib import get_close_matches
 import hashlib
 import io
@@ -36,6 +37,7 @@ def search(root, relative, query, mode, *, config):
     if not target.exists():
         raise ValueError('搜索路径不存在')
     limited = False
+    skipped=Counter();stops=[]
     def paths():
         nonlocal limited
         if target.is_file():
@@ -46,12 +48,14 @@ def search(root, relative, query, mode, *, config):
             visited += len(dirs)+len(files)
             if visited>10000:
                 limited = True
+                stops.append('directory_scan_limit')
                 return
             allowed = []
             for name in sorted(dirs):
                 try:
                     workspace.resolve(root,(Path(parent)/name).relative_to(base).as_posix(),config)
                 except (OSError,ValueError):
+                    skipped['unavailable_directory']+=1
                     continue
                 allowed.append(name)
             dirs[:] = allowed
@@ -64,21 +68,25 @@ def search(root, relative, query, mode, *, config):
     needle = query.casefold()
     for file in paths():
         if file.suffix.lower() not in ({'.py','.pyi'} if mode=='symbol' else TEXT_SUFFIXES):
+            skipped['unsupported_type']+=1
             continue
         path = file.relative_to(base).as_posix()
         try:
             safe,_ = workspace.resolve(root,path,config)
             length = safe.stat().st_size
             if length>workspace.MAX_FILE or not safe.is_file():
+                skipped['size_or_nonfile']+=1
                 continue
             if count>=2000 or size+length>24*workspace.MAX_FILE:
                 limited = True
+                stops.append('file_scan_limit')
                 break
             count += 1
             size += length
             with safe.open('rb') as stream:
                 raw = stream.read(workspace.MAX_FILE+1)
             if len(raw)>workspace.MAX_FILE or b'\0' in raw:
+                skipped['size_or_binary']+=1
                 continue
             text = raw.decode('utf-8')
             if mode=='symbol':
@@ -113,12 +121,24 @@ def search(root, relative, query, mode, *, config):
                             preview = dict(symbol=name, **_page(path,hashlib.sha256(raw).hexdigest(),list(io.StringIO(text,newline='')),start,end))
                         except ValueError as exc:
                             preview = dict(preview_error=str(exc))
-        except (OSError,ValueError,SyntaxError,RecursionError):
+        except UnicodeDecodeError:
+            skipped['encoding']+=1
+            continue
+        except (SyntaxError,RecursionError):
+            skipped['parser']+=1
+            continue
+        except (OSError,ValueError):
+            skipped['unavailable_file']+=1
             continue
         if mode=='text' and len(partial)>25:
             break
     hits = exact+partial
-    return dict(ok=True,matches=hits[:25],hit_count=hit_count,limited=limited or len(hits)>25,**preview)
+    limited=limited or len(hits)>25
+    if len(hits)>25 or hit_count>25:stops.append('result_limit')
+    coverage=dict(scope='仅当前root/path下支持的文件类型和可读取编码',scanned_files=count,scanned_bytes=size,
+        skipped=dict(skipped),stop_reasons=list(dict.fromkeys(stops)),complete=not limited and not skipped,
+        hit_count_scope='observed_scan',next_action='缩小path或用限定名/行号读取；本次未命中不证明范围外不存在。')
+    return dict(ok=True,matches=hits[:25],hit_count=hit_count,limited=limited,coverage=coverage,**preview)
 
 
 def _resolve_symbol(text, symbol):

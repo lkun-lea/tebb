@@ -125,8 +125,18 @@ class ExecutionContextTests(unittest.TestCase):
 
     def test_owned_catalog_replacement_does_not_delete_equal_user_objects(self):
         user=dict(role='user',content='same');owned=copy.deepcopy(user);messages=[user,owned]
-        current=replace_owned_message(messages,owned,'updated')
+        current=replace_owned_message(messages,owned,'updated',role='user')
         self.assertIs(messages[0],user);self.assertIs(messages[1],current);self.assertEqual(len(messages),2)
+
+    def test_runtime_control_does_not_become_the_latest_user_request(self):
+        from desk_companion.context_sources import manifest
+        user=dict(role='user',content='生成日程提案，不保存。');messages=[user]
+        budget=replace_owned_message(messages,None,'剩余预算30秒，不复述预算。',role='system')
+        self.assertIs(next(m for m in reversed(messages)if m['role']=='user'),user)
+        self.assertEqual(manifest(messages)['messages'][-1]['sources'][0]['category'],'system')
+        supplement=dict(role='user',content='改成10点开始。');messages.append(supplement)
+        replace_owned_message(messages,budget,'剩余预算20秒。',role='system')
+        self.assertIs(next(m for m in reversed(messages)if m['role']=='user'),supplement)
 
     def test_real_atlas_sdk_boundary_receives_exact_prepared_messages_once(self):
         calls=[]

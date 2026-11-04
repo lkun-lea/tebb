@@ -86,3 +86,5 @@ Schema不符返回最多8条protocol_errors，含有界JSON pointer、keyword及
 主交付在assess解析引用后才独立审阅。只有实际passed/deterministic citation_provenance使candidate_stage=after_citation_resolution，表明内部[S...]可已经渲染为Markdown链接，不能仅因最终缺内部编号再判矛盾；该规则仍只证明出处，不证明事实。通用review_draft未先核验时阶段为unspecified，不宣称通过。
 
 v20明确区分提交系统的引用形式和最终用户链接。v19真实串行/旧并行失败、Atlas超时均保留；新协议不修改原分数。AI可查feedback_check.protocol_errors、feedback_review_repair、模型call与原始响应，接口见AGENT_DEBUG.md。
+
+审阅协议v5（#259）：draft始终保留模型原始提交，rendered_delivery单列系统编译后的成品。提交格式对原文核对，来源检查对实际编译链接核对；审阅excerpt编号不能作为业务source_id。legacy与Atlas收尾共用该路径，错误年份、假来源和缺正文仍须拒绝。

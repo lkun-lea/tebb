@@ -16,6 +16,23 @@ def spec(ident):return next(c for c in CASES if c['id']==ident)
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_attachment_tail_needs_actual_matching_tool_payload_not_just_correct_json(self):
+        from desk_companion.local_sources import read_page
+        case=spec('attachment_tail');context=prepare(case,self.workspace,self.run_id,fixture=True)
+        task=dict(id='tail-task',state='succeeded',answer=json.dumps(case['expected']),events=[])
+        head=read_page(context['source_id'])
+        with patch('desk_companion.agent_debug.listing',return_value=dict(items=[dict(id='actual-call')])),patch('desk_companion.agent_debug.detail')as detail:
+            def response(value):return dict(request=dict(messages=[dict(role='tool',content=json.dumps(value))]))
+            detail.return_value=response(head)
+            self.assertFalse(verify(case,task,context)['verified'])
+            tail=read_page(context['source_id'],offset=context['required_range'][0])
+            detail.return_value=response(tail)
+            self.assertTrue(verify(case,task,context)['verified'])
+            detail.return_value=response({**tail,'text':'fabricated tool body'})
+            self.assertFalse(verify(case,task,context)['verified'])
+            detail.return_value=response({**tail,'digest':'0'*64})
+            self.assertFalse(verify(case,task,context)['verified'])
+
     def test_source_sections_accept_omitted_preamble_but_not_missing_requested_body(self):
         from desk_companion.web_snapshots import PageReader
         from scripts.eval_fixture_worker import fetch_page

@@ -34,6 +34,63 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_proposal_handoff_has_domain_contract_without_claiming_ui_observation(self):
+        from desk_companion.calendar_proposals import build
+        from desk_companion.delivery_feedback import assess
+        proposal=build(dict(summary='合成提案',start='2040-01-02T09:00:00+08:00',end='2040-01-02T10:00:00+08:00'),task_id=self.request['task_id'])
+        receipts=[dict(tool='calendar_propose',call_id='proposal-one',read_only=True,result=proposal)]
+        _,checks,_=assess(self.request,'提案已生成，请打开草稿确认。',[],None,receipts)
+        verified=next(c for c in checks if c['id']=='calendar_proposal_handoff')
+        self.assertEqual(verified['status'],'pass')
+        self.assertFalse(verified['delivery_contract']['ui_observed'])
+        captured=[]
+        from desk_companion.feedback_review import review
+        review('生成可打开的提案','提案已生成',[],receipts,lambda m:(captured.append(m)or dict(message=dict(content='{}'))),verified_checks=checks)
+        self.assertEqual(json.loads(captured[0][1]['content'])['delivery_contract']['kind'],'calendar_proposal')
+        proposal['proposal']['summary']='篡改提案'
+        _,bad,_=assess(self.request,'已生成',[],None,receipts)
+        self.assertEqual(next(c for c in bad if c['id']=='calendar_proposal_handoff')['status'],'fail')
+
+    def test_explicit_resume_correction_only_offers_actual_control_actions(self):
+        self.request.update(kind='route',require_execution=True,supplemented_at=123,
+            text='补充7和11，最终只返回JSON。',budget=2)
+        class ResumeModel(ScriptedModel):
+            def chat(inner,messages,tools=None,on_delta=None):
+                if inner.calls:
+                    self.assertIn('final_output_stage',messages[0]['content'])
+                    self.assertIn('task',messages[0]['content'])
+                    correction=messages[-2]['content'] if messages[-1]['content'].startswith('整个目标') else messages[-1]['content']
+                    self.assertNotIn('可直接按用户格式回答',correction)
+                    self.assertIn('本轮只能',correction)
+                return super().chat(messages,tools,on_delta)
+        control=dict(tool_calls=[dict(id='resume-execution',function=dict(name='start_background_task',
+            arguments=json.dumps(dict(instructions='计算7和11并返回JSON',strategy='direct'))))])
+        self.run_model(ResumeModel(['{"total":18,"checked":true}',control]))
+        result=json.loads(self.events[-1][1]);self.assertEqual(result['mode'],'task')
+
+    def test_citation_submission_is_reviewed_before_display_compilation(self):
+        source=dict(kind='page',level='body',url='https://example.org/source',text='Publication year 2020.',truncated=False)
+        ident=source_catalog([source])[0]['id']
+        candidate=json.dumps(dict(year=2020,citation=f'[{ident}]'))
+        self.request.update(text='只返回JSON，citation提交时使用实际证据编号。',source_evidence=[source])
+        class StageReview(ScriptedModel):
+            def chat(inner,messages,tools=None,on_delta=None):
+                result=super().chat(messages,tools,on_delta)
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    payload=json.loads(messages[1]['content'])
+                    draft=''.join(e['text']for r in payload['materials']if r['id']=='draft'for e in r['excerpts'])
+                    value=json.loads(result['message']['content'])
+                    value['requirements'][0]['status']='supported'if f'[{ident}]'in draft else'contradicted'
+                    result['message']['content']=json.dumps(value)
+                return result
+        model=StageReview([candidate,candidate])
+        self.run_model(model)
+        payload=json.loads(model.calls[1]['messages'][1]['content'])
+        self.assertEqual(payload['candidate_stage'],'submitted_candidate')
+        self.assertEqual(payload['rendered_delivery']['stage'],'after_citation_resolution')
+        self.assertIn(source['url'],payload['rendered_delivery']['text'])
+        self.assertIn(source['url'],json.loads(self.events[-1][1])['citation'])
+
     def test_clarification_form_identity_and_heading_are_generated_by_product(self):
         self.request.update(kind='route',text='两个数值缺失，请先询问。')
         payload=dict(questions=[dict(question='第一个数？',options=['1','2']),dict(question='第二个数？',options=['3','4'])])
