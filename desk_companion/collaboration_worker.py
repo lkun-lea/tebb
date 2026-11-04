@@ -726,6 +726,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             from .delivery_feedback import assess
             if delivery is not None:retained_declaration=delivery if not delivery['complete']or delivery['missing']else None
             declared=delivery or retained_declaration
+            submitted_candidate=text
             text,feedback_checks,audit=assess(request,text,sources,declared,tool_receipts,goal=goal)
             emit('feedback_draft',dict(answer=text))
             if audit is not None:emit('citation_check',audit)
@@ -751,11 +752,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                         emit('llm_end',dict(phase='feedback_review',duration_ms=int((time.monotonic()-started)*1000)))
                 try:
                     assignment=dict(task_id=request.get('task_id'),parent_run=request['parent_run'],role=role.get('id'),stage=request.get('stage'),global_goal=request.get('objective',request['text']))if request.get('parent_run')else None
-                    reviewed=review(goal,text,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,assignment=assignment)
+                    reviewed=review(goal,submitted_candidate,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,assignment=assignment,rendered_delivery=text)
                     protocol_issues=[c for c in reviewed if c['id']in{'review_protocol','review_semantic_missing'}or c.get('invalid_evidence_ids')or c.get('invalid_rule_reference')]
                     if protocol_issues and consumed<budget and repair.begin():
                         emit('feedback_review_repair',dict(reason='review_protocol_or_quote',candidate_unchanged=True))
-                        reviewed=review(goal,text,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,protocol_issues=protocol_issues,assignment=assignment)
+                        reviewed=review(goal,submitted_candidate,sources,tool_receipts,review_call,handoffs=request.get('handoffs',[]),verified_checks=feedback_checks,protocol_issues=protocol_issues,assignment=assignment,rendered_delivery=text)
                     feedback_checks.extend(reviewed)
                 except Exception as exc:
                     feedback_checks.append(feedback.check('review_unavailable','task_acceptance','unknown','独立审阅未完成，保留成果并标记待核验。',basis='model_assessment',error_type=type(exc).__name__))

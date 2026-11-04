@@ -34,6 +34,29 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_citation_submission_is_reviewed_before_display_compilation(self):
+        source=dict(kind='page',level='body',url='https://example.org/source',text='Publication year 2020.',truncated=False)
+        ident=source_catalog([source])[0]['id']
+        candidate=json.dumps(dict(year=2020,citation=f'[{ident}]'))
+        self.request.update(text='只返回JSON，citation提交时使用实际证据编号。',source_evidence=[source])
+        class StageReview(ScriptedModel):
+            def chat(inner,messages,tools=None,on_delta=None):
+                result=super().chat(messages,tools,on_delta)
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    payload=json.loads(messages[1]['content'])
+                    draft=''.join(e['text']for r in payload['materials']if r['id']=='draft'for e in r['excerpts'])
+                    value=json.loads(result['message']['content'])
+                    value['requirements'][0]['status']='supported'if f'[{ident}]'in draft else'contradicted'
+                    result['message']['content']=json.dumps(value)
+                return result
+        model=StageReview([candidate,candidate])
+        self.run_model(model)
+        payload=json.loads(model.calls[1]['messages'][1]['content'])
+        self.assertEqual(payload['candidate_stage'],'submitted_candidate')
+        self.assertEqual(payload['rendered_delivery']['stage'],'after_citation_resolution')
+        self.assertIn(source['url'],payload['rendered_delivery']['text'])
+        self.assertIn(source['url'],json.loads(self.events[-1][1])['citation'])
+
     def test_clarification_form_identity_and_heading_are_generated_by_product(self):
         self.request.update(kind='route',text='两个数值缺失，请先询问。')
         payload=dict(questions=[dict(question='第一个数？',options=['1','2']),dict(question='第二个数？',options=['3','4'])])

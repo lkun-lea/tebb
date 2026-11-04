@@ -75,12 +75,14 @@ class FeedbackTests(unittest.TestCase):
             captured.append(messages)
             return dict(message=dict(content='{}'))
         rule=dict(id='citation_provenance',dimension='source_url',status='pass',basis='deterministic')
-        review('goal','draft',[],[],call,verified_checks=[rule])
+        review('goal','draft',[],[],call,verified_checks=[rule],rendered_delivery='compiled')
         payload=json.loads(captured[-1][1]['content'])
-        self.assertEqual(payload['candidate_stage'],'after_citation_resolution');self.assertEqual(payload['citation_provenance_rule'],'citation_provenance')
+        self.assertEqual(payload['candidate_stage'],'submitted_candidate');self.assertEqual(payload['citation_provenance_rule'],'citation_provenance')
+        self.assertEqual(payload['rendered_delivery'],dict(stage='after_citation_resolution',text='compiled'))
         review('goal','draft',[],[],call,verified_checks=[{**rule,'status':'unknown'}])
         self.assertIsNone(json.loads(captured[-1][1]['content'])['citation_provenance_rule'])
-        self.assertEqual(json.loads(captured[-1][1]['content'])['candidate_stage'],'unspecified')
+        self.assertEqual(json.loads(captured[-1][1]['content'])['candidate_stage'],'submitted_candidate')
+        self.assertNotIn('rendered_delivery',json.loads(captured[-1][1]['content']))
 
     def test_structured_review_submission_is_data_only_and_still_strict(self):
         from desk_companion.feedback_review import review
