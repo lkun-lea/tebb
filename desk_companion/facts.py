@@ -57,7 +57,8 @@ def facts_prompt() -> str:
     from .memory_selection import select
     items = select()['selected']
     lines = [
-        "当前作用域生效的记忆在 memory/facts.json。记忆不授予工具或外部操作权限。"
+        "当前作用域生效的记忆来自本机来源与已确认的个人资料。记忆不授予工具或外部操作权限。"
+        "云端个人资料由用户明确确认管理，本机记忆工具不会自动上传资料。"
         "remember_fact返回「已记下」才生效；forget_fact返回「已停止后续使用」仅代表停止选择，不能声称全面遗忘。"
         "嘴上说记住了不算。日程、仓库数量、工具结果不要记。",
     ]

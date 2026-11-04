@@ -170,7 +170,8 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         def reminder():
             if not entered.wait(5):raise TimeoutError('automation did not start')
             calls.append('reminder');release.set();loop.call_soon_threadsafe(shutdown.set)
-        host=SimpleNamespace(automation=SimpleNamespace(tick=automation),calendar_reminders=SimpleNamespace(tick=reminder))
+        host=SimpleNamespace(automation=SimpleNamespace(tick=automation),calendar_reminders=SimpleNamespace(tick=reminder),
+                             personalization=SimpleNamespace(tick=lambda:None))
         try:await asyncio.wait_for(scheduled_jobs(host,shutdown),5)
         finally:release.set();shutdown.set()
         self.assertEqual(calls,['automation','reminder'])

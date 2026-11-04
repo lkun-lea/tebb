@@ -39,6 +39,8 @@ def catalog(collaboration, conversation, agent_id=''):
 
 
 def edit(collaboration, conversation, action):
+    if str(action.get('id','')).startswith('personalization:'):
+        raise ValueError('同步个人资料请在设置的“个人资料”中管理，修改不会改写历史快照。')
     state=read_state(collaboration)
     chat,agent,scope=chat_scope(state,conversation,action.get('agent_id',''))
     if str(action.get('id','')).startswith('partner:'):
@@ -233,6 +235,8 @@ def operate(collaboration,tasks,conversation,action):
 
 def cleanup_preview(collaboration,conversation,ident):
     """Explicit known copies; never claim semantic erasure or provider deletion."""
+    if str(ident).startswith('personalization:'):
+        raise ValueError('同步个人资料请在设置的“个人资料”中删除；调用记录可单独管理。')
     state=read_state(collaboration)
     _,_,scope=chat_scope(state,conversation)
     row=next((i for i in facts.read_facts() if i['id']==ident),None)

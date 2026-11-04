@@ -38,6 +38,8 @@ class HeadlessApp:
         self.turn_lock = threading.RLock()
         from ..accounts import AccountService
         self.accounts = AccountService()
+        from ..personalization import PersonalizationService
+        self.personalization = PersonalizationService(self.accounts, scopes=self._personalization_scopes)
         self._tasks = None
         self._tasks_lock = threading.Lock()
         # 坐标仅供旧桌面使用；已有坐标照读，后台不读取显示器。
@@ -78,6 +80,13 @@ class HeadlessApp:
                 self._project_environments=ProjectEnvironmentService(data_root()/'memory'/'project-environments',
                                                                     owner_active=self._project_task_active)
             return self._project_environments
+
+    def _personalization_scopes(self):
+        from ..memory_inspector import read_state
+        state = read_state(self.collaboration)
+        return [dict(scope='project', id=p['id'], label='项目 · '+p.get('name', p.get('title','项目')))
+                for p in state['projects']] + [dict(scope='companion', id=a['id'], label='伙伴 · '+a['name'])
+                for a in state['agents']]
 
     def _project_task_active(self,task_id):
         if self._collaboration is None:return False

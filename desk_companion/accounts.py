@@ -4,19 +4,64 @@ import json
 import os
 import re
 import time
-from uuid import UUID
+from contextlib import contextmanager
+from uuid import UUID, uuid4
 
 from .account_auth import AccountAuth
 from .account_store import AccountRuntime, AccountStore, LOCAL, account_key
-from .personalization_cloud import CloudConfig, CloudError
+from .personalization_cloud import CloudConfig, CloudError, PersonalizationCloud
 
 
 class AccountService:
-    def __init__(self, runtime=None, *, store=None, auth=None, env=None):
+    def __init__(self, runtime=None, *, store=None, auth=None, env=None, cloud_factory=None):
         self.runtime = runtime or AccountRuntime.current()
         self.store = store or AccountStore(self.runtime.home)
         self.auth = auth or AccountAuth()
         self.env = os.environ if env is None else env
+        self._cloud_factory = cloud_factory or PersonalizationCloud
+
+    @contextmanager
+    def cloud_client(self):
+        """Backend-only lease; no caller reads the registry or refreshes alone."""
+        if self.runtime.key == LOCAL:
+            raise CloudError('needs_login', '本机空间尚未绑定云账号。')
+        if not self.store.actions.acquire(blocking=False):
+            raise CloudError('busy', '账号操作正在进行，请稍后同步。')
+        cloud = None
+        try:
+            state = self.store.read()
+            config, _ = self._config(state)
+            account = state['accounts'].get(self.runtime.key)
+            if not config or not account or state['selected'] != self.runtime.key:
+                raise CloudError('needs_login', '请先完成当前账号的登录和空间切换。')
+            session = account.get('session')
+            if not session or account.get('refresh_state') in {'pending','reauth_required'}:
+                raise CloudError('needs_login', '同步需要重新核实登录；未知刷新结果不会重试旧令牌。')
+            if session['expires_at'] <= time.time()+60:
+                result = self.action(dict(type='check_session', request_id=str(uuid4()), version=state['version']))
+                if not result['ok']:
+                    raise CloudError(result.get('code','needs_login'), result.get('error','同步登录未能核实。'))
+                account = self.store.read()['accounts'][self.runtime.key]
+                session = account['session']
+            cloud = self._cloud_factory(config, session['access_token'])
+            try:
+                owner = cloud.verify_session()
+                if owner != account['user_id']:
+                    raise CloudError('identity_mismatch', '同步会话与当前账号不一致。')
+            except CloudError as exc:
+                if exc.code in {'unauthorized','identity_mismatch'}:
+                    with self.store.transaction() as state:
+                        current = state['accounts'][self.runtime.key]
+                        if current.get('session') == session:
+                            current.update(session=None, refresh_state='reauth_required')
+                raise
+            yield cloud
+        finally:
+            try:
+                if cloud is not None:
+                    cloud.close()
+            finally:
+                self.store.actions.__exit__()
 
     def _config(self, state):
         managed = bool(self.env.get('TEBB_CLOUD_URL') or self.env.get('TEBB_CLOUD_PUBLISHABLE_KEY'))

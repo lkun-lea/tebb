@@ -30,6 +30,9 @@ def partner_version(partner):
 def select(scope=None, *, items=None, now=None, partner=None):
     scope = dict(scope if scope is not None else current_scope())
     rows = copy.deepcopy(facts.read_facts() if items is None else items)
+    if items is None:
+        from .personalization import selected_items
+        rows.extend(selected_items())
     if partner and partner.get('memory'):
         rows.append(dict(id='partner:'+partner['id'],text=partner['memory'],scope='partner',owner=partner['id'],
                          version=partner_version(partner),state=partner.get('memory_state','active'),writer='user',
@@ -44,7 +47,7 @@ def select(scope=None, *, items=None, now=None, partner=None):
             reason = '不属于当前' + {'project': '项目', 'partner': '伙伴', 'conversation': '会话'}[kind]
         elif item.get('state', 'active') != 'active':
             reason = {'candidate': '待用户确认', 'disabled': '已停止使用', 'revoked': '已撤销',
-                      'conflict': '存在未解决冲突'}[item['state']]
+                      'conflict': '存在未解决冲突', 'deleted': '已删除'}[item['state']]
         elif item.get('expires') and datetime.fromisoformat(item['expires']) <= instant:
             reason = '已到期'
         item.update(version=item.get('version', 1), scope=kind, owner=owner,

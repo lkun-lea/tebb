@@ -43,7 +43,7 @@ class CloudClientTests(unittest.TestCase):
             if request.url.path=='/auth/v1/user':return httpx.Response(200,json={'id':A})
             if request.url.path=='/auth/v1/settings':return httpx.Response(200,json={'external':{'email':True}})
             method=request.url.path.rsplit('_',1)[1]
-            defaults={'status':{'contract':'tebb.personalization.v1','user_id':A,'revision':1,'pgvector':True},
+            defaults={'status':{'contract':'tebb.personalization.v2','user_id':A,'revision':1,'pgvector':True},
                       'pull':page(),'apply':receipt(),'operation':{'user_id':A,'found':True,'receipt':receipt()}}
             return httpx.Response(200,json=(responses or {}).get(method,defaults[method]))
         transport=httpx.Client(transport=httpx.MockTransport(serve))
@@ -122,8 +122,8 @@ class CloudClientTests(unittest.TestCase):
 
     def test_invalid_user_and_contract_responses_cannot_become_ready(self):
         for value in ({'contract':'old','user_id':A,'revision':0,'pgvector':True},
-                      {'contract':'tebb.personalization.v1','user_id':A,'revision':True,'pgvector':True},
-                      {'contract':'tebb.personalization.v1','user_id':A,'revision':0,'pgvector':False}):
+                      {'contract':'tebb.personalization.v2','user_id':A,'revision':True,'pgvector':True},
+                      {'contract':'tebb.personalization.v2','user_id':A,'revision':0,'pgvector':False}):
             cloud,_,_=self.client(responses={'status':value});cloud.verify_session()
             with self.assertRaises(CloudError):cloud.status()
         cloud,_,_=self.client(handler=lambda _:httpx.Response(200,json={'id':'unverified-name'}))

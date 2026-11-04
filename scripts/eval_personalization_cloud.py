@@ -4,6 +4,7 @@ This never reads existing tebb data. Without --live it does not contact any serv
 The report journals IDs before writes so an ambiguous result can be reconciled.
 """
 import argparse
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,59 @@ from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from desk_companion.personalization_cloud import CloudConfig, CloudError, PersonalizationCloud
+
+
+def evaluate_replicas(clients, report, checkpoint, directory):
+    """Exercise the product's transactional stores and sync jobs, not a second sync loop."""
+    from desk_companion.account_store import AccountRuntime, account_key, profile_root
+    from desk_companion.personalization import PersonalizationService
+    from desk_companion.personalization_store import PersonalizationStore
+    from desk_companion.memory_selection import select
+    services=[]
+    for index,cloud in enumerate(clients):
+        home=(directory/('replica-'+str(index))).resolve()
+        key=account_key(cloud.config.url,cloud.user_id)
+        runtime=AccountRuntime(home,key,profile_root(home,key))
+        class Accounts:
+            def __init__(self,runtime,cloud):self.runtime,self.cloud=runtime,cloud
+            def status(self):return dict(runtime=dict(key=self.runtime.key,mode='account',email='synthetic'),configured=True,url=self.cloud.config.url)
+            @contextmanager
+            def cloud_client(self):yield self.cloud
+        services.append(PersonalizationService(Accounts(runtime,cloud),store=PersonalizationStore(runtime)))
+    a,a2,b=services
+    ident=str(uuid4());report['replica_record_id']=ident;report['replica_cleanup']='needed';checkpoint()
+    def row(service):return next((r for r in service.status()['records'] if r['id']==ident),None)
+    def mutate(service,kind,**extra):
+        item=row(service)
+        return service.store.mutate(dict(type=kind,request_id=ident if item is None else str(uuid4()),confirmed=True,
+            **(dict(id=ident,version=item['version']) if item else {}),**extra))
+    def step(service,expected='complete'):
+        job=str(uuid4());service.start(job)
+        service.wait(timeout=45)
+        observed=service.status(job_id=job)['job']
+        report.setdefault('replica_jobs',[]).append({k:observed.get(k) for k in ('id','state','phase','code','error','failure_type','os_error')});checkpoint()
+        if observed['state']!=expected:
+            raise CloudError('test_replica_sync_failed','资料副本同步未达到预期状态；请按原任务编号核查。')
+    try:
+        value=dict(kind='preference',category='communication',text='tebb synthetic replica '+ident,scope='user')
+        mutate(a,'save',payload=value);step(a);step(a2);step(b)
+        if not row(a2) or row(b):raise CloudError('test_replica_isolation_failed','同账号副本读取或异账号隔离失败。')
+        mutate(a2,'save',payload=value|{'text':value['text']+' device2'})
+        mutate(a,'save',payload=value|{'text':value['text']+' device1'});step(a)
+        step(a2,'needs_confirmation')
+        if row(a2)['sync_state']!='conflict' or any(r['id']=='personalization:'+ident for r in select(items=a2.store.selection_items())['selected']):
+            raise CloudError('test_replica_conflict_failed','离线冲突未保留或仍用于模型输入。')
+        mutate(a2,'resolve_local',payload=value|{'text':value['text']+' resolved'});step(a2);step(a)
+        if row(a)['text']!=row(a2)['text']:raise CloudError('test_replica_resolution_failed','明确解决后的资料未同步到另一副本。')
+        mutate(a,'delete')
+        if row(a)['text']:raise CloudError('test_replica_delete_failed','本机删除后正文仍可见。')
+        step(a);step(a2)
+        if row(a2)['state']!='deleted' or row(a2)['text']:raise CloudError('test_replica_delete_failed','删除未同步到另一副本。')
+        report['replica_cleanup']='tombstone_confirmed';report['steps'].append('product_replicas_offline_conflict_resolution_and_delete')
+    finally:
+        # Preserve the stores/outbox on failure; do not replay unknown operations with fresh IDs.
+        for service in services:service.shutdown()
+        checkpoint()
 
 
 def evaluate(clients, report, checkpoint):
@@ -144,6 +198,7 @@ def main():
             clients.append(PersonalizationCloud(config,token))
         checkpoint()
         evaluate(clients,report,checkpoint)
+        evaluate_replicas(clients,report,checkpoint,args.report.parent/('replicas-'+report['record_id']))
         report['status'] = 'passed'
     except CloudError as exc:
         report.update(status='failed',error_code=exc.code,error=str(exc))

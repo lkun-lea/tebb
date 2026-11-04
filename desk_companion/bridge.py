@@ -13,6 +13,12 @@ class Bridge:
     def account_action(self, payload):
         return self._host.accounts.action(payload)
 
+    def personalization_status(self, request_id='', job_id='', include_scopes=False):
+        return self._host.personalization.status(request_id, job_id, include_scopes)
+
+    def personalization_action(self, payload):
+        return self._host.personalization.action(payload)
+
     def development_team(self):
         from .development_team import snapshot
         return snapshot()

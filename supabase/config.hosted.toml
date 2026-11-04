@@ -1,0 +1,20 @@
+# Copy as supabase/config.toml in an isolated CLI deployment workdir.
+# Only declared properties are managed. SMTP/templates stay unchanged until #263.
+project_id = "tebb-personalization"
+
+[api]
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 100
+
+[auth]
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+[auth.email]
+enabled = true
+enable_confirmations = true
+otp_length = 6
+otp_expiry = 600

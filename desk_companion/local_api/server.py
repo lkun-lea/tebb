@@ -27,6 +27,7 @@ from .host import HeadlessApp
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
     'account_session', 'account_action',
+    'personalization_status', 'personalization_action',
     "development_team",
     'read_calendar_proposal',
     'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
@@ -182,7 +183,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             from ..agent_debug import context
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
-        if method.startswith(("account_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
+        if method.startswith(("account_","personalization_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
                       "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
                       "export_notebook_markdown", "export_notebook_feishu", "open_notebook_file",
                       "reveal_notebook_file", "delete_notebook_file",
@@ -376,7 +377,7 @@ async def scheduled_jobs(host, shutdown):
                 logging.getLogger(__name__).warning('后台定时扫描未完成：%s',type(exc).__name__)
             try:await asyncio.wait_for(shutdown.wait(),5)
             except asyncio.TimeoutError:pass
-    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick))
+    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick),periodic(host.personalization.tick))
 
 
 async def main() -> None:
@@ -409,6 +410,8 @@ async def main() -> None:
                 project_cleanup=asyncio.create_task(asyncio.to_thread(HOST._project_environments.shutdown))
     finally:
         SHUTDOWN.set()
+        HOST.personalization.request_stop()
+        profile_cleanup=asyncio.create_task(asyncio.to_thread(HOST.personalization.shutdown))
         HOST.calendar_reminders.stop()
         if project_cleanup is None and HOST._project_environments is not None:
             HOST._project_environments.closed=True
@@ -422,6 +425,10 @@ async def main() -> None:
         from ..terminal import manager
         await asyncio.to_thread(manager().shutdown)
         await asyncio.to_thread(HOST.feishu_agent.stop, False)
+        profile_result=await profile_cleanup
+        if not profile_result['complete']:
+            import logging
+            logging.getLogger(__name__).warning('个人资料同步仍有待核对操作，已保留原账号回执。')
         if project_cleanup is not None:
             result=await project_cleanup
             if not result['ok']:

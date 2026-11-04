@@ -1,7 +1,7 @@
 import {after, before, beforeEach, test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {mkdtemp,rm,rmdir} from 'node:fs/promises';
+import {mkdtemp,rm} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {createServer} from 'node:http';
 import {spawn} from 'node:child_process';
@@ -51,7 +51,7 @@ beforeEach(()=>actor());
 after(async()=>{await db?.close();});
 
 test('migration enables pgvector and enforces RLS on all private tables',async()=>{
-  const state=await status();assert.equal(state.contract,'tebb.personalization.v1');assert.equal(state.pgvector,true);
+  const state=await status();assert.equal(state.contract,'tebb.personalization.v2');assert.equal(state.pgvector,true);
   assert.equal(await scalar("select extensions.l2_distance('[1,2,3]'::extensions.vector,'[1,2,4]'::extensions.vector) as value"),1);
   const {rows}=await db.query("select relrowsecurity,relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='tebb_private' and c.relkind='r'");
   assert.equal(rows.length,3);assert.ok(rows.every(r=>r.relrowsecurity&&r.relforcerowsecurity));
@@ -144,10 +144,29 @@ test('delete clears content/source and retains a tombstone that old or fresh put
   assert.equal(await scalar("select count(*)::integer as value from tebb_private.personalization_operations where receipt::text like '%随后删除%'"),0);
 });
 
-test('unknown records have explicit receipts and never advance the change cursor',async()=>{
+test('disable of an unknown record has an explicit receipt without advancing the change cursor',async()=>{
   const head=(await status()).revision,id=randomUUID();
-  for(const action of ['disable','delete'])assert.equal((await apply(id,0,action,null)).status,'not_found');
+  assert.equal((await apply(id,0,'disable',null)).status,'not_found');
   assert.equal((await status()).revision,head);
+});
+
+test('delete before an unknown create installs a content-free fence even for a causal future version',async()=>{
+  for(const expected of [0,1,7]){
+    const id=randomUUID(),op=randomUUID(),head=(await status()).revision;
+    const fence=await apply(id,expected,'delete',null,op);
+    assert.equal(fence.status,'applied');assert.equal(fence.version,1);assert.equal(fence.cursor,head+1);
+    const row=(await pull(head)).records.find(r=>r.id===id);
+    assert.equal(row.state,'deleted');assert.equal(row.text,null);assert.equal(row.source_ref,null);
+    assert.equal((await apply(id,0,'put',body('晚到创建'))).status,'gone');
+    assert.deepEqual(await apply(id,expected,'delete',null,op),fence);
+  }
+});
+
+test('a deletion fence never bypasses CAS for an existing live record',async()=>{
+  const id=randomUUID();await apply(id);await apply(id,1,'put',body('另一设备新版本'));
+  assert.equal((await apply(id,1,'delete',null)).status,'conflict');
+  assert.equal((await pull()).records.find(r=>r.id===id).text,'另一设备新版本');
+  assert.equal((await apply(id,2,'delete',null)).status,'applied');
 });
 
 test('change pagination uses server revisions, includes tombstones, and returns an empty catch-up page',async()=>{
@@ -209,12 +228,16 @@ test('Python two-account/device acceptance runs against the migration through a 
     const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',resolve);});
     const result=JSON.parse(await readFile(report,'utf8'));
     assert.equal(code,0,stdout+stderr+JSON.stringify(result));assert.equal(result.status,'passed');
-    assert.equal(result.cleanup,'tombstone_confirmed');assert.equal(result.steps.length,4);
+    assert.equal(result.cleanup,'tombstone_confirmed');assert.equal(result.steps.length,5);
+    assert.equal(result.replica_cleanup,'tombstone_confirmed');
+    assert.ok(result.replica_jobs.some(job=>job.state==='needs_confirmation'));
     assert.ok(!JSON.stringify(result).includes('synthetic-A'));
   }finally{
     await new Promise(resolve=>server.close(resolve));
     await rm(join(folder,'report.json'),{force:true});
     await rm(join(folder,'report.json.tmp'),{force:true});
-    await rmdir(folder);
+    // This task-owned mkdtemp now also contains the three isolated product replicas.
+    assert.ok(folder.startsWith(join(tmpdir(),'tebb-cloud-contract-')));
+    await rm(folder,{recursive:true,force:true,maxRetries:3});
   }
 });

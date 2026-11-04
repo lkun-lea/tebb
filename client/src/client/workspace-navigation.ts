@@ -4,3 +4,7 @@ export function navigateWorkspace(navigate:()=>void){
   window.dispatchEvent(event);
   if(!event.defaultPrevented)navigate();
 }
+
+export function openPersonalization(id=''){
+  navigateWorkspace(()=>window.dispatchEvent(new CustomEvent('tebb-open-personalization',{detail:{id}})));
+}

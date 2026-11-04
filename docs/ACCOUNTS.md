@@ -1,12 +1,12 @@
 # 客户端账号与本机空间（#244）
 
-承接 [#238 方案](USER_PERSONALIZATION.md) 和 [部署准备](../supabase/README.md)。本阶段接入邮箱登录、加密会话、账号空间和重启切换。没有云项目时明确显示未配置，不能把合成身份测试称为真实 Supabase 登录通过。云端画像同步、离线 outbox、LangMem 与现有记忆检查台的整合仍由 #238 后续实施。
+承接 [#238 方案](USER_PERSONALIZATION.md) 和 [部署准备](../supabase/README.md)。本阶段接入邮箱登录、加密会话、账号空间和重启切换。没有云项目时明确显示未配置，不能把合成身份测试称为真实 Supabase 登录通过。确认资料、离线队列和检查台接入见 [#255 同步模块](PERSONALIZATION_SYNC.md)；LangMem 提炼仍由 #238 后续实施。
 
 ## 使用方式
 
 进入「设置 → 账号与空间」。初始仍是本机空间，原聊天、配置和记忆保持原位置。账号服务未配置时可以继续本机工作；由部署方提供项目地址和 publishable key 后才能申请验证码。正式部署可通过 `TEBB_CLOUD_URL` / `TEBB_CLOUD_PUBLISHABLE_KEY` 管理公开连接配置，界面不接收 service_role / secret key。
 
-验证码仅在明确点击后通过官方 Supabase Auth SDK 2.33.0 申请，`should_create_user=False`，不会顺便注册账号。使用部署包的六位邮箱验证码模板。验证后调用 GoTrue `get_user` 核对真实身份，再在本机保存会话；不以自行解码的 JWT 内容识别人。项目连接变化会废弃原验证码请求，避免把旧验证码转发给另一个项目。
+验证码仅在明确点击后通过官方 Supabase Auth SDK 2.33.0 申请，`should_create_user=False`，不会顺便注册账号。配置自有 SMTP 后使用部署包的六位邮箱验证码模板；新建 Free 项目的默认邮件服务不能自定义该模板，尚未配置 SMTP 时不能宣称普通用户验证码已可用。验证后调用 GoTrue `get_user` 核对真实身份，再在本机保存会话；不以自行解码的 JWT 内容识别人。项目连接变化会废弃原验证码请求，避免把旧验证码转发给另一个项目。
 
 验证码校验失败时，输入框下方就地显示错误、标记无效并返回焦点；保留邮箱与当前验证码请求，便于检查后重新输入。网络结果不明时仍先核对原操作，不将断连当作验证码错误或自动重发。
 
@@ -68,6 +68,6 @@ pnpm build
 cargo test --locked --lib
 ```
 
-Auth 测试通过 httpx.MockTransport 执行实际官方 SDK；运行时测试覆盖真实 Windows DPAPI、两账号进程运行权、迟到写入、启动失败防回退和扩展加载顺序。RPC 测试验证实际 WebSocket、原进程 token 以及协作预览无法访问账号。前端测试覆盖分区、断连恢复、迟到读取、无法保存编号、初始化之前不挂载工作区。真实邮件/刷新/撤销、两台实体设备及生产云端仍需配置实际测试项目后验收；不会在普通回归中触发。
+Auth 测试通过 httpx.MockTransport 执行实际官方 SDK；运行时测试覆盖真实 Windows DPAPI、两账号进程运行权、迟到写入、启动失败防回退和扩展加载顺序。RPC 测试验证实际 WebSocket、原进程 token 以及协作预览无法访问账号。前端测试覆盖分区、断连恢复、迟到读取、无法保存编号、初始化之前不挂载工作区。2026-11-04 #255 已另行在真实托管项目验证 SDK 刷新和单设备退出确认，另一设备会话保持有效。真实邮件与两台实体设备仍待 #263；普通回归不触发真实邮件。
 
 参考：[Supabase Python OTP](https://supabase.com/docs/reference/python/auth-signinwithotp)、[会话](https://supabase.com/docs/guides/auth/sessions)、[Windows DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)。

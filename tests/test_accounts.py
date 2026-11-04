@@ -94,6 +94,43 @@ class AccountTests(unittest.TestCase):
     def bound(self, key):
         return AccountService(AccountRuntime(self.home,key,profile_root(self.home,key)),store=self.store,auth=self.fixture.adapter(),env={})
 
+    def test_cloud_lease_reuses_sdk_refresh_and_blocks_parallel_account_actions(self):
+        key,_=self.login();service=self.bound(key)
+        with self.store.transaction() as state:state['accounts'][key]['session']['expires_at']=1
+        cloud=type('Cloud',(),{'verify_session':lambda _:A,'close':lambda _:None})()
+        tokens=[]
+        service._cloud_factory=lambda config,token:(tokens.append(token) or cloud)
+        with service.cloud_client() as current:
+            self.assertIs(current,cloud);self.assertTrue(tokens[0].endswith('-renewed'))
+            result=[]
+            t=threading.Thread(target=lambda:result.append(self.act('logout',service)))
+            t.start();t.join(3);self.assertEqual(result[0]['code'],'busy')
+        self.assertEqual(sum(c[1].endswith('/token') for c in self.fixture.calls),1)
+        self.assertEqual(service.status()['runtime']['key'],key)
+
+    def test_cloud_identity_mismatch_invalidates_only_current_session_and_always_releases_lease(self):
+        key,_=self.login();service=self.bound(key)
+        cloud=type('Cloud',(),{'verify_session':lambda _:B,'close':lambda _:None})()
+        service._cloud_factory=lambda *_:cloud
+        with self.assertRaises(CloudError):
+            with service.cloud_client():pass
+        self.assertEqual(service.status()['accounts'][0]['state'],'reauth_required')
+        self.assertIsNone(self.store.read()['accounts'][key]['session'])
+        self.assertTrue(self.store.actions.acquire(False));self.store.actions.__exit__()
+
+    def test_cloud_close_failure_cannot_leave_account_actions_locked(self):
+        key,_=self.login();service=self.bound(key)
+        def fail(_):raise RuntimeError('close failed')
+        cloud=type('Cloud',(),{'verify_session':lambda _:A,'close':fail})()
+        service._cloud_factory=lambda *_:cloud
+        with self.assertRaises(RuntimeError):
+            with service.cloud_client():pass
+        result=[]
+        def reserve():
+            acquired=self.store.actions.acquire(False);result.append(acquired)
+            if acquired:self.store.actions.__exit__()
+        t=threading.Thread(target=reserve);t.start();t.join(3);self.assertEqual(result,[True])
+
     def test_no_project_is_an_explicit_local_space_without_network(self):
         page=self.service.status()
         self.assertEqual(page['runtime']['key'],'local');self.assertFalse(page['configured'])

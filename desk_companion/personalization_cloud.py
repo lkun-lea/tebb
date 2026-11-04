@@ -17,7 +17,7 @@ from uuid import UUID
 
 import httpx
 
-CONTRACT = 'tebb.personalization.v1'
+CONTRACT = 'tebb.personalization.v2'
 
 
 class CloudError(RuntimeError):
@@ -141,6 +141,12 @@ class PersonalizationCloud:
         self._owner = None
         user = self._request('GET', '/auth/v1/user')
         self._owner = _uuid(user.get('id'))
+        return self._owner
+
+    @property
+    def user_id(self):
+        if self._owner is None:
+            raise CloudError('needs_verification', '请先核实当前同步会话。')
         return self._owner
 
     def _rpc(self, method, payload):

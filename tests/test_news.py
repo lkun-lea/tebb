@@ -539,7 +539,8 @@ class SchedulerApiTests(unittest.IsolatedAsyncioTestCase):
             loop.call_soon_threadsafe(shutdown.set)
         reminders=[]
         await asyncio.wait_for(scheduled_jobs(SimpleNamespace(automation=SimpleNamespace(tick=tick),
-            calendar_reminders=SimpleNamespace(tick=lambda:reminders.append(1))), shutdown), 3)
+            calendar_reminders=SimpleNamespace(tick=lambda:reminders.append(1)),
+            personalization=SimpleNamespace(tick=lambda:None)), shutdown), 3)
         self.assertEqual(ticks, [1])
         self.assertLessEqual(len(reminders),1)
 

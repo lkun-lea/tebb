@@ -156,6 +156,33 @@ class MemoryDeskTests(unittest.TestCase):
                 self.collab.action(dict(action,preview_revision=preview['revision']))
         self.assertEqual(desk.read_state(self.collab),before)
 
+    def test_confirmed_account_profile_reaches_actual_worker_and_is_frozen_before_delete(self):
+        from desk_companion.account_store import AccountRuntime, account_key, profile_root
+        from desk_companion.personalization_store import PersonalizationStore
+        owner='a0000000-0000-4000-8000-000000000001'
+        key=account_key('https://profile.invalid',owner)
+        home=self.root.resolve();store=PersonalizationStore(AccountRuntime(home,key,profile_root(home,key)))
+        page=store.mutate(dict(type='save',request_id=str(uuid.uuid4()),confirmed=True,
+            payload=dict(kind='preference',category='communication',text='ACCOUNT_PROFILE_先给结论',scope='user')))
+        row=page['records'][0]
+        with patch('desk_companion.personalization.selected_items',store.selection_items):
+            prepared=desk.preview(self.collab,self.sent())
+            self.collab.action(self.sent());self.collab.tick()
+            request=self.chat.requests[-1]
+            from desk_companion.collaboration_worker import _execute
+            actual=_execute(request,lambda *_:None,Mock(),preview=True)
+            self.assertIn('ACCOUNT_PROFILE_先给结论',actual['messages'][0]['content'])
+            source=request['memory_snapshot']['selected'][0]['source']
+            self.assertEqual(source['account'],key);self.assertEqual(source['record_id'],row['id'])
+            store.mutate(dict(type='delete',request_id=str(uuid.uuid4()),confirmed=True,id=row['id'],version=row['version']))
+            self.assertIn('ACCOUNT_PROFILE_先给结论',request['memory_snapshot']['selected'][0]['text'])
+            self.assertNotIn('ACCOUNT_PROFILE_先给结论',desk.preview(self.collab,self.sent())['request']['messages'][0]['content'])
+            self.assertIn('ACCOUNT_PROFILE_先给结论',prepared['request']['messages'][0]['content'])
+        with self.assertRaisesRegex(ValueError,'个人资料'):
+            desk.edit(self.collab,self.cid,dict(id='personalization:'+row['id']))
+        with self.assertRaisesRegex(ValueError,'个人资料'):
+            desk.cleanup_preview(self.collab,self.cid,'personalization:'+row['id'])
+
     def test_capture_records_exact_boundary_without_headers_or_current_memory_substitution(self):
         item,call,preview=self.capture()
         self.save('未来内容',id=item['id'],version=1)

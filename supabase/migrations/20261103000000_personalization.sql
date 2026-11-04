@@ -64,7 +64,7 @@ language plpgsql stable security invoker set search_path = '' as $$
 declare v_user uuid := auth.uid();
 begin
     if v_user is null then raise exception 'authentication required' using errcode = '42501'; end if;
-    return jsonb_build_object('contract', 'tebb.personalization.v1', 'user_id', v_user,
+    return jsonb_build_object('contract', 'tebb.personalization.v2', 'user_id', v_user,
         'revision', coalesce((select revision from tebb_private.personalization_heads where user_id = v_user), 0),
         'pgvector', exists(select 1 from pg_catalog.pg_extension where extname = 'vector'));
 end;
@@ -136,8 +136,8 @@ begin
     select * into v_record from tebb_private.personalization_records where user_id = v_user and id = p_record_id;
     v_exists := found;
     if v_exists and v_record.state = 'deleted' then v_status := 'gone';
-    elsif coalesce(v_record.version, 0) <> p_expected_version then v_status := 'conflict';
-    elsif not v_exists and p_action <> 'put' then v_status := 'not_found';
+    elsif (v_exists or p_action <> 'delete') and coalesce(v_record.version, 0) <> p_expected_version then v_status := 'conflict';
+    elsif not v_exists and p_action = 'disable' then v_status := 'not_found';
     else
         v_status := 'applied';
         v_head := v_head + 1;
@@ -150,6 +150,12 @@ begin
                 scope=excluded.scope,scope_id=excluded.scope_id,source_device_id=excluded.source_device_id,
                 source_ref=excluded.source_ref,state=excluded.state,version=excluded.version,sequence=excluded.sequence,
                 confirmed_at=excluded.confirmed_at,updated_at=excluded.updated_at;
+        elsif not v_exists then
+            -- Retire an identity even when its earlier create is still in flight.
+            -- No content or source is required or preserved by this fence.
+            insert into tebb_private.personalization_records
+                (user_id,id,kind,category,text,scope,scope_id,state,version,sequence,confirmed_at,updated_at)
+            values (v_user,p_record_id,'memory','other',null,'user','','deleted',1,v_head,v_time,v_time);
         else
             update tebb_private.personalization_records set
                 state=case when p_action='delete' then 'deleted' else 'disabled' end,
