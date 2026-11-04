@@ -431,6 +431,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         from .workflow_tools import TOOLS as WORKFLOW_TOOLS
         if name in {'calendar_change','automation_save','automation_manage'} or name in TOOL_OPERATIONS or name in WORKFLOW_TOOLS:
             arguments['_call_id']=call_id
+        if name in {'workspace_search','workspace_read_symbol','workspace_patch'}:
+            wait.update({key:arguments[key][:200] for key in ('symbol','revision') if isinstance(arguments.get(key),str)})
         emit('tool_start',dict(tool=name,read_only=extra[name].get('read_only',name not in {'workspace_write','workspace_run'}),query=arguments.get('path') or arguments.get('query') or arguments.get('command',''),**wait))
         try:
             result = extra_call(name, arguments)

@@ -944,6 +944,14 @@ class Collaboration:
                     if event["seq"] <= run["cursor"]: continue
                     run["cursor"] = event["seq"]
                     kind, data = event["kind"], event["data"]
+                    if kind in {'tool_start','tool_end','file_change','verification','feedback_check','integration_failure'}:
+                        # Only public tool summaries; never publish worker requests or credentials.
+                        record = {key:data[key] for key in ('tool','query','path','symbol','revision','status','error','state','exit_code','command')
+                                  if key in data and isinstance(data[key],(str,int,bool,type(None)))}
+                        record = {key:value[:2000] if isinstance(value,str) else value for key,value in record.items()}
+                        history = run.setdefault('flow_events',[])
+                        history.append(dict(seq=event['seq'],ts=event.get('ts'),kind=kind,data=record))
+                        del history[:-80]
                     if kind == "status": run["events"].append(str(data)); run["status"] = str(data)
                     elif kind == 'token' and run['kind'] == 'route': run['public_answer'] = run.get('public_answer','') + str(data)
                     elif kind == 'answer_reset':

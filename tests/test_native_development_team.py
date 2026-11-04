@@ -173,4 +173,9 @@ class NativeTeamTests(unittest.TestCase):
             self.assertEqual(len({r["budget_id"] for r in chain}),1)
             self.assertEqual(sum(r["state"]=="failed" for r in chain),1)
         public=self.service.snapshot()["state"]["runs"]
+        observed=[event for run in public for event in run.get('flow_events',[])]
+        self.assertTrue(any(e['kind']=='tool_start' and e['data'].get('tool')=='workspace_patch' for e in observed))
+        self.assertTrue(any(e['kind']=='verification' and e['data'].get('exit_code')==1 for e in observed))
+        self.assertTrue(any(e['data'].get('symbol')=='record' and e['data'].get('revision') for e in observed))
+        self.assertTrue(all(set(e['data']) <= {'tool','query','path','symbol','revision','status','error','state','exit_code','command'} for e in observed))
         self.assertEqual(next(r for r in public if r["id"]==root)["chain"]["state"],"succeeded")

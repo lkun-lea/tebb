@@ -3,8 +3,7 @@ import {rpc,type BackendInfo} from "./api";
 import {CollaborationSync,loadCollaboration} from "./collaboration-sync";
 import type {DemoState} from "./chat-prototype-state";
 import {usePageActive} from "./page-stack";
-
-const terminalState:Record<string,string>={succeeded:"已完成",failed:"失败",cancelled:"已停止",timed_out:"超时",interrupted:"中断",needs_input:"待补充"};
+import {DevelopmentFlow} from "./development-flow";
 
 export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>}) {
  const [state,setState]=useState<DemoState|null>(null);
@@ -13,10 +12,12 @@ export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpe
  const [notice,setNotice]=useState("");
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
+ const [runId,setRunId]=useState("");
  const pending=useRef<{key:string;id:string}|null>(null), sending=useRef(false);
  const active=usePageActive();
  useEffect(()=>{
-   if(!info||!active)return;
+   if(!info){setState(null);return;}
+   if(!active)return;
    const sync=new CollaborationSync();
    let live=true,timer:ReturnType<typeof setTimeout>;
    async function refresh(){
@@ -40,11 +41,22 @@ export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpe
        type:"send",conversation:group.id,target:group.coordinator,text:goal.trim(),mode:"task",
        strategy:"delegate",development_task:true,request_id:pending.current.id}},{timeoutMs:15000});
      if(!reply.ok||!reply.state)throw Error(reply.error||"未取得任务登记回执");
-     setState(reply.state);setGoal("");pending.current=null;setNotice("已登记，可在项目群查看分工、补充需求或停止任务。");
+     setState(reply.state);setRunId("");setGoal("");pending.current=null;setNotice("已登记，可在项目群查看分工、补充需求或停止任务。");
    }catch(e){setNotice(String(e));}finally{sending.current=false;setBusy(false);}
  }
  const runs=(state?.runs??[]).filter(r=>r.conversation===group?.id);
- const root=[...runs].reverse().find(r=>!r.parent&&r.development_task);
+ const roots=[...runs].reverse().filter(r=>!r.parent&&r.development_task);
+ const root=roots.find(r=>r.id===runId)??roots[0];
+ async function stop(){
+   if(!info||!root||busy)return;
+   setBusy(true);
+   try{
+     const reply=await rpc<{ok:boolean;state:DemoState;error?:string}>(info,"collaboration_action",
+       {action:{type:"cancel",id:root.id,request_id:crypto.randomUUID()}});
+     if(!reply.ok)throw Error(reply.error||"未确认停止");
+     setState(reply.state);setNotice("停止请求已登记，等待运行状态确认。");
+   }catch(e){setNotice(String(e));}finally{setBusy(false);}
+ }
  return <div className="my-4 rounded-lg border bg-card p-4">
    <h2 className="font-semibold">项目群开发</h2>
    {error&&<p role="alert">{error}</p>}
@@ -56,7 +68,10 @@ export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpe
    {!capable&&<p>请在项目群加入具备文件编辑和终端权限的编码伙伴。</p>}
    <button className="mt-2 rounded bg-secondary px-3 py-2" disabled={busy||!capable||!goal.trim()} onClick={()=>void start()}>{busy?"登记中…":"开始团队开发"}</button>
    {onOpen&&<button className="ml-3" onClick={()=>void onOpen(group.id).catch(e=>setNotice(String(e)))}>打开项目群</button>}
-   {root&&<div className="mt-3"><strong>{root.title}</strong>{[root,...runs.filter(r=>r.parent===root.id)].map(r=><p key={r.id}>{agents.find(a=>a.id===r.agent)?.name??r.agent} · {terminalState[r.state]||r.status||r.state} · {r.title}{r.error&&" · "+r.error}</p>)}</div>}
+   {root&&<><label className="mt-4 block">运行记录　<select aria-label="运行记录" value={root.id} onChange={e=>setRunId(e.target.value)}>
+     {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>
+     <DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
+       onOpen={onOpen?()=>void onOpen(group.id).catch(e=>setNotice(String(e))):undefined}/></>}
    </>}
    {notice&&<p role="status">{notice}</p>}
  </div>;

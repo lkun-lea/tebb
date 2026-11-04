@@ -16,6 +16,12 @@
 
 ## 在项目群中定位和修改源码
 
+开发团队页面提供“流程图 / 事件记录”。选择项目群及运行记录，点击需求与分工、实现与自测、独立验收、交付查看真实任务状态。节点详情包含执行者、模型、工具摘要、源码符号/版本（有回执时）、错误、代码差异和验收输出；返工后默认展示最新任务，可选择之前的执行轮次。已失效的验证单独标注。停止按钮调用原有协作 cancel 操作，补充说明进入对应项目群。
+
+图中需求与分工完成表示已派发子任务；任务完成与功能验收记录分开呈现。监督区仅展示实际反馈检查及调度记录，没有反思回执时显示未产生。历史任务缺少结构化事件时显示未记录。每个任务保留最近 80 条工具/验证事件，每个摘要字段最多 2,000 字符；每 5 秒复用协作增量同步刷新，隐藏页面停止轮询。
+
+AI 验证入口沿用已认证的 `load_collaboration`，每个运行的 `flow_events` 关联事件序号、时间、类型及公开摘要。使用 `python -m unittest tests.test_native_development_team tests.test_collaboration -q` 验证真实执行回执到公开快照的链路；在 client 目录执行 `node --test tests/development-team.test.cjs` 覆盖返工、历史事件、停止、项目隔离及提交重试。浏览器界面验证可使用测试替身，显示的案例数据须明确为测试数据。
+
 编码伙伴可用 `workspace_search` 按 Python 函数或类名搜索，结果包含路径、限定名和行号。非 Python 代码和日志常量可用 `mode=text` 搜索。用 `workspace_read_symbol` 传入路径和限定名，或用 `start_line`、`end_line` 读取原文。返回 `next_line` 时可从该行续读。每次最多返回 120 行、12,000 字符。搜索最多返回 25 个匹配，`limited` 表示还有结果或扫描达到了上限，可用 `path` 缩小范围。
 
 小改动用 `workspace_patch`，传入路径、整文件 revision、原文 old 和替换文本 new。从函数预览回传 `symbol` 限定名即可只在该定义内匹配；改文件级常量时省略。版本变化返回 `stale_revision`，零命中返回 `old_not_found` 和局部原文，多命中返回 `old_ambiguous`、次数和最多三个候选位置。成功会生成文件变更回执，使此前的验证失效。参考目录和验证伙伴均只能使用两个读取工具。新功能的本地检查为 `python -m unittest tests.test_workspace_source tests.test_native_development_team`。
