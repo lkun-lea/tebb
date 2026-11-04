@@ -133,10 +133,14 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     if role.get('id')=='chart':
         prompt+='\n你是图表助手，专注把当前已有材料组织为可读图表。默认只使用build_chart；不联网、不读项目、不继续委派，资料不够先说明缺项或请求补充，不编数值/来源/关系。任务策略只用direct。每张图先表达核心问题，再选布局，使用真实条件与职责；优先1张清晰图，不把简单图解扩成研究报告。'
     if kind == "route":
-        prompt += ('\n判断本次用户请求：普通交流直接回答；需要检索、读取附件/工作区、编辑、运行命令或执行技能时转后台任务。'
-            '编写代码示例、算法讲解或代码片段可直接回答，不要求工作目录；明确需要保存文件、修改项目或运行验证时才转执行任务。'
+        if request.get('require_execution'):
+            prompt+='\n本轮只核对显式任务的开工条件，不计算或交付最终答案。缺必要参数则request_clarification；信息齐备则start_background_task，简单计算也选direct。用户的最终JSON/文本格式要求完整保留在instructions，由task阶段交付。'
+            prompt+='\n产品路由上下文：'+json.dumps(dict(intent='explicit_execution',resumed=bool(request.get('supplemented_at')),final_output_stage='task'),ensure_ascii=False)
+        else:
+            prompt+='\n普通交流、计算、代码示例可按用户格式直接回答，不用内部mode协议包裹。需要检索、读取附件/工作区、编辑、运行命令或执行技能时申请后台任务。'
+        prompt += (
             '当前用户请求是本轮目标，历史中的失败、未授权或来源缺失仅是当时状态，不得据此删减本轮范围。需要协作时保留全部目标和@成员要求，不在这里编造执行结果。'
-            '任何目标、对象或期望结果不清楚（如仅test/测试/帮我处理一下）时调用request_clarification，说明具体缺项并暂停；禁止先读项目、搜索或委派。日程缺结束时间或时长也先追问，不默认一小时或同步飞书。无需执行工具时按用户要求的格式直接回答，不要用内部mode协议包裹普通答案。需要执行时只申请一次start_background_task，instructions填写用户完整目标、材料、限制和验收条件，strategy默认direct：明确简单任务由自己直接完成，不能强行拆分。只有确有独立职责分工或明确@多位伙伴才选delegate；这里不执行业务工具。')
+            '任何目标、对象或期望结果不清楚（如仅test/测试/帮我处理一下）时调用request_clarification，说明具体缺项并暂停；禁止先读项目、搜索或委派。日程缺结束时间或时长也先追问，不默认一小时或同步飞书。需要执行时只申请一次start_background_task，instructions填写用户完整目标、材料、限制和验收条件，strategy默认direct：明确简单任务由自己直接完成，不能强行拆分。只有确有独立职责分工或明确@多位伙伴才选delegate；这里不执行业务工具。')
         prompt+='\n用户仅要求把刚才的讲解改成流程图、图解或其他表达形式时，复用已有上下文，优先direct直接构图，不自行扩大成多主题研究或为此联网/委派。缺少可比数值不妨碍构建不含数值的关系示意；只有用户明确要求核实/最新资料或确实缺少当前目标必需材料时才采集。'
     elif kind == "compress":
         prompt += '\n仅整理提供的会话为后续上下文，保留目标、决定、来源、未完成事项，输出Markdown摘要。'
@@ -719,7 +723,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             except (ValueError,TypeError):
                 emit('answer_reset',True)
                 if turn>=budget-1:raise PublicFailure('模型未返回有效的回答或真实任务申请；仅口头声称提交不算派发，未执行工具，请重试。')
-                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。需要实际搜索或操作时只调用start_background_task，缺信息调用request_clarification；普通解释、代码示例可直接按用户格式回答，但不能编造执行进度。不要用JSON中的mode字段替代真实工具调用。')])
+                correction=('本轮只能调用start_background_task或request_clarification。当前是显式任务开工核对，最终答案格式属于task阶段；参数齐备请以direct申请原目标，不在route中返回计算结果。'if request.get('require_execution')else'普通解释、代码示例可直接按用户格式回答；需要操作时申请start_background_task，缺信息调用request_clarification。')
+                messages.extend([revision_message(text,answer),dict(role='user',content='没有收到真实后台提交回执，不能声称已提交、正在后台执行或已交给伙伴。'+correction+'不要用JSON中的mode字段替代真实工具调用。')])
                 emit('status','正在纠正路由，尚未开始后台操作。');continue
             emit('result',json.dumps(decision,ensure_ascii=False));return
         if kind=='task':

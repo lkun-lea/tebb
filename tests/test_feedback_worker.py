@@ -34,6 +34,23 @@ def delivery(text):
 
 
 class FeedbackWorkerTests(unittest.TestCase):
+    def test_explicit_resume_correction_only_offers_actual_control_actions(self):
+        self.request.update(kind='route',require_execution=True,supplemented_at=123,
+            text='补充7和11，最终只返回JSON。',budget=2)
+        class ResumeModel(ScriptedModel):
+            def chat(inner,messages,tools=None,on_delta=None):
+                if inner.calls:
+                    self.assertIn('final_output_stage',messages[0]['content'])
+                    self.assertIn('task',messages[0]['content'])
+                    correction=messages[-2]['content'] if messages[-1]['content'].startswith('整个目标') else messages[-1]['content']
+                    self.assertNotIn('可直接按用户格式回答',correction)
+                    self.assertIn('本轮只能',correction)
+                return super().chat(messages,tools,on_delta)
+        control=dict(tool_calls=[dict(id='resume-execution',function=dict(name='start_background_task',
+            arguments=json.dumps(dict(instructions='计算7和11并返回JSON',strategy='direct'))))])
+        self.run_model(ResumeModel(['{"total":18,"checked":true}',control]))
+        result=json.loads(self.events[-1][1]);self.assertEqual(result['mode'],'task')
+
     def test_citation_submission_is_reviewed_before_display_compilation(self):
         source=dict(kind='page',level='body',url='https://example.org/source',text='Publication year 2020.',truncated=False)
         ident=source_catalog([source])[0]['id']
