@@ -358,15 +358,16 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                     material=json.loads(messages[1]['content'])['materials']
                     row=next(m for m in material if m['level']=='actual_receipt')
                     value=dict(requirements=[dict(requirement='结构化日程提案尚未保存',dimension='task_acceptance',status='supported',
-                        reason='受控提案回执；下方独立核对零写入与明确确认',evidence=[dict(source_id=row['id'],quote=row['segments'][0][:500])])])
+                        reason='受控提案回执；下方独立核对零写入与明确确认',evidence=[row['excerpts'][0]['id']])])
                     return dict(message=dict(content=json.dumps(value)),usage={})
                 if model.calls==1:
                     return dict(message=dict(role='assistant',content='',tool_calls=[dict(id='calendar-call',type='function',function=dict(name='calendar_propose',arguments=json.dumps(dict(summary='学习安排',start=START,end=END,item_id=''))))]),usage={})
                 receipt=json.loads(next(m['content'] for m in reversed(messages) if m['role']=='tool'))
                 if not receipt.get('ok'):raise AssertionError(receipt)
                 return dict(message=dict(content='已生成日程提案，尚未保存。'),usage={})
-        request=dict(task_id=root['task'],kind='task',role=root['agent_config'],collab_run=root['id'],collab_path=str(self.host.collaboration.path),
-            text=root['input'],context=[],workspace=root['workspace'],model_id=MODEL['id'],budget=3)
+        from desk_companion.collaboration import execution_limits
+        request=dict(self.host.collaboration.managers['work'].requests[root['task']],task_id=root['task'],
+                     limits=execution_limits(root['agent'],root['agent_config'].get('tools',())))
         from desk_companion.agent_debug import context as debug_context
         with self.host.turn_lock,debug_context(task_id=root['task'],collab_run=root['id']):
             await asyncio.wait_for(asyncio.to_thread(execute,request,lambda k,d:events.append((k,d)),Model()),15)
