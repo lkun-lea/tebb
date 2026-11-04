@@ -2223,7 +2223,7 @@ export function App() {
                 onSavePersona={(text) => void savePersona(text)}
               /></div>
             </section>
-          ) : pane === "team" ? <DevelopmentTeam info={info} onOpen={async id=>{
+          ) : pane === "team" ? <DevelopmentTeam info={info} onSetup={()=>setPane("collaboration")} onOpen={async id=>{
             if(!info)throw Error("后端尚未连接");
             await rpc(info,"collaboration_action",{action:{type:"select",id,conversation:id,request_id:crypto.randomUUID()}});
             setPane("collaboration");

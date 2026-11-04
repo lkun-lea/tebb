@@ -15,6 +15,25 @@ from tests import test_dev_cycle as fixtures
 class DevelopmentPairTests(unittest.TestCase):
     setUp = fixtures.DevCycleTests.setUp
 
+    def test_completed_review_keeps_revise_decision_separate_from_call_status(self):
+        from desk_companion.development_team import arm_summary
+        folder = self.root / 'summary'
+        (folder / 'review').mkdir(parents=True)
+        cycle.write(folder / 'state.json', dict(launches=1, rounds=[], status='blocked', stage='done',
+                    reason='missing plan', supplements_used=0, attempts=[
+                        dict(stage='scope_review', status='completed', round=0, directory='review'),
+                        dict(stage='reflect', status='completed', round=0, directory='review')]))
+        cycle.write(folder / 'review' / 'result.json', dict(decision='revise', reason='missing plan',
+                    observations=['review not acted upon'], proposals=['write concrete assertions']))
+        with patch('desk_companion.development_team.inputs', return_value={'contract':'fixed'}):
+            result = arm_summary(folder, {'contract':'fixed'})
+        self.assertEqual(result['timeline'][0], dict(stage='scope_review', status='completed',
+                         round=0, note='missing plan', decision='revise'))
+        self.assertIsNone(result['gate'])
+        self.assertIsNone(result['uncached'])
+        self.assertEqual(result['timeline'][1]['observations'], ['review not acted upon'])
+        self.assertEqual(result['timeline'][1]['proposals'], ['write concrete assertions'])
+
     def test_control_repairs_from_test_and_both_arms_reach_desktop(self):
         self.assertIn("development_team", RPC_METHODS)
         check = self.root / "check.py"

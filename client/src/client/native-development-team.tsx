@@ -4,8 +4,9 @@ import {CollaborationSync,loadCollaboration} from "./collaboration-sync";
 import type {DemoState} from "./chat-prototype-state";
 import {usePageActive} from "./page-stack";
 import {DevelopmentFlow} from "./development-flow";
+import "./experiment-flow.css";
 
-export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>}) {
+export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>;onSetup?:()=>void}) {
  const [state,setState]=useState<DemoState|null>(null);
  const [groupId,select]=useState("");
  const [goal,setGoal]=useState("");
@@ -58,18 +59,31 @@ export function NativeDevelopmentTeam({info,onOpen}:{info:BackendInfo|null;onOpe
    }catch(e){setNotice(String(e));}finally{setBusy(false);}
  }
  return <div className="my-4 rounded-lg border bg-card p-4">
-   <h2 className="font-semibold">项目群开发</h2>
+   <h2 className="font-semibold">原生开发团队 · 项目群开发</h2>
    {error&&<p role="alert">{error}</p>}
+   <div className="team-selectors">
+    <label>项目群　<select aria-label="项目群" disabled={busy||!group} value={group?.id||""} onChange={e=>{select(e.target.value);setRunId("");setNotice("");}}>
+     {!group&&<option value="">{state?"尚无项目群":"等待协作服务"}</option>}
+     {groups.map(c=><option key={c.id} value={c.id}>{state?.projects?.find(p=>p.id===c.project_id)?.name} · {c.title}</option>)}</select></label>
+    <label>运行记录　<select aria-label="运行记录" disabled={!root} value={root?.id||""} onChange={e=>setRunId(e.target.value)}>
+     {!root&&<option value="">尚无原生开发记录</option>}
+     {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>
+   </div>
+   {!root&&<section className="team-empty-flow" aria-label="开发流程概览">
+    <strong>开发流程 · 尚未运行</strong>
+    <ol>{["需求与分工","实现与自测","独立验收","交付"].map(name=><li key={name}>{name}</li>)}</ol>
+    <p>{!state?"连接协作服务后可选择项目群和历史运行。":!group?"先在伙伴聊天中打开项目文件夹，再创建项目群并加入编码伙伴。":
+     "这个项目群还没有从本页发起的开发任务。填写下方需求并开始团队开发后，这里会展示真实节点进度。"}</p>
+    <small>已有外部实验请展开下方“外部开发流程实验记录”。普通聊天任务不计入此处。</small>
+    {!group&&onSetup&&<button className="mt-3 block rounded border px-3 py-2" onClick={onSetup}>前往伙伴聊天设置项目群</button>}
+   </section>}
    {!state?<p>等待协作服务</p>:!group?<p>请在伙伴聊天中打开项目文件夹，创建项目群，并加入具备文件编辑和终端权限的编码伙伴。</p>:<>
-   <label>项目群　<select disabled={busy} className="rounded border bg-card p-1" value={group.id} onChange={e=>{select(e.target.value);setNotice("");}}>
-   {groups.map(c=><option key={c.id} value={c.id}>{state.projects?.find(p=>p.id===c.project_id)?.name} · {c.title}</option>)}</select></label>
    <p className="my-2 text-sm">参与伙伴 · {agents.map(a=>a.name+(a.id===group.coordinator?"（负责人）":"")).join("、")}</p>
    <textarea aria-label="项目开发需求" disabled={busy} className="block w-full rounded border bg-background p-2" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="描述要完成的用户行为、涉及的模块和验收方式"/>
    {!capable&&<p>请在项目群加入具备文件编辑和终端权限的编码伙伴。</p>}
    <button className="mt-2 rounded bg-secondary px-3 py-2" disabled={busy||!capable||!goal.trim()} onClick={()=>void start()}>{busy?"登记中…":"开始团队开发"}</button>
    {onOpen&&<button className="ml-3" onClick={()=>void onOpen(group.id).catch(e=>setNotice(String(e)))}>打开项目群</button>}
-   {root&&<><label className="mt-4 block">运行记录　<select aria-label="运行记录" value={root.id} onChange={e=>setRunId(e.target.value)}>
-     {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>
+   {root&&<>
      <DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
        onOpen={onOpen?()=>void onOpen(group.id).catch(e=>setNotice(String(e))):undefined}/></>}
    </>}

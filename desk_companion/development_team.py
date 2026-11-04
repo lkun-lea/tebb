@@ -40,13 +40,22 @@ def arm_summary(folder, expected):
     timeline = [dict(stage=a["stage"], status=a["status"], round=a["round"],
                      note=a.get("gate_error") or a.get("error") or "") for a in state["attempts"]]
     for item, attempt in zip(timeline, state["attempts"]):
-        if not item["note"] and item["stage"] in {"diagnose","scope_review","supervise","reflect"}:
+        if item["stage"] in {"requirements","verification_plan","verify","diagnose","scope_review","supervise","reflect","evaluator_review"}:
             directory = attempt["directory"]
             if Path(directory).name == directory:
                 report = folder / directory / "result.json"
                 if report.is_file():
                     result = read(report)
-                    item["note"] = str(result.get("reason") or result.get("summary") or "")[:500]
+                    decision = result.get("decision")
+                    if isinstance(decision, str):
+                        item["decision"] = decision[:80]
+                    if not item["note"]:
+                        item["note"] = str(result.get("reason") or result.get("summary") or "")[:500]
+                    if item["stage"] == "reflect":
+                        for key in ("observations", "proposals", "validation_plan"):
+                            values = result.get(key)
+                            if isinstance(values, list):
+                                item[key] = [v[:1000] for v in values[:5] if isinstance(v, str)]
     history = []
     by_round = {r["round"]: r for r in rounds}
     for item in timeline:
