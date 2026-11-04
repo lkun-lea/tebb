@@ -17,6 +17,12 @@ from desk_companion.board_workbench import BoardWorkbench
 
 
 class LocalSourceTests(unittest.TestCase):
+    def test_out_of_range_read_cannot_report_an_inverted_coverage_range(self):
+        source=sources.stage([str(self.file(body='ABC'))])['sources'][0]
+        with self.assertRaisesRegex(ValueError,'超出'):
+            sources.read_page(source['id'],offset=4)
+        self.assertEqual(sources.read_page(source['id'],offset=2)['read_ranges'],[[2,3]])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)

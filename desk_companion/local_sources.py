@@ -287,7 +287,9 @@ def read_page(source_id, offset=0, limit=12000):
         return public(source)
     if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 24000:
         raise ValueError('正文 offset 必须为非负字数，limit 为 1～24000。')
-    text = source['text']; end = min(len(text), offset+limit)
+    text = source['text']
+    if offset>len(text):raise ValueError('正文位置超出附件快照范围。')
+    end = min(len(text), offset+limit)
     return {**public(source), 'text': text[offset:end], 'offset': offset,
             'next_offset': end if end < len(text) else None, 'complete': offset == 0 and end == len(text),
             'read_ranges':[[offset,end]],'content_method':'selected_file_snapshot','truncated':offset>0 or end<len(text)}
