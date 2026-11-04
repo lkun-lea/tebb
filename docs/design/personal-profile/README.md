@@ -2,13 +2,15 @@
 
 关联 [#272](https://github.com/lkun-lea/tebb/issues/272) / [#273](https://github.com/lkun-lea/tebb/issues/273)。2026-11-05 用户确认：漫画分身、几何小机器人、原创小兔均提供，用户可选择形象；界面与角色设计资料纳入项目。
 
+2026-11-05 后续视觉复审：用户未接受当前三角色的关节连接和手部动作，要求重新选择设计方案。以下图片保留为初版草案，不代表最终采用；功能测试通过不等于视觉验收通过。新路线见 [Live2D 重设计提案](LIVE2D_REDESIGN.md)，本轮未替换客户端。
+
 | 角色 | 设计原图 | 分层动画原稿 |
 | --- | --- | --- |
 | 漫画分身 | [comic.png](concepts/comic.png) | [comic.png](rig-sources/comic.png) |
 | 几何小机器人 | [robot.png](concepts/robot.png) | [robot.png](rig-sources/robot.png) |
 | 原创小兔 | [rabbit.png](concepts/rabbit.png) | [rabbit.png](rig-sources/rabbit.png) |
 
-## 确认范围
+## 初版实施范围
 
 - 画像地图按沟通方式、知识背景、长期目标、项目背景组织真实确认资料；其他资料单独保留。点击类别查看原文、来源、范围、资料更新时间及版本，不生成了解程度或性格分数。
 - 三种角色共用动作与选择入口，支持待机、挥手、点头、左右指向、暂停和系统减少动态效果。使用连续关节运动，切换动作延续当前姿态；角色背后保持透明。

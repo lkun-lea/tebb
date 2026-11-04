@@ -4,7 +4,7 @@
 
 | 主题 | 查看入口 | 状态 |
 | --- | --- | --- |
-| 个人画像与三种角色 | [设计与素材](personal-profile/README.md) | 三种角色均已选入实施范围，#272 |
+| 个人画像与三种角色 | [设计与素材](personal-profile/README.md) | 初版视觉复审未通过；[Live2D 重设计提案](personal-profile/LIVE2D_REDESIGN.md) 待评审，#272 保持打开 |
 | 自动化 | [卡片首页与画布预览](automation/overview.html) | 已评审参考稿，实际实现见 [工作流](../WORKFLOWS.md) |
 | 记忆检查 | [调用检查台预览](memory/inspector.html) | 已评审参考稿，实际实现见 [记忆设计](../MEMORY_REDESIGN.md) |
 | 终端 | [项目控制台预览](terminal/console.html) | 已评审参考稿，实际实现见 [终端](../TERMINAL.md) |
