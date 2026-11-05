@@ -332,7 +332,7 @@ export type BoardSnap = {
 };
 
 export type StatusSnap = { kind: string; state: string; line: string }[];
-export type ProfileSnap={character:string;category:string;paused:boolean;records:string[];bones:{name:string;transform:string}[]};
+export type ProfileSnap={marker:string;category:string;records:string[]};
 
 export function installDeskDebug(api: {
   seed: (items: ChatItem[]) => void;
@@ -357,7 +357,7 @@ export function installDeskDebug(api: {
   window.__deskDebug = {
     profileSnapshot():ProfileSnap {
       const root=document.querySelector('.profile-model');
-      return {character:root?.getAttribute('data-profile-character')||'',category:root?.getAttribute('data-profile-category')||'',paused:root?.getAttribute('data-profile-paused')==='true',records:[...(root?.querySelectorAll('.profile-card[id]')||[])].map(el=>el.id.replace(/^profile-/,'')),bones:[...(root?.querySelectorAll('.profile-character-trigger [data-bone]')||[])].map(el=>({name:el.getAttribute('data-bone')||'',transform:getComputedStyle(el).transform}))};
+      return {marker:root?.querySelector('.profile-me-mark')?.textContent||'',category:root?.getAttribute('data-profile-category')||'',records:[...(root?.querySelectorAll('.profile-card[id]')||[])].map(el=>el.id.replace(/^profile-/,''))};
     },
     seed: api.seed,
     seedBoard: api.seedBoard,

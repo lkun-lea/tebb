@@ -41,7 +41,7 @@ export function PersonalizationPane({info,debug=false,target,onInspect}:{info:Ba
     {!draft&&controller.error&&<UiFeedback state="error" title={controller.error}/>}
     {controller.notice&&<UiFeedback state="success" title={controller.notice}/>}
     <nav className="profile-view-tabs" aria-label="个人画像视图"><UiButton aria-pressed={view==='overview'} onClick={()=>setView('overview')}>画像总览</UiButton><UiButton aria-pressed={view==='records'} onClick={()=>setView('records')}>已有资料</UiButton></nav>
-    {view==='overview'&&<ProfileOverview page={page} debug={debug} {...recordActions} onAdd={category=>setDraft({...blank(),category})} onInspect={onInspect}/>}
+    {view==='overview'&&<ProfileOverview page={page} {...recordActions} onAdd={category=>setDraft({...blank(),category})} onInspect={onInspect}/>}
     {local?<UiFeedback state="empty" title="当前为本机空间"><p>请在“账号与空间”登录并重启切换，再管理同步资料。本机记忆继续保留，登录不会自动上传。</p></UiFeedback>:<>
       {page.auto_paused&&<UiFeedback state="unconfirmed" title="自动同步已暂停"><p>点击“立即同步”恢复；资料继续保留在当前账号。</p></UiFeedback>}
       {page.job&&<div className={'profile-sync '+(['failed','needs_confirmation'].includes(page.job.state)?'has-warning':'')} role="status"><div><strong>{jobNames[page.job.state]||page.job.state}</strong><span>本轮已处理 {page.job.processed} 项{page.job.phase==='pull'?' · 正在读取云端变化':''}</span>{page.job.error&&<p>{page.job.error}</p>}</div>{active&&<UiButton disabled={blocked} onClick={()=>void controller.act('cancel')}>取消并暂停自动同步</UiButton>}<details><summary>同步编号</summary><code>{page.job.id}</code><p>本机游标 {page.cursor} / 已观察云端 {page.head}</p></details></div>}

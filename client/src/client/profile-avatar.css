@@ -1,6 +1,0 @@
-.profile-avatar{display:block;position:relative;width:100%;height:100%;aspect-ratio:1;isolation:isolate;pointer-events:none}
-.profile-avatar span{display:block;position:absolute;box-sizing:border-box}
-.profile-avatar img{display:block;width:100%;height:100%;object-fit:fill;user-select:none;pointer-events:none}
-.profile-avatar-root{inset:0;transform-origin:50% 96%}
-.profile-avatar-body{z-index:1}.profile-avatar-arm{z-index:2;transform-origin:50% 9%}.profile-avatar-lower{transform-origin:50% 8%}.profile-avatar-head{z-index:3;transform-origin:50% 92%}.profile-avatar-eyes{transform-origin:50% 52%}
-@media(prefers-reduced-motion:reduce){.profile-avatar *{animation:none!important;transition:none!important}}
