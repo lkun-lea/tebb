@@ -6,6 +6,8 @@
 
 最新待评审稿：[第二版完整人物与自然手势](live2d-v2/README.md)。先确认完整原画，再制作分层和真实模型样件；静态稿不代表动作已经通过验收。
 
+第二版提供 [小幅动态概念](live2d-v2/motion.html)，仅审幅度和节奏，尚非正式 Live2D，不包含抬手/收手过渡。
+
 | 角色 | 设计原图 | 分层动画原稿 |
 | --- | --- | --- |
 | 漫画分身 | [comic.png](concepts/comic.png) | [comic.png](rig-sources/comic.png) |
