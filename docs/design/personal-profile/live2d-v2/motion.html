@@ -1820,7 +1820,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;div class=&quot;viz-controls&quot; role=&quot;group&quot; aria-label=&quot;动作选择&quot;&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-motion=&quot;idle&quot; aria-pressed=&quot;false&quot;&gt;呼吸&lt;/button&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-motion=&quot;nod&quot; aria-pressed=&quot;false&quot;&gt;轻点头&lt;/button&gt;
-    &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-motion=&quot;wave&quot; aria-pressed=&quot;true&quot;&gt;小幅招手&lt;/button&gt;
+    &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-motion=&quot;wave&quot; aria-pressed=&quot;true&quot;&gt;手腕轻摆&lt;/button&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn&quot; data-motion=&quot;point&quot; aria-pressed=&quot;false&quot;&gt;指引停留&lt;/button&gt;
     &lt;button type=&quot;button&quot; class=&quot;btn btn-ghost&quot; data-play&gt;暂停&lt;/button&gt;
   &lt;/div&gt;
@@ -1853,7 +1853,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   const modes = {
     idle: { id: 0, label: &#x27;呼吸&#x27;, crop: [0, 495], neck: [253, 255], elbow: [0, 0], hand: [0, 0] },
     nod: { id: 1, label: &#x27;轻点头&#x27;, crop: [0, 495], neck: [253, 255], elbow: [0, 0], hand: [0, 0] },
-    wave: { id: 2, label: &#x27;小幅招手&#x27;, crop: [495, 495], neck: [265, 255], elbow: [75, 502], hand: [145, 300] },
+    wave: { id: 2, label: &#x27;手腕轻摆&#x27;, crop: [495, 495], neck: [265, 255], elbow: [75, 502], hand: [145, 300] },
     point: { id: 3, label: &#x27;指引停留&#x27;, crop: [990, 546], neck: [210, 260], elbow: [165, 545], hand: [455, 365] }
   };
   let mode = &#x27;wave&#x27;;
@@ -1935,9 +1935,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       float breath = sin(u_time * 1.428);
       float upper = 1.0 - smoothstep(650.0, 1000.0, p.y);
       p.y -= 2.8 * breath * upper;
-      float chest = smoothstep(270.0, 400.0, p.y) * (1.0 - smoothstep(630.0, 830.0, p.y));
-      p.x += (p.x - u_neck.x) * .004 * breath * chest;
-      float head = (1.0 - smoothstep(243.0, 300.0, original.y)) * (1.0-smoothstep(105.0, 145.0, abs(original.x-u_neck.x)));
+      float head = (1.0 - smoothstep(236.0, 264.0, original.y)) * (1.0-smoothstep(105.0, 145.0, abs(original.x-u_neck.x)));
       float tilt = .012 * sin(u_time * 1.18);
       if (u_mode == 1.0) {
         float cycle = mod(u_time, 4.5);
@@ -1949,14 +1947,28 @@ html&gt;body{padding:0}&lt;/style&gt;
       p += (rotate2(original-u_neck, tilt) - (original-u_neck)) * head;
       float hair = (1.0-smoothstep(90.0, 160.0, original.y)) * smoothstep(45.0, 100.0, abs(original.x-u_neck.x));
       p.x += .8 * sin(u_time * 1.6) * hair;
-      if (u_mode &gt;= 2.0) {
+      if (u_mode == 2.0) {
+        // The raised hand lies in front of the coat. Keep the sleeve/shoulder
+        // outside this small, source-space wrist region; do not swing the arm.
+        vec2 wrist = vec2(119.0, 392.0);
+        vec2 direction = normalize(vec2(31.0, -86.0));
+        vec2 offset = original-wrist;
+        float along = dot(offset, direction);
+        float across = abs(dot(offset, vec2(-direction.y, direction.x)));
+        float influence = smoothstep(-25.0, 40.0, along)
+          * (1.0-smoothstep(15.0, 24.0, across))
+          * (1.0-smoothstep(120.0, 144.0, along))
+          * smoothstep(116.0, 128.0, original.x);
+        float angle = .045 * sin(u_time * 3.15);
+        p += (rotate2(offset, angle)-offset) * influence;
+      } else if (u_mode == 3.0) {
         vec2 direction = normalize(u_hand-u_elbow);
         vec2 offset = original-u_elbow;
         float along = dot(offset, direction);
         float across = abs(dot(offset, vec2(-direction.y, direction.x)));
         float lengthArm = length(u_hand-u_elbow);
         float influence = smoothstep(-10.0, 75.0, along) * (1.0-smoothstep(45.0, 85.0, across)) * (1.0-smoothstep(lengthArm+55.0, lengthArm+115.0, along));
-        float angle = u_mode == 2.0 ? .041 * sin(u_time * 3.15) : .008 * sin(u_time * 1.45);
+        float angle = .008 * sin(u_time * 1.45);
         p += (rotate2(offset, angle)-offset) * influence;
       }
       p.x += (576.0-u_crop.y)*.5;
