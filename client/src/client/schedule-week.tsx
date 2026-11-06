@@ -320,7 +320,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       slotLabelInterval="01:00:00" slotLabelFormat={{hour:'2-digit',minute:'2-digit',hour12:false}} eventTimeFormat={{hour:'2-digit',minute:'2-digit',hour12:false}}
       fixedWeekCount={false} dayMaxEvents={3} moreLinkClick="popover" navLinks={view==='month'} navLinkDayClick={date=>guard(()=>onViewDay?.(beijingDay(date.toISOString())))}
       dayHeaderFormat={view==='month'?{weekday:'long'}:{weekday:'short',month:'numeric',day:'numeric'}} events={events} editable={view!=='month'} eventResizableFromStart eventOverlap slotEventOverlap={false}
-      eventDragMinDistance={6} dragRevertDuration={reduce?0:DRAG_SETTLE_MS} dragScroll={!reduce} nowIndicator eventMinHeight={0} eventShortHeight={28} eventLongPressDelay={250}
+      eventDragMinDistance={6} dragRevertDuration={reduce?0:DRAG_SETTLE_MS} dragScroll={!reduce} nowIndicator eventMinHeight={18} eventShortHeight={44} eventLongPressDelay={250}
       eventAllow={(drop,dragged)=>{const source=dragged?.extendedProps?.source as CalendarEvent|undefined;return view!=='month'&&!!source&&!cancelPointer.current&&!drop.allDay&&(source.calendar_id==='tebb-draft'||timeEditable(source))&&!controller.blocked(calendarKey(source))&&(!dirty||source.calendar_id==='tebb-draft')
         &&!validTimeDraft(source,pointerTimeDraft(source,{start:drop.start.toISOString(),end:drop.end.toISOString()}));}}
       eventDragStart={startPointer} eventResizeStart={startPointer} eventDragStop={stopPointer} eventResizeStop={stopPointer} eventDrop={changed} eventResize={changed}

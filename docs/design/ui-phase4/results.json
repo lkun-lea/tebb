@@ -1,0 +1,612 @@
+{
+  "date": "2026-11-06",
+  "browser": "Chromium headless shell 1228, Windows, standard Vite config on 1432",
+  "checks": [
+    {
+      "name": "dark hover preserves visible card separation",
+      "card": "rgb(27, 27, 26)",
+      "page": "rgb(11, 11, 10)"
+    },
+    {
+      "name": "dark board Escape restores original column"
+    },
+    {
+      "name": "dark rapid board regrab keeps newest destination",
+      "dropCount": 2,
+      "duration": 500
+    },
+    {
+      "name": "dark keyboard moves one column per arrow"
+    },
+    {
+      "name": "dark splitter follows directly and Escape restores width/focus"
+    },
+    {
+      "name": "dark splitter edge snap is monotone",
+      "samples": [
+        290,
+        284,
+        281,
+        280,
+        280,
+        280,
+        280,
+        280
+      ]
+    },
+    {
+      "name": "dark real calendar rendered"
+    },
+    {
+      "name": "dark calendar focused Escape removes preview and preserves time"
+    },
+    {
+      "name": "dark calendar move saves new time",
+      "before": "阅读与笔记，2026-11-06 16:00 → 2026-11-06 17:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "dark native resize Escape immediately restores original geometry"
+    },
+    {
+      "name": "dark native resize saves confirmed duration",
+      "before": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:45。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "dark calendar keyboard cancellation preserves confirmed time"
+    },
+    {
+      "name": "light hover preserves visible card separation",
+      "card": "rgb(255, 255, 255)",
+      "page": "rgb(245, 245, 243)"
+    },
+    {
+      "name": "light board Escape restores original column"
+    },
+    {
+      "name": "light rapid board regrab keeps newest destination",
+      "dropCount": 2,
+      "duration": 500
+    },
+    {
+      "name": "light keyboard moves one column per arrow"
+    },
+    {
+      "name": "light splitter follows directly and Escape restores width/focus"
+    },
+    {
+      "name": "light splitter edge snap is monotone",
+      "samples": [
+        290,
+        283,
+        281,
+        280,
+        280,
+        280,
+        280,
+        280
+      ]
+    },
+    {
+      "name": "light real calendar rendered"
+    },
+    {
+      "name": "light calendar focused Escape removes preview and preserves time"
+    },
+    {
+      "name": "light calendar move saves new time",
+      "before": "阅读与笔记，2026-11-06 16:00 → 2026-11-06 17:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "light native resize Escape immediately restores original geometry"
+    },
+    {
+      "name": "light native resize saves confirmed duration",
+      "before": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:15 → 2026-11-06 16:45。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "light calendar keyboard cancellation preserves confirmed time"
+    },
+    {
+      "name": "system reduced motion disables drop animation"
+    },
+    {
+      "name": "system reduced motion sets splitter width immediately"
+    },
+    {
+      "name": "system reduced calendar cancels without settling animation"
+    },
+    {
+      "name": "manual reduced motion disables drop animation"
+    },
+    {
+      "name": "manual reduced motion sets splitter width immediately"
+    },
+    {
+      "name": "manual reduced calendar cancels without settling animation"
+    },
+    {
+      "name": "forced colors keyboard focus",
+      "outline": "solid"
+    },
+    {
+      "name": "600px viewport has no document overflow"
+    },
+    {
+      "name": "600px keyboard navigation crosses wrapped rows"
+    },
+    {
+      "name": "light board detail keeps shared input focus",
+      "shadow": "rgba(39, 39, 37, 0.3) 0px 0px 0px 1px inset, rgba(39, 39, 37, 0.12) 0px 0px 0px 3px",
+      "outline": "none"
+    },
+    {
+      "name": "light 15 minute event remains legible",
+      "height": 17,
+      "titleHeight": 16,
+      "font": "12px",
+      "time": "15分钟可读日程，2026-11-06 09:00 → 2026-11-06 09:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "light month view renders"
+    },
+    {
+      "name": "light day view renders"
+    },
+    {
+      "name": "light visible synthetic quote opens browser tab"
+    },
+    {
+      "name": "dark board detail keeps shared input focus",
+      "shadow": "rgba(234, 234, 230, 0.38) 0px 0px 0px 1px inset, rgba(234, 234, 230, 0.14) 0px 0px 0px 3px",
+      "outline": "none"
+    },
+    {
+      "name": "dark 15 minute event remains legible",
+      "height": 17,
+      "titleHeight": 16,
+      "font": "12px",
+      "time": "15分钟可读日程，2026-11-06 09:00 → 2026-11-06 09:15。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "dark month view renders"
+    },
+    {
+      "name": "dark day view renders"
+    },
+    {
+      "name": "dark visible synthetic quote opens browser tab"
+    },
+    {
+      "name": "600px calendar no document overflow"
+    }
+  ],
+  "extra": {
+    "itemDrop": {
+      "stable": true,
+      "positions": [
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        },
+        {
+          "y": 1119,
+          "height": 2109
+        }
+      ]
+    },
+    "forcedColors": {
+      "border": "1px",
+      "color": "rgb(0, 0, 0)"
+    }
+  },
+  "audits": [
+    {
+      "theme": "dark",
+      "state": "board-held",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "calendar-settled",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "board-held",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "calendar-settled",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "calendar-editor",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "calendar-editor",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    }
+  ],
+  "errors": [],
+  "scroll": [
+    {
+      "samples": 110,
+      "geometry": [
+        1119,
+        2109,
+        850
+      ],
+      "implicit_calls": 0
+    },
+    {
+      "samples": 107,
+      "geometry": [
+        1119,
+        2109,
+        850
+      ],
+      "implicit_calls": 0
+    }
+  ],
+  "ci": {
+    "regression-bounded": 0,
+    "types-verified": 0,
+    "build-verified": 0
+  },
+  "regression": {
+    "passed": 309,
+    "failed": 0,
+    "skipped": 0,
+    "runner": "package.json test files, node --test --test-concurrency=4"
+  },
+  "dev_server": {
+    "before_http_timeout_seconds": 6,
+    "after_warm_seconds": 0.370102,
+    "cpu_samples": 2657,
+    "native_watch_excluded": true,
+    "frontend_invalidation_test": "passed"
+  },
+  "native": {
+    "build": "passed",
+    "cargo_check": "passed",
+    "manual": "user retest pending",
+    "exe_sha256": "313a92263f0e11f491efb68f9f1d536ba23d78267b2e68e09bb1b1cd61640a35"
+  },
+  "delivery_sources_sha256": {
+    "client/vite.config.ts": "ad99b503faba41dd642b53dff4ed38500189c2890d5feb852d992ed106f0bc25",
+    "client/src/client/schedule-week.tsx": "f76d822b21069f76e10b3136d5994627e343e4ae362a806f46898cfc6d801572",
+    "client/src/client/ui-check-tools.tsx": "439db2dc710c2860e12e5b21d0799f9a750ee07677493615f5880b882c75a173",
+    "client/src/client/ui-foundations.css": "b0b66be84e244f59cc776f5aba23eadcee1f75088945d56b60651f2306fdd7ab",
+    "client/src/client/work-board.css": "a28d8d33b42fa1c4c800be3c800fa88ef8ae4d0041c5e139a43c7945ebd51a6f"
+  }
+}

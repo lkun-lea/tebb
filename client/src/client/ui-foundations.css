@@ -21,6 +21,7 @@
   --destructive-foreground: 0 0% 100%;
   --radius: 10px;
   --ui-surface-raised: var(--card);
+  --ui-surface-hover: 0 0% 100%;
   --ui-shadow-tone: 60 4.76% 4.12%;
   --ui-space-xs: 4px;
   --ui-space-sm: 8px;
@@ -29,6 +30,7 @@
   --ui-text-sm: 12px;
   --ui-text-body: 14px;
   --ui-status-success: 151 30% 31%;
+  --ui-status-info: 207 30% 37%;
   --ui-status-warning: 40 45% 33%;
   --ui-status-danger: var(--destructive);
   --ui-weight-offset: 0;
@@ -52,6 +54,7 @@
   --card: 0 0% 8.24%; /* #151515 */
   --secondary: 60 1.96% 10%; /* #1a1a19 */
   --ui-surface-raised: 60 3.23% 12.16%; /* #20201e */
+  --ui-surface-hover: 60 2% 10.5%;
   --popover: var(--ui-surface-raised);
   --foreground: 60 10% 91%;
   --primary: 45 62% 64%;
@@ -61,6 +64,7 @@
   --destructive: 0 70% 72%;
   --destructive-foreground: 0 30% 12%;
   --ui-status-success: 151 40% 68%;
+  --ui-status-info: 207 45% 70%;
   --ui-status-warning: 43 65% 70%;
   --ui-weight-offset: 40;
   --ui-field-shadow: inset 0 1px 2px hsl(var(--background) / .4);
