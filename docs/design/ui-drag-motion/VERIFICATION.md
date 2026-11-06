@@ -2,6 +2,8 @@
 
 2026-11-06，关联 [#289](https://github.com/lkun-lea/tebb/issues/289)。实现与可复制调试入口见 [拖拽、归位与撤销](../../UI_DRAG_MOTION.md)。
 
+后续 #290 已将原生目录排除出 Vite 监听，标准配置服务响应与前端更新已验证；复现及修复证据见 [原生验收入口](../../UI_NATIVE_CHECKS.md)。本页以下记录保留第三批当时的环境与结果，不改写历史验收。
+
 ## 环境与范围
 
 Windows，Playwright Chromium headless shell 1228；1440×1000，另测600×900。运行真实 App 的 `client.html?debug=work`，使用既有内存看板/日历 transport；侧栏通过既有预览事件打开合成引用。没有调用真实模型、读取私人资料或向飞书写入。

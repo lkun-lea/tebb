@@ -19,6 +19,8 @@ export default defineConfig({
   server: {
     port: 5180,
     strictPort: true,
+    // Cargo owns native sources/build outputs. Watching its target tree can stall fs.watch on Windows.
+    watch: { ignored: ["**/src-tauri/**"] },
     // 调试页直接读技能原文，避免再抄一份对照表。
     fs: {
       allow: [resolve(__dirname, "..")],
