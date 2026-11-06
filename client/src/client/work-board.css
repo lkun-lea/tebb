@@ -17,17 +17,17 @@
 .wb-toolbar>select{max-width:170px;min-width:0}
 .wb-toolbar button[aria-pressed=true]{background:var(--wb-soft);border-color:var(--wb-accent)}
 .wb-sort{margin-left:auto;font-size:12px;color:var(--wb-muted)}
-.wb-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;flex:1;min-height:0;overflow:auto;padding:4px 3px 18px;align-content:start;align-items:start}
-.wb-column{position:relative;min-height:300px;min-width:0;border-radius:11px;outline:1px solid transparent;outline-offset:3px;transition:background .15s,outline-color .15s}
+.wb-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:max-content;gap:16px;flex:1;min-height:0;overflow:auto;padding:4px 3px 18px;align-content:start;align-items:start}
+.wb-column{position:relative;min-height:300px;min-width:0;border-radius:11px;outline:1px solid transparent;outline-offset:3px;transition:background-color var(--ui-duration) var(--ui-ease),outline-color var(--ui-duration) var(--ui-ease)}
 .wb-column.wb-drop-target{background:var(--wb-soft);outline:1px dashed var(--wb-accent)}
 .wb-column>header{display:flex;align-items:center;gap:8px;padding:0 2px 14px}
 .wb-column h2{font-size:13px;font-weight:var(--ui-weight-500);margin:0}
 .wb-count{font-size:12px;color:var(--wb-muted);font-variant-numeric:tabular-nums}
 .wb-state-dot{display:block;width:7px;height:7px;border-radius:50%;background:var(--wb-muted)}
 .wb-state-dot.doing{background:#82aaca}.wb-state-dot.review{background:var(--wb-accent)}.wb-state-dot.done{background:#79a98b}
-.wb-card{min-width:0;position:relative;padding:13px;margin-bottom:12px;border:1px solid var(--wb-line);background:var(--wb-surface);border-radius:13px;box-shadow:0 2px 8px hsl(var(--foreground)/.035);transition:border-color .15s,box-shadow .15s}
-.wb-card:hover{border-color:hsl(var(--foreground)/.35);box-shadow:0 6px 16px hsl(var(--foreground)/.055)}
-.wb-card.wb-lifted{opacity:.25;border-style:dashed}.wb-card.wb-ghost{box-shadow:0 16px 32px hsl(var(--foreground)/.14);transform:rotate(2deg)}
+.wb-card{min-width:0;position:relative;padding:14px;margin-bottom:12px;border:0;background:var(--wb-surface);border-radius:13px;transition:background-color var(--ui-duration) var(--ui-ease)}
+.wb-card:hover{background:color-mix(in srgb,var(--wb-surface) 97%,var(--wb-text))}
+.wb-card.wb-lifted{opacity:.25}.wb-card.wb-ghost{box-shadow:0 16px 32px hsl(var(--foreground)/.14)}
 .wb-card-top{display:flex;align-items:center;gap:7px;margin-bottom:10px;min-width:0}
 .wb-project{display:inline-flex;align-items:center;gap:3px;font-size:11px;background:hsl(var(--foreground)/.045);color:var(--wb-muted);padding:2px 6px;border-radius:5px;overflow-wrap:anywhere}
 .work-board .wb-grip{margin-left:auto;flex:none;touch-action:none;border:0;background:transparent;cursor:grab;padding:3px 5px;color:var(--wb-muted);font-size:18px;line-height:1}

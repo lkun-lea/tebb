@@ -86,10 +86,10 @@ test('plan execution success does not disguise unfinished delivery',()=>{
 
 test('real component creates, moves, archives, restores and preserves its edit form',async()=>{
   global.crypto=require('node:crypto').webcrypto;global.window={setInterval:()=>1,clearInterval(){}};global.document={activeElement:null};
-  let dragProps,scheduleProps,weekProps;
+  let dragProps,scheduleProps,weekProps,keyboardOptions;
   const wrapper=tag=>React.forwardRef((props,ref)=>React.createElement(tag,{...props,ref},props.children));
   const dnd={DndContext:props=>{dragProps=props;return React.createElement('div',{},props.children);},DragOverlay:()=>null,
-    KeyboardSensor(){},PointerSensor(){},closestCenter(){},pointerWithin:()=>[],useDraggable:()=>({setNodeRef(){},setActivatorNodeRef(){},attributes:{},listeners:{},isDragging:false}),useDroppable:()=>({setNodeRef(){},isOver:false}),useSensor(){},useSensors:()=>[]};
+    KeyboardSensor(){},PointerSensor(){},closestCenter(){},rectIntersection:()=>[],pointerWithin:()=>[],useDraggable:()=>({setNodeRef(){},setActivatorNodeRef(){},attributes:{},listeners:{},isDragging:false}),useDroppable:()=>({setNodeRef(){},isOver:false}),useSensor(sensor,options){if(sensor===dnd.KeyboardSensor)keyboardOptions=options;},useSensors:()=>[]};
   let projectRemoved=false,disconnectFirstWrite=true;
   const componentState={...state,WorkBoardController:class extends state.WorkBoardController {
     constructor(transport){super(async(method,args)=>{const page=await transport(method,args);if(method==='change_work_item'&&disconnectFirstWrite){disconnectFirstWrite=false;throw Error('receipt connection closed');}return projectRemoved?{...page,projects:[],items:page.items.map(item=>({...item,project_id:'',project_name:'',version:item.version+1}))}:page;});}
@@ -98,6 +98,12 @@ test('real component creates, moves, archives, restores and preserves its edit f
     './schedule-week':{ScheduleWeekPane:props=>{weekProps=props;return null;}},
     './Markdown':{Markdown:({text})=>React.createElement('p',{},text)},'./work-board.css':{},'@dnd-kit/core':dnd,'framer-motion':{motion:{article:wrapper('article')},useReducedMotion:()=>true}});
   let view;await act(async()=>{view=create(React.createElement(WorkBoardPane,{info:null,debug:true,onOpen(){throw Error('real navigation forbidden');}}));});
+  const keyboardContext={over:{id:'todo'},droppableRects:new Map([['doing',{left:300,top:50,width:250,height:300}]]),collisionRect:{width:220,height:200}};
+  assert.deepEqual(keyboardOptions.coordinateGetter({code:'ArrowRight',preventDefault(){}},{context:keyboardContext,currentCoordinates:{x:20,y:90}}),{x:315,y:100});
+  assert.equal(keyboardOptions.coordinateGetter({code:'ArrowLeft',preventDefault(){}},{context:keyboardContext,currentCoordinates:{x:20,y:90}}),undefined);
+  assert.equal(keyboardOptions.scrollBehavior,'auto');
+  const wrapped={...keyboardContext,over:{id:'doing'},droppableRects:new Map([['review',{left:0,top:500,width:250,height:220}]])};
+  assert.deepEqual(keyboardOptions.coordinateGetter({code:'ArrowRight',preventDefault(){}},{context:wrapped,currentCoordinates:{x:315,y:100}}),{x:15,y:510});
   const button=label=>view.root.findAllByType('button').find(b=>(b.children||[]).join('')===label);
   act(()=>button('＋ 新增事项').props.onClick());
   await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));

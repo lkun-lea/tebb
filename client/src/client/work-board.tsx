@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin,
-  useDraggable, useDroppable, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
-import { motion, useReducedMotion } from 'framer-motion';
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin, rectIntersection,
+  useDraggable, useDroppable, useSensor, useSensors, type CollisionDetection, type KeyboardCoordinateGetter, type Modifier } from '@dnd-kit/core';
+import { motion } from 'framer-motion';
+import { DRAG_DROP, DRAG_SPRING } from './drag-motion';
+import { useUiReducedMotion } from './use-ui-reduced-motion';
 import { rpc, type BackendInfo } from './api';
 import { usePageActive } from './page-stack';
 import { Markdown } from './Markdown';
@@ -16,16 +18,33 @@ const ScheduleWeekPane=lazy(()=>import('./schedule-week').then(module=>({default
 type Props={info:BackendInfo|null;debug?:boolean;onOpen:(conversation:string)=>Promise<void>|void;target?:{id:string;nonce:number}|null;onCalendar?:(target:ScheduleTarget)=>void};
 const priorities={high:'高',normal:'中',low:'低'};
 const blank=():WorkFields=>({title:'',description:'',project_id:'',priority:'normal',due:'',agent_id:'tebb'});
-const collision:CollisionDetection=args=>{const hits=pointerWithin(args);return hits.length?hits:closestCenter(args);};
+const collision:CollisionDetection=args=>{
+  const hits=pointerWithin(args);if(hits.length)return hits;
+  const intersections=rectIntersection(args);return intersections.length?intersections:closestCenter(args);
+};
+const keepKeyboardOverlayVisible:Modifier=({transform,overlayNodeRect,windowRect})=>{
+  if(!overlayNodeRect||!windowRect)return transform;
+  return {...transform,
+    x:Math.max(8-overlayNodeRect.left,Math.min(windowRect.width-8-overlayNodeRect.right,transform.x)),
+    y:Math.max(8-overlayNodeRect.top,Math.min(windowRect.height-8-overlayNodeRect.bottom,transform.y))};
+};
+const keyboardCoordinates:KeyboardCoordinateGetter=(event,{context})=>{
+  if(!['ArrowLeft','ArrowRight'].includes(event.code))return;
+  event.preventDefault();
+  const state=String(context.over?.id||context.active?.data.current?.state||'');
+  const next=WORK_STATES[WORK_STATES.findIndex(([id])=>id===state)+(event.code==='ArrowRight'?1:-1)];
+  const rect=next&&context.droppableRects.get(next[0]);
+  if(rect)return {x:rect.left+(rect.width-(context.collisionRect?.width||0))/2,y:rect.top+(rect.height-(context.collisionRect?.height||0))/2};
+};
 
 function ItemCard({item,controller,onSelect,onMove,onSchedule,overlay=false}:{item:WorkItem;controller:WorkBoardController;onSelect:()=>void;onMove:(id:string,state:WorkState)=>void;onSchedule:(item:WorkItem)=>void;overlay?:boolean}) {
   const drag=useDraggable({id:overlay?'overlay:'+item.id:item.id,data:{state:item.state},disabled:overlay||item.archived||controller.uncertain.has(item.id)});
-  const reduce=useReducedMotion();
+  const reduce=useUiReducedMotion();
   const linked=item.links.map(link=>controller.page.runs.find(run=>run.id===link.id)).filter(Boolean) as WorkRun[];
   const busy=controller.pending.has(item.id),uncertain=controller.uncertain.has(item.id);
   const arrangement=item.schedules?.next||item.schedules?.previous;
   return <motion.article ref={overlay?undefined:drag.setNodeRef} layout={!overlay&&!drag.isDragging&&!reduce}
-    transition={{duration:reduce?0:.18}} className={`wb-card${drag.isDragging?' wb-lifted':''}${overlay?' wb-ghost':''}`}
+    transition={reduce?{duration:0}:DRAG_SPRING} className={`wb-card${drag.isDragging?' wb-lifted':''}${overlay?' wb-ghost':''}`}
     data-work-card={item.id} data-state={item.state} aria-label={`${item.title}，${workStateLabel(item.state)}`}>
     <div className="wb-card-top"><span className="wb-project">▱ {item.project_name||'未归属'}</span>
       {!overlay&&<button type="button" className="wb-grip" ref={drag.setActivatorNodeRef} {...drag.listeners} {...drag.attributes}
@@ -52,7 +71,7 @@ function Column({state,label,children,count,settled}:{state:WorkState;label:stri
 }
 
 export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props) {
-  const active=usePageActive(),reduce=useReducedMotion();
+  const active=usePageActive(),reduce=useUiReducedMotion();
   const demo=useMemo(()=>debug?demoWorkTransport():null,[debug]);
   const controller=useMemo(()=>new WorkBoardController(demo||(async(method,args)=>{
     if(!info)throw Error('后端尚未连接。');return rpc<WorkPage>(info,method,args,{timeoutMs:15000});
@@ -69,9 +88,10 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   const draftBase=useRef('');
   const formRequest=useRef('');const formRoot=useRef<HTMLElement|null>(null);
   const moveFocus=useRef('');
+  const keyboardDragging=useRef(false);
   useEffect(()=>{if(!moveFocus.current)return;const label=moveFocus.current;moveFocus.current='';[...document.querySelectorAll<HTMLElement>('.work-board select,.work-board .wb-grip')].find(node=>node.getAttribute('aria-label')===label)?.focus();});
   function move(id:string,state:WorkState){const label=document.activeElement?.getAttribute('aria-label')||'';if(label.startsWith('移动 ')||label.startsWith('拖动 '))moveFocus.current=label;void controller.move(id,state);}
-  const dragSensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}),useSensor(KeyboardSensor));
+  const dragSensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}),useSensor(KeyboardSensor,{coordinateGetter:keyboardCoordinates,scrollBehavior:reduce?'auto':'smooth'}));
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();const timer=window.setInterval(()=>{if(!controller.loading)void controller.load();},5000);return()=>window.clearInterval(timer);},[active,controller,info,debug]);
   const item=controller.items.find(i=>i.id===selected);
@@ -126,14 +146,18 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
     {!controller.loaded&&controller.loading&&<UiFeedback state="loading" title="正在读取事项…"/>}
     {controller.loaded&&!visible.length&&<UiFeedback state={query||project!=='all'||archived?'no_results':'empty'} title={query||project!=='all'||archived?'当前筛选没有匹配事项':'还没有事项'}>可调整筛选，或用「新增事项」开始。</UiFeedback>}
     <DndContext sensors={dragSensors} collisionDetection={collision}
-      accessibility={{screenReaderInstructions:{draggable:'按空格抓起，方向键移动，空格放下，Escape 取消。也可使用卡片底部的移至菜单。'},announcements:{
+      accessibility={{screenReaderInstructions:{draggable:'按空格抓起，左右方向键移动一列，空格放下，Escape 取消。也可使用卡片底部的移至菜单。'},announcements:{
         onDragStart:()=> '已抓起事项。',onDragOver:({over})=>over?`目标：${workStateLabel(String(over.id))}`:'请选择目标列。',
         onDragEnd:({over})=>over?`已放入${workStateLabel(String(over.id))}，正在保存。`:'移动已取消。',onDragCancel:()=> '移动已取消。'}}}
-      onDragStart={event=>setDragging(String(event.active.id))} onDragCancel={()=>setDragging(null)}
+      onDragStart={event=>{keyboardDragging.current=event.activatorEvent.type==='keydown';setDragging(String(event.active.id));}} onDragCancel={()=>setDragging(null)}
+      onDragOver={event=>{if(event.activatorEvent.type==='keydown'&&event.over){
+        const column=[...document.querySelectorAll<HTMLElement>('[data-work-column]')].find(node=>node.dataset.workColumn===String(event.over!.id));
+        column?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+      }}}
       onDragEnd={event=>{setDragging(null);if(event.over)move(String(event.active.id),String(event.over.id) as WorkState);}}>
       <div className="wb-columns">{WORK_STATES.map(([state,label])=><Column key={state} state={state} label={label} settled={controller.loaded} count={visible.filter(item=>item.state===state).length}>
         {visible.filter(item=>item.state===state).map(item=><ItemCard key={item.id} item={item} controller={controller} onMove={move} onSchedule={openSchedule} onSelect={()=>guardDraft(()=>{setSelected(item.id);setDraft(null);setFormError('');})}/>)}</Column>)}</div>
-      <DragOverlay dropAnimation={reduce?null:{duration:180,easing:'ease-out'}}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onMove={move} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
+      <DragOverlay modifiers={keyboardDragging.current?[keepKeyboardOverlayVisible]:undefined} dropAnimation={reduce?null:DRAG_DROP}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onMove={move} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
     </DndContext>
     <footer className="wb-footer"><span>{visible.length} 件{archived?'已归档':''}事项 · 四阶段工作流</span><span role="status" aria-live="polite">{controller.notice}</span></footer>
     {drawer&&<><div className="wb-shade" onClick={close}/><aside className="wb-detail" role="dialog" aria-modal="true" aria-label={draft?'编辑事项':'事项详情'} ref={formRoot}

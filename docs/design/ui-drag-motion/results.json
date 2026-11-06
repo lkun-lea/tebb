@@ -1,0 +1,178 @@
+{
+  "runtime": "Windows Chromium headless 1228, 1440x1000, real App debug=work, synthetic transports",
+  "checks": [
+    {
+      "name": "dark board Escape restores original column"
+    },
+    {
+      "name": "dark rapid board regrab keeps newest destination",
+      "dropCount": 2,
+      "duration": 500
+    },
+    {
+      "name": "dark keyboard moves one column per arrow"
+    },
+    {
+      "name": "dark splitter follows directly and Escape restores width/focus"
+    },
+    {
+      "name": "dark splitter edge snap is monotone",
+      "samples": [
+        289,
+        282,
+        280,
+        280,
+        280,
+        280,
+        280,
+        280
+      ]
+    },
+    {
+      "name": "dark real calendar rendered"
+    },
+    {
+      "name": "dark calendar focused Escape removes preview and preserves time"
+    },
+    {
+      "name": "dark calendar move saves new time",
+      "before": "阅读与笔记，2026-11-06 16:00 → 2026-11-06 17:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "dark native resize Escape immediately restores original geometry"
+    },
+    {
+      "name": "dark native resize saves confirmed duration",
+      "before": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:30。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "dark calendar keyboard cancellation preserves confirmed time"
+    },
+    {
+      "name": "light board Escape restores original column"
+    },
+    {
+      "name": "light rapid board regrab keeps newest destination",
+      "dropCount": 2,
+      "duration": 500
+    },
+    {
+      "name": "light keyboard moves one column per arrow"
+    },
+    {
+      "name": "light splitter follows directly and Escape restores width/focus"
+    },
+    {
+      "name": "light splitter edge snap is monotone",
+      "samples": [
+        290,
+        283,
+        281,
+        280,
+        280,
+        280,
+        280,
+        280
+      ]
+    },
+    {
+      "name": "light real calendar rendered"
+    },
+    {
+      "name": "light calendar focused Escape removes preview and preserves time"
+    },
+    {
+      "name": "light calendar move saves new time",
+      "before": "阅读与笔记，2026-11-06 16:00 → 2026-11-06 17:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "light native resize Escape immediately restores original geometry"
+    },
+    {
+      "name": "light native resize saves confirmed duration",
+      "before": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:00。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。",
+      "after": "阅读与笔记，2026-11-06 15:00 → 2026-11-06 16:30。长按拖动；空格开始键盘调整，方向键移动，Enter保存，Escape取消。"
+    },
+    {
+      "name": "light calendar keyboard cancellation preserves confirmed time"
+    },
+    {
+      "name": "system reduced motion disables drop animation"
+    },
+    {
+      "name": "system reduced motion sets splitter width immediately"
+    },
+    {
+      "name": "system reduced calendar cancels without settling animation"
+    },
+    {
+      "name": "manual reduced motion disables drop animation"
+    },
+    {
+      "name": "manual reduced motion sets splitter width immediately"
+    },
+    {
+      "name": "manual reduced calendar cancels without settling animation"
+    },
+    {
+      "name": "forced colors keyboard focus",
+      "outline": "solid"
+    },
+    {
+      "name": "600px viewport has no document overflow"
+    },
+    {
+      "name": "600px keyboard navigation crosses wrapped rows"
+    }
+  ],
+  "errors": [],
+  "audits": [
+    {
+      "theme": "dark",
+      "state": "board-held",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "calendar-settled",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "board-held",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "calendar-settled",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    }
+  ],
+  "sources_sha256": {
+    "client/src/client/drag-motion.ts": "ee73f7a489e9ae56566b536c5f37eaeb76ee10e777f36d91efc709ceeee21629",
+    "client/src/client/use-ui-reduced-motion.ts": "f94e0a396c53aa945ba82129d7fed58b28543e2aa249ffbb1cecd36037595abc",
+    "client/src/client/use-workspace-resize.ts": "b5405fc2c3c863bed0756bc566aaab92158e50d410d2ec97199dd7a2cc6dfc2d",
+    "client/src/client/work-board.tsx": "bf6f1e54943ef044c271094763e15d5675560a696093355815e03889e7c10aa2",
+    "client/src/client/work-board.css": "813561be5c3483695c838a25f26ba3f6f3ad63dee0a8d90042dff2d5c96b317e",
+    "client/src/client/calendar-drag.tsx": "0d33877c14caed1329462e89a76be30a53443856e737b397d183748f16a5b417",
+    "client/src/client/calendar-interaction.css": "c66dfdd50e658861490992b9b31f6ba7927ab90d3b5c5f547ec60bb9b42e40b3",
+    "client/src/client/schedule-week.tsx": "3df6200d2cc596b093ddb78716217709399d7af3fc3cfaa9594d0215a4d039b7",
+    "client/src/client/side-workspace.tsx": "0f01a11b50371812f5f2dd8236184f92b0ebe0403559a31bec30027ed98574d8"
+  },
+  "browser_configuration": "Temporary Vite config, same client source, automatic JSX, separate dependency cache and watch:null; http://127.0.0.1:1428/client.html?debug=work. Default watcher stalled during this session; its cause is not established."
+}

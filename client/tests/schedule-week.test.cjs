@@ -233,6 +233,14 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   act(()=>listeners.get('keydown')({key:'Escape',preventDefault(){}}));
   await act(async()=>calendarProps.eventDrop({oldEvent:{extendedProps:{source:current}},event:{start:new Date(time('11:00')),end:new Date(time('12:00'))},revert:()=>reverted++}));
   assert.equal(reverted,1);assert.equal(writes,0);await act(async()=>{calendarProps.eventDragStop();await new Promise(r=>setTimeout(r,5));});
+  // A prior stop's queued cleanup cannot erase cancellation of a rapid new resize.
+  act(()=>{calendarProps.eventResizeStart();calendarProps.eventResizeStop();calendarProps.eventResizeStart();});
+  await act(async()=>{await new Promise(r=>setTimeout(r,5));});
+  act(()=>listeners.get('keydown')({key:'Escape',preventDefault(){}}));
+  assert.match(view.root.findByProps({'data-week-view':true}).props.className,/sw-cancelled/);
+  await act(async()=>calendarProps.eventResize({oldEvent:{extendedProps:{source:current}},event:{start:new Date(time('09:00')),end:new Date(time('12:00'))},revert:()=>reverted++}));
+  assert.equal(reverted,2);assert.equal(writes,0);
+  await act(async()=>{calendarProps.eventResizeStop();await new Promise(r=>setTimeout(r,5));});
   let selectedDay;await act(async()=>view.update(React.createElement(Week,{info:null,transport,target:{day},view:'month',onViewDay:date=>selectedDay=date,onClose(){},onReturn(){},onDay(){},onChange(){}})));
   assert.equal(calendarProps.initialView,'dayGridMonth');assert.equal(calendarProps.fixedWeekCount,false);assert.equal(calendarProps.eventAllow({},{extendedProps:{source:current}}),false);
   act(()=>calendarProps.navLinkDayClick(new Date(time('09:00'))));assert.equal(selectedDay,day);

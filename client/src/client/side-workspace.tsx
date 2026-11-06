@@ -7,6 +7,7 @@ import { rpc, type BackendInfo } from "./api";
 import type { LocalSource } from "./local-sources";
 import type { NoteCite } from "./note";
 import { MaterialCitation } from './material-citation';
+import { useWorkspaceResize } from './use-workspace-resize';
 const ProjectPanel = lazy(() => import("./project-panel").then(module => ({ default: module.ProjectPanel })));
 const TerminalPane = lazy(() => import("./terminal").then(module => ({ default: module.TerminalPane })));
 const ProjectRuntimePane = lazy(() => import("./project-runtime").then(module => ({ default: module.ProjectRuntimePane })));
@@ -33,7 +34,7 @@ export function SideWorkspace(props: { children: ReactNode; info: BackendInfo | 
   const [tabs, setTabs] = useState<Tab[]>([]), [active, setActive] = useState(""), [closed, setClosed] = useState(false);
   const [projectDirty, setProjectDirty] = useState(false);
   const [folderRequest, setFolderRequest] = useState(0);
-  const [width, setWidth] = useState(440), [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState("");
   const [browser, setBrowser] = useState<BrowserState>({ url: "", title: "网页", loading: false }), [address, setAddress] = useState("");
   const [webRequest, setWebRequest] = useState<{ url: string; seq: number } | null>(null);
   const box = useRef<HTMLDivElement>(null), host = useRef<HTMLDivElement>(null), alive = useRef(true), lastWidth = useRef(440);
@@ -42,6 +43,7 @@ export function SideWorkspace(props: { children: ReactNode; info: BackendInfo | 
   const browserVisible = useRef(false), generation = useRef(new Map<string, number>()), timeout = useRef<ReturnType<typeof setTimeout>>();
   const propsRef = useRef(props); propsRef.current = props;
   const current = tabs.find(t => t.id === active), visible = props.enabled && tabs.length > 0 && !closed;
+  const { width, setWidth, handleProps } = useWorkspaceResize(box, visible);
   useEffect(() => { propsRef.current.onVisibilityChange?.({ open: visible, available: props.enabled && tabs.length > 0 }); }, [visible, tabs.length, props.enabled]);
   useEffect(() => {
     const toggle = () => { if(tabsRef.current.length) setClosed(value => !value); };
@@ -134,12 +136,7 @@ export function SideWorkspace(props: { children: ReactNode; info: BackendInfo | 
   const markdown = current?.request.kind === "quote" || !!file && /\.(md|markdown)$/i.test(file.name);
   return <div ref={box} className={`side-workspace ${visible ? "has-preview" : ""}`} style={{ "--preview-width": `${width}px` } as React.CSSProperties} data-side-workspace>
     <div className="workspace-conversation">{props.children}</div>
-    <><button hidden={!visible} style={!visible ? { display: "none" } : undefined} type="button" className="workspace-resize" aria-label="拖动或按左右方向键调整侧栏宽度" onKeyDown={event => { if (["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); setWidth(w => Math.min(680, Math.max(280, w + (event.key === "ArrowLeft" ? 20 : -20)))); } }} onPointerDown={event => {
-      event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId);
-      const handle = event.currentTarget, move = (e: PointerEvent) => { const rect = box.current!.getBoundingClientRect(); setWidth(Math.min(Math.max(280, rect.right - e.clientX), Math.min(680, Math.max(280, rect.width - 386)))); };
-      const end = () => { handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", end); handle.removeEventListener("pointercancel", end); };
-      handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
-    }} />
+    <><button hidden={!visible} style={!visible ? { display: "none" } : undefined} type="button" className="workspace-resize" aria-label="调整侧栏宽度：方向键调整，Home 最窄，End 最宽，拖动中 Escape 撤销" {...handleProps} />
     <aside hidden={!visible} style={!visible ? { display: "none" } : undefined} className="workspace-preview" aria-label="侧边工作区" onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setClosed(true); } }}>
       <header className="workspace-header"><span>侧边工作区</span><div><button className="desk-menu-item" onClick={() => { if (width >= 600) setWidth(lastWidth.current); else { lastWidth.current = width; setWidth(640); } }}>{width >= 600 ? "恢复宽度" : "放大"}</button><button className="desk-menu-item" onClick={() => { setClosed(true); setNotice("侧栏已收起，内容保留。"); }}>收起</button></div></header>
       <div className="workspace-tabs" aria-label="已打开资料">{tabs.map(t => <div key={t.id} className={t.id === active ? "active" : ""}><button className="desk-menu-item" aria-pressed={t.id === active} onClick={() => setActive(t.id)}>{t.title}</button><button className="desk-menu-item" aria-label={`关闭 ${t.title}`} onClick={() => closeTab(t.id)}>×</button></div>)}</div>

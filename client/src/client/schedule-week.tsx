@@ -7,7 +7,8 @@ import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/intera
 import luxonPlugin from '@fullcalendar/luxon3';
 import zhLocale from '@fullcalendar/core/locales/zh-cn';
 import type { EventDropArg, EventInput } from '@fullcalendar/core';
-import { useReducedMotion } from 'framer-motion';
+import { useUiReducedMotion } from './use-ui-reduced-motion';
+import { DRAG_EASING, DRAG_SETTLE_MS } from './drag-motion';
 import { rpc, type BackendInfo } from './api';
 import { UiButton, UiFeedback } from './ui-controls';
 import { DateTimeField } from './datetime-field';
@@ -46,7 +47,7 @@ function annotateEvent(element:HTMLElement,source:CalendarEvent,phase=''){
 }
 
 export function ScheduleWeekPane({info,debug=false,transport,target,revision,onClose,onReturn,onDay,onChange,view='week',closeLabel='返回工作看板',onViewDay,onNavigationGuard,extraActions,viewTabs}:Props){
-  const active=usePageActive(),reduce=useReducedMotion();
+  const active=usePageActive(),reduce=useUiReducedMotion();
   const lastBlankClick=useRef<{start:string;at:number}|null>(null),blankDoubleTimer=useRef<number|undefined>();
   const root=useRef<HTMLElement|null>(null),calendar=useRef<FullCalendar|null>(null),details=useRef<HTMLElement|null>(null);
   const draftRoot=useRef<HTMLDivElement|null>(null);
@@ -64,6 +65,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const dragPointer=useRef<{x:number;y:number}|null>(null),grabOffset=useRef(0);
   const draggedRange=useRef<TimeDraft|null>(null);
   const cancelPointer=useRef(false),pointerActive=useRef(false),keyboardRef=useRef(keyboard);keyboardRef.current=keyboard;
+  const pointerGeneration=useRef(0);
   const locateInitial=useRef(!!target.event_id),changes=useRef(onChange);changes.current=onChange;
   const [version,redraw]=useReducer(value=>value+1,0);
   const wire=useMemo(()=>transport||((method:string,args:Record<string,unknown>)=>{
@@ -122,7 +124,9 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     const cancel=(e:globalThis.KeyboardEvent)=>{if(e.key==='Escape'&&pointerActive.current){
       cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('已取消拖动，未发送修改。');e.preventDefault();
     }};
-    document.addEventListener?.('keydown',cancel,true);return()=>document.removeEventListener?.('keydown',cancel,true);
+    const interrupted=()=>{if(pointerActive.current){cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('拖动已中断，未发送修改。');}};
+    document.addEventListener?.('keydown',cancel,true);document.addEventListener?.('pointercancel',interrupted,true);window.addEventListener?.('blur',interrupted);
+    return()=>{document.removeEventListener?.('keydown',cancel,true);document.removeEventListener?.('pointercancel',interrupted,true);window.removeEventListener?.('blur',interrupted);};
   },[active]);
   useEffect(()=>{if(!active)return;const move=(e:PointerEvent)=>{if(pointerActive.current)dragPointer.current={x:e.clientX,y:e.clientY};};document.addEventListener?.('pointermove',move,true);return()=>document.removeEventListener?.('pointermove',move,true);},[active]);
   function guard(next:()=>void){if(local.busy)return;if(local.unknown&&draft){setDraftError('保存结果尚未确认，请先读取原编号核对，不能当作未保存草稿丢弃。');return;}if(dirty)setLeave(()=>next);else {lastBlankClick.current=null;if(keyboardRef.current)controller.endInteraction();setForm(null);setPicker(null);setKeyboard(null);setDraft(null);next();}}
@@ -148,11 +152,13 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     if(source.calendar_id==='tebb-draft'){setDraft(previous=>previous?{...previous,start:beijingStamp(draft.start),end:beijingStamp(draft.end)}:previous);pulse();return;}
     void apply(source,draft);
   }
-  function startPointer(){controller.beginInteraction();cancelPointer.current=false;pointerActive.current=true;setPointerCancelled(false);setKeyboard(null);}
-  function stopPointer(){controller.endInteraction();draggedRange.current=null;window.setTimeout(()=>{pointerActive.current=false;cancelPointer.current=false;setPointerCancelled(false);},0);}
+  function startPointer(){pointerGeneration.current++;controller.beginInteraction();cancelPointer.current=false;pointerActive.current=true;setPointerCancelled(false);setKeyboard(null);}
+  function stopPointer(){const generation=pointerGeneration.current;controller.endInteraction();draggedRange.current=null;window.setTimeout(()=>{if(generation!==pointerGeneration.current)return;pointerActive.current=false;cancelPointer.current=false;setPointerCancelled(false);},0);}
   function keyboardMove(e:KeyboardEvent<HTMLElement>){
     if(e.key==='Escape'){
-      if(pointerActive.current){cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('已取消拖动，未发送修改。');e.preventDefault();e.stopPropagation();return;}
+      if(pointerActive.current){cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('已取消拖动，未发送修改。');e.preventDefault();
+        // Custom dnd-kit gestures must receive Escape at their document listener.
+        if(!draggedRange.current)e.stopPropagation();return;}
       if(keyboardRef.current){controller.endInteraction();setKeyboard(null);setAnnouncement('已取消键盘调整，未发送修改。');e.preventDefault();e.stopPropagation();return;}
       if(picker){setPicker(null);e.stopPropagation();return;}
       if(draft||detailsOpen){guard(()=>{setDraft(null);setDetailsOpen(false);});e.preventDefault();e.stopPropagation();return;}
@@ -311,7 +317,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       slotLabelInterval="01:00:00" slotLabelFormat={{hour:'2-digit',minute:'2-digit',hour12:false}} eventTimeFormat={{hour:'2-digit',minute:'2-digit',hour12:false}}
       fixedWeekCount={false} dayMaxEvents={3} moreLinkClick="popover" navLinks={view==='month'} navLinkDayClick={date=>guard(()=>onViewDay?.(beijingDay(date.toISOString())))}
       dayHeaderFormat={view==='month'?{weekday:'long'}:{weekday:'short',month:'numeric',day:'numeric'}} events={events} editable={view!=='month'} eventResizableFromStart eventOverlap slotEventOverlap={false}
-      eventDragMinDistance={6} dragRevertDuration={reduce?0:160} dragScroll={!reduce} nowIndicator eventMinHeight={0} eventShortHeight={28} eventLongPressDelay={250}
+      eventDragMinDistance={6} dragRevertDuration={reduce?0:DRAG_SETTLE_MS} dragScroll={!reduce} nowIndicator eventMinHeight={0} eventShortHeight={28} eventLongPressDelay={250}
       eventAllow={(drop,dragged)=>{const source=dragged?.extendedProps?.source as CalendarEvent|undefined;return view!=='month'&&!!source&&!cancelPointer.current&&!drop.allDay&&(source.calendar_id==='tebb-draft'||timeEditable(source))&&!controller.blocked(calendarKey(source))&&(!dirty||source.calendar_id==='tebb-draft')
         &&!validTimeDraft(source,pointerTimeDraft(source,{start:drop.start.toISOString(),end:drop.end.toISOString()}));}}
       eventDragStart={startPointer} eventResizeStart={startPointer} eventDragStop={stopPointer} eventResizeStop={stopPointer} eventDrop={changed} eventResize={changed}
@@ -319,6 +325,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         if(arg.allDay&&view!=='month'){lastBlankClick.current=null;return;}
         lastBlankClick.current={start:arg.allDay?arg.dateStr+'T09:00:00+08:00':arg.date.toISOString(),at:arg.jsEvent.timeStamp};}}
       eventDidMount={arg=>{arg.el.dataset.weekEvent=arg.event.id;arg.el.setAttribute('role','button');arg.el.setAttribute('tabindex','0');const source=arg.event.extendedProps.source as CalendarEvent;
+        // FullCalendar clones the source for its revert mirror. Keep its top/left ownership.
+        arg.el.style.setProperty('transition-timing-function',DRAG_EASING,'important');
         annotateEvent(arg.el,source);}}
       eventContent={arg=>{const preview=arg.isMirror&&arg.event.start&&arg.event.end?pointerTimeDraft(arg.event.extendedProps.source as CalendarEvent,{start:arg.event.start.toISOString(),end:arg.event.end.toISOString()}):null;
         const source=arg.event.extendedProps.source as CalendarEvent;if(!source)return null;
