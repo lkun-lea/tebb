@@ -205,8 +205,8 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   global.crypto=require('node:crypto').webcrypto;
   global.window={setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout,localStorage:memory()};
   const listeners=new Map();global.document={addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)};
-  let calendarProps,closed=false,writes=0;
-  const Calendar=React.forwardRef((props,ref)=>{calendarProps=props;React.useImperativeHandle(ref,()=>({getApi:()=>({changeView(){},updateSize(){}})}));return React.createElement('div',{'data-calendar-stub':true});});
+  let calendarProps,closed=false,writes=0;const navigations=[],editorFocus=[];let editorScrolls=0;
+  const Calendar=React.forwardRef((props,ref)=>{calendarProps=props;React.useImperativeHandle(ref,()=>({getApi:()=>({changeView:(...args)=>navigations.push(args),updateSize(){}})}));return React.createElement('div',{'data-calendar-stub':true});});
   const Week=load('schedule-week.tsx',{'./calendar-proposal-state':load('calendar-proposal-state.ts'),'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,'./schedule-week.css':{},
     './calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
     './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
@@ -216,7 +216,7 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
     'framer-motion':{useReducedMotion:()=>true},'./datetime-field':{DateTimeField:props=>React.createElement('input',{'aria-label':props.marker,value:props.value,onChange:e=>props.onChange(e.target.value)})}}).ScheduleWeekPane;
   const current=event();let view;
   const transport=async(method,args)=>{if(method==='load_local_calendar')return {ok:true,events:[],operations:[],batches:[]};if(method==='load_schedule_week'||method==='load_schedule_month')return page([current]);if(method==='inspect_schedule_event')return {ok:true,event:current};writes++;return receipt(args.action,{...current,start:args.action.start,end:args.action.end});};
-  await act(async()=>{view=create(React.createElement(Week,{info:null,transport,target:{day},onClose:()=>closed=true,onReturn(){},onDay(){},onChange(){}}));});
+  await act(async()=>{view=create(React.createElement(Week,{info:null,transport,target:{day},onClose:()=>closed=true,onReturn(){},onDay(){},onChange(){}}),{createNodeMock:node=>node.props.className==='sw-editor-anchor'?{scrollIntoView(){editorScrolls++;},querySelector:()=>({focus:options=>editorFocus.push(options)})}:null});});
   assert.equal(calendarProps.slotMinTime,'00:00:00');assert.equal(calendarProps.slotMaxTime,'24:00:00');assert.equal(calendarProps.timeZone,'Asia/Shanghai');assert.equal(calendarProps.snapDuration,'00:15:00');assert.equal(calendarProps.eventResizableFromStart,true);
   const button=label=>view.root.findAllByType('button').find(b=>b.children.join('')===label);
   act(()=>calendarProps.eventClick({jsEvent:{preventDefault(){}},event:{id:'cal/event_0'}}));
@@ -259,5 +259,10 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
     assert.equal(view.root.findAllByProps({'data-editor':true}).length,0);assert.equal(view.root.findAllByProps({role:'alertdialog'}).length,0);
   }
   assert.equal(writes,0);
+  assert.equal(editorScrolls,0,'floating editors must not scroll the calendar');assert(editorFocus.length>0&&editorFocus.every(options=>options.preventScroll));
+  await act(async()=>view.update(React.createElement(Week,{info:null,transport,target:{day},view:'week',onClose(){},onReturn(){},onDay(){},onChange(){}})));
+  const beforeNavigation=navigations.length,nextDay=shared.addCalendarDays(shared.calendarWeekStart(day),2);
+  await act(async()=>{calendarProps.eventDrop({oldEvent:{extendedProps:{source:current}},event:{start:new Date(nextDay+'T11:00:00+08:00'),end:new Date(nextDay+'T12:00:00+08:00')},revert(){throw Error('valid same-week move must not revert');}});await new Promise(r=>setTimeout(r,5));});
+  assert.equal(writes,1);assert.equal(navigations.length,beforeNavigation,'saving within the displayed week must not rebuild the view');
   act(()=>view.unmount());
 });

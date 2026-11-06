@@ -74,6 +74,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const controller=useMemo(()=>new ScheduleWeekController(wire,target.day||beijingDay(),typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[wire]);
   const local=useMemo(()=>new LocalCalendarController(wire,typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[wire]);
   const monday=calendarWeekStart(day);
+  const viewStart=view==='week'?monday:view==='month'?day.slice(0,7)+'-01':day;
   useEffect(()=>{lastBlankClick.current=null;return()=>{if(blankDoubleTimer.current!==undefined)window.clearTimeout(blankDoubleTimer.current);};},[view,day]);
   const event=controller.event(selected),owner=controller.page.links.find(link=>calendarKey(link.event)===selected);
   const item=controller.page.items.find(i=>i.id===owner?.item_id);
@@ -95,7 +96,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     const timer=window.setInterval(()=>{if(!controller.loading)void controller.read(day);},5000);return()=>{live=false;window.clearInterval(timer);};},[active,controller,monday,view,day.slice(0,7)]);
   useEffect(()=>{if(active&&revision!==undefined)void controller.read(day);},[active,controller,revision]);
   useEffect(()=>{if(!root.current||typeof ResizeObserver==='undefined')return;const observer=new ResizeObserver(entries=>setPaneWidth(entries[0].contentRect.width));observer.observe(root.current);return()=>observer.disconnect();},[]);
-  useEffect(()=>{calendar.current?.getApi().changeView(view==='month'?'dayGridMonth':view==='day'?'timeGridDay':'timeGridWeek',day);},[day,view]);
+  useEffect(()=>{calendar.current?.getApi().changeView(view==='month'?'dayGridMonth':view==='day'?'timeGridDay':'timeGridWeek',viewStart);},[viewStart,view]);
   useEffect(()=>{if(active)void controller.prepareVisible();},[active,controller,controller.page.checked_at,controller.page.events]);
   useEffect(()=>{root.current?.querySelectorAll<HTMLElement>('[data-week-event]').forEach(element=>{
     const key=element.dataset.weekEvent||'',source=controller.event(key),pending=controller.pending.get(key);
@@ -112,11 +113,13 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     void controller.inspect(source).then(()=>{const current=controller.event(selected);if(live&&current&&locateInitial.current){locateInitial.current=false;setDay(safeDay(current,day));setLocateCount(n=>n+1);}});
     return()=>{live=false;};
   },[active,controller,selected,controller.page.checked_at]);
-  useEffect(()=>{if(!locateCount)return;const id=window.requestAnimationFrame?.(()=>{const element=[...(root.current?.querySelectorAll<HTMLElement>('[data-week-event]')||[])].find(node=>node.dataset.weekEvent===selected);element?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});element?.focus({preventScroll:true});});return()=>{if(id!==undefined)window.cancelAnimationFrame?.(id);};},[locateCount,narrow,day,reduce]);
+  // One explicit locate request gets one scroll. Saving a drag must not replay an old request.
+  useEffect(()=>{if(!locateCount)return;const id=window.requestAnimationFrame?.(()=>{const element=[...(root.current?.querySelectorAll<HTMLElement>('[data-week-event]')||[])].find(node=>node.dataset.weekEvent===selected);element?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});element?.focus({preventScroll:true});});return()=>{if(id!==undefined)window.cancelAnimationFrame?.(id);};},[locateCount]);
   useEffect(()=>{if(!draft)return;const previous=document.activeElement as HTMLElement|null;
-    draftRoot.current?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});
+    // Desktop editors are already placed inside the viewport by positionPopover.
+    if(narrow)draftRoot.current?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});
     draftRoot.current?.querySelector<HTMLElement>('input')?.focus({preventScroll:true});
-    return()=>{if(previous?.isConnected)previous.focus();};},[!!draft,narrow,reduce]);
+    return()=>{if(previous?.isConnected)previous.focus({preventScroll:true});};},[!!draft,narrow,reduce]);
   useEffect(()=>{if(!leave)return;const previous=document.activeElement as HTMLElement|null;root.current?.querySelector<HTMLElement>('[role=alertdialog] button')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[!!leave]);
   useEffect(()=>{
     if(!active)return;
