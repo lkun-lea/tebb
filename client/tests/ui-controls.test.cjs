@@ -2,6 +2,15 @@ const {test}=require('node:test');const assert=require('node:assert/strict');
 const React=require('react');const {act,create}=require('react-test-renderer');const load=require('./load-client.cjs');
 const {UiButton,UiField,UiFeedback}=load('ui-controls.tsx');
 const text=node=>typeof node==='string'?node:(node.children||[]).map(text).join('');
+test('stable text keeps a non-announced reference and preserves the visible node across status changes',()=>{
+ const {UiStableText}=load('ui-controls.tsx');let view;
+ const render=value=>React.createElement(UiStableText,{reserve:'完整的操作说明'},value);
+ act(()=>{view=create(render('正在保存'));});
+ const spans=view.root.findAllByType('span'),reference=spans.find(n=>n.props['aria-hidden']==='true'),visible=spans.at(-1);
+ assert.equal(reference.children[0],'完整的操作说明');assert.equal(visible.children[0],'正在保存');
+ act(()=>view.update(render('已保存')));assert.equal(view.root.findAllByType('span').at(-1),visible);assert.equal(visible.children[0],'已保存');assert.equal(view.root.findAllByType('span').filter(n=>n.props['aria-hidden']==='true').length,1);
+ act(()=>view.unmount());
+});
 
 test('busy shared button has visible text, native disabled semantics and no invented retry action',()=>{
  let view;act(()=>{view=create(React.createElement(UiButton,{busy:true,busyLabel:'正在保存原操作…'},'保存'));});

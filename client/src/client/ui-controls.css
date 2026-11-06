@@ -1,4 +1,7 @@
 /* Shared controls own appearance and state; pages own geometry and business state. */
+.ui-stable-text { display: grid; min-width: 0; }
+.ui-stable-text>span { grid-area: 1 / 1; min-width: 0; }
+.ui-stable-text>[aria-hidden=true] { visibility: hidden; pointer-events: none; user-select: none; }
 .desk-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 32px; padding: 7px 12px; border: 0; border-radius: var(--ui-radius);

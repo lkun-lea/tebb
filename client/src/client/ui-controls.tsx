@@ -22,6 +22,10 @@ export function UiField({ label, help, error, children }: { label: ReactNode; he
 }
 
 export type FeedbackState = 'loading' | 'empty' | 'no_results' | 'success' | 'error' | 'conflict' | 'unconfirmed';
+// Reserve the reference copy's natural size at the current width/font without measuring height.
+export function UiStableText({ reserve, children }: { reserve: string; children: ReactNode }) {
+  return <span className="ui-stable-text"><span aria-hidden="true">{reserve}</span><span>{children}</span></span>;
+}
 export function UiFeedback({ state, title, children, className = '' }: { state: FeedbackState; title: string; children?: ReactNode; className?: string }) {
   const alert = state === 'error' || state === 'conflict' || state === 'unconfirmed';
   return <section className={`ui-feedback ${className}`} data-ui-feedback={state} role={alert ? 'alert' : 'status'} aria-busy={state === 'loading' || undefined}>

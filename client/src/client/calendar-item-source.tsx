@@ -1,7 +1,9 @@
 import { useDraggable } from '@dnd-kit/core';
 import { useState } from 'react';
 import type { CalendarItem, CalendarDragSource } from './calendar-drag';
+import { UiStableText } from './ui-controls';
 import './calendar-item-source.css';
+const itemHelp='拖动抓手放入时间轴，或点击安排时间；保存前都是草稿。';
 
 function ItemCard({item,disabled,onArrange}:{item:CalendarItem;disabled:boolean;onArrange:(item:CalendarItem)=>void}){
   const drag=useDraggable({id:'work-item/'+item.id,data:{source:{kind:'item',item} satisfies CalendarDragSource},disabled});
@@ -17,7 +19,7 @@ export function CalendarItemSource({items,disabled,loading,onArrange}:{items:Cal
   const available=items.filter(item=>!item.archived),visible=available.filter(item=>item.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   return <aside className="sw-item-source" aria-label="安排事项">
     <header><h2>安排事项</h2><span>{available.length}</span></header>
-    <p>{disabled?'请先结束当前编辑或核对原操作。':'拖动抓手放入时间轴，或点击安排时间；保存前都是草稿。'}</p>
+    <p><UiStableText reserve={itemHelp}>{disabled?'请先结束当前编辑或核对原操作。':itemHelp}</UiStableText></p>
     <label>搜索事项<input type="search" value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索可安排事项" placeholder="按事项标题搜索"/></label>
     {!available.length?<p role="status">{loading?'正在读取事项…':'暂无未归档事项。'}</p>:!visible.length?<p role="status">没有匹配的事项。</p>:<ul>{visible.map(item=><ItemCard key={item.id} item={item} disabled={disabled} onArrange={onArrange}/>)}</ul>}
   </aside>;

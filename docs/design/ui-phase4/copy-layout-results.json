@@ -1,0 +1,455 @@
+{
+  "checks": [
+    {
+      "theme": "light",
+      "width": 1440,
+      "before": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 231
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 231
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1180,
+      "before": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 282.59375
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 282.59375
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "width": 840,
+      "before": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 592.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 592.984375
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "width": 600,
+      "before": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 685.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 685.984375
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "width": 480,
+      "before": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 36,
+          "list": 138.390625,
+          "calendar": 740.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 36,
+          "list": 138.390625,
+          "calendar": 740.984375
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "width": 400,
+      "before": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 36,
+          "list": 158.78125,
+          "calendar": 782.96875
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 36,
+          "list": 158.78125,
+          "calendar": 782.96875
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "before": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 231
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 231
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 231
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1180,
+      "before": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 18,
+        "list": 154.78125,
+        "calendar": 282.59375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 282.59375
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 18,
+          "list": 154.78125,
+          "calendar": 282.59375
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 840,
+      "before": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 592.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 592.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 592.984375
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 600,
+      "before": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 18,
+        "list": 138.390625,
+        "calendar": 685.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 685.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 18,
+          "list": 138.390625,
+          "calendar": 685.984375
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 480,
+      "before": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "disabled": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "restored": {
+        "hint": 20.390625,
+        "status": 36,
+        "list": 138.390625,
+        "calendar": 740.984375
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 20.390625,
+          "status": 36,
+          "list": 138.390625,
+          "calendar": 740.984375
+        },
+        "grabbed": {
+          "hint": 20.390625,
+          "status": 36,
+          "list": 138.390625,
+          "calendar": 740.984375
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 400,
+      "before": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "disabled": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "restored": {
+        "hint": 40.78125,
+        "status": 36,
+        "list": 158.78125,
+        "calendar": 782.96875
+      },
+      "keyboard": {
+        "prior": {
+          "hint": 40.78125,
+          "status": 36,
+          "list": 158.78125,
+          "calendar": 782.96875
+        },
+        "grabbed": {
+          "hint": 40.78125,
+          "status": 36,
+          "list": 158.78125,
+          "calendar": 782.96875
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "runtime": "Windows Chromium headless shell 1228; real App debug=work via standard Vite 1432",
+  "before_fix_measurement": {
+    "hint_height": [
+      40.78125,
+      20.390625
+    ],
+    "list_top": [
+      463.78125,
+      443.390625
+    ],
+    "width": 1440
+  },
+  "source_sha256": {
+    "client/src/client/ui-controls.tsx": "2a0fdfa61221ed359c0c1ec262af71f2493d5f5ffad006283dc7067cdaa90312",
+    "client/src/client/ui-controls.css": "c8c423a73758927e9ce956046604b1f26540c9809f22f0637ae553596bf57e62",
+    "client/src/client/calendar-item-source.tsx": "9368970b072fa2159260faaba47fa392d02cb268940bc72d0a5e477f77e91ea9",
+    "client/src/client/schedule-week.tsx": "e2efb0e966c6864546efe8c6cc44c6298e9392534df9f96da6e336ba2ea9de9a"
+  }
+}

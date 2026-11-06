@@ -23,4 +23,6 @@
 
 未增加逐帧回设 scrollTop 的补丁，也没有禁止用户主动定位、跨区间导航或拖到边缘时的正常滚动。
 
+后续人工反馈确认还存在文案换行造成的局部位移：安排事项提示从两行切成一行，列表上移约20px。安排事项提示与日历状态行现使用共享 `UiStableText`，用隐藏、aria-hidden的参考文案与可见文案放在同一Grid格内，自然保留当前宽度/字体下的高度。不测量高度、不回设滚动位置、不截断长消息；超出参考长度的真实信息仍可自然扩展。复现及不同宽度的尺寸验证见 [文案布局修复](design/ui-phase4/COPY_LAYOUT.md)。
+
 验收复用 `debug=work`、内存 transport、完整前端测试和 [原生手动入口](UI_NATIVE_CHECKS.md)。实际记录见 [第四批验收](design/ui-phase4/VERIFICATION.md)。

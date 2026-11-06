@@ -10,7 +10,7 @@ import type { EventDropArg, EventInput } from '@fullcalendar/core';
 import { useUiReducedMotion } from './use-ui-reduced-motion';
 import { DRAG_EASING, DRAG_SETTLE_MS } from './drag-motion';
 import { rpc, type BackendInfo } from './api';
-import { UiButton, UiFeedback } from './ui-controls';
+import { UiButton, UiFeedback, UiStableText } from './ui-controls';
 import { DateTimeField } from './datetime-field';
 import { usePageActive } from './page-stack';
 import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, calendarWeekStart, eventHealth, eventTime,
@@ -32,6 +32,7 @@ type Props={info:BackendInfo|null;debug?:boolean;transport?:WeekTransport;target
   onClose:()=>void;onReturn:(id:string)=>void;onDay:(target:ScheduleTarget)=>void;onChange:()=>void;view?:'month'|'week'|'day';onViewDay?:(day:string)=>void;closeLabel?:string;onNavigationGuard?:(guard:((next:()=>void)=>void)|null)=>void;extraActions?:ReactNode;viewTabs?:ReactNode};
 type Form={key:string;start:string;end:string;summary:string};
 type KeyboardDraft={event:CalendarEvent;draft:TimeDraft};
+const calendarHelp='双击空白新建日程，单击日程查看详情；普通个人日程可长按拖动改期。';
 const sameDraft=(event:CalendarEvent,draft:TimeDraft)=>Date.parse(event.start)===Date.parse(draft.start)&&Date.parse(event.end)===Date.parse(draft.end)&&(draft.summary===undefined||draft.summary===event.summary);
 const safeDay=(event:CalendarEvent,fallback:string)=>{try{return event.start.includes('T')?beijingDay(event.start):event.start||fallback;}catch{return fallback;}};
 function scrollHost(node:HTMLElement):HTMLElement{
@@ -360,7 +361,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         {!controller.pending.has(key)&&<button type="button" disabled={!['confirmed','missing','deleted'].includes(controller.event(key)?.verification||'')||controller.checking.has(key)} onClick={()=>void controller.reconcile(key).then(()=>{changes.current();void controller.inspect(record);})}>以当前已核对状态结束等待</button>}</div>
       {!controller.pending.has(key)&&<p>先读当前时间，再明确结束本轮等待；不会重发改期，也不表示原修改一定未执行。</p>}
     </section>)}</div>}
-    <div className="sw-live" role="status" aria-live="polite">{announcement||controller.notice|| (checking?'正在核对组织者、权限和完整参与人…':'双击空白新建日程，单击日程查看详情；普通个人日程可长按拖动改期。')}</div>
+    <div className="sw-live" role="status" aria-live="polite"><UiStableText reserve={calendarHelp}>{announcement||controller.notice|| (checking?'正在核对组织者、权限和完整参与人…':calendarHelp)}</UiStableText></div>
     <CalendarDragSurface reduce={!!reduce} onPending={pending=>pending?controller.beginInteraction():controller.endInteraction()} onStart={dragStart} project={dragProjection} onCommit={dragCommit} onFinish={cancelled=>{stopPointer();if(cancelled)setAnnouncement('已取消拖动。');}}>
     <div className={`sw-calendar-layout${view!=='month'?' sw-with-items':''}`}>
       {view!=='month'&&<CalendarItemSource items={controller.page.items} disabled={itemDraftBlocked} loading={controller.loading} onArrange={arrangeItem}/>}
