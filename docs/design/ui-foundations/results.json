@@ -1,0 +1,211 @@
+{
+  "runtime": "Windows Chromium headless 1228; Vite debug=work; synthetic data",
+  "checks": [
+    {
+      "name": "dark desktop shared controls",
+      "root": {
+        "background": "rgb(11, 11, 10)",
+        "color": "rgb(234, 234, 230)",
+        "fontWeight": "360",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "none",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0s"
+      },
+      "panel": {
+        "background": "rgb(21, 21, 21)",
+        "color": "rgb(234, 234, 230)",
+        "fontWeight": "360",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "none",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0s"
+      },
+      "focus": {
+        "background": "rgb(26, 26, 25)",
+        "color": "rgb(234, 234, 230)",
+        "fontWeight": "360",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "rgba(234, 234, 230, 0.38) 0px 0px 0px 1px inset, rgba(234, 234, 230, 0.14) 0px 0px 0px 3px",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0.12s, 0.12s"
+      },
+      "invalidStyle": {
+        "background": "rgb(26, 26, 25)",
+        "color": "rgb(234, 234, 230)",
+        "fontWeight": "360",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "rgb(234, 134, 134) 0px 0px 0px 1px inset, rgba(234, 134, 134, 0.14) 0px 0px 0px 3px",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0.12s, 0.12s"
+      }
+    },
+    {
+      "name": "dark real calendar",
+      "visible": true
+    },
+    {
+      "name": "light desktop shared controls",
+      "root": {
+        "background": "rgb(245, 245, 243)",
+        "color": "rgb(39, 39, 37)",
+        "fontWeight": "400",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "none",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0s"
+      },
+      "panel": {
+        "background": "rgb(252, 252, 251)",
+        "color": "rgb(39, 39, 37)",
+        "fontWeight": "400",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "none",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0s"
+      },
+      "focus": {
+        "background": "rgb(238, 238, 236)",
+        "color": "rgb(39, 39, 37)",
+        "fontWeight": "400",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "rgba(39, 39, 37, 0.3) 0px 0px 0px 1px inset, rgba(39, 39, 37, 0.12) 0px 0px 0px 3px",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0.12s, 0.12s"
+      },
+      "invalidStyle": {
+        "background": "rgb(238, 238, 236)",
+        "color": "rgb(39, 39, 37)",
+        "fontWeight": "400",
+        "numeric": "tabular-nums",
+        "outline": "none",
+        "shadow": "rgb(172, 42, 42) 0px 0px 0px 1px inset, rgba(172, 42, 42, 0.14) 0px 0px 0px 3px",
+        "border": "0px",
+        "wrap": "auto",
+        "transition": "0.12s, 0.12s"
+      }
+    },
+    {
+      "name": "light real calendar",
+      "visible": true
+    },
+    {
+      "name": "600px viewport",
+      "overflow": {
+        "width": 600,
+        "scroll": 600
+      }
+    },
+    {
+      "name": "manual reduced motion",
+      "passed": true
+    },
+    {
+      "name": "reduced motion",
+      "passed": true
+    },
+    {
+      "name": "forced colors",
+      "forced": {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)",
+        "fontWeight": "400",
+        "numeric": "tabular-nums",
+        "outline": "solid",
+        "shadow": "none",
+        "border": "1px",
+        "wrap": "auto",
+        "transition": "0s"
+      }
+    }
+  ],
+  "errors": [],
+  "audits": [
+    {
+      "theme": "dark",
+      "state": "collapsed",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "expanded-focused",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "hover-final",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "dark",
+      "state": "calendar-dialog",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "collapsed",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "expanded-focused",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "hover-final",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "calendar-dialog",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "600px-focused",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+@import './ui-foundations.css';
 @import './ui-controls.css';
 @tailwind base;
 @tailwind components;
@@ -142,7 +143,7 @@ select[data-model-pick] option {
 .md ul { list-style: disc; }
 .md ol { list-style: decimal; }
 .md li { margin: 0.15em 0; }
-.md h1, .md h2, .md h3 { font-weight: 650; margin: 0.6em 0 0.3em; line-height: 1.35; }
+.md h1, .md h2, .md h3 { font-weight:var(--ui-weight-650); margin: 0.6em 0 0.3em; line-height: 1.35; }
 .md h1 { font-size: 1.15em; }
 .md h2 { font-size: 1.05em; }
 .md pre {
@@ -277,7 +278,7 @@ a.md-link {
   background: hsl(var(--primary) / 0.2);
   color: hsl(var(--primary));
   padding: 0.1rem 0.45rem;
-  font-weight: 650;
+  font-weight:var(--ui-weight-650);
 }
 
 /* 对话工作栏与共享侧边工作区。文字入口与阅读内容分开，窄窗口按可用空间重排。 */
@@ -377,7 +378,7 @@ a.md-link {
 .note-directory-row.active { border-left-color: hsl(var(--primary)); }
 .note-directory-title { flex: 1; min-width: 0; color: hsl(var(--foreground)); text-decoration: none; font-size: 13px; overflow-wrap: anywhere; }
 .note-directory-title:hover,.note-directory-row.active .note-directory-title { color: hsl(var(--primary)); }
-.note-directory-title h3 { font-weight: 500; }
+.note-directory-title h3 { font-weight:var(--ui-weight-500); }
 .note-more { position: relative; font-size: 12px; }
 .note-more summary { list-style: none; cursor: pointer; padding: 5px 6px; color: hsl(var(--muted-foreground)); }
 .note-more > div { position: absolute; top: 100%; right: 0; z-index: 20; min-width: 180px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); padding: 5px; }

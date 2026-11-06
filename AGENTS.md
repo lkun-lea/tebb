@@ -79,3 +79,7 @@ cargo check --locked
 ```
 
 真实终端与沙箱验证遵循 `docs/TERMINAL.md` 的显式开关；发布变更按 `docs/RELEASING.md` 验证。不要为纯文档或低影响可逆改动添加无意义测试。
+
+## UI 开发
+
+- 新建或修改前端 UI 前阅读 `docs/UI_DEVELOPMENT.md`，按十条铁律实现；复用 `ui-foundations.css` 和 `ui-controls.tsx/css`，禁止页面另建主题。保留 `docs/UI_CONTRACT.md` 的状态、可访问性和业务控制器契约。深浅主题和实际页面效果分别验证；未迁移项不得记为已完成。

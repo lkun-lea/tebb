@@ -1,5 +1,6 @@
 import { Children, cloneElement, useId, useState, type ButtonHTMLAttributes, type ReactElement, type ReactNode } from 'react';
 import { LoadingText } from './loading-text';
+import { Check, Copy } from 'lucide-react';
 
 export function UiButton({ busy = false, busyLabel = '正在处理…', variant = 'default', children, className = '', disabled, ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean; busyLabel?: string; variant?: 'default' | 'primary' | 'danger' }) {
@@ -31,12 +32,19 @@ export function UiFeedback({ state, title, children, className = '' }: { state: 
 
 export function UiContractSample() {
   const [pressed, setPressed] = useState(false);
+  const [value, setValue] = useState('本周工作计划');
   const states: [FeedbackState, string][] = [['loading', '示例：正在读取'], ['empty', '示例：还没有数据'], ['no_results', '示例：筛选没有结果'],
     ['success', '示例：已完成'], ['error', '示例：确定失败'], ['conflict', '示例：数据已被修改'], ['unconfirmed', '示例：结果未确认']];
   return <details className="ui-contract-sample"><summary>共享控件状态样板</summary>
     <p className="ui-field-help">仅展示控件状态，不执行保存或重试。下方看板与日程使用同一组控件。</p>
-    <div className="ui-contract-buttons"><UiButton aria-pressed={pressed} onClick={() => setPressed(p => !p)}>样板选择</UiButton><UiButton variant="primary">主要样板</UiButton><UiButton disabled>不可用样板</UiButton><UiButton busy busyLabel="样板处理中…">忙碌样板</UiButton></div>
-    <UiField label="样板字段" help="帮助文字与输入关联。" error="示例错误，保留输入与焦点。"><input readOnly value="保留的输入" /></UiField>
+    <div className="ui-contract-buttons"><UiButton aria-pressed={pressed} onClick={() => setPressed(p => !p)}><Check size={14} aria-hidden="true"/>样板选择</UiButton><UiButton variant="primary">主要样板</UiButton><UiButton variant="danger">危险样板</UiButton><UiButton disabled>不可用样板</UiButton><UiButton busy busyLabel="样板处理中…">忙碌样板</UiButton></div>
+    <div className="ui-contract-fields">
+      <UiField label="样板字段" help="可编辑，切换焦点观察双环。"><input value={value} onChange={event=>setValue(event.target.value)}/></UiField>
+      <UiField label="错误字段" error="示例错误，保留输入与焦点。"><input defaultValue="保留的输入"/></UiField>
+      <UiField label="样板选项"><select defaultValue="weekly"><option value="weekly">每周</option><option value="daily">每天</option></select></UiField>
+      <UiField label="禁用字段"><input disabled value="当前不可编辑" readOnly/></UiField>
+    </div>
+    <p className="ui-field-help"><Copy className="ui-inline-icon" size={12} aria-hidden="true"/> 行内图标与数字样板 0123456789</p>
     <div className="ui-contract-feedback">{states.map(([state, title]) => <UiFeedback key={state} state={state} title={title}>{state === 'unconfirmed' ? '先核对原回执；共享控件不会自动重试。' : undefined}</UiFeedback>)}</div>
   </details>;
 }

@@ -2,7 +2,7 @@
 .setup-guide-focus{position:fixed;border:2px solid hsl(var(--primary));border-radius:9px;box-shadow:0 0 0 4px hsl(var(--primary)/.12);pointer-events:none;transition:top .25s ease,left .25s ease,width .2s ease,height .2s ease}
 .setup-guide-card{position:fixed;pointer-events:auto;max-height:calc(100dvh - 24px);overflow:auto;border:1px solid hsl(var(--border));border-radius:18px;padding:18px;background:hsl(var(--card));color:hsl(var(--card-foreground));box-shadow:0 12px 40px hsl(var(--foreground)/.16);transition:top .25s ease,left .25s ease}
 .setup-guide-card header{display:flex;align-items:center;gap:16px;padding-bottom:4px}
-.setup-guide-card h2{font-size:15px;line-height:1.5;font-weight:600;margin:0}
+.setup-guide-card h2{font-size:15px;line-height:1.5;font-weight:var(--ui-weight-600);margin:0}
 .setup-guide-caption{font-size:11px;color:hsl(var(--muted-foreground));margin:0 0 3px}
 .setup-guide-message{font-size:13px;line-height:1.75;margin:12px 0;color:hsl(var(--foreground))}
 .setup-guide-error{font-size:12px;line-height:1.6;color:hsl(var(--destructive));overflow-wrap:anywhere;margin:8px 0}

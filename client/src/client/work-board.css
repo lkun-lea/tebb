@@ -6,10 +6,10 @@
 .work-board button:not([data-ui-control]):focus-visible,.work-board select:focus-visible,.work-board input:focus-visible,.work-board textarea:focus-visible{outline:2px solid var(--wb-accent);outline-offset:3px}
 .work-board button:not([data-ui-control]):not(.wb-card-title):not(.wb-grip),.work-board select{border:1px solid var(--wb-line);border-radius:8px;background:var(--wb-surface);padding:7px 10px;font-size:12px}
 .work-board button:not([data-ui-control]):not(:disabled):hover{border-color:var(--wb-accent)}
-.work-board .wb-primary{background:var(--wb-accent)!important;color:hsl(var(--primary-foreground))!important;border-color:transparent!important;font-weight:500;white-space:nowrap}
+.work-board .wb-primary{background:var(--wb-accent)!important;color:hsl(var(--primary-foreground))!important;border-color:transparent!important;font-weight:var(--ui-weight-500);white-space:nowrap}
 .wb-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none}
 .wb-eyebrow{color:var(--wb-muted);font-size:12px}
-.wb-heading h1{font-size:25px;font-weight:500;letter-spacing:-.7px;margin:12px 0 5px}
+.wb-heading h1{font-size:25px;font-weight:var(--ui-weight-500);letter-spacing:-.7px;margin:12px 0 5px}
 .wb-heading p{color:var(--wb-muted);font-size:12px;margin:0}
 .wb-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:none;margin:24px 0}
 .wb-search{display:flex;gap:8px;align-items:center;border:1px solid var(--wb-line);border-radius:8px;background:var(--wb-surface);padding:7px 11px;max-width:240px;min-width:120px;flex:1;color:var(--wb-muted)}
@@ -21,7 +21,7 @@
 .wb-column{position:relative;min-height:300px;min-width:0;border-radius:11px;outline:1px solid transparent;outline-offset:3px;transition:background .15s,outline-color .15s}
 .wb-column.wb-drop-target{background:var(--wb-soft);outline:1px dashed var(--wb-accent)}
 .wb-column>header{display:flex;align-items:center;gap:8px;padding:0 2px 14px}
-.wb-column h2{font-size:13px;font-weight:500;margin:0}
+.wb-column h2{font-size:13px;font-weight:var(--ui-weight-500);margin:0}
 .wb-count{font-size:12px;color:var(--wb-muted);font-variant-numeric:tabular-nums}
 .wb-state-dot{display:block;width:7px;height:7px;border-radius:50%;background:var(--wb-muted)}
 .wb-state-dot.doing{background:#82aaca}.wb-state-dot.review{background:var(--wb-accent)}.wb-state-dot.done{background:#79a98b}
@@ -32,7 +32,7 @@
 .wb-project{display:inline-flex;align-items:center;gap:3px;font-size:11px;background:hsl(var(--foreground)/.045);color:var(--wb-muted);padding:2px 6px;border-radius:5px;overflow-wrap:anywhere}
 .work-board .wb-grip{margin-left:auto;flex:none;touch-action:none;border:0;background:transparent;cursor:grab;padding:3px 5px;color:var(--wb-muted);font-size:18px;line-height:1}
 .work-board .wb-grip:active{cursor:grabbing}
-.work-board .wb-card-title{font-weight:500;display:block;text-align:left;overflow-wrap:anywhere;font-size:14px;width:100%;padding:0;background:transparent;border:0;line-height:1.7}
+.work-board .wb-card-title{font-weight:var(--ui-weight-500);display:block;text-align:left;overflow-wrap:anywhere;font-size:14px;width:100%;padding:0;background:transparent;border:0;line-height:1.7}
 .wb-card-description{font-size:12px;color:var(--wb-muted);margin:8px 0 0;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:pre-wrap}
 .wb-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--wb-muted);margin-top:17px}
 .wb-high{color:hsl(var(--destructive,0 65% 55%))}
@@ -47,16 +47,16 @@
 .wb-footer [role=status]{color:var(--wb-accent)}
 .wb-error,.wb-row-error{color:hsl(var(--destructive,0 65% 55%));font-size:12px;overflow-wrap:anywhere;margin:8px 0 12px}
 .wb-uncertain{border:1px solid var(--wb-line);background:var(--wb-soft);padding:12px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;overflow-wrap:anywhere}
-.wb-uncertain strong{font-weight:500}.wb-uncertain p{margin:5px 0}.wb-uncertain small{font-size:11px;color:var(--wb-muted)}.wb-uncertain>div:last-child{display:flex;gap:8px;flex-wrap:wrap}
+.wb-uncertain strong{font-weight:var(--ui-weight-500)}.wb-uncertain p{margin:5px 0}.wb-uncertain small{font-size:11px;color:var(--wb-muted)}.wb-uncertain>div:last-child{display:flex;gap:8px;flex-wrap:wrap}
 .wb-shade{position:absolute;inset:0;background:hsl(var(--background)/.65);z-index:5}
 .wb-detail{position:absolute;right:0;top:0;bottom:0;width:390px;max-width:100%;z-index:6;background:var(--wb-surface);border-left:1px solid var(--wb-line);padding:24px;overflow:auto;box-shadow:-12px 0 32px hsl(var(--foreground)/.06);scrollbar-gutter:stable}
 .wb-detail-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:24px;color:var(--wb-muted);font-size:12px}
 .work-board .wb-detail-header button{font-size:20px;border:0;padding:2px 7px;background:transparent}
-.wb-detail h2{font-size:21px;font-weight:500;line-height:1.65;margin:0 0 20px;overflow-wrap:anywhere}
+.wb-detail h2{font-size:21px;font-weight:var(--ui-weight-500);line-height:1.65;margin:0 0 20px;overflow-wrap:anywhere}
 .wb-detail-info{display:grid;grid-template-columns:75px minmax(0,1fr);align-items:center;gap:13px 8px;font-size:12px}
-.wb-detail-info>span{color:var(--wb-muted)}.wb-detail-info strong{font-weight:400;overflow-wrap:anywhere}.wb-detail-info select{min-width:0;max-width:100%}
+.wb-detail-info>span{color:var(--wb-muted)}.wb-detail-info strong{font-weight:var(--ui-weight-400);overflow-wrap:anywhere}.wb-detail-info select{min-width:0;max-width:100%}
 .wb-detail-section{border-top:1px solid var(--wb-line);padding-top:20px;margin-top:24px;min-width:0}
-.wb-detail h3{font-weight:500;font-size:13px;margin:0 0 10px}.wb-detail-section>p{color:var(--wb-muted);font-size:12px}
+.wb-detail h3{font-weight:var(--ui-weight-500);font-size:13px;margin:0 0 10px}.wb-detail-section>p{color:var(--wb-muted);font-size:12px}
 .wb-section-heading{display:flex;align-items:center;gap:7px;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}.wb-section-heading h3{margin:0}
 .wb-detail-section .desk-md{font-size:13px}
 .wb-detail-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:24px}
@@ -67,7 +67,7 @@
 .wb-detail-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.wb-detail-fields label:first-child{grid-column:1/-1}
 .wb-link-picker{background:var(--wb-bg);border:1px solid var(--wb-line);padding:12px;border-radius:9px;margin:14px 0}.wb-link-picker select{display:block;width:100%;max-width:100%;margin:8px 0;min-width:0}
 .wb-run{border:1px solid var(--wb-line);border-radius:9px;padding:12px;margin:12px 0;font-size:12px;background:var(--wb-bg);overflow-wrap:anywhere}
-.wb-run header{display:flex;align-items:center;gap:7px;justify-content:space-between}.wb-run strong{font-weight:500}.wb-run header button{flex:none}.wb-run p{margin:8px 0}.wb-run small{font-size:11px;color:var(--wb-muted)}.wb-run>button,.wb-run details{margin-top:10px}.wb-run details{max-height:360px;overflow:auto}.wb-run summary{cursor:pointer}
+.wb-run header{display:flex;align-items:center;gap:7px;justify-content:space-between}.wb-run strong{font-weight:var(--ui-weight-500)}.wb-run header button{flex:none}.wb-run p{margin:8px 0}.wb-run small{font-size:11px;color:var(--wb-muted)}.wb-run>button,.wb-run details{margin-top:10px}.wb-run details{max-height:360px;overflow:auto}.wb-run summary{cursor:pointer}
 @media(max-width:1150px){.wb-columns{gap:11px}.work-board{padding:24px 18px 0}.wb-sort{display:none}}
 @media(max-width:850px){.wb-columns{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.wb-column{min-height:130px}.wb-heading h1{font-size:22px}}
 @media(max-width:480px){.work-board{padding:20px 12px 0}.wb-heading{align-items:flex-start}.wb-heading h1{font-size:20px}.wb-heading p{max-width:190px}.wb-columns{grid-template-columns:minmax(0,1fr)}.wb-toolbar{gap:7px;margin:20px 0}.wb-search{max-width:none}.wb-detail{width:100%;padding:22px}.work-board .wb-grip{padding:8px}.wb-detail form input,.wb-detail form select,.wb-detail textarea{font-size:16px}}
