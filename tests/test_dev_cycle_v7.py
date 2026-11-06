@@ -168,7 +168,7 @@ class FeedbackTests(unittest.TestCase):
 
 class MaintenanceTests(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve()
         self.bundle=self.root/'bundle';self.bundle.mkdir();(self.bundle/'scripts').mkdir();(self.bundle/'scripts/dev_cycle.py').write_text('VALUE=0\n','utf-8')
         self.env=self.root/'environment';self.env.mkdir()
         self.task=self.root/'task';self.task.mkdir()

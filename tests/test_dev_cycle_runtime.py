@@ -37,7 +37,7 @@ def fixture_wheel(directory):
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name);self.source=self.root/'source';self.source.mkdir()
+        self.root=Path(self.temp.name).resolve();self.source=self.root/'source';self.source.mkdir()
         self.record=self.root/'attempt';self.record.mkdir();(self.record/'evidence').mkdir()
 
     def monitor(self):

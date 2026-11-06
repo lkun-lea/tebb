@@ -54,14 +54,23 @@ def verify_sealed(values):
     return bool(values) and all(Path(name).is_file() and hashlib.sha256(Path(name).read_bytes()).hexdigest()==value for name,value in values.items())
 
 
+def review_path(name):
+    """Canonical file identity without turning links into trusted path aliases."""
+    path=Path(name)
+    if not path.is_absolute():raise ValueError('不是绝对路径')
+    for part in (path,*path.parents):
+        try:metadata=part.lstat()
+        except FileNotFoundError:continue  # Missing sealed files are reported by inspection.
+        if stat.S_ISLNK(metadata.st_mode) or getattr(metadata,'st_file_attributes',0)&1024:
+            raise ValueError('链接')
+    return path.resolve()
+
+
 def review_evidence_manifest(job,policy,snapshot,validation,developer_record):
     """Build trust before review, only from controller-owned roots and explicit refs."""
     entries={}
     def add(name,expected,kind):
-        path=Path(name)
-        if not path.is_absolute() or path.is_symlink() or getattr(path.lstat(),'st_file_attributes',0)&1024:
-            raise ValueError('维护证据必须是明确的绝对普通文件：'+str(path))
-        path=path.resolve()
+        path=review_path(name)
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
             raise ValueError('维护证据封存前已变化：'+str(path))
         entries[str(path)]=dict(path=str(path),sha256=expected,kind=kind,size=path.stat().st_size)
@@ -84,20 +93,23 @@ def check_review_evidence(review,manifest):
         if item not in failures:failures.append(item)
     def inspect(path,expected,nonempty=False):
         try:
+            review_path(path)
             metadata=path.lstat()
             if path.is_symlink() or getattr(metadata,'st_file_attributes',0)&1024:reject(path,'链接');return
             if not path.is_file():reject(path,'非普通文件');return
             if nonempty and not metadata.st_size:reject(path,'空文件');return
             if hashlib.sha256(path.read_bytes()).hexdigest()!=expected:reject(path,'哈希改变')
         except FileNotFoundError:reject(path,'不存在')
+        except ValueError as exc:reject(path,str(exc))
         except OSError as exc:reject(path,'读取失败：'+str(exc))
     for name,expected in manifest['source_seal'].items():inspect(Path(name),expected)
     for evidence in review['evidence']:
         path=Path(evidence['path'])
         # Do not infer new trust from reviewer-selected siblings or links.
-        key=str(path.absolute())
-        if not path.is_absolute():reject(path,'不是绝对路径')
-        elif key not in manifest['allowed_files']:reject(path,'未预封存')
+        try:key=str(review_path(path))
+        except ValueError as exc:reject(path,str(exc));continue
+        except OSError as exc:reject(path,'读取失败：'+str(exc));continue
+        if key not in manifest['allowed_files']:reject(path,'未预封存')
         else:inspect(path,manifest['allowed_files'][key],nonempty=True)
     if failures:raise ValueError('维护审查证据门禁失败：'+json.dumps(failures,ensure_ascii=False))
 

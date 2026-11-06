@@ -83,7 +83,7 @@ class ScopeRecoveryTests(unittest.TestCase):
         evidence = os.environ.get('DEV_CYCLE_EVIDENCE_DIR')
         self.temp = tempfile.TemporaryDirectory(dir=evidence)
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.repo = self.root / 'source'
         self.repo.mkdir()
         self.task = self.root / 'task'
@@ -366,7 +366,7 @@ class RecoveryLaunchTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=os.environ.get('DEV_CYCLE_EVIDENCE_DIR'))
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def test_all_model_schemas_are_strict_and_omissions_are_required(self):
         def strict(schema):
@@ -500,7 +500,7 @@ class ProgressEvidenceRootTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=os.environ.get('DEV_CYCLE_EVIDENCE_DIR'))
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.task = self.root / 'task with spaces'
         self.source = self.task / 'work'
         self.source.mkdir(parents=True)

@@ -47,3 +47,7 @@ ci_checks test 必须有 Atlas 契约环境，不会因为未设置变量就默�
 Python CI 使用固定版本的官方 setup-uv action、`uv sync --locked` 及发布导出一致性检查。Linux 云契约只安装 cloud 依赖组；在 `supabase/tests/runner` 中使用 `uv run --locked --only-group cloud npm test` 执行 PGlite 迁移及 Node→Python 合成验收，确保子进程也使用包含 httpx 的锁定解释器。仅运行 `uv sync` 不会激活后续普通 shell 命令。候选构建先完成可信 gate 并检出授权 SHA，再读取候选的 uv 配置和锁。发布包保留独立 Python 与 pip，不依赖终端用户安装 uv。
 
 Windows 手工复现云契约验收时使用 `uv run --locked --only-group cloud npm.cmd test`。
+
+Windows 开发流程的目录交接和证据白名单使用同一份规范路径，避免 `RUNNER~1` 与 `runneradmin` 等 8.3 别名被误判为不同目录。证据查询在规范化前检查原路径及父目录的链接/重解析点，仍逐文件验证已封存哈希、非空要求及白名单，不扩大允许读取的范围。现有冻结任务的控制器和历史证据不改写。
+
+`uv run --locked python -m unittest tests.test_dev_cycle_windows_paths -v` 使用系统实际生成的长短路径，检查新建/恢复 CLI 的写入目录一致、别名证据读取、篡改/未封存文件及目录联接拒绝；没有 8.3 别名的卷会明确报告条件跳过。

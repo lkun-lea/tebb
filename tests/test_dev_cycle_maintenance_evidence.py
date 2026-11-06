@@ -12,7 +12,7 @@ from tests import test_dev_cycle_v7 as fixtures
 
 class EvidenceManifestTests(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve()
         self.snapshot=self.root/'maintenance/job/review-1';self.validation=self.root/'maintenance/job/validation-1'
         self.developer=self.root/'maintenance/job/attempt-01-develop';self.developer.mkdir(parents=True)
         def file(name):

@@ -167,10 +167,11 @@ class Codex:
 
     def __call__(self, *, stage, prompt, cwd, record, session, started, check_seconds=120, silence_seconds=600,
                  task_folder=None):
-        task_folder = Path(task_folder) if task_folder is not None else record.parent
-        evidence_dir = task_folder/'development-artifacts'/record.name if stage == 'develop' else record/'evidence'
+        cwd, record = Path(cwd).resolve(), Path(record).resolve()
+        task_folder = (Path(task_folder) if task_folder is not None else record.parent).resolve()
+        evidence_dir = (task_folder/'development-artifacts'/record.name if stage == 'develop' else record/'evidence').resolve()
         evidence_dir.mkdir(parents=True, exist_ok=True)
-        write(record/'artifacts.json', dict(evidence_dir=str(evidence_dir.resolve())))
+        write(record/'artifacts.json', dict(evidence_dir=str(evidence_dir)))
         schema = record / 'schema.json'
         output_schema=json.loads(json.dumps(SCHEMAS[stage]))
         if stage in {'verify','supplement'} and (record/'packet.json').exists():
@@ -201,7 +202,7 @@ class Codex:
             # CWD is the isolated checkout. Only this turn's evidence is an
             # additional writable root, never task state or earlier evidence.
             command += ['-c', 'sandbox_mode="workspace-write"',
-                        '-c', 'sandbox_workspace_write.writable_roots='+json.dumps([str(evidence_dir.resolve())]),
+                        '-c', 'sandbox_workspace_write.writable_roots='+json.dumps([str(evidence_dir)]),
                         '-c', 'sandbox_workspace_write.network_access=false']
         env = os.environ.copy()
         if stage in {'requirements', 'develop', 'verify', 'supplement','evaluator_repair'}:
