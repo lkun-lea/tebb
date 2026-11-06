@@ -11,6 +11,8 @@
 | 记忆检查 | [调用检查台预览](memory/inspector.html) | 已评审参考稿，实际实现见 [记忆设计](../MEMORY_REDESIGN.md) |
 | 终端 | [项目控制台预览](terminal/console.html) | 已评审参考稿，实际实现见 [终端](../TERMINAL.md) |
 
+聊天动效与反馈的参数、合成样例和检查记录见 [第二批验收](ui-chat-motion/VERIFICATION.md)。
+
 ## 留存约定
 
 - 新设计按功能目录保存：设计说明、原始图片、可编辑预览源文件、关联 issue，以及采用或替代状态。

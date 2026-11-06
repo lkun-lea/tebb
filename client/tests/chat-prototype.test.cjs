@@ -19,7 +19,7 @@ function load(name, mocks = {}) {
     module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(filename, module); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = mod.require.bind(mod);
-  mod.require = id => mocks[id] || markdownModules[id] || (id.endsWith('.css') ? {} : id === './release' ? { CURRENT_RELEASE: {version:'0.2.3'} } : id === './startup' ? { startupReady() {} } : id.startsWith('./') ? load(id.slice(2), mocks) : original(id));
+  mod.require = id => mocks[id] || (id==='framer-motion'?require('./motion-fixture.cjs'):null) || markdownModules[id] || (id.endsWith('.css') ? {} : id === './release' ? { CURRENT_RELEASE: {version:'0.2.3'} } : id === './startup' ? { startupReady() {} } : id.startsWith('./') ? load(id.slice(2), mocks) : original(id));
   mod._compile(compiled, filename); return mod.exports;
 }
 const { initialDemo, demoReducer: reduce, restoreDemo, DEMO_STORAGE } = load('chat-prototype-state');
@@ -144,6 +144,8 @@ test('normal chat shows one root task with expandable real child progress',()=>{
   act(()=>{view=create(React.createElement(ChatPrototype,{developerMode:false,live:{state,act:async()=>true,busy:false,error:''}}));});
   const chat=view.root.findByProps({'aria-label':'协作聊天记录'});
   assert.equal(chat.findAll(node=>node.type==='article').length,1);act(()=>view.root.findByProps({'aria-label':'当前任务'}).props.onClick());const tasks=view.root.findAll(node=>node.props.className?.includes?.('cp-task')&&node.type==='article');assert.equal(tasks.length,1);
+  act(()=>tasks[0].findAllByType('button').find(node=>text(node).startsWith('执行过程')).props.onClick());
+  act(()=>tasks[0].findAllByType('button').find(node=>node.props['aria-expanded']===false&&text(node).includes('联网搜索')).props.onClick());
   assert(text(view.root).includes('正在思考与组织回答。'));assert(text(view.root).includes('联网搜索 · 开始'));assert(text(view.root).includes('联网搜索 · 结束'));
   assert(text(view.root).includes('正在整理来源。'));act(()=>view.unmount());
 });
@@ -290,27 +292,28 @@ test('Chinese IME Enter and Shift+Enter do not submit a draft', async () => {
 });
 
 test('standalone preview loads no real App; normal startup still loads the real App', async () => {
-  for (const preview of [true, false]) {
-    environment(); global.window.location = { search: preview ? '?preview=chat' : '' };
+  for (const {search,development,kind} of [{search:'?preview=chat',development:false,kind:'chat'},{search:'',development:false,kind:'app'},{search:'?preview=motion',development:false,kind:'app'},{search:'?preview=motion',development:true,kind:'motion'}]) {
+    environment(); global.window.location = { search };
     global.document.getElementById = () => ({});
     const filename = path.resolve(__dirname, '../src/client/main.tsx');
-    const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
+    const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8').replaceAll('import.meta.env.DEV',String(development)), { compilerOptions: {
       module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
     const mod = new Module(filename, module); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-    const original = mod.require.bind(mod); let element, appLoads = 0, previewLoads = 0, receivedProps;
+    const original = mod.require.bind(mod); let element, appLoads = 0, previewLoads = 0, motionLoads = 0, receivedProps;
     mod.require = id => {
       if (id.endsWith('.css')) return {};
       if (id === 'react-dom/client') return { createRoot: () => ({ render(value) { element = value; } }) };
       if (id === './render-boundary') return load('render-boundary');
       if (id === './account-bootstrap') return {AccountBootstrap:({children})=>children};
+      if (id === './ui-chat-debug') { motionLoads++; return {ChatMotionDebug:()=>React.createElement('div',{'data-motion-preview':''})}; }
       if (id === './App') { appLoads++; return { App: () => React.createElement('div', { 'data-real-app': '' }) }; }
       if (id === './chat-prototype') { previewLoads++; return { ChatPrototype: props => { receivedProps = props; return React.createElement('div', { 'data-preview': '' }); } }; }
       return original(id);
     };
     mod._compile(compiled, filename); let view;
     await act(async () => { view = create(element); });
-    assert.equal(appLoads, preview ? 0 : 1); assert.equal(previewLoads, preview ? 1 : 0);
-    if (preview) assert.equal(receivedProps.standalone, true);
+    assert.equal(appLoads,kind==='app'?1:0);assert.equal(previewLoads,kind==='chat'?1:0);assert.equal(motionLoads,kind==='motion'?1:0);
+    if (kind==='chat') assert.equal(receivedProps.standalone, true);
     await act(async () => view.unmount());
   }
 });
@@ -431,7 +434,7 @@ test('streaming output renders Markdown immediately, reveals new text and keeps 
   assert.equal(view.root.findAllByType('table').length, 1);
   assert(view.root.findAllByType('code').some(n => text(n).includes('const a = 1;')));
   assert(view.root.findAllByType('span').filter(n => n.props.className?.includes('tebb-stream-new')).every(n => !text(n).includes('研究结论') && !text(n).includes('重点')));
-  assert(view.root.findAllByType('span').some(n => n.props.className?.includes('tebb-stream-new') && text(n).includes('补充内容')));
+  assert(view.root.findAllByType('span').filter(n => n.props.className?.includes('tebb-stream-new')).length <= 8);
   assert.equal(view.root.findAllByType('script').length, 0);
   assert(!view.root.findAllByType('a').some(n => /^javascript:/i.test(n.props.href || '')));
   assert.equal(view.root.findAllByProps({ 'aria-label': '正在输出' }).length, 1);

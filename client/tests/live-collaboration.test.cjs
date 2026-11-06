@@ -127,6 +127,7 @@ test('real workspace renders actual output and sends actions without changing de
   await act(async()=>{view=create(React.createElement(ChatPrototype,{live:{state,busy:false,error:'',act:async action=>{actions.push(action);return true;}}}));});
   assert(!strings(view.toJSON()).includes('真实协作验证'));
   await act(async()=>view.root.findByProps({'aria-label':'当前任务'}).props.onClick());assert(!strings(view.toJSON()).includes('推进一步'));
+  await act(async()=>view.root.findAllByType('button').find(node=>strings(node).includes('来源核验')).props.onClick());
   assert(strings(view.toJSON()).includes('正文节选'));assert(strings(view.toJSON()).includes('仅搜索摘要'));assert(strings(view.toJSON()).includes('事实与结论仍需审阅'));
   await act(async()=>view.root.findByProps({'aria-label':'协作消息'}).props.onChange({target:{value:'真实提问'}}));
   await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));

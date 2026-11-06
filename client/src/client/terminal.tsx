@@ -1,10 +1,11 @@
+import { CopyButton } from './copy-button';
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef, useState } from "react";
 import { rpc, type BackendInfo } from "./api";
 import "./terminal.css";
-import { Plus, Eraser, Copy, History, TerminalSquare } from "lucide-react";
+import { Plus, Eraser, History, TerminalSquare } from "lucide-react";
 import { LoadingText } from "./loading-text";
 import { openProjectRuntime } from "./project-runtime-events";
 import type { LocalSource } from "./local-sources";
@@ -138,14 +139,13 @@ export function TerminalPane(props: { info: BackendInfo | null; session: string;
       setNotice("命令和输出已加入聊天草稿，尚未发送。"); }
   }
   function newCommand() { setSelected(''); setError(''); setNotice('新命令草稿；提交后才创建执行记录。'); editor.current?.focus(); }
-  async function copyOutput() {
+  function copyOutput() {
     const term = terminal.current;
-    if (!term) return;
+    if (!term) throw Error('终端尚未就绪');
     const selection = term.getSelection();
     const buffer = term.buffer.active;
     const output = selection || Array.from({ length: buffer.length }, (_, i) => buffer.getLine(i)?.translateToString(true) || '').join('\n');
-    await navigator.clipboard.writeText(output);
-    setNotice(selection ? '已复制所选终端文字。' : '已复制当前终端已加载输出；完整记录仍保存在后端。');
+    return output;
   }
   const visibleJobs = jobs.filter(j => all || j.session === session);
   const tabs = visibleJobs.slice(0, 5);
@@ -156,7 +156,7 @@ export function TerminalPane(props: { info: BackendInfo | null; session: string;
       <button type="button" aria-label="打开项目运行" title="项目运行与日志" onClick={()=>openProjectRuntime()}><TerminalSquare size={15}/></button>
       <button type="button" aria-label="新建命令草稿" title="新建命令草稿 · Alt+N" onClick={newCommand}><Plus size={15}/></button>
       <button type="button" aria-label="清屏" title="清屏，保留完整执行记录" onClick={() => {terminal.current?.clear();setNotice('已清空当前屏幕，后端输出和命令记录保留。');}}><Eraser size={15}/></button>
-      <button type="button" aria-label="复制终端输出" title="复制选中或已加载输出" disabled={!job} onClick={() => void action('正在复制输出…',copyOutput)}><Copy size={15}/></button>
+      <CopyButton label="复制终端输出" iconOnly disabled={!job} text={copyOutput}/>
       <button type="button" aria-label="显示执行记录" title="执行记录" aria-pressed={showHistory} onClick={() => setShowHistory(value => !value)}><History size={15}/></button>
     </div></header>
     <div className="terminal-tabs" role="tablist" aria-label="命令记录标签" onKeyDown={event => { if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return; const tabs=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')); const index=tabs.indexOf(event.target as HTMLButtonElement); if(index<0)return; event.preventDefault(); const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length; tabs[next].focus();tabs[next].click(); }}><button type="button" role="tab" aria-selected={!selected} onClick={newCommand}><Plus size={12}/>新命令</button>{tabs.map(item => <button type="button" role="tab" key={item.id} aria-selected={selected === item.id} title={`${item.command} · ${labels[item.state] || item.state}`} onClick={() => setSelected(item.id)}><span className={`terminal-tab-dot ${runningJob(item) ? 'active' : ''}`}/><span>{item.command.slice(0,28)}</span><small>{item.exit_code === null ? labels[item.state] : item.exit_code}</small></button>)}</div>

@@ -6,7 +6,7 @@ const { act, create } = require('react-test-renderer');
 function load(name, mocks={}) {
   const base=path.resolve(__dirname,'../src/client',name);const filename=fs.existsSync(base+'.tsx')?base+'.tsx':base+'.ts';
   const mod=new Module(filename,module);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
-  const original=mod.require.bind(mod);mod.require=id=>mocks[id]||(id.endsWith('.css')?{}:id.startsWith('./')?load(id.slice(2),mocks):original(id));
+  const original=mod.require.bind(mod);mod.require=id=>mocks[id]||(id==='framer-motion'?require('./motion-fixture.cjs'):null)||(id.endsWith('.css')?{}:id.startsWith('./')?load(id.slice(2),mocks):original(id));
   mod._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,filename);return mod.exports;
 }
 const text=n=>typeof n==='string'?n:(n.children||[]).map(text).join('');
@@ -53,11 +53,11 @@ test('visited pages preserve inputs, and their activity context pauses while hid
 });
 
 test('streaming passes complete Markdown and an appended reveal range, then retains output without a timer',()=>{
-  const {StreamText}=load('stream-text',{'./Markdown':{Markdown:({text,reveal})=>React.createElement('article',{'data-reveal':reveal},text)}});let view;
+  const {StreamText}=load('stream-text',{'./Markdown':{loosenQuotedEmphasis:text=>text,Markdown:({text,reveal})=>React.createElement('article',{'data-reveal':reveal},text)}});let view;
   act(()=>{view=create(React.createElement(StreamText,{text:'第一段',active:true}));});
   act(()=>view.update(React.createElement(StreamText,{text:'第一段，新增',active:true})));
   assert.equal(text(view.root.findByType('article')),'第一段，新增');
-  assert.equal(view.root.findByType('article').props['data-reveal'].from,'第一段'.length);
+  assert.equal(view.root.findByType('article').props['data-reveal'][0].offset,'第一段'.length);
   act(()=>view.update(React.createElement(StreamText,{text:'第一段，新增',active:false})));
   assert.equal(text(view.root.findByType('article')),'第一段，新增');assert.equal(view.root.findByType('article').props['data-reveal'],undefined);act(()=>view.unmount());
 });

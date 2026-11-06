@@ -1,3 +1,4 @@
+import { InspectorDisclosure } from './inspector-disclosure';
 import { useEffect, useRef, useState } from "react";
 import { rpc, type BackendInfo } from "./api";
 import { Markdown } from "./Markdown";
@@ -51,14 +52,14 @@ function MessageCards({ rows, empty = "没有 messages 字段，完整载荷见�
     {expanded === i && <div className="space-y-3 px-3 pb-3">
       {typeof message.content === "string" ? <div><p className="mb-2 text-[10px] text-muted-foreground">{message.role === "tool" ? "执行结果" : "消息正文"}</p><Json value={message.content} /></div> :
         message.content != null ? <Json value={message.content} /> : <p className="text-xs text-muted-foreground">没有文本正文。</p>}
-      {typeof message.reasoning_content === "string" && message.reasoning_content && <details><summary className="cursor-pointer text-xs text-primary">服务返回的 reasoning_content</summary><div className="mt-2"><Json value={message.reasoning_content} /></div></details>}
+      {typeof message.reasoning_content === "string" && message.reasoning_content && <InspectorDisclosure label={<>服务返回的 reasoning_content</>}><div className="mt-2"><Json value={message.reasoning_content} /></div></InspectorDisclosure>}
       {Array.isArray(message.tool_calls) && (message.tool_calls as Obj[]).map((tool, n) => {
         const fn = tool.function as Obj | undefined;
         let args = fn?.arguments;
         try { if (typeof args === "string") args = JSON.parse(args); } catch { /* Preserve incomplete arguments. */ }
         return <div key={n} className="rounded-lg border border-primary/25 bg-primary/5 p-3"><p className="mb-2 text-xs text-primary">工具请求 · {String(fn?.name || tool.type || "未知工具")}</p><Json value={args ?? tool} /></div>;
       })}
-      <details><summary className="cursor-pointer text-xs text-muted-foreground">本消息的完整 JSON（含所有字段）</summary><div className="mt-2"><Json value={message} /></div></details>
+      <InspectorDisclosure label={<>本消息的完整 JSON（含所有字段）</>}><div className="mt-2"><Json value={message} /></div></InspectorDisclosure>
     </div>}
   </section>)}{!rows.length && <p className="text-xs text-muted-foreground">{empty}</p>}</div>;
 }
@@ -238,7 +239,7 @@ export function AgentDebugDialog({ info, onClose, debug = false }: { info: Backe
               {tab==='performance'&&<PerformanceView timing={detail.timing} chain={detail.chain}/>}
               {tab === "messages" && <div className="grid gap-5 xl:grid-cols-2">
                 <div><h2 className="mb-3 text-sm font-medium">Agent → LLM</h2><MessageCards key={selected + "in"} rows={messages(detail.request)} />
-                  <details className="mt-3"><summary className="cursor-pointer text-xs text-primary">工具定义与其它请求参数（全量）</summary><div className="mt-3"><Json value={Object.fromEntries(Object.entries(detail.request).filter(([k]) => k !== "messages"))} /></div></details>
+                  <InspectorDisclosure className="mt-3" label={<>工具定义与其它请求参数（全量）</>}><div className="mt-3"><Json value={Object.fromEntries(Object.entries(detail.request).filter(([k]) => k !== "messages"))} /></div></InspectorDisclosure>
                 </div>
                 <div><h2 className="mb-3 text-sm font-medium">LLM → Agent</h2><MessageCards key={selected + "out"} rows={responses} empty="尚未收到可读消息；错误信息或其它格式的返回见原始载荷。" />
                   <p className="my-3 text-xs leading-5 text-muted-foreground">包含模型实际返回的正文、reasoning_content 和工具调用；未提供的内部推理无法展示。卡片合并 SSE 增量，所有原始字段见“原始载荷”。</p>
@@ -252,7 +253,7 @@ export function AgentDebugDialog({ info, onClose, debug = false }: { info: Backe
                 {delta.keys.map(k => <div key={k}><h2 className="mb-2 text-xs text-primary">参数 {k}</h2><div className="grid gap-3 xl:grid-cols-2"><Json value={previous.request[k]} /><Json value={detail.request[k]} /></div></div>)}
               </div> : <p className="text-sm text-muted-foreground">暂无可对照的上一次调用；可加载更早的记录，或查看同一任务的下一次调用。</p>)}
               {tab === "tools" && <div className="space-y-3"><p className="text-xs text-muted-foreground">关联任务 {detail.call.task_id || "未关联任务"} · 展示程序实际执行的参数与结果；模型提出的工具调用见返回消息。</p>
-                {(task?.events || []).filter(e => !["token", "think", "done"].includes(e.kind)).map(e => <details key={e.seq} className="rounded-lg border border-border p-3"><summary className="cursor-pointer text-xs">{new Date(e.ts * 1000).toLocaleTimeString()} · {e.kind}</summary><div className="mt-3"><Json value={e.data} /></div></details>)}
+                {(task?.events || []).filter(e => !["token", "think", "done"].includes(e.kind)).map(e => <InspectorDisclosure key={e.seq} className="p-3" label={<>{new Date(e.ts * 1000).toLocaleTimeString()} · {e.kind}</>}><div className="mt-3"><Json value={e.data} /></div></InspectorDisclosure>)}
                 {!task && <p className="text-sm text-muted-foreground">这次调用没有关联的 Agent 工具时间线。</p>}
               </div>}
               {tab === "explain" && <div className="space-y-4"><div className="rounded-lg border border-border bg-card/40 p-4 text-sm leading-7"><p>system / developer 定义行为规则，user 提供任务；assistant 可以提出工具请求，tool 带回真实执行结果。工具 Schema 告诉模型有哪些能力，宿主程序负责执行。每次请求的实际上下文以本窗口记录为准。</p>

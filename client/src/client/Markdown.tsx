@@ -1,4 +1,6 @@
-import { Children, createContext, isValidElement, useContext, useState, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useContext, useRef, useState, type ReactNode } from "react";
+import { graphemes, STREAM_DURATION, type StreamArrival } from './stream-arrival';
+import { CopyButton } from './copy-button';
 import { ReportChart } from './report-charts';
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
@@ -71,29 +73,46 @@ function MarkdownPre({children,node}:{children?:ReactNode;node?:{position?:{star
     const closed=!!fence&&lines.length>1&&new RegExp('^\\s*'+fence[1][0]+'{'+fence[1].length+',}\\s*$').test(unquote(lines.at(-1)||''));
     return <ReportChart id={String(child.props.children||'').trim()} pending={document.streaming&&!closed}/>;
   }
-  return <pre>{children}</pre>;
+  return <div className="md-code-block">{isValidElement<{children?:ReactNode}>(child) && typeof child.props.children === 'string' && <CopyButton text={child.props.children} label="复制代码"/>}<pre>{children}</pre></div>;
 }
 
 type StreamNode = { type: string; value?: string; children?: StreamNode[]; position?: { start: { offset?: number }; end: { offset?: number } }; tagName?: string; properties?: Record<string, unknown> };
 
 // Reveal only new text nodes, keeping the complete Markdown tree intact while streaming.
-function streamingText(source: string, from: number, revision: number) {
+function streamingText(source: string, arrivals: StreamArrival[]) {
+  const pending = new Map(arrivals.map(item => [item.offset, item]));
   return () => (tree: StreamNode) => {
     function visit(parent: StreamNode) {
       parent.children = parent.children?.flatMap(node => {
         if(node.type==='element'&&(node.tagName==='pre'||node.tagName==='code'))return [node];
         if (node.type !== 'text') { if (node.children) visit(node); return [node]; }
         const start = node.position?.start.offset, end = node.position?.end.offset;
-        if (start === undefined || end === undefined || end <= from || !node.value) return [node];
-        // Escaped/entity text may differ from source: reveal the token without guessing an offset.
-        const split = source.slice(start, end) === node.value ? Math.max(0, from - start) : 0;
-        const prefix = node.value.slice(0, split), tail = node.value.slice(split);
-        if (!tail) return [node];
-        return [...(prefix ? [{ type: 'text', value: prefix }] : []), { type: 'element', tagName: 'span', properties: { className: ['tebb-stream-new', `tebb-stream-phase-${revision % 2}`] }, children: [{ type: 'text', value: tail }] }];
+        if (start === undefined || end === undefined || !node.value || source.slice(start, end) !== node.value) return [node];
+        const offsets = arrivals.filter(item => item.offset >= start && item.offset < end).map(item => item.offset);
+        if (!offsets.length) return [node];
+        const cut = Math.min(...offsets) - start;
+        const result: StreamNode[] = [];
+        let plain = node.value.slice(0, cut);
+        for (const part of graphemes(node.value.slice(cut))) {
+          const arrival = pending.get(start + cut + part.index);
+          if (!arrival || arrival.value !== part.segment || arrival.at + STREAM_DURATION <= performance.now()) { plain += part.segment; continue; }
+          if (plain) { result.push({ type: 'text', value: plain }); plain = ''; }
+          result.push({ type: 'element', tagName: 'span', properties: { 'data-stream-at': arrival.at, className: ['tebb-stream-new'] }, children: [{ type: 'text', value: part.segment }] });
+        }
+        if (plain) result.push({ type: 'text', value: plain });
+        return result;
       });
     }
     visit(tree);
   };
+}
+
+function StreamSpan({ children, node, ...props }: { children?: ReactNode; node?: { properties?: Record<string, unknown> }; className?: string }) {
+  const at = node?.properties?.['data-stream-at'];
+  // Keep this delay stable during ordinary rerenders; on remount resume the original clock.
+  const clock = useRef({ at, delay: typeof at === 'number' ? at - performance.now() : 0 });
+  if (clock.current.at !== at) clock.current = { at, delay: typeof at === 'number' ? at - performance.now() : 0 };
+  return <span key={String(at)} {...props} style={typeof at === 'number' ? { animationDelay: `${clock.current.delay}ms` } : undefined}>{children}</span>;
 }
 
 // 引号贴着 ** 时，CommonMark 不把 ** 当成加粗开头。标记后面补一个零宽空格，让加粗包住引号里的字。
@@ -213,7 +232,7 @@ export function PlainLinks(props: { text: string }) {
   return <>{nodes}</>;
 }
 
-export function Markdown(props: { text: string; cites?: number[]; onCite?: (n: number) => void; externalLinks?: boolean; reveal?: { from: number; revision: number } }) {
+export function Markdown(props: { text: string; cites?: number[]; onCite?: (n: number) => void; externalLinks?: boolean; reveal?: StreamArrival[] }) {
   const opened = loosenQuotedEmphasis(props.text);
   const text = props.onCite ? withCiteLinks(opened, props.cites || []) : opened;
   const view: Components = props.onCite
@@ -223,9 +242,10 @@ export function Markdown(props: { text: string; cites?: number[]; onCite?: (n: n
       return safe ? <a href={safe} target="_blank" rel="noopener noreferrer">{children}</a> : <span>{children}</span>;
     } } : {...components};
   view.pre=MarkdownPre;
+  view.span=StreamSpan;
   return (
     <div className="md" data-md="">
-      <MarkdownDocument.Provider value={{source:text,streaming:!!props.reveal}}><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={props.reveal ? [streamingText(text, props.reveal.from, props.reveal.revision)] : []} components={view}>
+      <MarkdownDocument.Provider value={{source:text,streaming:!!props.reveal}}><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={props.reveal ? [streamingText(text, props.reveal)] : []} components={view}>
         {text}
       </ReactMarkdown></MarkdownDocument.Provider>
     </div>

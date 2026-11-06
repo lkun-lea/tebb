@@ -24,6 +24,8 @@
 
 LoadingText、Framer Motion、dnd-kit、FullCalendar 继续承担现有动效与拖动。共享控件不接管拖动 transform 或几何；减少动效时关闭新增按钮过渡，既有加载文字和拖动降级继续复用。forced-colors 使用系统焦点色与边框，状态仍有文字。
 
+共享折叠与复制反馈由 `InspectorDisclosure` 和 `CopyButton` 拥有，聊天第二批的状态、可访问性与调试契约见 [聊天动效与反馈](UI_CHAT_MOTION.md)。
+
 ## AI 调试与验收
 
 在 `client/` 运行 `pnpm dev`，打开其输出的本地地址并追加 `?debug=work`。页面使用真实 WorkBoardPane 和日程组件及明确标注的内存示例，不调用模型、不写用户数据或真实飞书。展开“共享控件状态样板”查看按钮、字段及七种反馈；下方真实看板/日程使用同一组控件。

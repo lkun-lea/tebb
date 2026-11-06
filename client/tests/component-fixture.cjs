@@ -6,7 +6,7 @@ function loader(mocks){const cache={};return function load(name){
  if(cache[name])return cache[name].exports;
  const base=path.resolve(__dirname,'../src/client',name),file=fs.existsSync(base+'.tsx')?base+'.tsx':base+'.ts';
  const m=new Module(file,module);m.filename=file;m.paths=Module._nodeModulePaths(path.dirname(file));cache[name]=m;const original=m.require.bind(m);
- m.require=id=>mocks[id]||external[id]||(id.endsWith('.css')?{}:id.startsWith('./')?load(id.slice(2)):original(id));
+ m.require=id=>mocks[id]||(id==='framer-motion'?require('./motion-fixture.cjs'):null)||external[id]||(id.endsWith('.css')?{}:id.startsWith('./')?load(id.slice(2)):original(id));
  m._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,file);return m.exports;
 };}
 const text=n=>typeof n==='string'?n:(n.children||[]).map(text).join('');

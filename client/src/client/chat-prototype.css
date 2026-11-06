@@ -142,8 +142,7 @@
 .cp-task-actions { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; padding-top: 5px; }
 .cp-task-actions button:first-child { color: var(--cp-accent); }
 .cp-task-actions button:last-child:not(:first-child) { color: var(--cp-muted); }
-.cp-task details { border-top: 1px solid var(--cp-line); margin-top: 7px; padding-top: 6px; font-size: 11px; color: var(--cp-muted); }
-.cp-task summary { cursor: pointer; }
+.cp-task .cp-tool-result { margin-top:7px;padding-top:6px;font-size:12px;color:var(--cp-muted); }
 .cp-task ol { padding: 6px 0 0 12px; margin: 0; border-left: 1px solid var(--cp-line); }
 .cp-task li { margin-top: 8px; overflow-wrap: anywhere; }
 .cp-side-note { border-top: 1px solid var(--cp-line); padding: 17px 2px; margin-top: 22px; font-size: 10px; color: var(--cp-muted); line-height: 1.8; }
@@ -342,7 +341,7 @@
 .cp-parameter-debug label { display: inline-flex; gap: 6px; align-items: center; margin: 8px 12px 8px 0; }
 .cp-parameter-debug input { width: 65px; background: hsl(var(--background)); }
 .cp-task pre { white-space: pre-wrap; max-height: 300px; overflow: auto; font: 10px/1.7 Consolas, monospace; }
-.cp-task :is(details,pre), .cp-composer select { overflow-wrap: anywhere; }
+.cp-task :is(.cp-tool-result,pre), .cp-composer select { overflow-wrap: anywhere; }
 
 @keyframes tebb-enter { from { opacity: .94; } to { opacity: 1; } }
 .side-workspace { position: relative; }
@@ -474,12 +473,10 @@
 .tebb-skeleton { height:13px; margin:20px 0; background:hsl(var(--muted)); opacity:.6; max-width:90%; }
 .tebb-skeleton:nth-child(odd) { max-width:65%; }
 .tebb-stream-text { overflow-wrap:anywhere; }
-.tebb-stream-new { animation:tebb-text-arrive .2s ease-out both; }
-.tebb-stream-phase-0 { animation-name:tebb-text-arrive-even; }
-.tebb-stream-cursor { display:inline-block; width:5px; height:12px; margin-left:4px; vertical-align:middle; background:hsl(var(--primary)); box-shadow:0 0 7px hsl(var(--primary) / .5); animation:tebb-signal 1.6s ease-in-out infinite; }
-@keyframes tebb-text-arrive { from{opacity:.35;} to{opacity:1;} }
-@keyframes tebb-text-arrive-even { from{opacity:.35;} to{opacity:1;} }
-@keyframes tebb-signal { 50%{opacity:.45;box-shadow:0 0 3px hsl(var(--primary) / .25);} }
+.tebb-stream-new { animation:tebb-text-arrive 90ms cubic-bezier(.215,.61,.355,1) both; }
+.tebb-stream-cursor { display:inline-block; width:5px; height:12px; margin-left:4px; vertical-align:middle; background:hsl(var(--primary)); animation:tebb-signal 1.6s ease-in-out infinite; }
+@keyframes tebb-text-arrive { from{filter:blur(6px);opacity:.4;} to{filter:blur(0);opacity:1;} }
+@keyframes tebb-signal { 50%{opacity:.45;} }
 .pet-size-control { display:flex; align-items:center; gap:14px; font-size:12px; margin-top:18px; }
 .pet-size-control input { width:160px; accent-color:hsl(var(--primary)); }
 .pet-chat-window { display:flex; flex-direction:column; height:100%; overflow:hidden; color:hsl(var(--foreground)); background:hsl(var(--background)); border:1px solid hsl(var(--border)); font:13px/1.7 'Segoe UI','Microsoft YaHei',sans-serif; }
@@ -513,11 +510,6 @@
 .pet-chat-composer textarea { box-sizing:border-box; width:100%; min-height:48px; max-height:min(160px,30vh); resize:none; background:transparent; color:inherit; outline:none; }
 .pet-chat-composer { flex-shrink:0; }
 .tebb-run-progress { color:hsl(var(--muted-foreground)); font-size:12px; margin:5px 0 8px; }
-.tebb-run-progress summary { display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none; }
-.tebb-run-progress summary::-webkit-details-marker { display:none; }
-.tebb-run-progress summary::after { content:'›'; flex-shrink:0; transition:transform .15s; }
-.tebb-run-progress[open] summary::after { transform:rotate(90deg); }
-.tebb-run-progress summary span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .tebb-run-progress ol { max-height:180px; overflow:auto; padding-left:22px; margin:6px 0; overflow-wrap:anywhere; }
 .tebb-run-progress li { margin:3px 0; }
 .pet-chat-composer footer { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:5px; }
@@ -597,3 +589,7 @@
 .cp-migration-list small { color:var(--cp-muted);font-size:11px; }
 .cp-migration-all { display:flex!important;gap:8px;align-items:center;font-size:12px!important; }
 .cp-migration-all input { width:auto!important; }
+
+[data-reduce-motion=true] :is(.tebb-stream-new,.tebb-stream-cursor){animation:none;filter:none}
+
+.tebb-run-progress.context-disclosure{border:0}.tebb-run-progress.context-disclosure>button{padding:3px 0;color:inherit;font-size:12px}.tebb-run-progress.context-disclosure>button>span{display:flex;align-items:center;gap:6px;min-width:0}.cp-tool-result.context-disclosure{border:0;font-size:12px}

@@ -13,7 +13,7 @@ function load(name, mocks) {
     module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(filename, module); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = mod.require.bind(mod);
-  mod.require = id => id.endsWith('.css') ? {} : mocks[id] || original(id);
+  mod.require = id => id.endsWith('.css') ? {} : mocks[id] || (id==='framer-motion'?require('./motion-fixture.cjs'):null) || (id === './copy-button' ? load('copy-button',mocks) : original(id));
   mod._compile(code, filename); return mod.exports;
 }
 const text = node => typeof node === 'string' ? node : (node.children || []).map(text).join('');

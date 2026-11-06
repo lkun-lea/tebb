@@ -1,3 +1,4 @@
+import { CopyButton } from './copy-button';
 import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -138,7 +139,7 @@ export function ProjectRuntimePane({ info, environment: initial = "", operation:
       {logs.map(id=><option key={id} value={id}>{id===env?.service?.operation?"服务日志":id===env?.prepare_operation?"准备环境":"操作记录"} · {id.slice(0,8)}</option>)}
     </select></label>
     <div ref={host} className="project-runtime-terminal" aria-label="项目日志" />
-    <footer><button onClick={()=>void navigator.clipboard.writeText(terminal.current?.getSelection() || "").catch(reason=>setError(String(reason)))}>复制选中内容</button><button onClick={()=>terminal.current?.clear()}>清屏</button></footer>
+    <footer><CopyButton label="复制选中内容" text={()=>{const value=terminal.current?.getSelection();if(!value)throw Error('请先选择终端文字');return value;}}/><button onClick={()=>terminal.current?.clear()}>清屏</button></footer>
     <p role="status" className="project-runtime-notice">{busy || notice || "项目服务独立运行；应用退出时停止环境并保留文件。"}</p>
     {error && <p role="alert" className="project-runtime-error">{error}</p>}
   </section>;

@@ -1,3 +1,4 @@
+import { InspectorDisclosure } from './inspector-disclosure';
 import {accountStorage} from './account-storage';
 import { ClarificationCard } from './clarification-card';
 import { openProjectRuntime } from './project-runtime-events';
@@ -313,22 +314,22 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
       {real && run.feedback_check && <DeliveryFeedback report={run.feedback_check}/>}
       {real && <TaskBudgetView budget={run.task_budget}/>}
       {real && run.delivery_check && !run.feedback_check && <p className={run.delivery_check.ok ? 'cp-muted' : 'cp-error'}>交付检查 · {run.delivery_check.ok ? '已提交成果，请审阅' : `尚未完成：${[...(run.delivery_check.missing || []),...(run.delivery_check.missing_sources || [])].join('、') || '待修订'}`}</p>}
-      {real && run.citation_check && <details><summary>来源核验 · {run.citation_check.ok ? "链接匹配" : "需修订"} · 已读 {run.citation_check.pages_read} 页</summary>
+      {real && run.citation_check && <InspectorDisclosure className="cp-tool-result" label={<> 来源核验 · {run.citation_check.ok ? "链接匹配" : "需修订"} · 已读 {run.citation_check.pages_read} 页</>}>
         <p className="cp-muted">仅核对来源读取记录；事实与结论仍需审阅。</p>
         <ul>{run.citation_check.matched.map((source, index) => <li key={index}><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a> · {source.level === "service_preview" ? "启动时预览已验证" : source.level === "checkout" ? "已核对拉取提交" : source.level === "body" ? source.truncated ? "正文节选" : "已读正文" : "仅搜索摘要"}{source.read_ranges?.length?` · 已读 ${source.read_ranges.map(([a,b])=>`${a}–${b}`).join("、")} / ${source.characters} 字符`:""}</li>)}</ul>
         {!!run.citation_check.unverified.length && <p role="alert" className="cp-error">未取得的引用：{run.citation_check.unverified.join("、")}</p>}
-      </details>}
+      </InspectorDisclosure>}
       {!!run.updates.length && <p className="cp-update-receipt">补充 {run.updates.length} 条 · 已应用 {run.applied} 条{run.applied < run.updates.length && runActive(run) ? " · 等待下一步" : ""}</p>}
       <div className="cp-task-actions">{(runActive(run)||run.state==='needs_input') ? <>{run.kind !== "chat" && <button onClick={() => supplement(run)} disabled={run.state === "cancelling"}>{run.state==='needs_input'?'补充目标':'补充要求'}</button>}<button onClick={() => dispatch({ type: "cancel", id: run.id })} disabled={run.state === "cancelling"}>停止</button></> :
         run.artifact ? <button onClick={() => setArtifactId(run.id)}>查看成果 ↗</button> : <span className="cp-muted">未生成成果</span>}</div>
       {real && run.kind === "plan" && state.runs.some(child => child.parent === run.id && runActive(child)) && <button className="cp-text-button" onClick={() => dispatch({ type: "cancel", id: run.id })}>停止整条协作链</button>}
       <ExecutionTree run={run} runs={runs} agents={state.agents} />
-      {!!run.project_receipts?.length && <details><summary>项目操作回执 · {run.project_receipts.length}</summary>{run.project_receipts.map((receipt,index)=><div key={`${receipt.call_id}:${index}`}>
+      {!!run.project_receipts?.length && <InspectorDisclosure className="cp-tool-result" label={<> 项目操作回执 · {run.project_receipts.length}</>}> {run.project_receipts.map((receipt,index)=><div key={`${receipt.call_id}:${index}`}>
         <p>{receipt.operation.stage || receipt.tool} · {receipt.ok ? "操作已确认" : "未完成"}{receipt.error ? ` · ${receipt.error}` : ""}</p>
         {receipt.environment.id && <button className="cp-text-button" onClick={()=>openProjectRuntime(receipt.environment.id,receipt.log_id || receipt.service.log_id || receipt.operation.id)}>打开项目、预览与日志</button>}
-      </div>)}</details>}
-      {!!run.changes?.length && <details><summary>文件改动 · {run.changes.length}</summary>{run.changes.map((change,i) => <div key={i}><strong>{change.path}</strong><pre>{change.diff}</pre></div>)}</details>}
-      {!!run.checks?.length && <details><summary>实际命令回执 · {run.checks.length}</summary>{run.checks.map((check,i) => <div key={i}><code>{check.command}</code><p>{check.state} · 退出码 {check.exit_code ?? "无"}{check.stale ? " · 此后文件有修改，需要重新验证" : ""}</p>{check.diff_limited && <p>文本差异采集达到上限，部分文件未覆盖。</p>}<pre>{check.output}</pre></div>)}</details>}
+      </div>)}</InspectorDisclosure>}
+      {!!run.changes?.length && <InspectorDisclosure className="cp-tool-result" label={<> 文件改动 · {run.changes.length}</>}> {run.changes.map((change,i) => <div key={i}><strong>{change.path}</strong><pre>{change.diff}</pre></div>)}</InspectorDisclosure>}
+      {!!run.checks?.length && <InspectorDisclosure className="cp-tool-result" label={<> 实际命令回执 · {run.checks.length}</>}> {run.checks.map((check,i) => <div key={i}><code>{check.command}</code><p>{check.state} · 退出码 {check.exit_code ?? "无"}{check.stale ? " · 此后文件有修改，需要重新验证" : ""}</p>{check.diff_limited && <p>文本差异采集达到上限，部分文件未覆盖。</p>}<pre>{check.output}</pre></div>)}</InspectorDisclosure>}
     </article>;
   }
 
@@ -359,7 +360,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
             <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
               {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
-              {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} /></div>}
+              {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}
               {real&&item.sender!=='user'&&<CalendarProposalCards info={backend} proposals={proposalTree(runs.find(run=>run.id===item.run),runs)}/>}
               {item.sender !== 'user' && item.run && <div className="cp-message-footer">{(developer || runs.find(run=>run.id===item.run)?.state==='needs_input' || !["chat","route","compress"].includes(runs.find(run => run.id===item.run)?.kind || "")) && <button className="cp-message-reference" onClick={() => { setFocusedRun(item.run!); setInspector(true); setTab("tasks"); }}>↗ 关联任务</button>}
               {real && <small className="cp-message-usage" title="本条消息的执行模型与输入／输出 token 用量">{runs.find(r => r.id===item.run)?.model} · ↑ {runs.find(r => r.id===item.run)?.input_tokens || 0} / ↓ {runs.find(r => r.id===item.run)?.output_tokens || 0}</small>}

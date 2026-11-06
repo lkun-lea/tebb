@@ -1,0 +1,115 @@
+{
+  "runtime": "Windows Chromium headless 1228; real ChatPrototype with synthetic live state",
+  "checks": [
+    {
+      "name": "dark real chat",
+      "samples": [
+        {
+          "text": "你",
+          "at": 2767.5,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "-0.0078s"
+        },
+        {
+          "text": "好",
+          "at": 2797.5,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.0221s"
+        },
+        {
+          "text": "👩🏽‍💻",
+          "at": 2827.5,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.052s"
+        },
+        {
+          "text": "é",
+          "at": 2857.5,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.0819s"
+        }
+      ],
+      "historyRetained": true,
+      "copyReset": true,
+      "codeAndTableRetained": true
+    },
+    {
+      "name": "light real chat",
+      "samples": [
+        {
+          "text": "你",
+          "at": 1477.2000000011176,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "-0.005s"
+        },
+        {
+          "text": "好",
+          "at": 1507.2000000011176,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.0247s"
+        },
+        {
+          "text": "👩🏽‍💻",
+          "at": 1537.2000000011176,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.0546s"
+        },
+        {
+          "text": "é",
+          "at": 1567.2000000011176,
+          "duration": "0.09s",
+          "easing": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+          "delay": "0.0846s"
+        }
+      ],
+      "historyRetained": true,
+      "copyReset": true,
+      "codeAndTableRetained": true
+    },
+    {
+      "name": "long response and historical reading",
+      "longRenderMs": 218,
+      "maxAnimatedGlyphs": 8,
+      "keptScrollTop": 0
+    },
+    {
+      "name": "system reduced motion"
+    },
+    {
+      "name": "manual reduced motion"
+    },
+    {
+      "name": "600px chat",
+      "overflow": {
+        "width": 600,
+        "scroll": 600
+      }
+    }
+  ],
+  "errors": [],
+  "audits": [
+    {
+      "theme": "dark",
+      "state": "expanded-copy",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    },
+    {
+      "theme": "light",
+      "state": "expanded-copy",
+      "ok": true,
+      "cut": 0,
+      "hidden": 0,
+      "issues": []
+    }
+  ]
+}
