@@ -44,4 +44,6 @@ ci_checks test 必须有 Atlas 契约环境，不会因为未设置变量就默�
 
 官方技能独立仓库 lkun-lea/tebb-skills，由 skills-source.json 唯一锁定。CI及候选构建先checkout .ci-skills并调用prepare_skills；打包直接从该Git提交导出，不读取开发机skills工作树。公开仓库读取无需额外凭据，安装包离线携带正文、许可与来源快照。
 
-Python CI 使用固定版本的官方 setup-uv action、`uv sync --locked` 及发布导出一致性检查。Linux 云契约只安装 cloud 依赖组。候选构建先完成可信 gate 并检出授权 SHA，再读取候选的 uv 配置和锁。发布包保留独立 Python 与 pip，不依赖终端用户安装 uv。
+Python CI 使用固定版本的官方 setup-uv action、`uv sync --locked` 及发布导出一致性检查。Linux 云契约只安装 cloud 依赖组；在 `supabase/tests/runner` 中使用 `uv run --locked --only-group cloud npm test` 执行 PGlite 迁移及 Node→Python 合成验收，确保子进程也使用包含 httpx 的锁定解释器。仅运行 `uv sync` 不会激活后续普通 shell 命令。候选构建先完成可信 gate 并检出授权 SHA，再读取候选的 uv 配置和锁。发布包保留独立 Python 与 pip，不依赖终端用户安装 uv。
+
+Windows 手工复现云契约验收时使用 `uv run --locked --only-group cloud npm.cmd test`。

@@ -29,6 +29,7 @@ jobs:
           version-file: pyproject.toml
           enable-cache: true
       - run: uv sync --locked --only-group cloud
-      - run: npm test
+      - name: Run database and Python acceptance in the locked cloud environment
+        run: uv run --locked --only-group cloud npm test
         working-directory: supabase/tests/runner
       - run: uv run --locked --only-group cloud python -m unittest discover -s tests -p test_personalization_cloud.py -v
