@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.collaboration_worker import execute,PublicFailure
-from desk_companion.web_sources import source_catalog
+from desk_companion.collaboration.collaboration_worker import execute, PublicFailure
+from desk_companion.integrations.web.web_sources import source_catalog
 
 
 class ScriptedModel:
@@ -35,8 +35,8 @@ def delivery(text):
 
 class FeedbackWorkerTests(unittest.TestCase):
     def test_proposal_handoff_has_domain_contract_without_claiming_ui_observation(self):
-        from desk_companion.calendar_proposals import build
-        from desk_companion.delivery_feedback import assess
+        from desk_companion.planning.calendar_proposals import build
+        from desk_companion.collaboration.delivery_feedback import assess
         proposal=build(dict(summary='合成提案',start='2040-01-02T09:00:00+08:00',end='2040-01-02T10:00:00+08:00'),task_id=self.request['task_id'])
         receipts=[dict(tool='calendar_propose',call_id='proposal-one',read_only=True,result=proposal)]
         _,checks,_=assess(self.request,'提案已生成，请打开草稿确认。',[],None,receipts)
@@ -44,7 +44,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.assertEqual(verified['status'],'pass')
         self.assertFalse(verified['delivery_contract']['ui_observed'])
         captured=[]
-        from desk_companion.feedback_review import review
+        from desk_companion.collaboration.feedback_review import review
         review('生成可打开的提案','提案已生成',[],receipts,lambda m:(captured.append(m)or dict(message=dict(content='{}'))),verified_checks=checks)
         self.assertEqual(json.loads(captured[0][1]['content'])['delivery_contract']['kind'],'calendar_proposal')
         proposal['proposal']['summary']='篡改提案'
@@ -130,9 +130,9 @@ class FeedbackWorkerTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         for context in [patch.dict(os.environ,{'DESK_COMPANION_DATA_DIR':self.temp.name}),
-                        patch('desk_companion.model_catalog.require_item',return_value=dict(id='fixture',api_key='test-only',base_url='https://example.invalid/v1',model='fake')),
-                        patch('desk_companion.collaboration_worker.updates',return_value=[]),
-                        patch('desk_companion.collaboration_worker.selected_materials',return_value={})]:
+                        patch('desk_companion.models.model_catalog.require_item',return_value=dict(id='fixture',api_key='test-only',base_url='https://example.invalid/v1',model='fake')),
+                        patch('desk_companion.collaboration.collaboration_worker.updates',return_value=[]),
+                        patch('desk_companion.collaboration.collaboration_worker.selected_materials',return_value={})]:
             context.start();self.addCleanup(context.stop)
         self.request=dict(kind='task',role=dict(id='writer',name='writer',role='write',tools=[]),text='只输出JSON。',
             collab_run=uuid.uuid4().hex,collab_path=str(Path(self.temp.name)/'workspace.sqlite3'),conversation='test',
@@ -144,7 +144,7 @@ class FeedbackWorkerTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name=='nt','first readonly runtime pilot requires Windows parent-exit protection')
     def test_atlas_collect_child_keeps_actual_body_and_independent_acceptance(self):
-        from desk_companion.readonly_research import ReadonlyLoop
+        from desk_companion.collaboration.readonly_research import ReadonlyLoop
         instances=[]
         class ObservedLoop(ReadonlyLoop):
             def __init__(loop,**kwargs):super().__init__(**kwargs);instances.append(loop)
@@ -155,7 +155,7 @@ class FeedbackWorkerTests(unittest.TestCase):
             context=[dict(sender='user',text=source['url'])])
         invocation=dict(tool_calls=[dict(id='actual-read',function=dict(name='web_fetch',arguments=json.dumps(dict(url=source['url']))))])
         model=ScriptedModel([invocation,json.dumps(dict(reading=True,citation=f'[{ident}]'))]);reads=[]
-        with patch('desk_companion.readonly_research.ReadonlyLoop',ObservedLoop):
+        with patch('desk_companion.collaboration.readonly_research.ReadonlyLoop',ObservedLoop):
             execute(self.request,lambda k,d:self.events.append((k,d)),llm=model,fetch=lambda url:(reads.append(url)or source))
         self.assertEqual(reads,[source['url']])
         self.assertTrue(any(kind=='execution_runtime'and data['name']=='atlas_readonly'for kind,data in self.events))
@@ -189,7 +189,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         invocation=dict(tool_calls=[dict(id='log-call',function=dict(name='project_log',arguments=json.dumps(arguments)))])
         model=ScriptedModel([invocation,'{"log_read":true}'])
         result=dict(ok=True,**arguments,text='Running on http://172.17.0.57:5000\n\x1b[33mPress CTRL+C\x1b[0m\n')
-        with patch('desk_companion.project_tools.call',return_value=result):self.run_model(model)
+        with patch('desk_companion.projects.project_tools.call',return_value=result):self.run_model(model)
         ends=[data for kind,data in self.events if kind=='tool_end'and data['tool']=='project_log']
         self.assertEqual(ends[0]['status'],'success')
         self.assertTrue(any(kind=='feedback_check'for kind,_ in self.events))
@@ -201,7 +201,7 @@ class FeedbackWorkerTests(unittest.TestCase):
 
     def test_trusted_root_can_finish_after_old_twelve_call_phase_boundary(self):
         import hashlib
-        from desk_companion.task_budgets import Ledger,installed,current
+        from desk_companion.tasks.task_budgets import Ledger, installed, current
         ledger=Ledger();root=ledger.create('root-stage','coding');ledger.bind(root,self.request['task_id'],root_member=True)
         self.request.update(budget=12,role=dict(id='writer',name='writer',role='write',tools=['项目环境']))
         calls=[dict(tool_calls=[dict(id='read-'+str(i),function=dict(name='project_read',arguments=json.dumps(
@@ -214,7 +214,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         model=BudgetedModel([*calls,'{"read":13}'])
         def read(method,payload):
             text=payload['path'];return dict(ok=True,text=text,sha256=hashlib.sha256(text.encode()).hexdigest())
-        with installed(task),patch('desk_companion.project_tools.call',side_effect=read):self.run_model(model)
+        with installed(task),patch('desk_companion.projects.project_tools.call',side_effect=read):self.run_model(model)
         self.assertEqual(len(model.calls),15)  # 13 actual reads, final candidate, independent review.
         self.assertEqual(ledger.view(root)['consumed']['model_calls'],15)
         self.assertEqual(ledger.view(root)['limits']['model_calls'],24)
@@ -234,7 +234,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.assertTrue(any(c['dimension']=='claim_support'and c['basis']=='model_assessment'for c in report['checks']))
 
     def test_parent_format_repair_keeps_only_json_and_counts_review_call(self):
-        from desk_companion.agent_evals import CASES
+        from desk_companion.evaluation.agent_evals import CASES
         self.request.update(stage='deliver',objective=next(c['prompt']for c in CASES if c['id']=='delegate_deliver'))
         model=ScriptedModel([delivery('# 报告\n{"total":18,"checked":true}'),delivery('{"total":18,"checked":true}')])
         self.run_model(model)
@@ -271,7 +271,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         def prepare(ident):return dict(tool_calls=[dict(id=ident,function=dict(name='project_prepare',arguments=json.dumps(dict(repository='https://github.com/example/project'))))])
         model=ScriptedModel([prepare('first'),'{"ready":true}',prepare('repeat'),'{"ready":false}'],['contradicted','unverified'])
         unknown=dict(ok=False,operation=dict(id='original-operation',state='unknown'),environment=dict(id='original-environment',state='unknown'),log_id='original-log')
-        with patch('desk_companion.project_tools.call',return_value=unknown)as rpc:
+        with patch('desk_companion.projects.project_tools.call',return_value=unknown)as rpc:
             with self.assertRaises(PublicFailure):self.run_model(model)
         self.assertEqual(rpc.call_count,1)
         self.assertTrue(any(k=='repair_tool_blocked'and d['tool']=='project_prepare'for k,d in self.events))
@@ -293,7 +293,7 @@ class FeedbackWorkerTests(unittest.TestCase):
                 if messages[0]['content'].startswith('反馈审阅协议')and not received:received.append('最终只返回JSON。')
                 return value
         model=UpdatingModel([delivery('总和是18。'),delivery('{"total":18}')])
-        with patch('desk_companion.collaboration_worker.updates',side_effect=lambda *_:received.copy()):self.run_model(model)
+        with patch('desk_companion.collaboration.collaboration_worker.updates',side_effect=lambda *_:received.copy()):self.run_model(model)
         self.assertTrue(any(k=='feedback_invalidated'for k,d in self.events))
         self.assertEqual(json.loads(self.events[-1][1]),dict(total=18));self.assertEqual(len(model.calls),4)
 
@@ -330,7 +330,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.assertTrue(json.loads(model.calls[-1]['messages'][1]['content'])['previous_protocol_issues'])
 
     def test_review_timeout_retains_candidate_without_reexecuting_tools_or_rewriting(self):
-        from desk_companion.review_limits import ReviewTimeout
+        from desk_companion.collaboration.review_limits import ReviewTimeout
         self.request.update(text='核对给定来源。',source_evidence=[dict(kind='page',level='body',url='https://example.org/a',text='Actual fact.')])
         class ExpiredReview(ScriptedModel):
             def chat(inner,messages,tools=None,on_delta=None):
@@ -379,7 +379,7 @@ class FeedbackWorkerTests(unittest.TestCase):
         def prepare(ident):return dict(tool_calls=[dict(id=ident,function=dict(name='project_prepare',arguments=json.dumps(dict(repository='https://github.com/example/project'))))])
         model=ScriptedModel([prepare('first'),prepare('repeat'),'{"ready":false}','{"ready":false}'])
         unknown=dict(ok=False,operation=dict(id='original-operation',state='unknown'),environment=dict(id='original-environment',state='unknown'))
-        with patch('desk_companion.project_tools.call',return_value=unknown)as rpc:
+        with patch('desk_companion.projects.project_tools.call',return_value=unknown)as rpc:
             with self.assertRaises(PublicFailure):self.run_model(model)
         self.assertEqual(rpc.call_count,1)
         self.assertTrue(any(k=='unknown_operation_blocked'for k,d in self.events))

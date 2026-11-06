@@ -19,9 +19,9 @@ import threading
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from ..runtime_instance import InstanceInUse, INSTANCE_EXIT_CODE
-from ..sampling import parse_sampling
-from .host import HeadlessApp
+from desk_companion.infrastructure.runtime_instance import InstanceInUse, INSTANCE_EXIT_CODE
+from desk_companion.models.sampling import parse_sampling
+from desk_companion.local_api.host import HeadlessApp
 
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
@@ -105,7 +105,7 @@ def _news_cover(connection, path):
     from urllib.parse import parse_qs, urlsplit
     from websockets.asyncio.server import Response
     from websockets.datastructures import Headers
-    from ..news import run_path
+    from desk_companion.content.news.service import run_path
     parts = urlsplit(path)
     token = parse_qs(parts.query).get("token", [""])[0]
     if not TOKEN or not hmac.compare_digest(token.encode(), TOKEN.encode()):
@@ -125,7 +125,7 @@ def _news_cover(connection, path):
 
 def read_pet_asset(request_path: str):
     from urllib.parse import unquote, urlsplit
-    from ..paths import asset_root
+    from desk_companion.infrastructure.paths import asset_root
     path = urlsplit(request_path).path.removeprefix("/pet-assets/")
     token, _, relative = path.partition("/")
     if not TOKEN or token != TOKEN:
@@ -180,7 +180,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
     try:
         target = fn
         def fn(**kwargs):
-            from ..agent_debug import context
+            from desk_companion.observability.agent_debug import context
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
         if method.startswith(("account_","personalization_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
@@ -209,7 +209,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             with HOST.turn_lock:
                 mutating = {"add_fact", "update_fact", "delete_fact", "delete_memory_turn", "clear_chat"}
                 if method in mutating:
-                    from ..resource_lock import WRITES
+                    from desk_companion.infrastructure.resource_lock import WRITES
                     with WRITES:
                         result = fn(**args) if args else fn()
                 else:
@@ -223,8 +223,8 @@ async def _handler(ws):
     from urllib.parse import parse_qs, urlsplit
     req_path = ws.request.path if ws.request else ""
     parts = urlsplit(req_path)
-    from ..collaboration_access import preview_allowed
-    from ..collaboration import METHODS as COLLABORATION_METHODS
+    from desk_companion.collaboration.collaboration_access import preview_allowed
+    from desk_companion.collaboration.service import METHODS as COLLABORATION_METHODS
     preview = parts.path == "/collaboration"
     token = parse_qs(parts.query).get("token", [""])[0]
     origin = ws.request.headers.get("Origin", "") if ws.request else ""
@@ -334,7 +334,7 @@ async def _handle_notebook(ws, msg: dict) -> None:
 
     def run() -> None:
         try:
-            from ..agent_debug import context
+            from desk_companion.observability.agent_debug import context
             with context(session=str(msg.get("session_id") or ""), channel="notebook"):
                 found = HOST.notebooks.run_notebook(
                     str(msg.get("session_id") or ""),
@@ -386,12 +386,12 @@ async def main() -> None:
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--token", type=str, default="")
     args = parser.parse_args()
-    from ..agent_debug import configure_process
+    from desk_companion.observability.agent_debug import configure_process
     configure_process({"channel": "backend"})
     TOKEN = args.token
     os.environ["DESK_TERMINAL_PORT"] = str(args.port)
     os.environ["DESK_TERMINAL_TOKEN"] = TOKEN
-    from ..runtime_instance import acquire_runtime
+    from desk_companion.infrastructure.runtime_instance import acquire_runtime
     acquire_runtime()
     HOST = HeadlessApp()
     SHUTDOWN = asyncio.Event()
@@ -403,7 +403,7 @@ async def main() -> None:
             print(f"local_api ready on 127.0.0.1:{args.port}", flush=True)
             await SHUTDOWN.wait()
             HOST.automation.stop()
-            from ..local_sources import cancel_all
+            from desk_companion.knowledge.local_sources import cancel_all
             cancel_all()
             if HOST._project_environments is not None:
                 HOST._project_environments.closed=True
@@ -422,7 +422,7 @@ async def main() -> None:
             HOST._tasks.shutdown()
         if HOST._collaboration is not None:
             await asyncio.to_thread(HOST._collaboration.shutdown)
-        from ..terminal import manager
+        from desk_companion.projects.terminal import manager
         await asyncio.to_thread(manager().shutdown)
         await asyncio.to_thread(HOST.feishu_agent.stop, False)
         profile_result=await profile_cleanup

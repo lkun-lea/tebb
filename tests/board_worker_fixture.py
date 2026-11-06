@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 from gui_import_guard import NoGui, assert_no_gui
 sys.meta_path.insert(0, NoGui())
-from desk_companion import board_data
-from desk_companion import calendar_proposals
-from desk_companion.paths import data_root
+from desk_companion.planning import board_data
+from desk_companion.planning import calendar_proposals
+from desk_companion.infrastructure.paths import data_root
 
 
 original_build=calendar_proposals.build

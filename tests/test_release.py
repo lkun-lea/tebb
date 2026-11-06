@@ -5,8 +5,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion import automation, board_data, envconf, knowledge
-from desk_companion import mcp_client, memory, model_catalog, state, usage
+from desk_companion.automation import schedule as automation
+from desk_companion.planning import board_data
+from desk_companion.infrastructure import envconf
+from desk_companion.knowledge import index as knowledge
+from desk_companion.integrations import mcp_client
+from desk_companion.memory import history as memory
+from desk_companion.models import model_catalog
+from desk_companion.infrastructure import state
+from desk_companion.observability import usage
 from desk_companion.local_api import server
 
 

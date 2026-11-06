@@ -12,8 +12,9 @@ import unittest
 from unittest.mock import Mock, patch
 import uuid
 
-from desk_companion.collaboration import Collaboration, transaction
-from desk_companion.work_board import WorkBoardService
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration
+from desk_companion.planning.work_board import WorkBoardService
 
 
 class WorkBoardTests(unittest.TestCase):
@@ -119,14 +120,14 @@ class WorkBoardTests(unittest.TestCase):
         def lose_ack(path):
             with original(path) as result: yield result
             raise OSError('commit acknowledgement lost')
-        with patch('desk_companion.collaboration.transaction',lose_ack): result=self.service.change(request)
+        with patch('desk_companion.collaboration.store.transaction',lose_ack): result=self.service.change(request)
         self.assertEqual(result['change_state'],'unconfirmed')
         recovered=self.service.load(request['request_id']); self.assertIsNotNone(recovered['receipt'])
         replay=self.service.change(request); self.assertTrue(replay['ok']); self.assertEqual(len(replay['items']),1)
 
     def test_write_rollback_and_committed_refresh_failure_have_distinct_receipts(self):
         item=self.create()
-        with patch('desk_companion.work_items.apply_change',side_effect=OSError('before write')):
+        with patch('desk_companion.planning.work_items.apply_change',side_effect=OSError('before write')):
             failure=self.change(item,'move',state='done')
         self.assertEqual(failure['change_state'],'not_changed')
         with patch.object(self.service,'load',return_value=dict(ok=False,error='read fail')):
@@ -140,8 +141,8 @@ import sys
 from unittest.mock import patch
 from tests.gui_import_guard import NoGui, assert_no_gui
 sys.meta_path.insert(0,NoGui())
-from desk_companion.work_board import WorkBoardService
-with patch('desk_companion.tasks.TaskManager',side_effect=AssertionError('must remain lazy')):
+from desk_companion.planning.work_board import WorkBoardService
+with patch('desk_companion.tasks.manager.TaskManager',side_effect=AssertionError('must remain lazy')):
     service=WorkBoardService()
     page=service.change(dict(type='create',request_id='no-gui-create',fields=dict(title='isolated')))
     assert page['ok'],page

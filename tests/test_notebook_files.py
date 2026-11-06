@@ -7,9 +7,10 @@ import threading
 import unittest
 from unittest.mock import Mock, patch
 
-from desk_companion import knowledge, notebook
-from desk_companion.notebook_platform import NotebookPlatform
-from desk_companion.notebook_service import NotebookService
+from desk_companion.knowledge import index as knowledge
+from desk_companion.knowledge import notebook
+from desk_companion.knowledge.notebook_platform import NotebookPlatform
+from desk_companion.knowledge.notebook_service import NotebookService
 from tests.test_notebook_service import NotebookFixture
 
 
@@ -182,7 +183,7 @@ class NotebookFileTests(NotebookFixture):
 
     def test_default_feishu_adapter_uses_existing_parser_without_network(self):
         import json
-        from desk_companion import feishu_auth
+        from desk_companion.integrations.feishu import feishu_auth
         service = NotebookService(self.sessions, platform=self.platform)
         envelope = dict(ok=True, data=dict(document=dict(url='https://example.invalid/doc', document_id='doc-id')))
         with patch.object(feishu_auth, '_run_lark', return_value=json.dumps(envelope)) as cli:

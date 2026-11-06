@@ -7,7 +7,9 @@ from unittest.mock import Mock,patch
 
 import httpx
 
-from desk_companion import agent_debug as debug,context_inspector as inspector,model_capacity
+from desk_companion.observability import agent_debug as debug
+from desk_companion.memory import context_inspector as inspector
+from desk_companion.models import model_capacity
 
 
 class ContextInspectorTests(unittest.TestCase):
@@ -15,7 +17,7 @@ class ContextInspectorTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.env=patch.dict(os.environ,DESK_COMPANION_DATA_DIR=self.temp.name);self.env.start();self.addCleanup(self.env.stop)
         self.model=dict(id='m1',model='configured-model',base_url='https://api.example.org/v1',api_key='PRIVATE_KEY')
-        p=patch('desk_companion.model_catalog.require_item',return_value=self.model);p.start();self.addCleanup(p.stop)
+        p=patch('desk_companion.models.model_catalog.require_item',return_value=self.model);p.start();self.addCleanup(p.stop)
         self.collab=Mock();self.collab.snapshot.return_value=dict(state=dict(conversations=[dict(id='one',members=['tebb']),dict(id='two',members=['tebb'])],
             agents=[dict(id='tebb',name='tebb',memory='我的伙伴偏好')],runs=[dict(id='root1',conversation='one',agent='tebb',model_id='m1'),
             dict(id='child1',conversation='one',agent='research',parent='root1',model_id='m1'),dict(id='root2',conversation='two',agent='tebb',model_id='m1')]))

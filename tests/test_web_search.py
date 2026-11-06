@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import httpx
-from desk_companion import search_service as service, web_search
+from desk_companion.integrations.web import search_service as service
+from desk_companion.integrations.web import web_search
 
 GOOD_TEXT = 'Title: Python TaskGroup\nURL: https://docs.python.org/3/library/asyncio-task.html\nPublished: N/A\nHighlights:\nStructured concurrency'
 RSS = '<rss><channel><item><title>Official</title><link>https://example.org/doc</link><description>source</description></item></channel></rss>'
@@ -34,7 +35,7 @@ class SearchTests(unittest.TestCase):
     def test_public_sse_and_json_without_model_configuration_or_credentials(self):
         for sse in (True, False):
             self.transport(lambda request: exa(request, sse=sse))
-            with patch('desk_companion.envconf.require_llm_env', side_effect=AssertionError('must not read model')):
+            with patch('desk_companion.infrastructure.envconf.require_llm_env', side_effect=AssertionError('must not read model')):
                 result = service.search('Python TaskGroup')
             self.assertEqual(result['provider'], 'exa'); self.assertEqual(result['results'][0]['published_date'], '')
             request = self.requests[-1]; self.assertNotIn('authorization', request.headers)
@@ -100,7 +101,7 @@ class SearchTests(unittest.TestCase):
         model = dict(base_url='https://model.example/v1', api_key='MODEL_SECRET')
         self.assertEqual(service.settings()['provider'], 'exa'); service.save_settings({'provider': 'model-api'})
         self.transport(lambda r: httpx.Response(404) if r.url.host == 'model.example' else httpx.Response(200, text=RSS))
-        with patch('desk_companion.model_catalog.require_active', return_value=model): result = service.search('query')
+        with patch('desk_companion.models.model_catalog.require_active', return_value=model): result = service.search('query')
         self.assertEqual(self.requests[0].headers['authorization'], 'Bearer MODEL_SECRET')
         self.assertTrue(all('authorization' not in r.headers for r in self.requests[1:])); self.assertNotIn('MODEL_SECRET', str(result))
 
@@ -132,12 +133,12 @@ class SearchTests(unittest.TestCase):
 
     def test_atlas_tool_failure_recorded_without_credentials(self):
         from atlas.testing import FakeLLM
-        from desk_companion import assistant
+        from desk_companion.chat import assistant
         from types import SimpleNamespace
         self.transport(lambda r: httpx.Response(503, text='PRIVATE_TOKEN'))
         cfg = dict(ATLAS_API_KEY='test-secret', ATLAS_BASE_URL='https://example.invalid/v1', ATLAS_MODEL='fake')
         host = SimpleNamespace(state=SimpleNamespace(persona='助手', max_steps=8), ui=lambda fn: fn(), on_llm_delta=lambda _: None, on_stream_status=lambda _: None)
-        with patch('desk_companion.model_catalog.require_active',return_value=dict(id='fixture',api_key=cfg['ATLAS_API_KEY'],base_url=cfg['ATLAS_BASE_URL'],model=cfg['ATLAS_MODEL'])):agent=assistant.build_agent(host)
+        with patch('desk_companion.models.model_catalog.require_active',return_value=dict(id='fixture',api_key=cfg['ATLAS_API_KEY'],base_url=cfg['ATLAS_BASE_URL'],model=cfg['ATLAS_MODEL'])):agent=assistant.build_agent(host)
         agent.llm = FakeLLM([{'role': 'assistant', 'content': '', 'tool_calls': [{'id': 's1', 'type': 'function', 'function': {'name': 'web_search', 'arguments': '{"query":"苏州天气"}'}}]}, '未取得来源。'])
         agent.run('苏州天气', run_id='search-failure')
         tool = [e for e in agent.journal.get_events('search-failure') if e.event_type == 'tool_after_call'][-1]

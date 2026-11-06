@@ -29,7 +29,7 @@
 仓库根目录的本地只读检查（不调用模型或外部服务）：
 
 ```powershell
-python -c "from desk_companion.usage_center import UsageCenter; import json; print(json.dumps(UsageCenter().query({'period':'30','kind':'model'}, limit=20), ensure_ascii=False, indent=2))"
+python -c "from desk_companion.observability.usage_center import UsageCenter; import json; print(json.dumps(UsageCenter().query({'period':'30','kind':'model'}, limit=20), ensure_ascii=False, indent=2))"
 python -m unittest discover -s tests -p test_usage_center.py -v
 ```
 

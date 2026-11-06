@@ -14,8 +14,8 @@ import time
 import unittest
 from unittest.mock import Mock, patch
 
-from desk_companion import automation as a
-from desk_companion.automation_service import AutomationService
+from desk_companion.automation import schedule as a
+from desk_companion.automation.automation_service import AutomationService
 
 NOW = datetime(2026, 10, 21, 12, tzinfo=a.TZ)
 
@@ -93,14 +93,14 @@ class AutomationServiceTests(AutomationFixture):
         self.assertFalse(self.service.run_automation_job(jid)['ok'])
 
     def test_failed_enqueue_before_or_after_replace_never_runs_unacknowledged_work(self):
-        from desk_companion.video import atomic_write
+        from desk_companion.infrastructure.storage import atomic_write
         for after in (False, True):
             jid = self.save(name=str(after))
             def write(path, value):
                 if after:
                     atomic_write(path, value)
                 raise OSError('ack lost')
-            with patch('desk_companion.video.atomic_write', side_effect=write):
+            with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=write):
                 result = self.service.run_automation_job(jid)
             self.assertEqual((result['stage'], result['change_state']), ('enqueue_save','unconfirmed'), result)
             self.assertTrue(result['execution']['id'])
@@ -138,18 +138,18 @@ class AutomationServiceTests(AutomationFixture):
         self.service.busy = lambda: False
         self.assertTrue(self.service.run_automation_job(jid)['ok'])
         self.assertTrue(entered.wait(5))
-        from desk_companion.resource_lock import WRITES
+        from desk_companion.infrastructure.resource_lock import WRITES
         try:
             with WRITES.hold(blocking=False), a._STORE_LOCK.hold(blocking=False):
                 self.assertEqual(self.stored(jid)['last_result'], 'running')
             self.assertFalse(self.service.delete_automation_job(jid)['ok'])
             self.save(name='parallel', action='retro_write')
-            from desk_companion.video import atomic_write
+            from desk_companion.infrastructure.storage import atomic_write
             def write(path, value):
                 if any(j.get('execution', {}).get('phase')=='completed' for j in value['jobs']):
                     raise OSError('result disk')
                 atomic_write(path, value)
-            with patch('desk_companion.video.atomic_write', side_effect=write):
+            with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=write):
                 release.set()
                 self.service._worker.join(5)
                 page = self.service.snapshot()
@@ -224,7 +224,7 @@ class AutomationServiceTests(AutomationFixture):
 
     def test_delete_write_failure_keeps_configuration_and_acceptance_state(self):
         jid = self.save()
-        with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+        with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
             result = self.service.delete_automation_job(jid)
         self.assertEqual(result['change_state'], 'unconfirmed', result)
         self.assertEqual(self.stored(jid)['name'], 'sample')
@@ -247,12 +247,7 @@ assert_no_gui()
         self.assertEqual(child.returncode, 0, out+err)
 
     def test_cross_process_configuration_transactions_do_not_lose_jobs(self):
-        code = '''
-import sys
-from desk_companion import automation as a
-for i in range(8):
- a.upsert_job(dict(name=sys.argv[1]+str(i), action='retro_gen',enabled=False,cadence='daily',weekdays=[],hour=1,minute=0,doc=''))
-'''
+        code = "\nimport sys\nfrom desk_companion.automation import schedule as a\nfor i in range(8):\n a.upsert_job(dict(name=sys.argv[1]+str(i), action='retro_gen',enabled=False,cadence='daily',weekdays=[],hour=1,minute=0,doc=''))\n"
         children = [self.child(code, name) for name in ('one','two')]
         for child in children:
             out, err = child.communicate(timeout=40)
@@ -275,7 +270,7 @@ for i in range(8):
 
     def test_busy_review_queue_does_not_start_or_spin_workers(self):
         jid = self.save()
-        with patch('desk_companion.automation_service.threading.Thread') as thread:
+        with patch('desk_companion.automation.automation_service.threading.Thread') as thread:
             self.service.run_now(jid)
             self.service._loop()
         thread.assert_not_called()
@@ -283,12 +278,12 @@ for i in range(8):
         self.assertEqual(self.stored(jid)['last_result'], 'queued')
 
     def test_news_running_receipt_failure_still_observes_same_task_without_resubmission(self):
-        from desk_companion import news_controller
+        from desk_companion.content.news import controller as news_controller
         jid = self.save(action='ai_news')
         manager = Mock()
         manager.get.return_value = dict(state='succeeded', started=time.time(), error='')
         self.service.tasks = lambda: manager
-        from desk_companion.video import atomic_write
+        from desk_companion.infrastructure.storage import atomic_write
         def write(path, value):
             if any(j.get('last_task_id') and j['last_result']=='running' for j in value['jobs']):
                 raise OSError('running acknowledgement lost')
@@ -296,7 +291,7 @@ for i in range(8):
         with patch.object(self.service, '_kick'):
             self.service.run_now(jid)
         with patch.object(news_controller, 'start', return_value=dict(task_id='accepted', run_id='run')) as start, \
-                patch('desk_companion.video.atomic_write', side_effect=write):
+                patch('desk_companion.infrastructure.storage.atomic_write', side_effect=write):
             self.service._loop()
             deadline = time.monotonic()+5
             while self.service._news_active:
@@ -307,7 +302,8 @@ for i in range(8):
         self.assertEqual(self.stored(jid)['last_task_id'], 'accepted')
 
     def test_news_observation_failure_keeps_job_owned_until_stop_and_resets_recovery_slot(self):
-        from desk_companion import news_controller, news
+        from desk_companion.content.news import controller as news_controller
+        from desk_companion.content.news import service as news
         jid = self.save(action='ai_news')
         manager = Mock(); manager.get.side_effect = OSError('task database unavailable')
         self.service.tasks = lambda: manager
@@ -325,7 +321,8 @@ for i in range(8):
         self.assertEqual(self.stored(jid)['last_run_slot'], '')
 
     def test_news_submission_ack_loss_reconciles_existing_task_without_resubmitting(self):
-        from desk_companion import news_controller, news
+        from desk_companion.content.news import controller as news_controller
+        from desk_companion.content.news import service as news
         from tests.test_news import fixture
         run = fixture()
         manager = Mock(); manager.cv = threading.Condition(threading.RLock())
@@ -343,13 +340,13 @@ for i in range(8):
 
 class RuntimeOwnershipTests(AutomationFixture):
     def test_duplicate_backend_and_legacy_rejected_before_task_recovery_then_kill_releases(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         manager = TaskManager(); manager.shutdown()
         path = self.root/'memory/tasks.sqlite3'
         with closing(sqlite3.connect(path)) as db:
             db.execute("INSERT INTO tasks(id,session,channel,text,request,state,created) VALUES('keep','x','automation','x','{}','running',0)")
             db.commit()
-        owner = self.child("from desk_companion.runtime_instance import acquire_runtime; acquire_runtime(); print('ready',flush=True); input()")
+        owner = self.child("from desk_companion.infrastructure.runtime_instance import acquire_runtime; acquire_runtime(); print('ready',flush=True); input()")
         self.assertEqual(owner.stdout.readline().strip(), 'ready')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
@@ -357,14 +354,14 @@ class RuntimeOwnershipTests(AutomationFixture):
             capture_output=True, text=True, encoding='utf-8', timeout=30, env=os.environ.copy())
         self.assertEqual(backend.returncode, 73, backend.stdout+backend.stderr)
         self.assertIn('已有运行实例', backend.stdout+backend.stderr)
-        legacy = self.child("from desk_companion.app import run_app; run_app('not-loaded')")
+        legacy = self.child("from desk_companion.desktop.app import run_app; run_app('not-loaded')")
         out, err = legacy.communicate(timeout=30)
         self.assertNotEqual(legacy.returncode, 0)
         self.assertIn('已有运行实例', out+err)
         with closing(sqlite3.connect(path)) as db:
             self.assertEqual(db.execute("SELECT state FROM tasks WHERE id='keep'").fetchone()[0], 'running')
         owner.kill(); owner.communicate(timeout=15)
-        successor = self.child("from desk_companion.runtime_instance import acquire_runtime; acquire_runtime(); print('acquired')")
+        successor = self.child("from desk_companion.infrastructure.runtime_instance import acquire_runtime; acquire_runtime(); print('acquired')")
         out, err = successor.communicate(timeout=15)
         self.assertEqual(successor.returncode, 0, out+err)
         self.assertIn('acquired', out)

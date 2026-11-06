@@ -6,7 +6,7 @@
 
 顶部入口采用紧凑文字菜单，移除按钮边框和发光。Agent 执行期间也能打开附件面板。面板是独立悬浮窗，没有全屏遮罩，不抢聊天焦点、不限制 Tab 焦点；标题栏可拖动、收起，加载中也可关闭。打开面板不会立即弹出系统选择器，点击「选择文件」或「选择文件夹」后再选择。
 
-Windows 使用独立 Python 进程打开 Common Item Dialog（IFileOpenDialog，文件夹使用 FOS_PICKFOLDERS），窗口创建前启用 Per Monitor V2 DPI；不设置顶、不以桌宠为模态 owner，也不依赖旧式 WinForms 文件夹树或便携版缺失的 Tk。可通过 `python -m desk_companion.local_picker --probe folder` 验证 COM 初始化和 DPI，不显示选择器、不读取文件。
+Windows 使用独立 Python 进程打开 Common Item Dialog（IFileOpenDialog，文件夹使用 FOS_PICKFOLDERS），窗口创建前启用 Per Monitor V2 DPI；不设置顶、不以桌宠为模态 owner，也不依赖旧式 WinForms 文件夹树或便携版缺失的 Tk。可通过 `python -m desk_companion.desktop.local_picker --probe folder` 验证 COM 初始化和 DPI，不显示选择器、不读取文件。
 
 关闭／停止等待会取消对应的选择器进程，并停止扫描和后续文件读取。迟到的返回不会加入附件；不取消 Agent 任务。入库过程中已完成的文件保留，当前正在入库的单个文件会完成，其余文件不继续。收起保留后台工作和当前勾选状态。关闭面板不会删除原文件，也不会撤销已完成入库。
 

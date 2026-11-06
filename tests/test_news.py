@@ -12,9 +12,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from desk_companion import automation, news, news_controller, news_publish
-from desk_companion.automation_service import AutomationService
-from desk_companion.memory import TZ
+from desk_companion.automation import schedule as automation
+from desk_companion.content.news import service as news
+from desk_companion.content.news import controller as news_controller
+from desk_companion.content.news import publish as news_publish
+from desk_companion.automation.automation_service import AutomationService
+from desk_companion.memory.history import TZ
 
 
 def fixture():
@@ -40,13 +43,13 @@ class NewsTests(unittest.TestCase):
         def chat(messages,_tools):
             calls.append(copy.deepcopy(messages));return dict(message=dict(content=json.dumps(invalid if len(calls)==1 else valid,ensure_ascii=False)))
         client=SimpleNamespace(chat=chat)
-        with patch('desk_companion.execution_context.ExecutionLLM',return_value=client),patch('desk_companion.model_catalog.require_active',return_value=dict(api_key='fixture',base_url='http://example.invalid',model='fixture')),patch('desk_companion.model_catalog.bind_llm'):
+        with patch('desk_companion.collaboration.execution_context.ExecutionLLM',return_value=client),patch('desk_companion.models.model_catalog.require_active',return_value=dict(api_key='fixture',base_url='http://example.invalid',model='fixture')),patch('desk_companion.models.model_catalog.bind_llm'):
             result=news.summarize(run['day'],dict(highlights=5),run['report']['items'],lambda *_:None)
         self.assertEqual(len(result['items']),5);self.assertEqual(len(calls),2)
         self.assertIn('2至4条',calls[0][0]['content']);self.assertIn('当前为5',calls[1][-1]['content'])
 
     def test_budget_denial_before_record_send_clears_only_the_new_pending_marker(self):
-        from desk_companion.task_budgets import BudgetExceeded
+        from desk_companion.tasks.task_budgets import BudgetExceeded
         run=fixture();run['doc_url']='https://example.feishu.cn/docx/doc'
         denied=BudgetExceeded(dict(message='quota',dimension='tool_calls'))
         with patch.object(news_publish,'find_record',return_value=None),patch.object(news_publish,'phase',side_effect=denied),patch.object(news_publish,'cli')as cli:
@@ -152,7 +155,7 @@ class NewsTests(unittest.TestCase):
         client = Mock()
         client.chat.side_effect = responses
         events = []
-        with patch("desk_companion.execution_context.ExecutionLLM", return_value=client), patch("desk_companion.model_catalog.require_active",
+        with patch("desk_companion.collaboration.execution_context.ExecutionLLM", return_value=client), patch("desk_companion.models.model_catalog.require_active",
                 return_value={"api_key": "test", "base_url": "https://example.invalid/v1", "model": "test"}):
             result = news.summarize(r["day"], r["settings"], r["report"]["items"], lambda k, d: events.append((k, d)))
         self.assertEqual(len(result["items"]), 5)
@@ -164,7 +167,7 @@ class NewsTests(unittest.TestCase):
         value = {"lead": r["report"]["lead"],
                  "items": [{**i, "source_id": i["id"]} for i in r["report"]["items"]]}
         client = Mock()
-        with patch("desk_companion.execution_context.ExecutionLLM", return_value=client), patch("desk_companion.model_catalog.require_active",
+        with patch("desk_companion.collaboration.execution_context.ExecutionLLM", return_value=client), patch("desk_companion.models.model_catalog.require_active",
                 return_value={"api_key": "test", "base_url": "https://example.invalid/v1", "model": "test"}):
             for bad in (None, "", "   ", 42, "很长的海报标题" * 5):
                 with self.subTest(title=bad):
@@ -215,9 +218,9 @@ class NewsTests(unittest.TestCase):
     def test_search_index_date_is_not_treated_as_verified_publication(self):
         cfg = {**news.DEFAULTS, "topics": ["Agent"]}
         payload = {"results": [{"title": "Official", "link": "https://github.com/microsoft/repo", "published_date": "2026-10-08"}]}
-        with patch("desk_companion.envconf.require_llm_env", return_value={"ATLAS_BASE_URL": "https://example.invalid/v1", "ATLAS_API_KEY": "test"}), \
-             patch("desk_companion.web_search.search_sources", return_value=payload), \
-             patch("desk_companion.web_search.format_search"), \
+        with patch("desk_companion.infrastructure.envconf.require_llm_env", return_value={"ATLAS_BASE_URL": "https://example.invalid/v1", "ATLAS_API_KEY": "test"}), \
+             patch("desk_companion.integrations.web.web_search.search_sources", return_value=payload), \
+             patch("desk_companion.integrations.web.web_search.format_search"), \
              patch.object(news, "fetch_source", return_value={"text": "official article", "published": ""}):
             rows, _ = news.collect("2026-10-08", cfg, lambda *_: None)
         self.assertFalse(rows[0]["date_verified"])
@@ -460,11 +463,11 @@ class NewsTests(unittest.TestCase):
         self.assertEqual(req["task_limits"]["task_timeout"], 900)
 
     def test_background_news_poll_does_not_steal_chat_progress_focus(self):
-        from desk_companion.bridge import Bridge
+        from desk_companion.local_api.bridge import Bridge
         manager = Mock()
         manager.get.return_value = {"session": "news"}
         host = SimpleNamespace(tasks=manager, _focused_task="chat")
-        with patch("desk_companion.memory.list_chat", return_value=[]):
+        with patch("desk_companion.memory.history.list_chat", return_value=[]):
             Bridge(host).get_agent_task("news-task", focus=False)
             self.assertEqual(host._focused_task, "chat")
             Bridge(host).get_agent_task("news-task")
@@ -479,7 +482,7 @@ class NewsTests(unittest.TestCase):
         self.assertEqual(cli.call_count, 3)
 
     def test_real_worker_creates_preview_without_cli_or_shared_chat_history(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         run = fixture()
         manager = TaskManager(command=[sys.executable, "-u", "-c", "exec(open('tests/news_worker_fixture.py',encoding='utf-8').read())"])
         self.addCleanup(manager.shutdown)

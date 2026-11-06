@@ -90,7 +90,7 @@ Var TebbInstallerMutex
     System::Call 'kernel32::GetTickCount() i .r0'
     System::Call 'kernel32::GetCurrentProcessId() i .r1'
     StrCpy $R2 "$TEMP\tebb-uninstall-$0-$1.json"
-    ExecWait '"$INSTDIR\runtime\python.exe" -m desk_companion.installation clear-default-data --confirm-default-data --report "$R2"' $R0
+    ExecWait '"$INSTDIR\runtime\python.exe" -m desk_companion.infrastructure.installation clear-default-data --confirm-default-data --report "$R2"' $R0
     ${If} $R0 <> 0
       MessageBox MB_OK|MB_ICONSTOP "数据清除未完成，卸载已停止。请核对报告：$R2"
       SetErrorLevel 73

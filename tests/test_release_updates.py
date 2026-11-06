@@ -9,8 +9,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
-from desk_companion import release_info as info
-from desk_companion import release_notify as notices
+from desk_companion.infrastructure import release_info as info
+from desk_companion.infrastructure import release_notify as notices
 
 
 class UpdateTests(unittest.TestCase):

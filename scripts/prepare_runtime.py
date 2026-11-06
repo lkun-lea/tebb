@@ -21,7 +21,7 @@ def run(*args, **kwargs):
 
 
 def write_sitecustomize(site):
-    (site / 'sitecustomize.py').write_text('from desk_companion.account_bootstrap import initialize_runtime\ninitialize_runtime(only_marked=True)\nfrom desk_companion.runtime_extensions import activate\nactivate()\n',encoding='utf-8')
+    (site / 'sitecustomize.py').write_text('from desk_companion.bootstrap.account_bootstrap import initialize_runtime\ninitialize_runtime(only_marked=True)\nfrom desk_companion.infrastructure.runtime_extensions import activate\nactivate()\n',encoding='utf-8')
 
 
 def export_atlas(source, destination):

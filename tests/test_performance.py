@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion.performance import HttpTiming,percentile,summarize,task_timing,task_snapshot
+from desk_companion.observability.performance import HttpTiming, percentile, summarize, task_timing, task_snapshot
 
 
 class PerformanceTests(unittest.TestCase):

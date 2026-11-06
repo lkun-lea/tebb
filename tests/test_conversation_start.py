@@ -7,7 +7,8 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion.collaboration import Collaboration, transaction
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration
 from tests.test_collaboration import MODEL, Queue
 
 
@@ -18,7 +19,7 @@ class ConversationStartTests(unittest.TestCase):
         self.env = patch.dict(os.environ, DESK_COMPANION_DATA_DIR=self.temp.name)
         self.env.start(); self.addCleanup(self.env.stop)
         for name in ("require_active", "require_item"):
-            mocked = patch("desk_companion.model_catalog." + name, return_value=MODEL)
+            mocked = patch("desk_companion.models.model_catalog." + name, return_value=MODEL)
             mocked.start(); self.addCleanup(mocked.stop)
         self.path = Path(self.temp.name) / "workspace.sqlite3"
         self.queues = dict(chat=Queue(), work=Queue())
@@ -67,7 +68,7 @@ class ConversationStartTests(unittest.TestCase):
                 before = self.service.snapshot()["state"]
                 action = {**self.first(), **change}
                 if "model_id" in change:
-                    with patch("desk_companion.model_catalog.require_item", side_effect=ValueError("模型不存在")):
+                    with patch("desk_companion.models.model_catalog.require_item", side_effect=ValueError("模型不存在")):
                         with self.assertRaises(ValueError): self.service.action(action)
                 else:
                     with self.assertRaises(ValueError): self.service.action(action)

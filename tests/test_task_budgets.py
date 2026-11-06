@@ -4,25 +4,25 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion.task_budgets import Ledger,BudgetExceeded
+from desk_companion.tasks.task_budgets import Ledger, BudgetExceeded
 
 
 class RootBudgets(unittest.TestCase):
     def test_historical_root_does_not_gain_an_invented_time_reserve(self):
-        from desk_companion.task_budgets import Scope
+        from desk_companion.tasks.task_budgets import Scope
         with self.ledger.change(self.root)as root:
             root['version']=1;root['finish_reserve'].pop('time_ms');root['spent_ms']=181000
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):child=Scope('child')
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger):child=Scope('child')
         self.assertFalse(child.time_for_finish('collect'))
         view=self.ledger.view(self.root)
         self.assertEqual(view['policy_version'],1)
         self.assertEqual(view['finish_reserve']['time_ms'],0)
 
     def test_symbol_search_and_read_share_progress_and_repeated_navigation_stops(self):
-        from desk_companion.task_budgets import installed,record_progress
+        from desk_companion.tasks.task_budgets import installed, record_progress
         args=dict(path='mod.py')
         body=dict(ok=True,text='def foo(): pass',revision='a'*64)
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger), installed('child'):
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger), installed('child'):
             ident,_=self.ledger.reserve_call('child',10)
             self.ledger.settle('child',ident,dict(prompt_tokens=10,completion_tokens=1))
             self.assertTrue(record_progress('workspace_search',args,body))
@@ -35,8 +35,8 @@ class RootBudgets(unittest.TestCase):
             self.assertEqual(self.ledger.read(self.root)['stop_reason']['code'],'budget_no_progress')
 
     def test_time_reserve_hands_collection_off_before_root_delivery(self):
-        from desk_companion.task_budgets import Scope
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):
+        from desk_companion.tasks.task_budgets import Scope
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger):
             parent=Scope('parent');child=Scope('child')
         with self.ledger.change(self.root)as root:
             root['spent_ms']=181000
@@ -69,11 +69,11 @@ class RootBudgets(unittest.TestCase):
         self.ledger.reserve_call('parent',10,phase='finish')
 
     def test_native_command_progress_uses_receipt_and_edit_not_stdout_or_command_variants(self):
-        from desk_companion.task_budgets import installed,record_workspace_check
+        from desk_companion.tasks.task_budgets import installed, record_workspace_check
         edits=[dict(path='storage.py',revision='a'*64)]
         observed=dict(state='succeeded',exit_code=0,output='ok')
         def count():return len(self.ledger.read(self.root)['progress'])
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger), installed('child'):
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger), installed('child'):
             record_workspace_check(dict(output='{"state":"succeeded","exit_code":0}'),edits)
             record_workspace_check(dict(observed,state='running'),edits)
             self.assertEqual(count(),0)
@@ -92,8 +92,8 @@ class RootBudgets(unittest.TestCase):
         self.ledger.bind(self.root,'child')
 
     def test_stage_loop_hint_uses_trusted_root_and_keeps_child_local_limit(self):
-        from desk_companion.task_budgets import Scope
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):
+        from desk_companion.tasks.task_budgets import Scope
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger):
             parent=Scope('parent');child=Scope('child')
         self.assertEqual(parent.stage_call_limit(12,'task'),16)
         self.assertEqual(parent.stage_call_limit(1000000,'task'),16)
@@ -114,9 +114,9 @@ class RootBudgets(unittest.TestCase):
         self.assertEqual(parent.stage_call_limit(12,'task'),3)
 
     def test_control_member_cannot_claim_root_task_loop_hint(self):
-        from desk_companion.task_budgets import Scope
+        from desk_companion.tasks.task_budgets import Scope
         self.ledger.bind(self.root,'planner',root_member=True,purpose='plan')
-        with patch('desk_companion.task_budgets.Ledger',return_value=self.ledger):scope=Scope('planner')
+        with patch('desk_companion.tasks.task_budgets.Ledger',return_value=self.ledger):scope=Scope('planner')
         self.assertEqual(scope.stage_call_limit(2,'task'),2)
 
     def test_parallel_children_cannot_overspend_and_crashed_reservations_remain(self):
@@ -186,22 +186,22 @@ class RootBudgets(unittest.TestCase):
         self.assertEqual(self.ledger.view(self.root)['limits']['tool_calls'],30)
 
     def test_wait_for_user_pauses_only_when_members_have_ended(self):
-        with patch('desk_companion.task_budgets.time.time',return_value=100):self.ledger.start('child')
-        with patch('desk_companion.task_budgets.time.time',return_value=102):
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=100):self.ledger.start('child')
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=102):
             self.ledger.waiting(self.root,True)
             self.assertEqual(self.ledger.view(self.root)['consumed']['time_ms'],2000)
             self.ledger.end('child')
-        with patch('desk_companion.task_budgets.time.time',return_value=10000):
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=10000):
             self.assertEqual(self.ledger.view(self.root)['consumed']['time_ms'],2000)
             self.ledger.waiting(self.root,False)
-        with patch('desk_companion.task_budgets.time.time',return_value=10001):
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=10001):
             self.assertEqual(self.ledger.view(self.root)['consumed']['time_ms'],3000)
 
     def test_hard_time_limit_never_extended_and_provider_violation_blocks(self):
         root=self.ledger.create('hard','simple',1000);self.ledger.bind(root,'hard')
-        with patch('desk_companion.task_budgets.time.time',return_value=100):self.ledger.start('hard')
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=100):self.ledger.start('hard')
         self.ledger.progress('hard','body','s','1')
-        with patch('desk_companion.task_budgets.time.time',return_value=102):
+        with patch('desk_companion.tasks.task_budgets.time.time',return_value=102):
             with self.assertRaises(BudgetExceeded):self.ledger.reserve_call('hard',10)
         self.assertEqual(self.ledger.view(root)['limits']['time_ms'],1000)
         call,cap=self.ledger.reserve_call('child',10,enforced=True)

@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from tests.schedule_fixture import TimeCalendar, event
-from desk_companion.work_board import WorkBoardService
-from desk_companion.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
+from desk_companion.planning.scheduling import SchedulingService
 
 class MonthScheduleTests(unittest.TestCase):
     def setUp(self):

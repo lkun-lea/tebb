@@ -12,7 +12,10 @@ from websockets.asyncio.client import connect
 from websockets.asyncio.server import serve
 from atlas.testing import FakeLLM
 
-from desk_companion import assistant, memory, state, usage
+from desk_companion.chat import assistant
+from desk_companion.memory import history as memory
+from desk_companion.infrastructure import state
+from desk_companion.observability import usage
 from desk_companion.local_api import server
 from desk_companion.local_api.host import HeadlessApp
 
@@ -23,9 +26,9 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         from datetime import datetime,timedelta
         import threading
         from types import SimpleNamespace
-        from desk_companion.calendar_time import TZ
-        from desk_companion.calendar_reminders import CalendarReminderService
-        from desk_companion.feishu_task_completion import FeishuTaskCompletionService
+        from desk_companion.planning.calendar_time import TZ
+        from desk_companion.planning.calendar_reminders import CalendarReminderService
+        from desk_companion.integrations.feishu.feishu_task_completion import FeishuTaskCompletionService
         from websockets.exceptions import ConnectionClosed
         now=datetime.now(TZ);guid='b5e165af-3f0d-4708-89bc-c4fd3a69738d';writes=[];cached=[]
         event=dict(calendar_id='tebb-local',event_id='rpc-reminder',summary='RPC隔离安排',start=(now+timedelta(minutes=5)).isoformat(),end=(now+timedelta(minutes=30)).isoformat(),status='confirmed')
@@ -69,13 +72,13 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         patch.object(state, "state_path", return_value=root / "state.json").start()
         patch.object(usage, "usage_path", return_value=root / "usage.jsonl").start()
         self.host = HeadlessApp()
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         self.host._tasks = TaskManager(self.host, command=[sys.executable, "-u", "-c", "exec(open('tests/worker_fixture.py', encoding='utf-8').read())"])
         self.addCleanup(self.host._tasks.shutdown)
-        with patch('desk_companion.model_catalog.require_active', return_value={
+        with patch('desk_companion.models.model_catalog.require_active', return_value={
             'id':'fixture','api_key':'test-only','base_url':'http://example.invalid/v1','model':'fake',
-        }), patch('desk_companion.execution_context.ExecutionLLM', return_value=FakeLLM(["本地流式回归正常。"])), \
-                patch('desk_companion.model_catalog.bind_llm'):
+        }), patch('desk_companion.collaboration.execution_context.ExecutionLLM', return_value=FakeLLM(["本地流式回归正常。"])), \
+                patch('desk_companion.models.model_catalog.bind_llm'):
             self.host.agent = assistant.build_agent(self.host)
         self.host.agent.llm.sampling = None
         patch.object(self.host, "engage_model").start()
@@ -93,7 +96,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_personal_usage_authenticated_metadata_read_while_busy(self):
         import threading
         from websockets.exceptions import ConnectionClosed
-        from desk_companion.usage_store import UsageStore,normalized_usage
+        from desk_companion.observability.usage_store import UsageStore, normalized_usage
         store=UsageStore()
         store.begin('rpc-usage','model',dict(root='',task='',project_id='',channel='diagnostic',source='model_test',model='fixture',model_id='fixture',model_key='fixture:route',route='hash'))
         store.update('rpc-usage',state='returned',usage=normalized_usage({'prompt_tokens':0,'completion_tokens':0}),cost_cny=0)
@@ -116,7 +119,9 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.wait_for(ws.recv(),3)
 
     async def test_material_rpc_real_state_scope_and_authentication(self):
-        from desk_companion import knowledge as k, local_sources, material_sources
+        from desk_companion.knowledge import index as k
+        from desk_companion.knowledge import local_sources
+        from desk_companion.knowledge import material_sources
         from websockets.exceptions import ConnectionClosed
         path = Path(self.temp.name)/'selected.txt'; path.write_text('material RPC evidence', encoding='utf-8')
         selected = local_sources.stage([str(path)])['sources'][0]
@@ -143,7 +148,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((material_sources.root()/'sources.json').read_bytes(), before)
 
     async def test_onboarding_progress_uses_authenticated_rpc_and_actual_model_state(self):
-        from desk_companion import onboarding
+        from desk_companion.bootstrap import onboarding
         with patch.object(onboarding, 'public_catalog', return_value={'items': []}):
             saved = await self.notebook_rpc('save_onboarding_progress', step='terminal')
             self.assertTrue(saved['ok'])
@@ -191,11 +196,11 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_context_inspection_uses_authenticated_shared_rpc(self):
         import httpx
-        from desk_companion import agent_debug as debug
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.observability import agent_debug as debug
+        from desk_companion.collaboration.service import Collaboration
         from tests.test_collaboration import Queue,MODEL
-        patch('desk_companion.model_catalog.require_active',return_value=MODEL).start()
-        patch('desk_companion.model_catalog.require_item',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_active',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item',return_value=MODEL).start()
         c=Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False);self.host._collaboration=c;self.addCleanup(c.shutdown)
         root=c.action(dict(type='send',conversation='dm-tebb',text='隔离报告',mode='auto',request_id='context-rpc-root'))['state']['runs'][-1]
         await self.notebook_rpc('save_context_capacity',model_id=MODEL['id'],window=128000,output_reserve=16000)
@@ -230,10 +235,10 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_first_chat_message_is_atomic_and_idempotent_over_authenticated_rpc(self):
         import uuid
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         from tests.test_collaboration import Queue, MODEL
-        patch('desk_companion.model_catalog.require_active', return_value=MODEL).start()
-        patch('desk_companion.model_catalog.require_item', return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_active', return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item', return_value=MODEL).start()
         service=Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False)
         self.host._collaboration=service;self.addCleanup(service.shutdown)
         before=(await self.notebook_rpc('load_collaboration'))['state']
@@ -254,7 +259,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_report_chart_rpc_is_authenticated(self):
         import uuid
-        from desk_companion import report_charts
+        from desk_companion.reports import report_charts
         from tests.test_report_charts import FLOW
         chart=report_charts.create(FLOW,[],uuid.uuid4().hex)
         result=await self.notebook_rpc('get_report_chart',chart_id=chart['id'])
@@ -265,12 +270,12 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 await ws.send(json.dumps(dict(type='rpc',method='get_report_chart',args=dict(chart_id=chart['id']))));await ws.recv()
 
     async def test_structured_clarification_roundtrip_is_bound_versioned_and_authenticated(self):
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         from tests.test_collaboration import Queue,MODEL
         from tests.test_clarification import QUESTIONS
         import uuid
-        patch('desk_companion.model_catalog.require_active',return_value=MODEL).start()
-        patch('desk_companion.model_catalog.require_item',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_active',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item',return_value=MODEL).start()
         c=Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False);self.host._collaboration=c;self.addCleanup(c.shutdown)
         result=await self.notebook_rpc('collaboration_action',action=dict(type='send',conversation='dm-tebb',text='明晚20点评审会',mode='auto',request_id='rpc-question-create'))
         root=result['state']['runs'][-1];c.tick();saved=c.execution_status(root['id'])
@@ -290,7 +295,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_search_settings_and_probe_are_authenticated_and_skip_host_lock(self):
         import httpx
-        from desk_companion import search_service
+        from desk_companion.integrations.web import search_service
         from tests.test_web_search import exa
         self.host.conversation.running=True
         with self.host.turn_lock:
@@ -308,11 +313,11 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 await ws.send(json.dumps(dict(type='rpc',method='test_search')));await ws.recv()
 
     async def test_awaiting_goal_resumes_same_root_over_authenticated_rpc(self):
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         from tests.test_collaboration import Queue,MODEL
         import uuid
-        patch('desk_companion.model_catalog.require_active',return_value=MODEL).start()
-        patch('desk_companion.model_catalog.require_item',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_active',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item',return_value=MODEL).start()
         c=Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False)
         self.host._collaboration=c;self.addCleanup(c.shutdown)
         result=await self.notebook_rpc('collaboration_action',action=dict(type='send',conversation='dm-tebb',text='test',mode='task',request_id=uuid.uuid4().hex))
@@ -331,12 +336,12 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(page['state']['runs'][0]['kind'],'task')
 
     async def test_tebb_worker_uses_authenticated_shared_calendar_and_automation_services(self):
-        from desk_companion.collaboration import Collaboration
-        from desk_companion.collaboration_worker import execute
+        from desk_companion.collaboration.service import Collaboration
+        from desk_companion.collaboration.collaboration_worker import execute
         from tests.test_collaboration import Queue, MODEL
         from tests.schedule_fixture import TimeCalendar, DAY, START, END
-        patch('desk_companion.model_catalog.require_active',return_value=MODEL).start()
-        patch('desk_companion.model_catalog.require_item',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_active',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item',return_value=MODEL).start()
         self.host._collaboration=Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False)
         self.addCleanup(self.host._collaboration.shutdown)
         self.addCleanup(lambda:self.host.automation.stop(0))
@@ -365,10 +370,10 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 receipt=json.loads(next(m['content'] for m in reversed(messages) if m['role']=='tool'))
                 if not receipt.get('ok'):raise AssertionError(receipt)
                 return dict(message=dict(content='已生成日程提案，尚未保存。'),usage={})
-        from desk_companion.collaboration import execution_limits
+        from desk_companion.collaboration.service import execution_limits
         request=dict(self.host.collaboration.managers['work'].requests[root['task']],task_id=root['task'],
                      limits=execution_limits(root['agent'],root['agent_config'].get('tools',())))
-        from desk_companion.agent_debug import context as debug_context
+        from desk_companion.observability.agent_debug import context as debug_context
         with self.host.turn_lock,debug_context(task_id=root['task'],collab_run=root['id']):
             await asyncio.wait_for(asyncio.to_thread(execute,request,lambda k,d:events.append((k,d)),Model()),15)
         self.assertTrue(any(k=='tool_end' and d.get('status')=='success' for k,d in events))
@@ -401,7 +406,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_automation_four_routes_skip_host_busy_and_keep_active_guards_and_auth(self):
         from unittest.mock import Mock
-        from desk_companion import automation as a
+        from desk_companion.automation import schedule as a
         from tests.test_automation_service import payload
         from websockets.exceptions import ConnectionClosed
         self.addCleanup(lambda: self.host.automation.stop(0))
@@ -440,7 +445,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         import threading
         from unittest.mock import Mock
         from tests.test_automation_service import payload
-        from desk_companion import automation as a
+        from desk_companion.automation import schedule as a
         self.addCleanup(lambda: self.host.automation.stop(0))
         entered, release, finished = threading.Event(), threading.Event(), threading.Event()
         self.addCleanup(release.set)
@@ -472,7 +477,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                     self.assertFalse((await self.notebook_rpc('delete_automation_job', job_id=jid))['ok'])
                     self.assertTrue((await self.notebook_rpc('save_automation_job', payload=payload(name='other')))['ok'])
                     def write():
-                        from desk_companion.resource_lock import WRITES
+                        from desk_companion.infrastructure.resource_lock import WRITES
                         with WRITES.hold(blocking=False), a.transaction():
                             return a.load_store()
                     await asyncio.wait_for(asyncio.to_thread(write), 5)
@@ -496,18 +501,18 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     def review_setup(self):
         from contextlib import ExitStack
-        from desk_companion import board_data as b
+        from desk_companion.planning import board_data as b
         from tests.test_weekly_review import MONDAY, NOW, DAY, SECTIONS, URL
         stack = ExitStack(); self.addCleanup(stack.close)
         stack.enter_context(patch.object(b, 'week_range', return_value=(MONDAY, NOW)))
         stack.enter_context(patch.object(b, 'today_date', return_value=DAY))
         stack.enter_context(patch.object(b, 'fetch_board', return_value=SECTIONS))
         stack.enter_context(patch.object(b, 'fetch_week_feishu', return_value=SECTIONS))
-        stack.enter_context(patch('desk_companion.github.format_week_review_text', return_value='output'))
-        stack.enter_context(patch('desk_companion.skill_catalog.read_skill', return_value=dict(body='rules')))
-        create = stack.enter_context(patch('desk_companion.feishu_auth.create_markdown_doc',
+        stack.enter_context(patch('desk_companion.integrations.github.client.format_week_review_text', return_value='output'))
+        stack.enter_context(patch('desk_companion.integrations.skill_catalog.read_skill', return_value=dict(body='rules')))
+        create = stack.enter_context(patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc',
             return_value=dict(ok=True, url=URL, document_id='created')))
-        stack.enter_context(patch('desk_companion.feishu_docs.overwrite_markdown_doc', return_value=dict(ok=True, url=URL)))
+        stack.enter_context(patch('desk_companion.integrations.feishu.feishu_docs.overwrite_markdown_doc', return_value=dict(ok=True, url=URL)))
         opened = stack.enter_context(patch.object(self.host.weekly_review, '_open_document'))
         for name in ('generate_week_review', 'write_today_summary_doc', 'write_week_review_doc'):
             stack.enter_context(patch.object(self.host, name, side_effect=AssertionError('legacy review call'), create=True))
@@ -516,7 +521,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         return create, opened
 
     async def test_review_three_rpc_routes_authentication_and_failure_facts(self):
-        from desk_companion import board_data as b
+        from desk_companion.planning import board_data as b
         from websockets.exceptions import ConnectionClosed
         from tests.test_weekly_review import URL
         create, opened = self.review_setup()
@@ -547,8 +552,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_review_model_and_publication_disconnect_allow_reads_board_and_workers(self):
         import threading
         from unittest.mock import Mock
-        from desk_companion import board_data as b
-        from desk_companion.resource_lock import WRITES
+        from desk_companion.planning import board_data as b
+        from desk_companion.infrastructure.resource_lock import WRITES
         from tests.test_weekly_review import NOW, URL
         create, opened = self.review_setup()
         for method in ('generate_week_review', 'write_today_summary_doc'):
@@ -619,7 +624,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         create.assert_not_called(); opened.assert_not_called()
 
     async def test_board_four_rpc_routes_keep_contracts_and_failure_stages(self):
-        from desk_companion import board_data as b
+        from desk_companion.planning import board_data as b
         from tests.test_board_service import DAY, START, END, AGENDA, TASKS
         from websockets.exceptions import ConnectionClosed
         with patch.object(b, 'today_date', return_value=DAY), \
@@ -636,7 +641,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue((await self.notebook_rpc('create_agenda', summary='title', start=START, end=END))['ok'])
                 self.assertTrue((await self.notebook_rpc('delete_agenda', event_id='event'))['ok'])
                 self.assertTrue((await self.notebook_rpc('delete_task', guid='task'))['ok'])
-                with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+                with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
                     failed = await self.notebook_rpc('create_agenda', summary='retained', start=START, end=END)
                 self.assertEqual((failed['remote_state'], failed['cache_state']), ('confirmed', 'unconfirmed'), failed)
                 self.assertEqual(failed['summary'], 'retained')
@@ -654,7 +659,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_board_network_disconnect_keeps_cache_models_and_workers_independent(self):
         import threading
-        from desk_companion import board_data as b
+        from desk_companion.planning import board_data as b
         from tests.test_board_service import DAY, START, END, AGENDA, TASKS
         entered, release, finished = threading.Event(), threading.Event(), threading.Event()
         self.addCleanup(release.set)
@@ -711,7 +716,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_knowledge_eight_service_routes_and_authenticated_failure_receipts(self):
         from contextlib import ExitStack
         import io
-        from desk_companion import knowledge as k, local_sources
+        from desk_companion.knowledge import index as k
+        from desk_companion.knowledge import local_sources
         from websockets.exceptions import ConnectionClosed
         source_path = Path(self.temp.name) / 'source.md'
         source_path.write_text('original body', encoding='utf-8')
@@ -741,7 +747,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             result = await self.notebook_rpc('ask_knowledge', text='q')
             self.assertEqual(result['stage'], 'validation')
             self.assertEqual(result['answer'], 'invalid')
-            with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+            with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
                 result = await self.notebook_rpc('delete_knowledge', doc_id=doc_id)
             self.assertEqual(result['change_state'], 'unconfirmed')
             self.assertTrue((await self.notebook_rpc('delete_knowledge', doc_id=doc_id))['ok'])
@@ -775,7 +781,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_knowledge_compute_disconnect_keeps_reads_workers_and_busy_guards(self):
         import threading
-        from desk_companion import knowledge as k, local_sources
+        from desk_companion.knowledge import index as k
+        from desk_companion.knowledge import local_sources
         source_path = Path(self.temp.name) / 'source.md'
         source_path.write_text('original body', encoding='utf-8')
         source = local_sources.stage([str(source_path)])['sources'][0]
@@ -848,7 +855,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_notebook_generation_service_rpc_preserves_protocol_and_failure_phases(self):
         from contextlib import ExitStack
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         from websockets.exceptions import ConnectionClosed
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         with ExitStack() as stack:
@@ -908,7 +916,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_notebook_generation_disconnect_finishes_once_without_blocking_reads_or_workers(self):
         import threading
         from contextlib import ExitStack
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         with ExitStack() as stack:
             stack.enter_context(patch.object(knowledge, 'public_view', return_value=dict(docs=[])))
@@ -972,7 +981,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_notebook_reads_and_busy_writes_during_question_summary_and_compression(self):
         import threading
         from contextlib import ExitStack
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         original_session = self.host.state.session_id
         for role, text in (('user', 'old question'), ('pet', 'old answer'),
@@ -1070,14 +1080,15 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_notebook_output_rpc_success_partial_failure_and_authentication(self):
         from contextlib import ExitStack
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         from websockets.exceptions import ConnectionClosed
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         with ExitStack() as stack:
             stack.enter_context(patch.object(knowledge, 'public_view', return_value=dict(docs=[])))
             launch = stack.enter_context(patch('os.startfile'))
             reveal = stack.enter_context(patch('subprocess.Popen'))
-            create = stack.enter_context(patch('desk_companion.feishu_auth.create_markdown_doc',
+            create = stack.enter_context(patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc',
                 return_value=dict(ok=True, url='https://example.invalid/doc', document_id='cloud-1')))
             sid = (await self.notebook_rpc('new_notebook'))['session_id']
             nid = (await self.notebook_rpc('save_notebook_note', session_id=sid,
@@ -1130,7 +1141,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_notebook_external_wait_does_not_hold_host_storage_or_global_write_lock(self):
         import threading
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         with patch.object(knowledge, 'public_view', return_value=dict(docs=[])), patch('os.startfile'):
             sid = (await self.notebook_rpc('new_notebook'))['session_id']
@@ -1143,7 +1155,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                 if not release.wait(45):
                     raise RuntimeError('fixture not released')
                 return dict(ok=True, url='https://example.invalid/doc')
-            with patch('desk_companion.feishu_auth.create_markdown_doc', side_effect=create):
+            with patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc', side_effect=create):
                 pending = asyncio.create_task(self.notebook_rpc('export_notebook_feishu',
                     _timeout=45, session_id=sid, note_id=nid))
                 try:
@@ -1168,7 +1180,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(self.host.conversation.running)
 
     async def test_notebook_rpc_failure_phases_host_admission_and_authentication(self):
-        from desk_companion import knowledge, notebook
+        from desk_companion.knowledge import index as knowledge
+        from desk_companion.knowledge import notebook
         from websockets.exceptions import ConnectionClosed
         cites = [dict(n=1, doc='source', title='section', text='original', doc_id='doc-1')]
         with patch.object(knowledge, 'public_view', return_value=dict(docs=[])):
@@ -1309,7 +1322,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             pass  # Disconnected caller did not leak the session reservation.
 
     async def test_compression_rpc_distinguishes_uncertain_save_and_committed_refresh_failure(self):
-        from desk_companion import context_compression, context_pack
+        from desk_companion.memory import context_compression
+        from desk_companion.memory import context_pack
         sid = self.host.state.session_id
         for role, text in (('user', 'old question'), ('pet', 'old answer'),
                            ('user', 'latest question'), ('pet', 'latest answer')):
@@ -1347,7 +1361,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_compression_rejects_current_queue_without_calling_model(self):
         from unittest.mock import Mock
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         self.host.tasks.shutdown()
         with patch.object(TaskManager, '_schedule', return_value=None):
             manager = TaskManager(self.host)
@@ -1371,8 +1385,9 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_memory_editing_rpc_uses_service_and_preserves_task_boundaries(self):
         from contextlib import ExitStack
         import threading
-        from desk_companion import context_pack, facts
-        from desk_companion.tasks import TaskManager
+        from desk_companion.memory import context_pack
+        from desk_companion.memory import facts
+        from desk_companion.tasks.manager import TaskManager
         self.host.tasks.shutdown()
         with patch.object(TaskManager, '_schedule', return_value=None):
             manager = TaskManager(self.host)
@@ -1435,7 +1450,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(facts.read_facts()[0]['text'], 'saved despite snapshot failure')
 
     async def test_memory_delete_preserves_history_when_summary_invalidation_fails(self):
-        from desk_companion import context_pack
+        from desk_companion.memory import context_pack
         sid = self.host.state.session_id
         for role, text in (('user', 'remove me'), ('pet', 'old answer'),
                            ('user', 'latest question'), ('pet', 'latest answer')):
@@ -1453,7 +1468,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['change_state'], 'unconfirmed')
 
     async def test_first_access_initializes_tasks_for_rpc_and_chat(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         command = [sys.executable, '-u', '-c', "exec(open('tests/worker_fixture.py', encoding='utf-8').read())"]
 
         async def rpc(method):
@@ -1475,7 +1490,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
                     self.host._tasks.shutdown()
                 memory.clear_session(self.host.state.session_id)
                 self.host._tasks = None
-                with patch('desk_companion.tasks.TaskManager', side_effect=create_manager) as constructor:
+                with patch('desk_companion.tasks.manager.TaskManager', side_effect=create_manager) as constructor:
                     if first == 'clear_chat':
                         await rpc('clear_chat')
                     async with connect(self.url, proxy=None) as ws:
@@ -1571,7 +1586,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         import uuid
         from websockets.exceptions import ConnectionClosed
         from tests.schedule_fixture import TimeCalendar, DAY, START, END
-        from desk_companion.local_calendar import LOCAL
+        from desk_companion.planning.local_calendar import LOCAL
         calendar = TimeCalendar(); self.host.scheduling.calendar = calendar
         self.host.conversation.running = True
         try:
@@ -1647,7 +1662,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_scheduling_rpc_wait_allows_other_items_reads_and_global_write_lock(self):
         import uuid, threading
         from tests.schedule_fixture import FakeCalendar, DAY, START, END
-        from desk_companion.resource_lock import WRITES
+        from desk_companion.infrastructure.resource_lock import WRITES
         calendar=FakeCalendar();self.host.scheduling.calendar=calendar
         items=[]
         for title in ('reserved','other'):
@@ -1708,7 +1723,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_session_rpc_blocks_pending_and_tail_tasks_but_keeps_reads_available(self):
         import threading
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         previous = self.host.tasks
         previous.shutdown()
         with patch.object(TaskManager, '_schedule', return_value=None):
@@ -1745,7 +1760,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager.get(task)['state'], 'cancelled')
 
     async def test_feishu_settings_rpc_reports_invalid_secret_without_echoing_it(self):
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=RuntimeError("invalid_client test-only-secret")):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=RuntimeError("invalid_client test-only-secret")):
             async with connect(self.url, proxy=None) as ws:
                 await ws.send(json.dumps({"type": "rpc", "id": "feishu-check",
                     "method": "check_feishu_agent_connection", "args": {"profile": "test-profile"}}))
@@ -1758,7 +1773,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_settings_rpc_calls_independent_service_and_preserves_contracts(self):
         import httpx
-        from desk_companion import envconf, model_network
+        from desk_companion.infrastructure import envconf
+        from desk_companion.models import model_network
         from contextlib import ExitStack
 
         async def rpc(method, args=None):
@@ -1817,7 +1833,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await rpc('load_model_network'))['proxy_url'], 'http://localhost:7890')
 
     async def test_legacy_save_rpc_preserves_invalid_config_and_reports_saved_initialization_failure(self):
-        from desk_companion import envconf
+        from desk_companion.infrastructure import envconf
         envconf.write_llm_env(api_key='PRIVATE_RPC_KEY', base_url='https://example.invalid/v1', model='before')
         before_env = envconf.env_path().read_bytes()
         before_state = state.state_path().read_bytes()
@@ -1850,7 +1866,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.load_state(0, 0).model_prices['after']['output_cny_per_mtok'], 2.0)
 
     async def test_manual_update_check_rpc_is_available_while_chat_lock_is_held(self):
-        with patch("desk_companion.release_info.check_updates", return_value={"ok": True, "latest_version": "0.3.0"}):
+        with patch("desk_companion.infrastructure.release_info.check_updates", return_value={"ok": True, "latest_version": "0.3.0"}):
             with self.host.turn_lock:
                 async with connect(self.url, proxy=None) as ws:
                     await ws.send(json.dumps({"type": "rpc", "id": "update", "method": "check_updates", "args": {}}))
@@ -1859,7 +1875,8 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(message["result"]["result"]["latest_version"], "0.3.0")
 
     async def test_terminal_worker_uses_shared_rpc_without_waiting_for_agent_turn_lock(self):
-        from desk_companion import terminal, agent_debug
+        from desk_companion.projects import terminal
+        from desk_companion.observability import agent_debug
         from unittest.mock import Mock
         import base64
         controller = Mock()

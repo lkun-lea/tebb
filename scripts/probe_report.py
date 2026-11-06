@@ -10,8 +10,11 @@ import uuid
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from desk_companion import model_catalog,model_network,report_charts,agent_debug
-from desk_companion.collaboration_worker import execute
+from desk_companion.models import model_catalog
+from desk_companion.models import model_network
+from desk_companion.reports import report_charts
+from desk_companion.observability import agent_debug
+from desk_companion.collaboration.collaboration_worker import execute
 
 
 def main():
@@ -34,7 +37,7 @@ def main():
                 model_id=model['id'],limits=dict(call_timeout=60,task_timeout=300),sampling=dict(reasoning_effort='low',temperature=.3,top_p=1),
                 budget=8,fetch_budget=3,search_budget=0,required_sources=['web'],requires_charts=True,applied=0)
             try:
-                with patch.object(model_catalog,'require_item',return_value=model),patch('desk_companion.collaboration_worker.updates',return_value=[]):
+                with patch.object(model_catalog,'require_item',return_value=model),patch('desk_companion.collaboration.collaboration_worker.updates',return_value=[]):
                     execute(request,lambda k,d:events.append((k,d)))
                 report['ok']=True
             except Exception as exc:report.update(ok=False,error=type(exc).__name__+': '+str(exc).replace(model['api_key'],'[redacted]'))

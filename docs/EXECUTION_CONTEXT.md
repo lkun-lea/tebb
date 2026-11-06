@@ -24,7 +24,7 @@
 
 ## 调试与验收
 
-- 纯业务接口：`desk_companion.execution_context.prepare_request(request, capacity)` 返回实际选用材料和决定；拒绝时 `ContextAdmissionError.report` 保留原因。调试不需要先发送模型请求。
+- 纯业务接口：`desk_companion.collaboration.execution_context.prepare_request(request, capacity)` 返回实际选用材料和决定；拒绝时 `ContextAdmissionError.report` 保留原因。调试不需要先发送模型请求。
 - `ExecutionLLM.last_context` 保存本轮决定；任务事件 `context_admission` 关联现有task/session。字段包括声明窗口、计数来源、准入结果、摘录与 `material_sha256`。该摘要只覆盖本轮材料，不冒充含全部SDK参数的HTTP请求哈希。
 - HTTP实际请求、provider用量与调用ID继续通过现有 [AGENT_DEBUG.md](AGENT_DEBUG.md) / [CONTEXT_INSPECTOR.md](CONTEXT_INSPECTOR.md) 查看。准入拒绝没有HTTP调用，不能补造模型调用ID或当作任务成功。
 - 切换模型时更新容量身份；观察回调失败不改变原调用结果或自动重试。公开评测隔离复制所选模型的容量/分词绑定，实际凭据仅在临时profile中，结束删除。

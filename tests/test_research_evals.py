@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from desk_companion.agent_eval_research import URLS,YEARS,prepare_corpus,load_corpus,judge,fixture_delta
+from desk_companion.evaluation.agent_eval_research import URLS, YEARS, prepare_corpus, load_corpus, judge, fixture_delta
 
 
 class ResearchEvalTests(unittest.TestCase):

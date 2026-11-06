@@ -7,10 +7,10 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion.calendar_time import TZ
-from desk_companion.local_calendar import LOCAL
-from desk_companion.scheduling import SchedulingService
-from desk_companion.work_board import WorkBoardService
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.planning.local_calendar import LOCAL
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
 from tests.schedule_fixture import DAY, START, END, TimeCalendar
 
 

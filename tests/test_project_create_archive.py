@@ -11,10 +11,10 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.bridge import Bridge
-from desk_companion.docker_sandboxes import SandboxError
-from desk_companion.project_environment_store import EnvironmentStore
-from desk_companion.project_environments import ProjectEnvironmentService
+from desk_companion.local_api.bridge import Bridge
+from desk_companion.projects.docker_sandboxes import SandboxError
+from desk_companion.projects.project_environment_store import EnvironmentStore
+from desk_companion.projects.project_environments import ProjectEnvironmentService
 
 
 class UnknownProvider:
@@ -134,7 +134,7 @@ class ProjectCreateArchiveTests(unittest.TestCase):
     def test_os_guard_from_another_process_blocks_archive_until_actual_exit(self):
         first=self.prepare();operation=first['operation']['id']
         self.assertTrue(self.service.status(first['environment']['id'],self.scope)['archive_status']['eligible'])
-        code='import os,sys;os.environ["DESK_COMPANION_DATA_DIR"]=sys.argv[1]+"-different-profile";from desk_companion.project_environment_store import EnvironmentStore;s=EnvironmentStore(sys.argv[1]);\nwith s.creation_guard(sys.argv[2]):\n print("ready",flush=True);sys.stdin.readline()'
+        code='import os,sys;os.environ["DESK_COMPANION_DATA_DIR"]=sys.argv[1]+"-different-profile";from desk_companion.projects.project_environment_store import EnvironmentStore;s=EnvironmentStore(sys.argv[1]);\nwith s.creation_guard(sys.argv[2]):\n print("ready",flush=True);sys.stdin.readline()'
         process=subprocess.Popen([sys.executable,'-c',code,str(self.service.store.path),operation],
             cwd=Path(__file__).resolve().parents[1],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         try:
@@ -174,5 +174,5 @@ class ProjectCreateArchiveTests(unittest.TestCase):
         result=bridge.project_environments_ui('archive_create',dict(environment=first['environment']['id'],
             expected_operation=first['operation']['id'],request_id=uuid.uuid4().hex,confirm=True))
         self.assertTrue(result['ok']);self.assertFalse(result['stop_confirmed'])
-        from desk_companion import project_operations
+        from desk_companion.projects import project_operations
         self.assertNotIn('archive_create',project_operations.OPERATIONS)

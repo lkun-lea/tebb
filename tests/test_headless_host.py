@@ -28,7 +28,7 @@ class HeadlessHostTests(unittest.TestCase):
         self.addCleanup(self.env.stop)
 
     def test_composition_keeps_saved_state_and_single_lazy_managers(self):
-        from desk_companion.state import load_state
+        from desk_companion.infrastructure.state import load_state
         from desk_companion.local_api.host import HeadlessApp
         saved = load_state(531, 842)
         saved.persona = 'saved persona'; saved.save()
@@ -40,8 +40,8 @@ class HeadlessHostTests(unittest.TestCase):
         self.assertIs(host.assistant_settings.conversation, host.conversation)
         self.assertIsNone(host._tasks); self.assertIsNone(host._collaboration)
         self.assertFalse(hasattr(host, 'pet')); self.assertFalse(hasattr(host, 'board'))
-        for name, module, symbol in [('tasks','desk_companion.tasks','TaskManager'),
-                                      ('collaboration','desk_companion.collaboration','Collaboration')]:
+        for name, module, symbol in [('tasks','desk_companion.tasks.manager','TaskManager'),
+                                      ('collaboration','desk_companion.collaboration.service','Collaboration')]:
             with patch(module+'.'+symbol, return_value=object()) as constructor:
                 with ThreadPoolExecutor(max_workers=8) as pool:
                     objects = list(pool.map(lambda _: getattr(host, name), range(16)))
@@ -49,7 +49,7 @@ class HeadlessHostTests(unittest.TestCase):
             self.assertTrue(all(obj is objects[0] for obj in objects))
 
     def test_legacy_guards_keep_pet_tail_protection(self):
-        from desk_companion.app import App
+        from desk_companion.desktop.app import App
         host = SimpleNamespace(pet=SimpleNamespace(busy=True))
         for name in ('_session_mutation_guard','_notebook_start_guard',
                      '_knowledge_start_guard','_review_start_guard'):
@@ -59,7 +59,7 @@ class HeadlessHostTests(unittest.TestCase):
                     self.fail('busy legacy desktop was admitted')
 
     def test_explicit_feishu_task_mode_preserves_recovery_and_legacy_path(self):
-        from desk_companion.feishu_agent import FeishuAgent, Inbox
+        from desk_companion.integrations.feishu.feishu_agent import FeishuAgent, Inbox
         from desk_companion.local_api.host import HeadlessApp
         host = HeadlessApp()
         host._tasks = Mock()
@@ -83,19 +83,19 @@ class HeadlessHostTests(unittest.TestCase):
         legacy.host.run_channel_chat.assert_called_once()
 
     def test_catalog_partial_success_and_failures_keep_existing_contract(self):
-        from desk_companion import workbench_queries as q
-        from desk_companion.wiki_connection import CatalogIncomplete
-        with patch('desk_companion.skill_catalog.list_skills', return_value=[]), \
-             patch('desk_companion.github.list_owned_repos', side_effect=RuntimeError('github failed')):
+        from desk_companion.local_api import workbench_queries as q
+        from desk_companion.integrations.feishu.wiki_connection import CatalogIncomplete
+        with patch('desk_companion.integrations.skill_catalog.list_skills', return_value=[]), \
+             patch('desk_companion.integrations.github.client.list_owned_repos', side_effect=RuntimeError('github failed')):
             result = q.load_composer_options()
         self.assertTrue(result['ok']); self.assertFalse(result['github']['ok'])
-        with patch('desk_companion.skill_catalog.list_skills', side_effect=RuntimeError('skills failed')):
+        with patch('desk_companion.integrations.skill_catalog.list_skills', side_effect=RuntimeError('skills failed')):
             self.assertEqual(q.load_composer_options(), dict(ok=False, error='skills failed'))
         incomplete = CatalogIncomplete([dict(token='a', title='wiki version')], RuntimeError('timeout'))
-        with patch('desk_companion.feishu_docs.list_my_docx', return_value=[dict(token='a', title='document')]), \
-             patch('desk_companion.wiki_connection.catalog', side_effect=incomplete), \
-             patch('desk_companion.wiki_connection.load_settings', return_value=dict(wiki_url='url')), \
-             patch('desk_companion.wiki_connection.enrich_catalog', side_effect=lambda rows: rows):
+        with patch('desk_companion.integrations.feishu.feishu_docs.list_my_docx', return_value=[dict(token='a', title='document')]), \
+             patch('desk_companion.integrations.feishu.wiki_connection.catalog', side_effect=incomplete), \
+             patch('desk_companion.integrations.feishu.wiki_connection.load_settings', return_value=dict(wiki_url='url')), \
+             patch('desk_companion.integrations.feishu.wiki_connection.enrich_catalog', side_effect=lambda rows: rows):
             result = q.list_feishu_docs()
         self.assertTrue(result['ok']); self.assertTrue(result['wiki_connected'])
         self.assertEqual(result['items'], [dict(token='a', title='wiki version')])
@@ -108,8 +108,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from tests.gui_import_guard import NoGui, assert_no_gui
 sys.meta_path.insert(0, NoGui())
-from desk_companion.feishu_agent import FeishuAgent, Inbox
-from desk_companion.paths import data_root
+from desk_companion.integrations.feishu.feishu_agent import FeishuAgent, Inbox
+from desk_companion.infrastructure.paths import data_root
 host = SimpleNamespace(tasks=Mock())
 host.tasks.list.return_value = dict(items=[])
 gateway = FeishuAgent(host, task_backed=True)

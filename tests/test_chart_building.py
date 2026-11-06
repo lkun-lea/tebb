@@ -1,11 +1,12 @@
 import copy,json,uuid,unittest
 from unittest.mock import patch
 from tests import test_report_charts as fixture
-from desk_companion import report_charts as charts,chart_building as building
-from desk_companion.chart_schema import ChartInputError
-from desk_companion.collaboration import migrate_companions,seed
+from desk_companion.reports import report_charts as charts
+from desk_companion.reports import chart_building as building
+from desk_companion.reports.chart_schema import ChartInputError
+from desk_companion.collaboration.service import migrate_companions, seed
 from tests import test_execution_flow as execution_fixture
-from desk_companion.collaboration_worker import execute
+from desk_companion.collaboration.collaboration_worker import execute
 
 
 class BuildingTests(unittest.TestCase):

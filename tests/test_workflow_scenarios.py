@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts import verify_workflow_scenarios as scenarios
-from desk_companion.workflow_templates import templates
+from desk_companion.automation.workflow_templates import templates
 
 
 class ScenarioAcceptanceTests(unittest.TestCase):
@@ -40,7 +40,7 @@ class ScenarioAcceptanceTests(unittest.TestCase):
         config=dict(base_token='test-base',table_id='test-table',key_field='回执',fields={'内容':scenarios.TEXT})
         run=dict(graph=dict(nodes=[dict(id='record',kind='base')]),receipts=dict(record=dict(state='confirmed',input=config,receipt_key='stable-key',output=dict(record_id='rec_test'))))
         response=dict(record_id_list=['rec_test'],fields=['回执','内容'],data=[['stable-key',scenarios.TEXT]])
-        with patch('desk_companion.workflow_nodes.reconcile',return_value=dict(record_id='rec_test')),patch('desk_companion.workflow_nodes.cli',return_value=response) as cli:
+        with patch('desk_companion.automation.workflow_nodes.reconcile',return_value=dict(record_id='rec_test')),patch('desk_companion.automation.workflow_nodes.cli',return_value=response) as cli:
             self.assertTrue(all(scenarios.verify_outputs('feishu-base',run).values()))
             args=cli.call_args.args[1]
             self.assertEqual(args[args.index('--format')+1],'json')
@@ -54,7 +54,7 @@ class ScenarioAcceptanceTests(unittest.TestCase):
             root=Path(temp);original=root/'source';original.mkdir();output=root/'case'
             (original/'model-network.json').write_text('{}','utf-8')
             args=['verify','--live','--case','tech-news','--output',str(output)]
-            with patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(original)),patch('sys.argv',args),patch('desk_companion.model_catalog.require_active',return_value=MODEL),patch.object(scenarios.subprocess,'check_output',return_value=b'0'*40),patch.object(scenarios.subprocess,'Popen',side_effect=RuntimeError('start failed')):
+            with patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(original)),patch('sys.argv',args),patch('desk_companion.models.model_catalog.require_active',return_value=MODEL),patch.object(scenarios.subprocess,'check_output',return_value=b'0'*40),patch.object(scenarios.subprocess,'Popen',side_effect=RuntimeError('start failed')):
                 with self.assertRaisesRegex(RuntimeError,'start failed'):scenarios.main()
                 self.assertEqual(os.environ['DESK_COMPANION_DATA_DIR'],str(original))
             report=json.loads((output/'report.json').read_text('utf-8'))
@@ -67,6 +67,6 @@ class ScenarioAcceptanceTests(unittest.TestCase):
             root=Path(temp);source=root/'source';source.mkdir();output=root/'case'
             (source/'model-network.json').write_text('{}','utf-8')
             def fail_copy(_source,target):target.write_text('partial-private-setting','utf-8');raise OSError('copy interrupted')
-            with patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(source)),patch('sys.argv',['verify','--live','--case','tech-news','--output',str(output)]),patch('desk_companion.model_catalog.require_active',return_value=MODEL),patch.object(scenarios.subprocess,'check_output',return_value=b'0'*40),patch.object(scenarios.shutil,'copyfile',side_effect=fail_copy):
+            with patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(source)),patch('sys.argv',['verify','--live','--case','tech-news','--output',str(output)]),patch('desk_companion.models.model_catalog.require_active',return_value=MODEL),patch.object(scenarios.subprocess,'check_output',return_value=b'0'*40),patch.object(scenarios.shutil,'copyfile',side_effect=fail_copy):
                 with self.assertRaisesRegex(OSError,'copy interrupted'):scenarios.main()
             self.assertFalse((output/'private-profile/models.json').exists());self.assertFalse((output/'private-profile/model-network.json').exists())

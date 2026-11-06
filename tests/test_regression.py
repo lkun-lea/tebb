@@ -12,11 +12,18 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import desk_companion
-from desk_companion import (
-    assistant, automation, board_data, context_pack, facts,
-    knowledge, memory, model_catalog, notebook, skill_catalog, web_search,
-)
-from desk_companion.bridge import Bridge
+from desk_companion.chat import assistant
+from desk_companion.automation import schedule as automation
+from desk_companion.planning import board_data
+from desk_companion.memory import context_pack
+from desk_companion.memory import facts
+from desk_companion.knowledge import index as knowledge
+from desk_companion.memory import history as memory
+from desk_companion.models import model_catalog
+from desk_companion.knowledge import notebook
+from desk_companion.integrations import skill_catalog
+from desk_companion.integrations.web import web_search
+from desk_companion.local_api.bridge import Bridge
 from desk_companion.local_api import server
 
 
@@ -53,7 +60,7 @@ class RegressionTests(unittest.TestCase):
         host = SimpleNamespace(state=SimpleNamespace(persona="你是凯尔希。", max_steps=8),
                                ui=lambda fn: fn(), on_llm_delta=lambda _: None,
                                on_stream_status=lambda _: None)
-        with patch('desk_companion.model_catalog.require_active', return_value={
+        with patch('desk_companion.models.model_catalog.require_active', return_value={
             'id':'fixture','api_key':'test-only','base_url':'http://example.invalid/v1','model':'test',
         }):
             agent = assistant.build_agent(host)
@@ -131,7 +138,7 @@ class RegressionTests(unittest.TestCase):
             web_search.search_endpoint("https://example.invalid")
 
     def test_mcp_only_accepts_stdio_config(self):
-        from desk_companion.mcp_client import parse_mcp_config
+        from desk_companion.integrations.mcp_client import parse_mcp_config
         self.assertIn("test", parse_mcp_config({"mcpServers": {"test": {"command": "python", "args": []}}}, "test"))
         with self.assertRaises(RuntimeError):
             parse_mcp_config({"mcpServers": {"test": {"url": "https://example.invalid"}}}, "test")

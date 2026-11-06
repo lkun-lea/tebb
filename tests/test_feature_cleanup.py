@@ -5,8 +5,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion import automation, envconf
-from desk_companion.bridge import Bridge
+from desk_companion.automation import schedule as automation
+from desk_companion.infrastructure import envconf
+from desk_companion.local_api.bridge import Bridge
 from desk_companion.local_api.server import RPC_METHODS
 
 

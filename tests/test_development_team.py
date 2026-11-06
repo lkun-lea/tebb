@@ -4,7 +4,7 @@ import unittest
 from argparse import Namespace
 from unittest.mock import patch
 
-from desk_companion.bridge import Bridge
+from desk_companion.local_api.bridge import Bridge
 from desk_companion.local_api.server import RPC_METHODS
 from scripts import dev_cycle as cycle
 from scripts.dev_cycle_acceptance import fingerprint
@@ -16,7 +16,7 @@ class DevelopmentPairTests(unittest.TestCase):
     setUp = fixtures.DevCycleTests.setUp
 
     def test_completed_review_keeps_revise_decision_separate_from_call_status(self):
-        from desk_companion.development_team import arm_summary
+        from desk_companion.evaluation.development_team import arm_summary
         folder = self.root / 'summary'
         (folder / 'review').mkdir(parents=True)
         cycle.write(folder / 'state.json', dict(launches=1, rounds=[], status='blocked', stage='done',
@@ -25,7 +25,7 @@ class DevelopmentPairTests(unittest.TestCase):
                         dict(stage='reflect', status='completed', round=0, directory='review')]))
         cycle.write(folder / 'review' / 'result.json', dict(decision='revise', reason='missing plan',
                     observations=['review not acted upon'], proposals=['write concrete assertions']))
-        with patch('desk_companion.development_team.inputs', return_value={'contract':'fixed'}):
+        with patch('desk_companion.evaluation.development_team.inputs', return_value={'contract':'fixed'}):
             result = arm_summary(folder, {'contract':'fixed'})
         self.assertEqual(result['timeline'][0], dict(stage='scope_review', status='completed',
                          round=0, note='missing plan', decision='revise'))

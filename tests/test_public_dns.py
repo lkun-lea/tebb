@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 import httpx
 
-from desk_companion import public_dns as dns, web_sources as sources
+from desk_companion.integrations.web import public_dns as dns
+from desk_companion.integrations.web import web_sources as sources
 from tests.test_web_sources import Response, REAL_OPEN
 
 
@@ -20,7 +21,7 @@ class PublicDNSTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         patch.object(dns.model_network, 'http_client', side_effect=lambda *a, **k: httpx.Client(
             transport=httpx.MockTransport(transport))).start()
-        patch('desk_companion.logutil.log').start()
+        patch('desk_companion.observability.logutil.log').start()
         self.local = patch.object(sources.socket, 'getaddrinfo', return_value=[(
             socket.AF_INET, socket.SOCK_STREAM, 6, '', ('198.18.1.27', 443))]).start()
         self.open = patch.object(sources, '_open', return_value=Response('<main>'+'Real article body. '*20+'</main>')).start()

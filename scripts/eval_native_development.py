@@ -7,8 +7,11 @@ import tempfile
 import time
 import uuid
 
-from desk_companion import model_catalog, model_network, project_workspace
-from desk_companion.collaboration import Collaboration, transaction
+from desk_companion.models import model_catalog
+from desk_companion.models import model_network
+from desk_companion.projects import project_workspace
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration
 
 GOAL = ("修复订单 CLI、服务层和 SQLite 存储层。每个账户初始余额 100。同账户同订单号重复提交，"
         "包括进程重启及并发提交，只扣款一次并返回首次成功时的余额。不同账户可使用相同订单号。"

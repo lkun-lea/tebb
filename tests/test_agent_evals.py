@@ -2,12 +2,12 @@ import unittest
 import json
 from pathlib import Path
 import tempfile
-from desk_companion.agent_evals import CASES, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, same_json, summarize, wait_task
+from desk_companion.evaluation.agent_evals import CASES, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, same_json, summarize, wait_task
 
 
 class EvalVerdictTests(unittest.TestCase):
     def test_failure_cohort_is_fixed_and_covers_real_search_and_lifecycle(self):
-        from desk_companion.agent_evals import FAILURE_CASES
+        from desk_companion.evaluation.agent_evals import FAILURE_CASES
         self.assertEqual(len(FAILURE_CASES),24)
         self.assertEqual(len(set(FAILURE_CASES)),24)
         self.assertTrue(set(FAILURE_CASES)<={c['id']for c in CASES})

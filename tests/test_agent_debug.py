@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import httpx
 from openai import OpenAI
-from desk_companion import agent_debug as debug
+from desk_companion.observability import agent_debug as debug
 
 
 class Stream(httpx.SyncByteStream):
@@ -141,9 +141,9 @@ class DebugTests(unittest.TestCase):
                 llm = LLM(**kwargs)
                 return llm
             emitted = []
-            with patch('desk_companion.model_network.openai_client',side_effect=lambda **kw:OpenAI(api_key='test',base_url='https://example.invalid/v1',http_client=transport,max_retries=0)), patch('desk_companion.execution_context.ExecutionLLM', side_effect=make_llm), patch('desk_companion.model_catalog.require_active', return_value={
+            with patch('desk_companion.models.model_network.openai_client',side_effect=lambda **kw:OpenAI(api_key='test',base_url='https://example.invalid/v1',http_client=transport,max_retries=0)), patch('desk_companion.collaboration.execution_context.ExecutionLLM', side_effect=make_llm), patch('desk_companion.models.model_catalog.require_active', return_value={
                     'model': 'test', 'api_key': 'test', 'base_url': 'https://example.invalid/v1'}):
-                with patch('desk_companion.performance.task_snapshot',return_value=task),patch('desk_companion.performance.task_timing',return_value={'total_ms':300000}),patch('desk_companion.task_budgets.task_view',return_value=budget):
+                with patch('desk_companion.observability.performance.task_snapshot',return_value=task),patch('desk_companion.observability.performance.task_timing',return_value={'total_ms':300000}),patch('desk_companion.tasks.task_budgets.task_view',return_value=budget):
                     debug.execute_explanation({'debug_call_id': source_id, 'text': '解读', 'limits': {'call_timeout': 30},
                         'sampling': {'reasoning_effort': 'low', 'temperature': .5, 'top_p': 1}}, lambda k,d: emitted.append((k,d)))
         payload = seen[0]

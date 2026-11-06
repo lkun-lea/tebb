@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import project_workspace as project
+from desk_companion.projects import project_workspace as project
 
 
 class ProjectTests(unittest.TestCase):
@@ -75,7 +75,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(outside.read_text(),'outside')
 
     def test_sandbox_arguments_mount_references_readonly_and_do_not_pass_environment(self):
-        from desk_companion.sandbox_driver import sandbox_args
+        from desk_companion.projects.sandbox_driver import sandbox_args
         args = sandbox_args('/tmp/main','python -m unittest',references=['/tmp/reference'])
         index = args.index('/tmp/reference')
         self.assertEqual(args[index-1],'--ro-bind'); self.assertEqual(args[index+1],'/references/0')
@@ -83,7 +83,7 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn('--share-net',args)
 
     def test_heartbeat_survives_host_wsl_clock_skew_but_expires_when_unchanged(self):
-        from desk_companion.sandbox_driver import lease_alive
+        from desk_companion.projects.sandbox_driver import lease_alive
         file=Path(self.temp.name)/'lease';file.touch()
         os.utime(file,(1,1))
         clock={}
@@ -94,11 +94,11 @@ class ProjectTests(unittest.TestCase):
         self.assertTrue(lease_alive(file,clock,110))
 
     def test_terminal_bridge_uses_granted_project_and_rejects_stale_grants(self):
-        from desk_companion.bridge import Bridge
+        from desk_companion.local_api.bridge import Bridge
         from types import SimpleNamespace
         bridge=Bridge(SimpleNamespace())
         manager=SimpleNamespace(start=lambda *args,**kwargs: dict(project=kwargs['project'],session=args[1]))
-        with patch('desk_companion.terminal.manager',return_value=manager):
+        with patch('desk_companion.projects.terminal.manager',return_value=manager):
             result=bridge.terminal_start('echo ok',session='project:'+self.config['primary'],workspace_revision=self.config['revision'])
             self.assertEqual(result['project'],self.config)
             with self.assertRaises(ValueError): bridge.terminal_start('echo nope',session='project:'+self.config['primary'],workspace_revision='stale')
@@ -108,7 +108,7 @@ class ProjectTests(unittest.TestCase):
             def start(_,command,**kwargs):
                 self.assertTrue(command.startswith('set -e\nset -o pipefail\n'))
                 return {'job':dict(id='test',state='failed',output_bytes=0,exit_code=7)}
-        with patch('desk_companion.terminal.manager',return_value=Manager()):
+        with patch('desk_companion.projects.terminal.manager',return_value=Manager()):
             result=project.run('false; echo masked',self.config,'test')
         self.assertEqual(result['exit_code'],7)
 

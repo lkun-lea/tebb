@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.project_environments import ProjectEnvironmentService
-from desk_companion.task_budgets import Ledger,installed,record_progress
+from desk_companion.projects.project_environments import ProjectEnvironmentService
+from desk_companion.tasks.task_budgets import Ledger, installed, record_progress
 
 
 class ProjectLogProgressTests(unittest.TestCase):
@@ -67,9 +67,9 @@ class ProjectLogProgressTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.service.log(self.ident,'wrong-scope',self.operation)
 
     def test_model_log_projection_keeps_text_and_digest_without_duplicate_base64(self):
-        from desk_companion.project_tools import specs
+        from desk_companion.projects.project_tools import specs
         self.service._append(self.operation,'readable error')
         tool=next(item for item in specs(dict(collab_run='run',task_id='worker'))if item['function']['name']=='project_log')
-        with patch('desk_companion.project_tools.call',return_value=self.log()):value=tool['implementation'](self.arguments)
+        with patch('desk_companion.projects.project_tools.call',return_value=self.log()):value=tool['implementation'](self.arguments)
         self.assertEqual(value['text'],'readable error');self.assertNotIn('base64',value)
         self.assertEqual(value['sha256'],hashlib.sha256(b'readable error').hexdigest())

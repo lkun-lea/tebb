@@ -1,7 +1,8 @@
 """离线运行真实资讯 worker 协议，禁止调用真实飞书。"""
 from unittest.mock import patch
-from desk_companion import news, feishu_tools
-from desk_companion.task_worker import main
+from desk_companion.content.news import service as news
+from desk_companion.integrations.feishu import feishu_tools
+from desk_companion.tasks.worker import main
 
 items = [{"id": str(i), "title": f"官方资料{i}", "url": f"https://github.com/example/repo{i}", "summary": "离线事实",
           "value": "离线建议", "caution": "样本", "category": "工具", "published": "", "date_verified": False} for i in range(5)]

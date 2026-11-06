@@ -7,10 +7,10 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion import project_workspace
-from desk_companion.collaboration import transaction
-from desk_companion.collaboration_worker import execute
-from desk_companion import task_budgets
+from desk_companion.projects import project_workspace
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.collaboration_worker import execute
+from desk_companion.tasks import task_budgets
 from tests import test_collaboration as fixtures
 
 
@@ -57,7 +57,7 @@ class NativeTeamTests(unittest.TestCase):
         project_workspace.save(str(folder),[],True,True,project_id=project)
         root=self.action(**action)["runs"][-1]["id"]
         self.service.tick()
-        from desk_companion.task_budgets import Ledger
+        from desk_companion.tasks.task_budgets import Ledger
         with transaction(self.service.path) as (db,_):
             budget=Ledger().read(next(r for r in db['runs'] if r['id']==root)['budget_id'])
         self.assertEqual(budget['tier'],'coding')

@@ -5,7 +5,7 @@ import sys
 
 from gui_import_guard import NoGui, assert_no_gui
 sys.meta_path.insert(0, NoGui())
-from desk_companion.conversation import ConversationService
+from desk_companion.chat.conversation import ConversationService
 from unittest.mock import patch
 import traceback
 
@@ -23,6 +23,6 @@ def retrieve(question, _ids):
     return dict(question=question, candidates=[hit], kept=[hit])
 
 with patch.object(ConversationService, 'run_chat', traced_chat), \
-     patch('desk_companion.knowledge._retrieve', side_effect=retrieve):
+     patch('desk_companion.knowledge.index._retrieve', side_effect=retrieve):
     runpy.run_path(str(Path(__file__).with_name('worker_fixture.py')), run_name='__main__')
 assert_no_gui()

@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from desk_companion import state
-from desk_companion.bridge import Bridge
+from desk_companion.infrastructure import state
+from desk_companion.local_api.bridge import Bridge
 
 
 class PersonaMigrationTests(unittest.TestCase):

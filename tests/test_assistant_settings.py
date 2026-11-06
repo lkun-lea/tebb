@@ -10,9 +10,12 @@ from unittest.mock import Mock, patch
 
 import httpx
 
-from desk_companion import envconf, model_catalog, model_network, state
-from desk_companion.assistant_settings import AssistantSettingsService
-from desk_companion.conversation import ConversationService
+from desk_companion.infrastructure import envconf
+from desk_companion.models import model_catalog
+from desk_companion.models import model_network
+from desk_companion.infrastructure import state
+from desk_companion.chat.assistant_settings import AssistantSettingsService
+from desk_companion.chat.conversation import ConversationService
 
 
 class SettingsTests(unittest.TestCase):
@@ -113,7 +116,7 @@ class SettingsTests(unittest.TestCase):
         self.conversation.rebuild_agent.assert_not_called()
 
     def test_legacy_desktop_methods_share_configuration_service(self):
-        from desk_companion.app import App
+        from desk_companion.desktop.app import App
         app = App.__new__(App)
         app.state = self.state
         app.conversation = self.conversation
@@ -178,7 +181,7 @@ class SettingsTests(unittest.TestCase):
         self.conversation.rebuild_agent.side_effect = lambda: ConversationService.rebuild_agent(self.conversation)
         payload = dict(base_url='https://example.invalid/v1', model='changed',
                        input_cny_per_mtok=3, output_cny_per_mtok=4)
-        with patch('desk_companion.assistant.build_agent', side_effect=RuntimeError('fixture initialization failure')):
+        with patch('desk_companion.chat.assistant.build_agent', side_effect=RuntimeError('fixture initialization failure')):
             result = self.service.save_model(payload)
         self.assertFalse(result['ok'])
         self.assertEqual(result['save_state'], 'saved')
@@ -188,7 +191,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(state.load_state(0, 0).model_prices['changed']['input_cny_per_mtok'], 3.0)
         self.assertIsNone(self.conversation.agent)
         self.assertEqual(self.conversation.agent_error, 'fixture initialization failure')
-        with patch('desk_companion.assistant.build_agent', return_value=Mock()) as build:
+        with patch('desk_companion.chat.assistant.build_agent', return_value=Mock()) as build:
             self.assertTrue(self.service.save_model(payload)['ok'])
             build.assert_called_once()
         self.assertEqual(self.conversation.agent_error, '')
@@ -199,7 +202,7 @@ class SettingsTests(unittest.TestCase):
         prices = self.state.model_prices
         payload = dict(base_url='https://example.invalid/v1', model='changed',
                        input_cny_per_mtok=3, output_cny_per_mtok=4)
-        with patch('desk_companion.assistant_settings.write_llm_env', side_effect=OSError('fixture write failure')):
+        with patch('desk_companion.chat.assistant_settings.write_llm_env', side_effect=OSError('fixture write failure')):
             result = self.service.save_model(payload)
         self.assertFalse(result['ok'])
         self.assertEqual(result['save_state'], 'unconfirmed')

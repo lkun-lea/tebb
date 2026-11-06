@@ -1,7 +1,7 @@
 import base64
 import unittest
 from unittest.mock import patch
-from desk_companion import github_repository as repo
+from desk_companion.integrations.github import github_repository as repo
 
 
 class RepositoryTests(unittest.TestCase):

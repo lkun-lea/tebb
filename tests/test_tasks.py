@@ -9,7 +9,7 @@ import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
-from desk_companion.tasks import TaskManager
+from desk_companion.tasks.manager import TaskManager
 
 WORKER = '''import json,sys,time,os
 if '--standby' in sys.argv: print(json.dumps(dict(kind='standby_ready')),flush=True)
@@ -87,7 +87,7 @@ class TaskTests(unittest.TestCase):
         def observed(task_id,kind,data,**kwargs):
             if kind=='think':seen.append(data)
             return original(task_id,kind,data,**kwargs)
-        with patch.object(self.manager,'event',side_effect=observed),patch('desk_companion.review_limits.MAX_SECONDS',.1),patch('desk_companion.review_limits.SETTLE_SECONDS',.05):
+        with patch.object(self.manager,'event',side_effect=observed),patch('desk_companion.collaboration.review_limits.MAX_SECONDS',.1),patch('desk_companion.collaboration.review_limits.SETTLE_SECONDS',.05):
             task=self.manager.wait(self.manager.submit('review_stream','review-window'))
         self.assertEqual(task['state'],'timed_out')
         self.assertIn('保留片段',task['answer'])
@@ -117,7 +117,7 @@ class TaskTests(unittest.TestCase):
         clock = {'offset': 0}
         timer = SimpleNamespace(time=time.time, sleep=time.sleep,
                                 monotonic=lambda: time.monotonic() + clock['offset'])
-        replacement = patch('desk_companion.tasks.time', timer)
+        replacement = patch('desk_companion.tasks.manager.time', timer)
         replacement.start()
         self.addCleanup(replacement.stop)
         return clock
@@ -139,7 +139,7 @@ class TaskTests(unittest.TestCase):
                         if not late_result: clock['offset'] = 10
                     return result
                 self.manager.settings.update(call_timeout=5, task_timeout=5)
-                with patch('desk_companion.tasks.time', timer), patch.object(threading.Thread, 'start', handoff):
+                with patch('desk_companion.tasks.manager.time', timer), patch.object(threading.Thread, 'start', handoff):
                     task = self.manager.wait(self.manager.submit('instant', 'deadline-' + str(late_result)))
                 self.assertEqual(task['state'], 'timed_out' if late_result else 'succeeded')
                 if late_result:
@@ -324,7 +324,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(phase, dict(stage='llm_start', scope='call'))
 
     def test_root_budget_timeout_during_model_is_not_reported_as_network_timeout(self):
-        from desk_companion.task_budgets import Ledger
+        from desk_companion.tasks.task_budgets import Ledger
         ledger=Ledger();root=ledger.create('root-timeout','research',1000)
         self.manager.settings.update(call_timeout=10,task_timeout=20)
         ident=self.manager.submit('timeout','root-timeout',_budget_root=root)
@@ -335,7 +335,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(next(e['data']for e in task['events']if e['kind']=='timeout_phase'),dict(stage='llm_start',scope='root_budget'))
 
     def test_resume_preserves_evidence_tool_allowances_and_original_budget(self):
-        from desk_companion.task_budgets import Ledger
+        from desk_companion.tasks.task_budgets import Ledger
         ident=self.manager.submit('source','evidence-resume','collaboration',workflow='collaboration',kind='task')
         self.manager.wait(ident)
         page=dict(kind='page',level='body',url='https://example.org/source',text='PERSISTED_BODY',truncated=True,read_ranges=[[0,14]])
@@ -435,8 +435,8 @@ class TaskTests(unittest.TestCase):
         self.assertFalse(followup["auto_video_archive"])
 
     def test_archive_config_snapshot_and_successful_followup_opt_out(self):
-        from desk_companion.wiki_connection import settings_path
-        from desk_companion.video import atomic_write
+        from desk_companion.integrations.feishu.wiki_connection import settings_path
+        from desk_companion.infrastructure.storage import atomic_write
         atomic_write(settings_path(), {"auto_video_save": True, "video_parent_token": "video"})
         task = self.manager.wait(self.manager.submit("normal", "a"))
         atomic_write(settings_path(), {"auto_video_save": False})

@@ -9,9 +9,9 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.calendar_time import TZ
-from desk_companion.scheduling import SchedulingService
-from desk_companion.work_board import WorkBoardService
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
 
 
 class NoRemoteCalendar:
@@ -64,7 +64,7 @@ class LocalCalendarToolTests(unittest.TestCase):
         self.assertTrue(result['truncated'])
 
     def worker(self, permissions, force_call=False):
-        from desk_companion.collaboration_worker import execute
+        from desk_companion.collaboration.collaboration_worker import execute
         events=[];offered=[]
         day=self.day
         class LLM:
@@ -87,7 +87,7 @@ class LocalCalendarToolTests(unittest.TestCase):
             collab_path=str(self.board.path),collab_run=uuid.uuid4().hex,model_id='fixture',
             limits=dict(call_timeout=10,task_timeout=30),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),
             applied=0,budget=4,search_budget=0,fetch_budget=0)
-        with (patch('desk_companion.model_catalog.require_item',return_value=dict(id='fixture',model='fixture',api_key='synthetic-key')),
+        with (patch('desk_companion.models.model_catalog.require_item',return_value=dict(id='fixture',model='fixture',api_key='synthetic-key')),
               patch('subprocess.run',side_effect=AssertionError('No external CLI permitted'))):
             execute(request,lambda kind,data:events.append((kind,data)),llm=LLM())
         return events,offered
@@ -112,7 +112,7 @@ class LocalCalendarToolTests(unittest.TestCase):
             self.worker([],force_call=True)
 
     def test_shipped_partners_do_not_gain_the_new_permission_on_migration(self):
-        from desk_companion.collaboration import seed,migrate_companions
+        from desk_companion.collaboration.service import seed, migrate_companions
         state=seed()
         self.assertTrue(all('本地日程读取' not in a['tools'] for a in state['agents']))
         before=copy.deepcopy(state['agents']);migrate_companions(state)

@@ -2,8 +2,8 @@
 import copy
 from datetime import datetime, timedelta
 
-from desk_companion.calendar_adapter import CalendarError, event_view
-from desk_companion.calendar_time import TZ
+from desk_companion.planning.calendar_adapter import CalendarError, event_view
+from desk_companion.planning.calendar_time import TZ
 
 DAY = (datetime.now(TZ)+timedelta(days=1)).date().isoformat()
 START, END = DAY+'T09:00:00+08:00', DAY+'T10:00:00+08:00'
@@ -55,7 +55,7 @@ class TimeCalendar(FakeCalendar):
         return dict(super().primary(), owner_id='fixture-self', identity_verified=True)
 
     def week(self, calendar_id, day):
-        from desk_companion.schedule_domain import week_range
+        from desk_companion.planning.schedule_domain import week_range
         a, b = week_range(day)
         if self.fail: raise self.fail
         return [copy.deepcopy(e) for e in self.events.values()

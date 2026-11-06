@@ -1,7 +1,7 @@
 import unittest
 
 from atlas.testing.llm_contract import StreamContract
-from desk_companion.collaboration_llm import CollaborationLLM
+from desk_companion.collaboration.collaboration_llm import CollaborationLLM
 
 
 class CollaborationStreamContract(StreamContract, unittest.TestCase):

@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from desk_companion.project_environment_store import EnvironmentStore
+from desk_companion.projects.project_environment_store import EnvironmentStore
 
 
 class EnvironmentStoreTests(unittest.TestCase):

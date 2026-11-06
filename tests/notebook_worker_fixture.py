@@ -5,7 +5,8 @@ import sys
 import time
 from unittest.mock import patch
 
-from desk_companion import knowledge, notebook
+from desk_companion.knowledge import index as knowledge
+from desk_companion.knowledge import notebook
 
 
 role, sid, nid = sys.argv[1:]

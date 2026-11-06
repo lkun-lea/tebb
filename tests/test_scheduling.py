@@ -13,13 +13,13 @@ from unittest.mock import patch
 from unittest.mock import Mock
 import uuid
 
-from desk_companion import schedule_domain
-from desk_companion.board_data import calendar_operation
-from desk_companion.calendar_adapter import CalendarAdapter, CalendarError, day_range, event_view
-from desk_companion.calendar_time import TZ
-from desk_companion.resource_lock import WRITES
-from desk_companion.scheduling import SchedulingService
-from desk_companion.work_board import WorkBoardService
+from desk_companion.planning import schedule_domain
+from desk_companion.planning.board_data import calendar_operation
+from desk_companion.planning.calendar_adapter import CalendarAdapter, CalendarError, day_range, event_view
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.infrastructure.resource_lock import WRITES
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
 from tests.schedule_fixture import DAY, START, END, FakeCalendar, event
 
 
@@ -145,7 +145,7 @@ class SchedulingTests(unittest.TestCase):
 
     def test_remote_success_local_association_failure_retains_event_for_manual_recovery(self):
         request=self.action()
-        with patch('desk_companion.schedule_domain.attach',side_effect=OSError('local disk')):
+        with patch('desk_companion.planning.schedule_domain.attach',side_effect=OSError('local disk')):
             failure=self.service.change(request)
         self.assertFalse(failure['ok']); self.assertEqual(failure['operation']['event']['event_id'],'created-1_0')
         self.assertEqual(self.service.load(DAY)['links'],[])
@@ -232,7 +232,7 @@ class SchedulingTests(unittest.TestCase):
 
     def test_known_created_event_requires_its_own_identity_and_cannot_be_declared_absent(self):
         request = self.action()
-        with patch('desk_companion.schedule_domain.attach', side_effect=OSError('disk')):
+        with patch('desk_companion.planning.schedule_domain.attach', side_effect=OSError('disk')):
             self.service.change(request)
         wrong = self.service.change(self.action('resolve', operation_id=request['request_id'], resolution='link',
             calendar_id='calendar-one', event_id='existing_0'))
@@ -258,7 +258,7 @@ class SchedulingTests(unittest.TestCase):
         failure = self.service.change(self.action())
         self.assertFalse(failure['ok']); self.assertEqual(self.calendar.creates, [])
         self.service.load(DAY, self.item['id'], refresh=True)
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         collab = Collaboration(managers=dict(work=Mock(settings={}), chat=Mock(settings={})), start=False)
         self.addCleanup(collab.shutdown)
         snapshot = collab.snapshot()
@@ -280,10 +280,10 @@ import sys
 from unittest.mock import patch
 from tests.gui_import_guard import NoGui,assert_no_gui
 sys.meta_path.insert(0,NoGui())
-from desk_companion.work_board import WorkBoardService
-from desk_companion.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
+from desk_companion.planning.scheduling import SchedulingService
 from tests.schedule_fixture import FakeCalendar,DAY,START,END
-with patch('desk_companion.tasks.TaskManager',side_effect=AssertionError('no queues')):
+with patch('desk_companion.tasks.manager.TaskManager',side_effect=AssertionError('no queues')):
     board=WorkBoardService()
     item=board.change(dict(type='create',request_id='schedule-no-gui',fields=dict(title='offline')))['items'][0]
     service=SchedulingService(board,FakeCalendar())

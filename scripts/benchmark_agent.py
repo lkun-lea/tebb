@@ -42,10 +42,10 @@ def main():
     if not 1<=args.samples<=1000 or not 1<=args.parallel<=4 or not 0<=args.think_time<=30:parser.error('samples 1..1000, parallel 1..4, think-time 0..30')
     if args.output.exists()or args.output.with_name(args.output.stem+'-evidence').exists():parser.error('output and evidence directory must be new')
     if args.output_limit_bindings and(not args.live or not args.output_limit_bindings.is_file()):parser.error('output-limit-bindings requires live and an existing verified snapshot')
-    from desk_companion.model_catalog import require_active
-    from desk_companion.model_network import load
-    from desk_companion.model_capacity import load as load_capacity
-    from desk_companion.benchmarking import BenchmarkPlan,run_benchmark
+    from desk_companion.models.model_catalog import require_active
+    from desk_companion.models.model_network import load
+    from desk_companion.models.model_capacity import load as load_capacity
+    from desk_companion.evaluation.benchmarking import BenchmarkPlan, run_benchmark
     cfg=require_active()if args.live else dict(id='fixture',api_key='fixture-key',model='local-sse-fixture',base_url='')
     policy=load();policy['mode']=policy['mode']if args.mode=='configured'else args.mode
     capacity=load_capacity(cfg['id'])if args.live else{}

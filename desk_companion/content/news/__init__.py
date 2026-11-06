@@ -1,0 +1,1 @@
+"""content/news capabilities."""

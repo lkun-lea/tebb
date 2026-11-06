@@ -7,8 +7,8 @@ from unittest.mock import patch
 import httpx
 from openai import OpenAI
 from atlas.llm import ChatOptions,IncompleteResponseError
-from desk_companion.execution_context import ExecutionLLM
-from desk_companion.task_budgets import Ledger,installed,BudgetExceeded
+from desk_companion.collaboration.execution_context import ExecutionLLM
+from desk_companion.tasks.task_budgets import Ledger, installed, BudgetExceeded
 
 
 class BudgetTransport(unittest.TestCase):
@@ -27,9 +27,9 @@ class BudgetTransport(unittest.TestCase):
         http=httpx.Client(transport=httpx.MockTransport(handle));self.addCleanup(http.close)
         sdk=OpenAI(api_key='fixture-only',base_url='https://model.invalid/v1',http_client=http,max_retries=0);self.addCleanup(sdk.close)
         self.llm=ExecutionLLM(model='fixture',client=sdk,context_model_id='fixture')
-        for target,value in [('desk_companion.execution_context.model_capacity.for_call',dict(source='unknown')),
-                ('desk_companion.execution_context.model_tokenizer.count',dict(tokens=10,source='fixture_bound_counter')),
-                ('desk_companion.model_generation.binding',None)]:
+        for target,value in [('desk_companion.collaboration.execution_context.model_capacity.for_call',dict(source='unknown')),
+                ('desk_companion.collaboration.execution_context.model_tokenizer.count',dict(tokens=10,source='fixture_bound_counter')),
+                ('desk_companion.models.model_generation.binding',None)]:
             mock=patch(target,return_value=value);mock.start();self.addCleanup(mock.stop)
 
     def test_no_progress_denies_actual_fourth_sdk_send_and_unknown_capacity_adds_no_parameter(self):
@@ -42,7 +42,7 @@ class BudgetTransport(unittest.TestCase):
 
     def test_verified_cap_reaches_actual_sdk_and_partial_usage_is_settled_without_completion(self):
         self.finish='length';self.completion=64
-        with installed('physical-child'),patch('desk_companion.model_generation.binding',return_value=dict(parameter='max_completion_tokens')):
+        with installed('physical-child'),patch('desk_companion.models.model_generation.binding',return_value=dict(parameter='max_completion_tokens')):
             with self.assertRaises(IncompleteResponseError)as caught:
                 self.llm.chat([dict(role='user',content='long')],options=ChatOptions(extra_body=dict(max_completion_tokens=64)))
         self.assertEqual(caught.exception.partial['message']['content'],'partial')
@@ -65,7 +65,7 @@ class BudgetTransport(unittest.TestCase):
 
     def test_provider_ignoring_verified_cap_is_a_failure_with_preserved_partial(self):
         self.completion=100
-        with installed('physical-child'),patch('desk_companion.model_generation.binding',return_value=dict(parameter='max_completion_tokens')):
+        with installed('physical-child'),patch('desk_companion.models.model_generation.binding',return_value=dict(parameter='max_completion_tokens')):
             with self.assertRaises(BudgetExceeded)as caught:
                 self.llm.chat([dict(role='user',content='long')],options=ChatOptions(extra_body=dict(max_completion_tokens=64)))
         self.assertEqual(caught.exception.partial['message']['content'],'answer')
@@ -84,12 +84,12 @@ class BudgetTransport(unittest.TestCase):
         self.assertIn('预算进入收尾',self.sent[0]['messages'][-1]['content'])
 
     def test_tool_denial_is_known_not_started_and_cannot_become_unknown_write(self):
-        from desk_companion.feedback import pending_operations
+        from desk_companion.collaboration.feedback import pending_operations
         result=dict(ok=False,error='quota',budget_denied=True,operation=dict(state='not_started'))
         self.assertEqual(pending_operations([dict(tool='project_prepare',call_id='one',read_only=False,status='failed',result=result)]),[])
 
     def test_generation_cap_respects_known_window_headroom_without_using_output_reserve_as_parameter(self):
-        with installed('physical-child'),patch('desk_companion.model_generation.binding',return_value=dict(parameter='max_completion_tokens')), \
-                patch('desk_companion.execution_context.model_capacity.for_call',return_value=dict(window=1024,output_reserve=1)):
+        with installed('physical-child'),patch('desk_companion.models.model_generation.binding',return_value=dict(parameter='max_completion_tokens')), \
+                patch('desk_companion.collaboration.execution_context.model_capacity.for_call',return_value=dict(window=1024,output_reserve=1)):
             self.llm.chat([dict(role='user',content='known ten input tokens')])
         self.assertEqual(self.sent[0]['max_completion_tokens'],1014)

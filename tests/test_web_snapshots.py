@@ -5,14 +5,14 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import web_sources as sources
-from desk_companion.web_snapshots import PageReader
+from desk_companion.integrations.web import web_sources as sources
+from desk_companion.integrations.web.web_snapshots import PageReader
 from tests.test_web_sources import Response
 
 
 class SnapshotTests(unittest.TestCase):
     def test_tail_page_does_not_hide_unread_middle_or_change_snapshot(self):
-        from desk_companion.web_snapshots import coverage_catalog
+        from desk_companion.integrations.web.web_snapshots import coverage_catalog
         self.body='Header\n'+'A'*35000+'\nTail limit: offline only.'
         first=self.reader.read(self.url)
         tail=self.reader.read(self.url,query='Tail limit')

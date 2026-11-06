@@ -9,7 +9,9 @@ import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from desk_companion import model_network, search_service, web_sources
+from desk_companion.models import model_network
+from desk_companion.integrations.web import search_service
+from desk_companion.integrations.web import web_sources
 
 
 def main():

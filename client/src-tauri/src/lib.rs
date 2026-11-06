@@ -503,7 +503,7 @@ fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child
     let log_path = data_dir.join("backend.log");
     let log = std::fs::OpenOptions::new().create(true).append(true).open(&log_path).map_err(|err| err.to_string())?;
     let mut command = Command::new(python);
-    command.args(["-u", "-m", "desk_companion.account_server", "--port"])
+    command.args(["-u", "-m", "desk_companion.bootstrap.account_server", "--port"])
         .arg(port.to_string()).arg("--token").arg(token)
         .current_dir(working_dir)
         .env("DESK_COMPANION_DATA_DIR", &data_dir)

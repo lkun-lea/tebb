@@ -17,9 +17,11 @@ sys.meta_path.insert(0, NoProviderSDK())
 from unittest.mock import patch
 from types import SimpleNamespace
 from atlas.testing import FakeLLM
-from desk_companion import assistant, model_catalog, video
-from desk_companion.task_worker import main
-from desk_companion.paths import data_root
+from desk_companion.chat import assistant
+from desk_companion.models import model_catalog
+from desk_companion.content.video import sources as video
+from desk_companion.tasks.worker import main
+from desk_companion.infrastructure.paths import data_root
 
 original = assistant.build_agent
 fixture_roots=[]
@@ -28,7 +30,7 @@ original_stdin=sys.stdin
 class RegisteredInput:
     """Standby still warms before reading; standalone fixtures emulate admission."""
     def readline(self):
-        from desk_companion.task_budgets import Ledger,default_tier
+        from desk_companion.tasks.task_budgets import Ledger, default_tier
         request=json.loads(original_stdin.readline())
         ident=request.setdefault('task_id',uuid.uuid4().hex);ledger=Ledger()
         if not ledger.member(ident):
@@ -90,12 +92,12 @@ def extract_video(*args, **kwargs):
 
 # Standby preloads the adapter; keep this fixture on FakeLLM while the SDK
 # import guard still rejects accidental provider imports in the tool loop.
-with patch.dict(sys.modules, {"desk_companion.collaboration_llm": SimpleNamespace(CollaborationLLM=FakeLLM)}), \
+with patch.dict(sys.modules, {"desk_companion.collaboration.collaboration_llm": SimpleNamespace(CollaborationLLM=FakeLLM)}), \
      patch.object(assistant, "build_agent", build), patch.object(model_catalog, "bind_llm"), \
      patch.object(model_catalog, "require_active", return_value={"id":"fixture","model":"fake", "api_key":"test-only", "base_url":"http://example.invalid/v1"}), \
-     patch("desk_companion.execution_context.ExecutionLLM", side_effect=video_llm), \
+     patch("desk_companion.collaboration.execution_context.ExecutionLLM", side_effect=video_llm), \
      patch.object(video, "extract", extract_video), \
-     patch("desk_companion.feishu_auth.create_markdown_doc", create_note):
+     patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", create_note):
     try:main()
     finally:
         for ledger,root,ident in fixture_roots:ledger.end(ident);ledger.finish(root)

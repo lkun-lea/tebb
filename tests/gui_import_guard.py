@@ -2,14 +2,14 @@
 import importlib.abc
 import sys
 
-FORBIDDEN = ('desk_companion.app', 'desk_companion.local_api.host', 'desk_companion.layered',
-             'desk_companion.pet_shell', 'desk_companion.tray', 'desk_companion.winforms_host',
-             'desk_companion.bridge', 'desk_companion.board_workbench',
+FORBIDDEN = ('desk_companion.desktop.app', 'desk_companion.local_api.host', 'desk_companion.desktop.layered',
+             'desk_companion.desktop.pet_shell', 'desk_companion.desktop.tray', 'desk_companion.desktop.winforms_host',
+             'desk_companion.local_api.bridge', 'desk_companion.desktop.board_workbench',
              'webview', 'win32api', 'win32gui', 'win32con', 'pystray', 'clr')
 
 # A backend may import its composition root and RPC bridge, but no legacy GUI.
 BACKEND_FORBIDDEN = tuple(name for name in FORBIDDEN
-                          if name not in {'desk_companion.local_api.host', 'desk_companion.bridge'})
+                          if name not in {'desk_companion.local_api.host', 'desk_companion.local_api.bridge'})
 
 
 class NoGui(importlib.abc.MetaPathFinder):

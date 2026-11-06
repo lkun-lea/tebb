@@ -7,8 +7,9 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion import report_charts as charts,web_sources
-from desk_companion.collaboration_worker import execute,PublicFailure
+from desk_companion.reports import report_charts as charts
+from desk_companion.integrations.web import web_sources
+from desk_companion.collaboration.collaboration_worker import execute, PublicFailure
 from tests import test_execution_flow as flow
 
 SOURCE=dict(kind='page',url='https://example.org/measure',title='Measured data',level='body',text='A=3, B=5, same protocol.',truncated=False)
@@ -19,7 +20,7 @@ FLOW=dict(type='flow',title='证据到报告',source_ids=[],nodes=['读取原文
 
 class ChartTests(unittest.TestCase):
     def test_screen_flow_layout_preserves_old_assets_and_uses_shared_positions(self):
-        from desk_companion.report_flow import layout
+        from desk_companion.reports.report_flow import layout
         result=charts.create(FLOW,[],uuid.uuid4().hex)
         path=charts.folder()/(result['id']+'.json');before=path.read_bytes()
         public=charts.public(result['id'])
@@ -95,10 +96,10 @@ class ChartTests(unittest.TestCase):
         self.assertFalse(list(charts.folder().glob('*.json')))
 
     def test_note_markdown_has_registered_png_and_feishu_has_readable_data_fallback(self):
-        from desk_companion import notebook
+        from desk_companion.knowledge import notebook
         from tests.test_notebook_service import CITES
         result=charts.create(BAR,[SOURCE],uuid.uuid4().hex)
-        with patch('desk_companion.knowledge.public_view',return_value=dict(docs=[])):
+        with patch('desk_companion.knowledge.index.public_view',return_value=dict(docs=[])):
             sid=notebook.new_notebook()['session_id'];nid=notebook.save_note(sid,'技术报告',result['markdown'],CITES)['note_id']
             exported=notebook.write_note_markdown(sid,nid);path=Path(exported['path']);text=path.read_text('utf-8')
             self.assertIn('![同口径测量]',text);self.assertIn('|A|3|',text)
@@ -109,12 +110,12 @@ class ChartTests(unittest.TestCase):
         plain=charts.export(result['markdown']);self.assertNotIn('tebb-chart',plain);self.assertIn('Measured data',plain)
 
     def test_registration_failure_keeps_data_and_reports_confirmed_file_stage(self):
-        from desk_companion import video
-        original=video.atomic_write
+        from desk_companion.infrastructure import storage
+        original=storage.atomic_write
         def write(path,value):
             if path.parent==charts.folder():raise OSError('metadata registration failed')
             return original(path,value)
-        with patch.object(video,'atomic_write',side_effect=write),self.assertRaises(charts.ChartChangeError) as failure:
+        with patch.object(storage,'atomic_write',side_effect=write),self.assertRaises(charts.ChartChangeError) as failure:
             charts.create(FLOW,[],uuid.uuid4().hex)
         details=failure.exception.details
         self.assertEqual(details['stage'],'registration');self.assertEqual(details['confirmed_formats'],['png','svg']);self.assertEqual(details['data'],FLOW)

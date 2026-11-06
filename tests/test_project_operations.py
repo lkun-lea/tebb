@@ -7,9 +7,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from desk_companion.collaboration import initialize_workspace,transaction
-from desk_companion.project_operations import execute
-from desk_companion.project_tools import specs
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import initialize_workspace
+from desk_companion.projects.project_operations import execute
+from desk_companion.projects.project_tools import specs
 
 
 class Projects:
@@ -57,7 +58,7 @@ class ProjectAuthorizationTests(unittest.TestCase):
         self.assertFalse(self.call()['ok']);self.assertEqual(self.projects.calls,[])
 
     def test_actual_task_manager_public_identity_works_without_exposing_private_request(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         manager=TaskManager(path=Path(self.folder.name)/'tasks.sqlite3',
                             command=[sys.executable,'-u','-c','import sys,time;sys.stdin.readline();time.sleep(30)'])
         self.addCleanup(manager.shutdown);manager.configure(1,10,10,False)
@@ -84,7 +85,7 @@ class ProjectAuthorizationTests(unittest.TestCase):
         self.assertIn('project_reconcile',{value['function']['name'] for value in offered})
         prepare=next(value for value in offered if value['function']['name']=='project_prepare')
         self.assertFalse(prepare['read_only'])
-        with patch('desk_companion.project_tools.call',return_value=dict(ok=True)) as rpc:
+        with patch('desk_companion.projects.project_tools.call',return_value=dict(ok=True)) as rpc:
             prepare['implementation'](dict(repository='https://github.com/example/demo',_call_id='actual-call'))
         self.assertEqual(rpc.call_args.args[0],'project_operation')
         self.assertEqual(rpc.call_args.args[1]['task_id'],'physical-task')

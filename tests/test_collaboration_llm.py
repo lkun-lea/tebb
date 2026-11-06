@@ -4,7 +4,7 @@ import unittest
 import httpx
 from openai import RateLimitError
 
-from desk_companion.collaboration_llm import CollaborationLLM
+from desk_companion.collaboration.collaboration_llm import CollaborationLLM
 
 MODEL = dict(model='fixture', api_key='fixture-key', base_url='https://example.invalid/v1/')
 SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
@@ -12,7 +12,7 @@ SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
 
 class StreamingTests(unittest.TestCase):
     def test_mimo_review_explicitly_disables_thinking_without_changing_business_turns(self):
-        from desk_companion.review_limits import ReviewWindow
+        from desk_companion.collaboration.review_limits import ReviewWindow
         seen=[]
         def handle(request):
             seen.append(json.loads(request.content))
@@ -26,7 +26,7 @@ class StreamingTests(unittest.TestCase):
 
     def test_review_deadline_stops_continuous_reasoning_and_restores_borrowed_client(self):
         import time
-        from desk_companion.review_limits import ReviewWindow,ReviewTimeout
+        from desk_companion.collaboration.review_limits import ReviewWindow, ReviewTimeout
         window=ReviewWindow(dict(limits=dict(call_timeout=20)))
         seen=[];closed=[]
         class Stream(httpx.SyncByteStream):
@@ -67,7 +67,7 @@ class StreamingTests(unittest.TestCase):
     def test_owned_transport_is_reused_only_within_one_worker_and_closed(self):
         from unittest.mock import patch
         client=httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(200,text='data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')))
-        with patch('desk_companion.model_network.http_client',return_value=client) as make:
+        with patch('desk_companion.models.model_network.http_client',return_value=client) as make:
             with CollaborationLLM(MODEL,SAMPLING,20) as llm:
                 llm.chat([]);llm.chat([]);make.assert_called_once()
             self.assertTrue(client.is_closed)

@@ -7,9 +7,9 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.agent_evals import CASES,evaluate,refresh_call_evidence,summarize
-from desk_companion.agent_eval_tools import prepare,verify,FIXTURE_URL
-from desk_companion.agent_eval_lifecycle import judge
+from desk_companion.evaluation.agent_evals import CASES, evaluate, refresh_call_evidence, summarize
+from desk_companion.evaluation.agent_eval_tools import prepare, verify, FIXTURE_URL
+from desk_companion.evaluation.agent_eval_lifecycle import judge
 
 
 def spec(ident):return next(c for c in CASES if c['id']==ident)
@@ -17,11 +17,11 @@ def spec(ident):return next(c for c in CASES if c['id']==ident)
 
 class EvidenceTests(unittest.TestCase):
     def test_attachment_tail_needs_actual_matching_tool_payload_not_just_correct_json(self):
-        from desk_companion.local_sources import read_page
+        from desk_companion.knowledge.local_sources import read_page
         case=spec('attachment_tail');context=prepare(case,self.workspace,self.run_id,fixture=True)
         task=dict(id='tail-task',state='succeeded',answer=json.dumps(case['expected']),events=[])
         head=read_page(context['source_id'])
-        with patch('desk_companion.agent_debug.listing',return_value=dict(items=[dict(id='actual-call')])),patch('desk_companion.agent_debug.detail')as detail:
+        with patch('desk_companion.observability.agent_debug.listing',return_value=dict(items=[dict(id='actual-call')])),patch('desk_companion.observability.agent_debug.detail')as detail:
             def response(value):return dict(request=dict(messages=[dict(role='tool',content=json.dumps(value))]))
             detail.return_value=response(head)
             self.assertFalse(verify(case,task,context)['verified'])
@@ -34,11 +34,11 @@ class EvidenceTests(unittest.TestCase):
             self.assertFalse(verify(case,task,context)['verified'])
 
     def test_source_sections_accept_omitted_preamble_but_not_missing_requested_body(self):
-        from desk_companion.web_snapshots import PageReader
+        from desk_companion.integrations.web.web_snapshots import PageReader
         from scripts.eval_fixture_worker import fetch_page
         case=spec('research_public_source');context=prepare(case,self.workspace,self.run_id,fixture=True)
         reader=PageReader(self.run_id)
-        with patch('desk_companion.web_snapshots.fetch_page',fetch_page):full=reader.read(FIXTURE_URL)
+        with patch('desk_companion.integrations.web.web_snapshots.fetch_page',fetch_page):full=reader.read(FIXTURE_URL)
         start=full['text'].index('2.')
         partial=reader.read(FIXTURE_URL,snapshot_id=full['snapshot_id'],offset=start)
         task=dict(state='succeeded',answer=json.dumps({**case['expected'],'citation':'[source](<'+FIXTURE_URL+'>)'}),
@@ -61,7 +61,7 @@ class EvidenceTests(unittest.TestCase):
         folder=tempfile.TemporaryDirectory();self.addCleanup(folder.cleanup)
         self.profile=Path(folder.name)
         env=patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder.name);env.start();self.addCleanup(env.stop)
-        from desk_companion.collaboration import initialize_workspace
+        from desk_companion.collaboration.service import initialize_workspace
         self.workspace=self.profile/'workspace.sqlite3';initialize_workspace(self.workspace)
         self.run_id=uuid.uuid4().hex
 
@@ -76,20 +76,20 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(evaluate(case,task,verification=verify(case,task,context))[0],'false_success')
 
     def test_correct_source_answer_cannot_cite_another_roots_snapshot(self):
-        from desk_companion.web_snapshots import PageReader
+        from desk_companion.integrations.web.web_snapshots import PageReader
         from scripts.eval_fixture_worker import fetch_page
         case=spec('research_public_source');context=prepare(case,self.workspace,self.run_id,fixture=True)
-        with patch('desk_companion.web_snapshots.fetch_page',fetch_page):
+        with patch('desk_companion.integrations.web.web_snapshots.fetch_page',fetch_page):
             source=PageReader(uuid.uuid4().hex).read(FIXTURE_URL)
         task=dict(state='succeeded',answer=json.dumps({**case['expected'],'citation':'[来源]('+FIXTURE_URL+')'}),
             events=[dict(kind='evidence',data=source),dict(kind='tool_end',data=dict(tool='web_fetch',status='success'))])
         self.assertEqual(evaluate(case,task,verification=verify(case,task,context))[0],'false_success')
 
     def test_missing_citation_fails_even_after_real_scoped_snapshot_is_read(self):
-        from desk_companion.web_snapshots import PageReader
+        from desk_companion.integrations.web.web_snapshots import PageReader
         from scripts.eval_fixture_worker import fetch_page
         case=spec('research_public_source');context=prepare(case,self.workspace,self.run_id,fixture=True)
-        with patch('desk_companion.web_snapshots.fetch_page',fetch_page):source=PageReader(self.run_id).read(FIXTURE_URL)
+        with patch('desk_companion.integrations.web.web_snapshots.fetch_page',fetch_page):source=PageReader(self.run_id).read(FIXTURE_URL)
         task=dict(state='succeeded',answer=json.dumps(case['expected']),events=[dict(kind='evidence',data=source)])
         self.assertFalse(verify(case,task,context)['verified'])
 

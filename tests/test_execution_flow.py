@@ -6,8 +6,8 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion.collaboration import transaction
-from desk_companion.collaboration_worker import execute, PublicFailure
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.collaboration_worker import execute, PublicFailure
 from tests import test_collaboration as fixture
 
 
@@ -86,7 +86,7 @@ class ExecutionFlowTests(unittest.TestCase):
         self.assertEqual(len(self.state()['runs']),2);self.assertNotIn('artifact',saved)
 
     def test_waiting_goal_survives_restart_and_can_be_cancelled_without_resubmission(self):
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         root=self.send()
         self.finish(root['id'],[self.control('request_clarification',question='具体目标是什么？')])
         fresh=Collaboration(self.service.path,managers=self.service.managers,start=False)
@@ -99,7 +99,7 @@ class ExecutionFlowTests(unittest.TestCase):
 
     def test_public_projection_is_stable_and_does_not_poll_on_clock_changes(self):
         self.send();before=self.service.snapshot()
-        with patch('desk_companion.execution_flow.time.time',return_value=time.time()+100):after=self.service.snapshot(since=before['sync'])
+        with patch('desk_companion.collaboration.execution_flow.time.time',return_value=time.time()+100):after=self.service.snapshot(since=before['sync'])
         self.assertEqual(after['patch']['collections'],{})
 
 

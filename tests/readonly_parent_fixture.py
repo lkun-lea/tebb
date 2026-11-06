@@ -5,8 +5,8 @@ from pathlib import Path
 import sys
 import time
 
-from desk_companion.tasks import TaskManager
-from desk_companion.task_budgets import Ledger
+from desk_companion.tasks.manager import TaskManager
+from desk_companion.tasks.task_budgets import Ledger
 
 config=json.loads(sys.stdin.readline());folder=Path(config['folder'])
 manager=TaskManager(path=folder/'tasks.sqlite3',command=[sys.executable,'-u',str(Path(__file__).with_name('readonly_worker_fixture.py'))])

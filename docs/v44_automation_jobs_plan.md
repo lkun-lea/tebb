@@ -126,7 +126,7 @@
 
 ## 10. 实现落点（编码时按此改，不另起一套）
 
-1. `desk_companion/automation.py`：读写 JSON、校验、心跳、错过、内存队列、节流 tick、分派三动作。
+1. `desk_companion/automation/schedule.py`：读写 JSON、校验、心跳、错过、内存队列、节流 tick、分派三动作。
 2. `app.py` 的 `on_pet_tick`：调用 scheduler tick（节流后才干活）。
 3. `board_workbench.py` + `bridge.py`：列表 / 保存 / 删除 / 立刻执行 / 打开列表消红。
 4. `ui/board.html`：侧栏改名、自动化三子界面、迁复盘、挪方舟页。

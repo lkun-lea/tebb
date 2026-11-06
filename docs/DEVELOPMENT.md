@@ -31,6 +31,8 @@ pnpm install
 pnpm tauri dev
 ```
 
+目录职责与新增模块归属见 [Python 包结构](PYTHON_PACKAGES.md)。
+
 ## 如何工作
 
 ```mermaid
@@ -56,22 +58,22 @@ flowchart TD
 | --- | --- | --- |
 | 客户端与侧栏 | `client/src/client/` | 会话、菜单、引用、文件、网页、终端与调试界面 |
 | 本机 API | `desk_companion/local_api/` | Token 认证、RPC 白名单、任务及流式事件 |
-| 对话执行与 Agent 组装 | `conversation.py`、`conversation_input.py`、`assistant.py` | 对话生命周期、点选校验、上下文拼接、MCP 回收、历史用量与 Atlas 调用 |
-| 模型与人设配置 | `assistant_settings.py` | 参数校验、配置兼容、模型清单及连接测试，复用对话服务的状态和模型生命周期 |
-| 普通会话管理 | `chat_sessions.py` | 选择、新建、清空、历史和只读记忆快照，复用任务收尾保护与既有存储 |
-| 记忆编辑 | `memory_editing.py` | 长期事实增删改、单会话历史删除与摘要失效，区分两者的并发范围 |
-| 手动上下文压缩 | `context_compression.py` | 同步压缩生命周期、会话预留与分阶段保存，模型等待不持有全局锁 |
-| 笔记与生成文件服务 | `notebook_service.py`、`notebook.py`、`notebook_platform.py` | 基础读写、来源问答、勾选总结、导出及生成文件操作；共享忙碌准入、模型完成校验、跨进程存储和分阶段失败回执，外部操作通过适配器注入 |
-| 知识库管理服务 | `knowledge_service.py`、`knowledge.py` | 八个同步管理/试问入口、后台下载准入；设置和索引快照、计算后复验提交，以及模型跨进程使用/修改保护 |
-| 自动化配置与调度 | `automation_service.py`、`automation.py`、`runtime_instance.py` | 四 RPC、队列与活跃生命周期、执行快照及本地回执补写，配置原子事务；进程启动运行权覆盖收尾 |
-| 周复盘服务 | `weekly_review.py` | 生成、三种飞书发布路径、共享忙碌准入、材料日期固定与发布快照核对；RPC 和自动化共用，无 GUI 依赖 |
-| 今日看板服务 | `board_service.py`、`board_data.py`、`client/src/client/board-actions.ts` | 四入口业务回执、独立远端操作资源、分区合并与跨日保护；前端保留失败输入、读取顺序及行内错误 |
-| 业务工作看板 | `work_items.py`、`work_board.py`、`client/src/client/work-board-state.ts`、`work-board.tsx` | 纯事项规则与持久回执分工；四阶段事项、归档和伙伴执行关联，版本事务、操作去重与按事项保存/核对，不改写 AI 执行状态 |
-| 事项日程联动 | `schedule_domain.py`、`scheduling.py`、`calendar_adapter.py`、`calendar_time.py`、`client/src/client/schedule-state.ts`、`schedule.tsx`、`schedule-week-state.ts`、`schedule-week.tsx` | 关联、绝对时间及主日历适配；创建/改期前确认编号落盘、分阶段核对、事件和关联事项预留；单日侧栏与按需加载的 FullCalendar 周视图、完整参与人编辑资格、双向定位及未保存表单保护 |
-| 任务可靠性 | `tasks.py`、`task_worker.py`、`task_process.py` | 排队、独立执行、超时、进程回收与恢复 |
-| 知识与记忆 | `knowledge.py`、`context_pack.py`、`facts.py` | 文档切分、检索重排、上下文压缩与可追溯事实 |
-| 视频分析 | `video.py`、`video_analysis.py`、`video_archive.py` | 字幕、分段检查点、学习笔记及归档回执 |
-| 可观测与执行 | `agent_debug.py`、`terminal.py`、`sandbox_driver.py` | 全量模型载荷记录、命令管理与 Linux 沙箱策略 |
+| 对话执行与 Agent 组装 | `desk_companion/chat/conversation.py`、`desk_companion/chat/conversation_input.py`、`desk_companion/chat/assistant.py` | 对话生命周期、点选校验、上下文拼接、MCP 回收、历史用量与 Atlas 调用 |
+| 模型与人设配置 | `desk_companion/chat/assistant_settings.py` | 参数校验、配置兼容、模型清单及连接测试，复用对话服务的状态和模型生命周期 |
+| 普通会话管理 | `desk_companion/chat/chat_sessions.py` | 选择、新建、清空、历史和只读记忆快照，复用任务收尾保护与既有存储 |
+| 记忆编辑 | `desk_companion/memory/memory_editing.py` | 长期事实增删改、单会话历史删除与摘要失效，区分两者的并发范围 |
+| 手动上下文压缩 | `desk_companion/memory/context_compression.py` | 同步压缩生命周期、会话预留与分阶段保存，模型等待不持有全局锁 |
+| 笔记与生成文件服务 | `desk_companion/knowledge/notebook_service.py`、`desk_companion/knowledge/notebook.py`、`desk_companion/knowledge/notebook_platform.py` | 基础读写、来源问答、勾选总结、导出及生成文件操作；共享忙碌准入、模型完成校验、跨进程存储和分阶段失败回执，外部操作通过适配器注入 |
+| 知识库管理服务 | `desk_companion/knowledge/knowledge_service.py`、`desk_companion/knowledge/index.py` | 八个同步管理/试问入口、后台下载准入；设置和索引快照、计算后复验提交，以及模型跨进程使用/修改保护 |
+| 自动化配置与调度 | `desk_companion/automation/automation_service.py`、`desk_companion/automation/schedule.py`、`desk_companion/infrastructure/runtime_instance.py` | 四 RPC、队列与活跃生命周期、执行快照及本地回执补写，配置原子事务；进程启动运行权覆盖收尾 |
+| 周复盘服务 | `desk_companion/content/weekly_review.py` | 生成、三种飞书发布路径、共享忙碌准入、材料日期固定与发布快照核对；RPC 和自动化共用，无 GUI 依赖 |
+| 今日看板服务 | `desk_companion/planning/board_service.py`、`desk_companion/planning/board_data.py`、`client/src/client/board-actions.ts` | 四入口业务回执、独立远端操作资源、分区合并与跨日保护；前端保留失败输入、读取顺序及行内错误 |
+| 业务工作看板 | `desk_companion/planning/work_items.py`、`desk_companion/planning/work_board.py`、`client/src/client/work-board-state.ts`、`work-board.tsx` | 纯事项规则与持久回执分工；四阶段事项、归档和伙伴执行关联，版本事务、操作去重与按事项保存/核对，不改写 AI 执行状态 |
+| 事项日程联动 | `desk_companion/planning/schedule_domain.py`、`desk_companion/planning/scheduling.py`、`desk_companion/planning/calendar_adapter.py`、`desk_companion/planning/calendar_time.py`、`client/src/client/schedule-state.ts`、`schedule.tsx`、`schedule-week-state.ts`、`schedule-week.tsx` | 关联、绝对时间及主日历适配；创建/改期前确认编号落盘、分阶段核对、事件和关联事项预留；单日侧栏与按需加载的 FullCalendar 周视图、完整参与人编辑资格、双向定位及未保存表单保护 |
+| 任务可靠性 | `desk_companion/tasks/manager.py`、`desk_companion/tasks/worker.py`、`desk_companion/tasks/task_process.py` | 排队、独立执行、超时、进程回收与恢复 |
+| 知识与记忆 | `desk_companion/knowledge/index.py`、`desk_companion/memory/context_pack.py`、`desk_companion/memory/facts.py` | 文档切分、检索重排、上下文压缩与可追溯事实 |
+| 视频分析 | `desk_companion/content/video/sources.py`、`desk_companion/content/video/analysis.py`、`desk_companion/content/video/archive.py` | 字幕、分段检查点、学习笔记及归档回执 |
+| 可观测与执行 | `desk_companion/observability/agent_debug.py`、`desk_companion/projects/terminal.py`、`desk_companion/projects/sandbox_driver.py` | 全量模型载荷记录、命令管理与 Linux 沙箱策略 |
 
 ## 能力边界
 
@@ -86,7 +88,7 @@ flowchart TD
 
 ## 后台与旧桌面的组装边界
 
-`local_api.host.HeadlessApp` 是独立后台组合根，显式构造现有业务服务，不继承或导入 `App` / `BoardWorkbench`。Agent、共享忙碌和回调归 ConversationService，普通 TaskManager 与 Collaboration 分别按需且并发安全地创建；协作内部队列仍独立。Bridge 保留认证白名单对应的协议适配；目录、诊断与统计七个查询集中在 `workbench_queries.py`，旧桌面薄转发到相同实现。
+`local_api.host.HeadlessApp` 是独立后台组合根，显式构造现有业务服务，不继承或导入 `App` / `BoardWorkbench`。Agent、共享忙碌和回调归 ConversationService，普通 TaskManager 与 Collaboration 分别按需且并发安全地创建；协作内部队列仍独立。Bridge 保留认证白名单对应的协议适配；目录、诊断与统计七个查询集中在 `desk_companion/local_api/workbench_queries.py`，旧桌面薄转发到相同实现。
 
 后台使用已有 UserState，保留已存坐标和配置；首次无配置时使用中性坐标 `(0, 0)`，不查询显示器。旧 App 仍自行初始化皮肤、屏幕位置、窗口与队列回调。飞书通过 `FeishuAgent(host, task_backed=True)` 明确选择后台任务恢复/投递路径，普通宿主默认沿用原通道回调，不再从飞书模块反向导入 API 宿主。
 
@@ -112,7 +114,7 @@ flowchart TD
 
 周复盘三个 RPC 直接调用 `WeeklyReviewService(chat_sessions, start_guard=..., open_document=...)`，旧 App/BoardWorkbench 只保留薄转发；自动化 `retro_gen/retro_write` 使用同一实例。准入阶段短暂固定共享忙碌，材料、模型、飞书和系统打开等待均不持宿主、WRITES 或存储锁；定时复盘遇到最终准入竞争保留排队，后续调度再尝试，不记录业务失败，也不阻止独立资讯任务。生成固定开始日期和材料区间，仅保存正常完整、非空、无工具调用的正文，并原子清除旧链接；发布固定正文，以日期、正文和生成时间核对本地链接登记。三条发布路径保留原有新建/覆盖、登记和打开差异，失败保留正文、目标和远端事实，不自动重跑模型或重发文档；自动化配置与完整调度生命周期现由下述独立服务处理。见 [ADR 0013](adr/0013-weekly-review-service.md) 与 [周复盘调试](AGENT_DEBUG.md#无-gui-的周复盘服务验收)。
 
-自动化四 RPC 直接使用 `AutomationService(review=..., tasks=..., busy=..., changed=...)`；服务拥有队列、执行快照、活跃保护和收尾回执，`automation.py` 提供配置事务、校验与定时计算。调度逻辑不导入或持有 App/Bridge，旧桌面保留薄兼容方法并共享任务管理器；资讯控制器只接收明确的 TaskManager。配置写入与入队确认后列表读取失败分别报告，入队保存未确认不会安装内存队列；结果写入未确认保留活跃占用，只补写本地记录，不重跑外部动作。列表与空闲配置不等待宿主或模型，模型/飞书等待不持配置锁；排队、运行、重试和最终回写期间禁止修改、启停及删除对应作业。
+自动化四 RPC 直接使用 `AutomationService(review=..., tasks=..., busy=..., changed=...)`；服务拥有队列、执行快照、活跃保护和收尾回执，`desk_companion/automation/schedule.py` 提供配置事务、校验与定时计算。调度逻辑不导入或持有 App/Bridge，旧桌面保留薄兼容方法并共享任务管理器；资讯控制器只接收明确的 TaskManager。配置写入与入队确认后列表读取失败分别报告，入队保存未确认不会安装内存队列；结果写入未确认保留活跃占用，只补写本地记录，不重跑外部动作。列表与空闲配置不等待宿主或模型，模型/飞书等待不持配置锁；排队、运行、重试和最终回写期间禁止修改、启停及删除对应作业。
 
 生产入口在构造 App/HeadlessApp、启动飞书或恢复任务前，通过 `runtime_instance.acquire_runtime()` 非阻塞取得数据目录运行权，持有至进程结束；不在 scheduler.stop 时提前释放。第二个旧桌面/后台明确拒绝，新客户端通过子进程退出码 73 显示具体原因，不增加只读后台或跨实例跳转。停止关闭准入，服务有限收尾；未开始与结果未确认分别记录，复盘重启不自动重发，资讯沿用已有阶段/幂等保护与一次临时失败重试。调试、存储兼容和验收见 [自动化调试](AGENT_DEBUG.md#无-gui-的自动化服务验收) 与 [ADR 0014](adr/0014-automation-runtime.md)。
 
@@ -120,7 +122,7 @@ flowchart TD
 
 普通与知识问答任务由 `task_worker` 直接使用 `ConversationService.for_session(session_id)` 执行，无需构造 `HeadlessApp`、窗口或 Bridge。服务拥有 Agent、忙碌状态及本轮回调；桌面保留窗口展示和队列派发，任务层保留权限、超时、取消与进度事件。`App` / `HeadlessApp` 分别组合已有服务：旧 App 注入 UI 回调与 pet 忙碌保护，后台注入非阻塞执行锁和任务会话保护，不共享 GUI 基类。见 [ADR 0003](adr/0003-conversation-service.md)。
 
-后台服务只读取用户配置并使用本任务会话，不保存或覆盖桌面当前选择；空白目录中也不为任务创建窗口位置配置。旧桌面仍在发送和显示完成时保存历史；后台 `run_chat` 自己保存历史与回复元数据，两条路径都只保存一次。点选规则在 `conversation_input.py` 集中维护。
+后台服务只读取用户配置并使用本任务会话，不保存或覆盖桌面当前选择；空白目录中也不为任务创建窗口位置配置。旧桌面仍在发送和显示完成时保存历史；后台 `run_chat` 自己保存历史与回复元数据，两条路径都只保存一次。点选规则在 `desk_companion/chat/conversation_input.py` 集中维护。
 
 对话服务的离线入口及禁止 GUI 导入的子进程验证见 [AI 对话调试](AGENT_DEBUG.md#无-gui-的对话服务验收)。
 

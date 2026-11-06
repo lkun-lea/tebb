@@ -1,6 +1,6 @@
 import unittest
-from desk_companion.project_receipts import preview_source,receipt,checkout_source
-from desk_companion.web_sources import check_citations
+from desk_companion.projects.project_receipts import preview_source, receipt, checkout_source
+from desk_companion.integrations.web.web_sources import check_citations
 
 
 class ProjectReceiptTests(unittest.TestCase):

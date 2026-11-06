@@ -4,7 +4,7 @@ import unittest
 import os,tempfile
 from unittest.mock import patch
 
-from desk_companion.calendar_proposals import build,validate,CalendarProposalService,tool_spec,task_event
+from desk_companion.planning.calendar_proposals import build, validate, CalendarProposalService, tool_spec, task_event
 
 FIELDS=dict(summary='核对项目启动',start='2040-01-02T09:00:00+08:00',end='2040-01-02T10:00:00+08:00',timezone='Asia/Shanghai',item_id='work-item-one')
 
@@ -62,27 +62,27 @@ class CalendarProposalTests(unittest.TestCase):
                 self.assertFalse(result['ok']);self.assertEqual(result['state'],'unconfirmed')
 
     def test_current_tool_requires_task_context_and_emits_a_valid_source_bound_event(self):
-        from desk_companion.agent_debug import context
-        from desk_companion.work_board import WorkBoardService
+        from desk_companion.observability.agent_debug import context
+        from desk_companion.planning.work_board import WorkBoardService
         with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
             board=WorkBoardService();made=board.change(dict(type='create',request_id='proposal-setup-item',fields=dict(title='实际事项')))
             self.assertTrue(made['ok'],made);item=next(row for row in made['items']if row['title']=='实际事项')
             spec=tool_spec();self.assertTrue(spec['read_only'])
-            with patch('desk_companion.agent_debug.metadata',return_value={}):
+            with patch('desk_companion.observability.agent_debug.metadata',return_value={}):
                 with self.assertRaises(ValueError):spec['implementation']({**FIELDS,'item_id':item['id']})
             with context(task_id='actual-task',collab_run='actual-run'):result=spec['implementation']({**FIELDS,'item_id':item['id']})
             event=task_event(result,'actual-task','actual-call');self.assertEqual(event['proposal']['source'],dict(task_id='actual-task',run_id='actual-run'))
             with self.assertRaises(ValueError):task_event(result,'different-task','actual-call')
 
     def test_executor_respects_the_selected_proposal_capability_even_for_tebb(self):
-        from desk_companion.collaboration_worker import execute
-        from desk_companion.collaboration import initialize_workspace
+        from desk_companion.collaboration.collaboration_worker import execute
+        from desk_companion.collaboration.service import initialize_workspace
         class Captured(Exception):pass
         observed=[]
         class Model:
             def chat(self,messages,tools,on_delta):
                 observed.append({tool['function']['name']for tool in tools});raise Captured()
-        with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder),patch('desk_companion.model_catalog.require_item',return_value=dict(id='fixture',model='fixture',api_key='fixture-only',base_url='https://example.invalid/v1')):
+        with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder),patch('desk_companion.models.model_catalog.require_item',return_value=dict(id='fixture',model='fixture',api_key='fixture-only',base_url='https://example.invalid/v1')):
             initialize_workspace(folder+'/workspace.sqlite3')
             for enabled in(False,True):
                 request=dict(task_id='actual-task',kind='task',role=dict(id='tebb',name='tebb',role='合成能力验收',tools=['日程提案']if enabled else[]),text='核对工具开关',context=[],workspace={},model_id='fixture',budget=6,collab_run='actual-run',collab_path=folder+'/workspace.sqlite3')

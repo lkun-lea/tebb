@@ -10,8 +10,8 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from desk_companion.docker_sandboxes import SandboxError
-from desk_companion.agent_eval_projects import FIX,TEST,TEST_COMMAND,HOLD_COMMAND,PYTHON_SETUP,PYTHON_START
+from desk_companion.projects.docker_sandboxes import SandboxError
+from desk_companion.evaluation.agent_eval_projects import FIX, TEST, TEST_COMMAND, HOLD_COMMAND, PYTHON_SETUP, PYTHON_START
 
 
 def path_in(root,value):
@@ -54,7 +54,7 @@ class FixtureSDK:
     def exec_command(self,name,ident,argv,*,interactive=False):
         self.owned(name,ident);self.items[name]['status']='running'
         if interactive:
-            from desk_companion.project_integrity import RUNNER,GIT_PROBE
+            from desk_companion.projects.project_integrity import RUNNER, GIT_PROBE
             if argv[:4]!=['python3','-I','-u','-c']or argv[-2]!=RUNNER:raise ValueError('unsupported fixture control wrapper')
             config=json.loads(base64.b64decode(argv[-1]));script=config['argv'][2]
             command=shlex.split(script.split('\nexec bash -c ',1)[1])

@@ -46,7 +46,7 @@ python scripts/eval_agent.py --live --suite failures --samples 1 --timeout 300 -
 @'
 import datetime, hashlib, json, urllib.request
 from pathlib import Path
-from desk_companion.agent_eval_research import URLS, load_corpus
+from desk_companion.evaluation.agent_eval_research import URLS, load_corpus
 folder = Path('../output/research-corpus-new')
 folder.mkdir(parents=True, exist_ok=False)
 sources = []
@@ -151,7 +151,7 @@ python scripts/eval_agent.py --live --project-sdk official --case coder_read_mod
 
 ## 清单与证据
 
-机器清单位于 `desk_companion/agent_evals.py`，当前契约版本28，共48案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
+机器清单位于 `desk_companion/evaluation/agent_evals.py`，当前契约版本28，共48案；下表列出基础案例，后续章节说明扩展组。判定器的期望对象不传给真实模型。3个 `route_decision_contract` 仅验证路由JSON，要求非空text；`mode=clarify`不代表持久主任务已进入needs_input，user_task_state仍为null。新增生命周期案例单独核对真实持久状态。工作流必须有 workflow_ai 成功回执并核对节点输出。
 
 | 案例 | 固定任务/前置 | 机器核对证据 |
 | --- | --- | --- |

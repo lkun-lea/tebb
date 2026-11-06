@@ -13,8 +13,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from desk_companion.agent_evals import CASES, FAILURE_CASES, FAILURE_CASES_V1, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
-from desk_companion.agent_eval_projects import ProjectPrerequisiteMissing
+from desk_companion.evaluation.agent_evals import CASES, FAILURE_CASES, FAILURE_CASES_V1, CONTRACT_VERSION, CancellationNotSettled, aggregate_usage, call_evidence, evaluate, refresh_call_evidence, summarize, wait_task
+from desk_companion.evaluation.agent_eval_projects import ProjectPrerequisiteMissing
 
 # Also cleaned if setup fails before TaskManager is available.
 CREDENTIAL_PATH=None
@@ -43,7 +43,7 @@ class Fixture(BaseHTTPRequestHandler):
     def log_message(self,*args): pass
     def do_POST(self):
         request=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        from desk_companion.agent_eval_tools import FIXTURE_URL
+        from desk_companion.evaluation.agent_eval_tools import FIXTURE_URL
         spec=self.spec;release=self.release
         value=self.spec['expected']
         if self.spec.get('kind')=='route':
@@ -91,7 +91,7 @@ class Fixture(BaseHTTPRequestHandler):
             goal=next(m['content']for m in reversed(request['messages'])if m.get('role')=='user')
             delta=tool('start_background_task',dict(instructions=goal,strategy='direct'))
         elif executor=='project':
-            from desk_companion.agent_eval_projects import FIX,TEST_COMMAND,HOLD_COMMAND,PYTHON_SETUP,PYTHON_START,REPOSITORIES
+            from desk_companion.evaluation.agent_eval_projects import FIX, TEST_COMMAND, HOLD_COMMAND, PYTHON_SETUP, PYTHON_START, REPOSITORIES
             scenario=spec['scenario'];text=json.dumps(request['messages'],ensure_ascii=False)
             # Tool messages do not carry names in every compatible provider.
             called=[call['function']['name']for m in request['messages']if m.get('role')=='assistant'for call in m.get('tool_calls',[])]
@@ -125,7 +125,7 @@ class Fixture(BaseHTTPRequestHandler):
                         delta=dict(content='合成SDK服务已核对并停止。实际回执中的[仓库]('+repository+'/tree/'+ref+')；'
                                    '[验证预览（已停止）]('+started['service']['url']+')。')
         elif executor=='lifecycle'and spec['scenario']=='readonly':
-            from desk_companion.agent_eval_research import fixture_delta
+            from desk_companion.evaluation.agent_eval_research import fixture_delta
             delta=fixture_delta(request,spec,tool)
         elif executor=='lifecycle':
             names={t['function']['name'] for t in request.get('tools',[])}
@@ -218,7 +218,9 @@ def main():
     if args.project_sdk=='official'and not args.live:parser.error('official SDK requires --live')
     if args.live and projects and args.project_sdk!='official':parser.error('live project cases require explicit --project-sdk official')
     if not 20<=args.project_timeout<=1200:parser.error('project-timeout 20..1200')
-    from desk_companion import model_catalog,model_network,model_capacity
+    from desk_companion.models import model_catalog
+    from desk_companion.models import model_network
+    from desk_companion.models import model_capacity
     model=model_catalog.require_active() if args.live else dict(id='eval-fixture',model='eval-fixture',api_key='eval-fixture-only',base_url='')
     policy=model_network.load() if args.live else dict(mode='direct')
     capacity=model_capacity.load(model['id'])if args.live else{}
@@ -247,7 +249,7 @@ def main():
     previous=os.environ.get('DESK_COMPANION_DATA_DIR')
     research_corpus=None
     if readonly:
-        from desk_companion.agent_eval_research import prepare_corpus
+        from desk_companion.evaluation.agent_eval_research import prepare_corpus
         research_corpus=prepare_corpus(profile,args.research_corpus,live=args.live)
     os.environ['DESK_COMPANION_DATA_DIR']=str(profile)
     for key in ('DESK_TERMINAL_PORT','DESK_TERMINAL_TOKEN'):os.environ.pop(key,None)
@@ -260,7 +262,7 @@ def main():
     import subprocess
     report['source_commit']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     report['source_dirty']=bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],cwd=ROOT,text=True).strip())
-    from desk_companion.task_budgets import VERSION as budget_policy_version
+    from desk_companion.tasks.task_budgets import VERSION as budget_policy_version
     report['root_budget_policy_version']=budget_policy_version
     if research_corpus:report['research_corpus']=research_corpus
     report['verified_output_binding_snapshot']=bool(args.output_limit_bindings)
@@ -268,23 +270,24 @@ def main():
         tokenizer_bound=bool(capacity.get('tokenizer_dir')),tokenizer_signature=capacity.get('tokenizer_signature'))
     import hashlib
     source_paths=(
-            'scripts/eval_agent.py','desk_companion/agent_evals.py','desk_companion/tasks.py',
-            'desk_companion/task_worker.py','desk_companion/collaboration_worker.py',
-            'desk_companion/collaboration_llm.py','desk_companion/workflow_worker.py','desk_companion/workflow_nodes.py',
-            'desk_companion/local_calendar.py','desk_companion/tebb_tools.py','desk_companion/collaboration.py',
-            'desk_companion/agent_eval_memory.py','desk_companion/agent_eval_authoring.py','desk_companion/workflow_tools.py','desk_companion/workflow_capabilities.py','desk_companion/workflow_templates.py','desk_companion/workflows.py','desk_companion/workflow_graph.py','desk_companion/memory_selection.py','desk_companion/memory_inspector.py','desk_companion/context_sources.py','desk_companion/facts.py',
-            'desk_companion/agent_eval_tools.py','desk_companion/agent_eval_lifecycle.py','desk_companion/calendar_proposals.py','scripts/eval_fixture_worker.py',
-            'desk_companion/research_tools.py','desk_companion/readonly_research.py','desk_companion/agent_eval_research.py','scripts/eval_readonly_worker.py',
-            'desk_companion/agent_eval_projects.py','scripts/eval_project_host.py','scripts/eval_project_fixture.py',
-            'desk_companion/project_environments.py','desk_companion/project_environment_store.py','desk_companion/resource_lock.py','desk_companion/project_operations.py',
-            'desk_companion/project_tools.py','desk_companion/project_receipts.py','desk_companion/project_integrity.py','desk_companion/docker_sandboxes.py',
-            'desk_companion/worker_rpc.py','desk_companion/bridge.py','desk_companion/local_api/host.py','desk_companion/local_api/server.py',
-            'desk_companion/execution_context.py','desk_companion/model_capacity.py','desk_companion/model_tokenizer.py',
-            'desk_companion/task_budgets.py','desk_companion/review_limits.py','desk_companion/clarification.py','desk_companion/model_generation.py',
-            'desk_companion/context_pack.py','desk_companion/assistant.py','desk_companion/model_catalog.py',
-            'desk_companion/json_document.py','desk_companion/feedback.py','desk_companion/feedback_review.py',
-            'desk_companion/delivery_feedback.py','desk_companion/web_sources.py','desk_companion/project_workspace.py',
-            'desk_companion/web_snapshots.py','desk_companion/local_sources.py','desk_companion/workspace_source.py')
+            'desk_companion/collaboration/store.py','desk_companion/infrastructure/storage.py','desk_companion/infrastructure/paths.py',
+            'scripts/eval_agent.py','desk_companion/evaluation/agent_evals.py','desk_companion/tasks/manager.py',
+            'desk_companion/tasks/worker.py','desk_companion/collaboration/collaboration_worker.py',
+            'desk_companion/collaboration/collaboration_llm.py','desk_companion/automation/workflow_worker.py','desk_companion/automation/workflow_nodes.py',
+            'desk_companion/planning/local_calendar.py','desk_companion/collaboration/tebb_tools.py','desk_companion/collaboration/service.py',
+            'desk_companion/evaluation/agent_eval_memory.py','desk_companion/evaluation/agent_eval_authoring.py','desk_companion/automation/workflow_tools.py','desk_companion/automation/workflow_capabilities.py','desk_companion/automation/workflow_templates.py','desk_companion/automation/workflows.py','desk_companion/automation/workflow_graph.py','desk_companion/memory/memory_selection.py','desk_companion/memory/memory_inspector.py','desk_companion/memory/context_sources.py','desk_companion/memory/facts.py',
+            'desk_companion/evaluation/agent_eval_tools.py','desk_companion/evaluation/agent_eval_lifecycle.py','desk_companion/planning/calendar_proposals.py','scripts/eval_fixture_worker.py',
+            'desk_companion/collaboration/research_tools.py','desk_companion/collaboration/readonly_research.py','desk_companion/evaluation/agent_eval_research.py','scripts/eval_readonly_worker.py',
+            'desk_companion/evaluation/agent_eval_projects.py','scripts/eval_project_host.py','scripts/eval_project_fixture.py',
+            'desk_companion/projects/project_environments.py','desk_companion/projects/project_environment_store.py','desk_companion/infrastructure/resource_lock.py','desk_companion/projects/project_operations.py',
+            'desk_companion/projects/project_tools.py','desk_companion/projects/project_receipts.py','desk_companion/projects/project_integrity.py','desk_companion/projects/docker_sandboxes.py',
+            'desk_companion/local_api/worker_rpc.py','desk_companion/local_api/bridge.py','desk_companion/local_api/host.py','desk_companion/local_api/server.py',
+            'desk_companion/collaboration/execution_context.py','desk_companion/models/model_capacity.py','desk_companion/models/model_tokenizer.py',
+            'desk_companion/tasks/task_budgets.py','desk_companion/collaboration/review_limits.py','desk_companion/collaboration/clarification.py','desk_companion/models/model_generation.py',
+            'desk_companion/memory/context_pack.py','desk_companion/chat/assistant.py','desk_companion/models/model_catalog.py',
+            'desk_companion/infrastructure/json_document.py','desk_companion/collaboration/feedback.py','desk_companion/collaboration/feedback_review.py',
+            'desk_companion/collaboration/delivery_feedback.py','desk_companion/integrations/web/web_sources.py','desk_companion/projects/project_workspace.py',
+            'desk_companion/integrations/web/web_snapshots.py','desk_companion/knowledge/local_sources.py','desk_companion/projects/workspace_source.py')
     hashes={}
     for name in source_paths:
         raw=(ROOT/name).read_bytes()
@@ -292,15 +295,15 @@ def main():
         hashes[name]=hashlib.sha256(raw).hexdigest()
     report['source_snapshot']=dict(dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip()),
                                    directory='source_snapshot',capture='before_execution',sha256=hashes)
-    from desk_companion.tasks import TaskManager
-    from desk_companion.workflows import WorkflowService
-    from desk_companion.agent_debug import listing, detail
+    from desk_companion.tasks.manager import TaskManager
+    from desk_companion.automation.workflows import WorkflowService
+    from desk_companion.observability.agent_debug import listing, detail
     command=None if args.live else [sys.executable,'-u',str(ROOT/'scripts/eval_fixture_worker.py')]
     manager=TaskManager(path=profile/'memory/tasks.sqlite3',command=command)
     RESOURCES.callback(manager.shutdown)
     service=WorkflowService(lambda:manager)
-    from desk_companion.collaboration import initialize_workspace
-    from desk_companion.agent_eval_tools import prepare,verify
+    from desk_companion.collaboration.service import initialize_workspace
+    from desk_companion.evaluation.agent_eval_tools import prepare, verify
     def save():
         report['summary'],report['totals']=summarize(report['cases'])
         if args.suite=='failures':
@@ -332,7 +335,7 @@ def main():
                 lifecycle=spec.get('executor')=='lifecycle'
                 verification=None;calls=None
                 if project:
-                    from desk_companion.agent_eval_projects import execute
+                    from desk_companion.evaluation.agent_eval_projects import execute
                     def progress(value):
                         row.update(value)
                         if value.get('root_run'):row['collab_run']=value['root_run']
@@ -343,19 +346,19 @@ def main():
                     expired=verification.get('deadline_exceeded',False)
                     row['project_case']=verification
                 elif spec.get('executor')=='authoring':
-                    from desk_companion.agent_eval_authoring import execute
+                    from desk_companion.evaluation.agent_eval_authoring import execute
                     def progress(value):row.update(value);save()
                     task,verification,task_ids,calls=execute(spec,profile=profile,workspace=workspace,model_id=model['id'],timeout=args.timeout,command=command,progress=progress)
                     row['task_ids']=task_ids;task_id=task_ids[0] if task_ids else ''
                     expired=verification['deadline_exceeded']
                 elif spec.get('executor')=='memory':
-                    from desk_companion.agent_eval_memory import execute
+                    from desk_companion.evaluation.agent_eval_memory import execute
                     def progress(value):row.update(value);save()
                     task,verification,task_ids,calls=execute(spec,profile=profile,workspace=workspace,model_id=model['id'],timeout=args.timeout,command=command,progress=progress)
                     row['task_ids']=task_ids;task_id=task_ids[0] if task_ids else ''
                     expired=verification['deadline_exceeded']
                 elif lifecycle:
-                    from desk_companion.agent_eval_lifecycle import execute
+                    from desk_companion.evaluation.agent_eval_lifecycle import execute
                     def progress(value):row.update(value);save()
                     lifecycle_command=[sys.executable,'-u',str(ROOT/'scripts/eval_readonly_worker.py')]if spec.get('scenario')=='readonly'else command
                     task,verification,task_ids,calls=execute(spec,profile=profile,workspace=workspace,model_id=model['id'],timeout=args.timeout,command=lifecycle_command,progress=progress)
@@ -419,11 +422,11 @@ def main():
         # Credentials must not survive the acceptance run.
         (profile/'models.json').unlink(missing_ok=True)
         NETWORK_PATH.unlink(missing_ok=True)
-        from desk_companion.agent_eval_lifecycle import worker_alive
+        from desk_companion.evaluation.agent_eval_lifecycle import worker_alive
         for row in report['cases']:
             if not refresh_call_evidence(row,listing,detail) and row['outcome'] in {'success','needs_input'}:
                 row.update(outcome='failed',error_type='EvidenceCollectionFailed')
-            from desk_companion.task_budgets import task_view
+            from desk_companion.tasks.task_budgets import task_view
             ids=row.get('task_ids')or([row['task_id']]if row.get('task_id')else[])
             if ids:row['task_budget']=task_view(ids[0])
         complete=all(row.get('call_evidence_complete',False) for row in report['cases'] if row.get('task_id'))

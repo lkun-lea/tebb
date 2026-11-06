@@ -9,9 +9,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
-from desk_companion.calendar_time import TZ
-from desk_companion.feishu_task_completion import FeishuTaskCompletionService
-from desk_companion import board_data
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.integrations.feishu.feishu_task_completion import FeishuTaskCompletionService
+from desk_companion.planning import board_data
 
 GUID='b5e165af-3f0d-4708-89bc-c4fd3a69738d'
 ACTOR=dict(identity='user',verified=True,app_id='app-one',brand='feishu',open_id='user-one',user_name='隔离用户')

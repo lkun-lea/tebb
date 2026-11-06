@@ -11,8 +11,8 @@ import time
 import unittest
 from unittest.mock import patch
 
-from desk_companion import board_data as b
-from desk_companion.board_service import BoardService
+from desk_companion.planning import board_data as b
+from desk_companion.planning.board_service import BoardService
 
 
 DAY = '2026-10-20'
@@ -140,7 +140,7 @@ class BoardServiceTests(BoardFixture):
         self.assertEqual(b._read_today_file()['summary'], 'saved summary')
 
     def test_cache_write_before_and_after_replace_reports_remote_confirmed(self):
-        from desk_companion.video import atomic_write
+        from desk_companion.infrastructure.storage import atomic_write
         for after in (False, True):
             self.seed()
             before = b.today_path().read_bytes()
@@ -148,7 +148,7 @@ class BoardServiceTests(BoardFixture):
                 if after:
                     atomic_write(path, value)
                 raise OSError('replace acknowledgement lost')
-            with patch('desk_companion.video.atomic_write', side_effect=write):
+            with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=write):
                 result = self.service.delete_agenda('event')
             self.assertEqual((result['remote_state'], result['cache_state'], result['stage']),
                              ('confirmed', 'unconfirmed', 'cache_save'), result)
@@ -255,7 +255,7 @@ class BoardServiceTests(BoardFixture):
 
     def test_process_network_lease_allows_reads_summary_writes_and_releases_on_exit(self):
         self.seed()
-        code = "from desk_companion.board_data import _operation; import time\nwith _operation():\n print('ready',flush=True); time.sleep(30)"
+        code = "from desk_companion.planning.board_data import _operation; import time\nwith _operation():\n print('ready',flush=True); time.sleep(30)"
         process = self.child(code)
         self.assertEqual(process.stdout.readline().strip(), 'ready')
         self.assertTrue(self.service.load_board()['ok'])
@@ -267,13 +267,7 @@ class BoardServiceTests(BoardFixture):
 
     def test_process_storage_merges_concurrent_summary_and_doc_writes(self):
         self.seed()
-        code = '''
-from desk_companion import board_data as b
-import sys
-from unittest.mock import patch
-with patch.object(b,'today_date',return_value=sys.argv[1]):
- for i in range(15): b.save_today_fields(**{sys.argv[2]:str(i)})
-'''
+        code = "\nfrom desk_companion.planning import board_data as b\nimport sys\nfrom unittest.mock import patch\nwith patch.object(b,'today_date',return_value=sys.argv[1]):\n for i in range(15): b.save_today_fields(**{sys.argv[2]:str(i)})\n"
         children = [self.child(code, DAY, field) for field in ('summary', 'doc_url')]
         for child in children:
             out, err = child.communicate(timeout=20)
@@ -284,7 +278,7 @@ with patch.object(b,'today_date',return_value=sys.argv[1]):
 
     def test_manual_create_reports_confirmed_remote_then_cache_failure(self):
         self.seed()
-        with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+        with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
             result = self.service.create_agenda('title',START,END)
         self.assertEqual(result['remote_state'],'confirmed')
         self.assertEqual(result['stage'],'cache_save')
@@ -309,8 +303,8 @@ assert_no_gui()
         self.assertEqual(child.returncode, 0, out+err)
 
     def test_actual_task_calendar_proposal_does_not_take_network_or_global_write_lease(self):
-        from desk_companion.resource_lock import WRITES
-        from desk_companion import state
+        from desk_companion.infrastructure.resource_lock import WRITES
+        from desk_companion.infrastructure import state
         settings = state.load_state(0, 0)
         settings.session_id = 'desktop'; settings.save()
         request = dict(text='日程锁测试', session_id='calendar-worker', channel='desktop',

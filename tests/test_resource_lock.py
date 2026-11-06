@@ -9,13 +9,13 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from desk_companion.resource_lock import ResourceLock
+from desk_companion.infrastructure.resource_lock import ResourceLock
 
 
 SCRIPT = '''
 import os, sys, time
 from pathlib import Path
-from desk_companion.resource_lock import ResourceLock
+from desk_companion.infrastructure.resource_lock import ResourceLock
 root = Path(os.environ['DESK_COMPANION_DATA_DIR'])
 (root / (sys.argv[1] + '.ready')).touch()
 for index in range(4):
@@ -75,7 +75,7 @@ class ResourceLockTests(unittest.TestCase):
         self.assertEqual(self.root.joinpath('count').read_text(), '4')
 
     def test_shared_readers_exclude_writers_across_handles_and_processes(self):
-        code = "from desk_companion.resource_lock import ResourceLock; import sys; l=ResourceLock('leases',shared=sys.argv[1]=='read'); ok=l.acquire(blocking=False); print(ok); l.__exit__() if ok else None"
+        code = "from desk_companion.infrastructure.resource_lock import ResourceLock; import sys; l=ResourceLock('leases',shared=sys.argv[1]=='read'); ok=l.acquire(blocking=False); print(ok); l.__exit__() if ok else None"
         def probe(role):
             p = subprocess.run([sys.executable, '-c', code, role], capture_output=True,
                 text=True, timeout=15)

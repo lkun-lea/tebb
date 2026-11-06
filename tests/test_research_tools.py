@@ -1,6 +1,6 @@
 import unittest
 
-from desk_companion.research_tools import ResearchTools
+from desk_companion.collaboration.research_tools import ResearchTools
 
 
 class ResearchToolsTests(unittest.TestCase):

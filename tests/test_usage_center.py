@@ -11,9 +11,9 @@ from unittest.mock import patch
 
 import httpx
 from openai import OpenAI
-from desk_companion import agent_debug
-from desk_companion.usage_store import UsageStore,normalized_usage,estimate
-from desk_companion.usage_observer import ModelAttempt,invoke_tool
+from desk_companion.observability import agent_debug
+from desk_companion.observability.usage_store import UsageStore, normalized_usage, estimate
+from desk_companion.observability.usage_observer import ModelAttempt, invoke_tool
 
 
 class UsageRecords(unittest.TestCase):
@@ -101,7 +101,7 @@ class UsageRecords(unittest.TestCase):
         self.assertEqual([n['status']for n in rows[0]['network_attempts']],[429,200])
 
     def test_research_guard_does_not_create_an_execution_observation(self):
-        from desk_companion.research_tools import ResearchTools
+        from desk_companion.collaboration.research_tools import ResearchTools
         search=unittest.mock.Mock(side_effect=AssertionError('must not execute'))
         adapter=ResearchTools(sources=[],discovered=set(),emit=lambda *args:None,search_limit=0,fetch_limit=0,search=search)
         self.assertFalse(adapter.invoke('web_search',{'query':'fixture'}).ok)
@@ -115,15 +115,15 @@ class UsageRecords(unittest.TestCase):
             with ModelAttempt('demo',ident=ident)as observed:observed.returned({'prompt_tokens':1,'completion_tokens':1})
             barrier.wait(timeout=10)
             invoke_tool('lookup',lambda:{'ok':True})
-        with patch('desk_companion.usage_observer._metadata',side_effect=metadata):
+        with patch('desk_companion.observability.usage_observer._metadata',side_effect=metadata):
             with concurrent.futures.ThreadPoolExecutor(2)as pool:list(pool.map(run,['m1','m2']))
         rows=self.store.rows();models={r['task']:r['id']for r in rows if r['kind']=='model'}
         tools=[r for r in rows if r['kind']=='tool'];self.assertEqual(len(tools),2)
         for tool in tools:self.assertEqual(tool['parent_call'],models[tool['task']])
 
     def test_persisted_task_roots_deduplicate_resume_and_ignore_orphan_budget(self):
-        from desk_companion.task_budgets import Ledger
-        from desk_companion.tasks import usage_metadata
+        from desk_companion.tasks.task_budgets import Ledger
+        from desk_companion.tasks.manager import usage_metadata
         ledger=Ledger(self.path/'memory/task_budgets.sqlite3')
         root=ledger.create('task:first');ledger.bind(root,'first',root_member=True);ledger.bind(root,'resume',root_member=True);ledger.bind(root,'child')
         ledger.create('task:orphan')
@@ -141,7 +141,7 @@ class UsageRecords(unittest.TestCase):
         self.assertNotIn('PRIVATE_',json.dumps(value))
 
     def test_plan_success_is_not_whole_chain_success_and_no_channel_is_invented(self):
-        from desk_companion.collaboration import usage_metadata
+        from desk_companion.collaboration.service import usage_metadata
         path=self.path/'workspace.sqlite3'
         runs=[dict(id='root',parent='',kind='plan',state='succeeded',created=1,workspace={'project_id':'p'},answer='PRIVATE_ANSWER'),
             dict(id='child',parent='root',kind='task',state='running',created=2)]
@@ -152,7 +152,7 @@ class UsageRecords(unittest.TestCase):
         self.assertNotIn('PRIVATE_',json.dumps(value))
 
     def query_fixture(self):
-        from desk_companion.usage_center import UsageCenter
+        from desk_companion.observability.usage_center import UsageCenter
         meta=dict(root='task:goal',task='worker',project_id='p',channel='desktop',source='task',model='demo',model_id='entry',model_key='entry:route',route='route')
         for ident in ['a','b']:self.store.begin(ident,'model',meta,now=10)
         usage=normalized_usage({'prompt_tokens':100,'completion_tokens':20,'prompt_tokens_details':{'cached_tokens':80}})
@@ -207,8 +207,8 @@ class UsageRecords(unittest.TestCase):
         self.assertTrue(value['ok']);self.assertFalse(value['legacy']['ok']);self.assertNotIn('PRIVATE_BROKEN',json.dumps(value))
 
     def test_empty_read_has_no_database_side_effect_and_bad_filters_fail(self):
-        from desk_companion.usage_sources import task_metadata
-        from desk_companion.usage_center import UsageCenter
+        from desk_companion.observability.usage_sources import task_metadata
+        from desk_companion.observability.usage_center import UsageCenter
         self.assertEqual(task_metadata(),dict(tasks=[],attempts=[]))
         service=UsageCenter();self.assertTrue(service.query()['ok'])
         self.assertFalse(self.store.path.exists());self.assertFalse((self.path/'memory/tasks.sqlite3').exists())

@@ -32,4 +32,4 @@ build-backend = "setuptools.build_meta"
 include = ["desk_companion*"]
 
 [tool.setuptools.package-data]
-desk_companion = ["ui/*"]
+desk_companion = ["ui/*", "ui/fonts/*", "ui/vendor/*"]

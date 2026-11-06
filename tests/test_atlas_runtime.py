@@ -18,7 +18,7 @@ import atlas
 from atlas import LLM
 from atlas.llm import ChatOptions, IncompleteResponseError
 from atlas.testing.llm_contract import StreamContract
-from desk_companion.collaboration_llm import CollaborationLLM
+from desk_companion.collaboration.collaboration_llm import CollaborationLLM
 
 assert Path(atlas.__file__).resolve().is_relative_to(Path.cwd())
 requests = []

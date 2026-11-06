@@ -9,10 +9,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="desk-companion")
     parser.add_argument("--skin", default="kaltsit", help="skins 目录下的形象包文件夹名")
     args = parser.parse_args(argv)
-    from .logutil import crash, log
+    from desk_companion.observability.logutil import crash, log
 
     try:
-        from .app import run_app
+        from desk_companion.desktop.app import run_app
 
         run_app(args.skin)
     except RuntimeError as exc:

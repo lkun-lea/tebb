@@ -8,12 +8,12 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from desk_companion import automation
-from desk_companion.automation_service import AutomationService
-from desk_companion.workflow_graph import resolve, validate
-from desk_companion.workflows import WorkflowService
-from desk_companion.workflow_worker import execute
-from desk_companion import workflow_nodes
+from desk_companion.automation import schedule as automation
+from desk_companion.automation.automation_service import AutomationService
+from desk_companion.automation.workflow_graph import resolve, validate
+from desk_companion.automation.workflows import WorkflowService
+from desk_companion.automation.workflow_worker import execute
+from desk_companion.automation import workflow_nodes
 
 
 def node(ident, kind, **config):
@@ -34,7 +34,7 @@ class FakeTasks:
         self.requests = []
 
     def submit(self, text, session, submission_key='', **request):
-        from desk_companion.tasks import submission_task_id
+        from desk_companion.tasks.manager import submission_task_id
         ident = submission_task_id(submission_key)
         self.tasks.setdefault(ident, dict(id=ident, state='queued'))
         self.requests.append({**request, 'session_id': session, 'task_id': ident, 'limits': request['task_limits']})
@@ -51,7 +51,7 @@ class FakeTasks:
 
 class WorkflowTests(unittest.TestCase):
     def test_budget_denial_is_before_write_pending_and_never_becomes_unknown(self):
-        from desk_companion.task_budgets import Ledger,installed
+        from desk_companion.tasks.task_budgets import Ledger, installed
         definition=self.save(graph(node('trigger','trigger'),document()))
         run=self.start(definition,confirm_writes=True)
         request=self.tasks.requests[-1];ledger=Ledger()
@@ -356,7 +356,7 @@ class WorkflowAdapterTests(unittest.TestCase):
                 with self.assertRaises(ValueError): workflow_nodes.reconcile('message',config,'key','om_12345')
 
     def test_invalid_record_receipts_do_not_become_success(self):
-        from desk_companion.lark_receipts import single_record_id
+        from desk_companion.integrations.feishu.lark_receipts import single_record_id
         for value in ({'record_id_list':['a','b']},{'record_id_list':[None]},{'record_id_list':'a'},{'id':3}):
             with self.subTest(value=value),self.assertRaises(ValueError): single_record_id(value)
 

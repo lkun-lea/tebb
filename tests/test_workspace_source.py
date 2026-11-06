@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion import project_workspace, workspace_source
+from desk_companion.projects import project_workspace
+from desk_companion.projects import workspace_source
 
 
 class SourceToolTests(unittest.TestCase):

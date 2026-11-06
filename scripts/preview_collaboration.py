@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 
 
 def pair():
-    from desk_companion.collaboration_access import access_path
+    from desk_companion.collaboration.collaboration_access import access_path
     candidates = []
     for process in psutil.process_iter(["name", "cmdline"]):
         try:

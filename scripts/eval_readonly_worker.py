@@ -5,9 +5,9 @@ import sys
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from desk_companion.paths import data_root
-from desk_companion.agent_eval_research import load_corpus
-from desk_companion.task_worker import main
+from desk_companion.infrastructure.paths import data_root
+from desk_companion.evaluation.agent_eval_research import load_corpus
+from desk_companion.tasks.worker import main
 
 scope,corpus=load_corpus(data_root()/'memory/eval_research_corpus')
 
@@ -20,4 +20,4 @@ def frozen_page(url,*,on_body=None):
     return page
 
 if __name__=='__main__':
-    with patch('desk_companion.web_snapshots.fetch_page',frozen_page):main()
+    with patch('desk_companion.integrations.web.web_snapshots.fetch_page',frozen_page):main()

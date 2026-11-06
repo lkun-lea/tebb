@@ -5,8 +5,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from desk_companion import video_controller
-from desk_companion.tasks import TaskManager
+from desk_companion.content.video import controller as video_controller
+from desk_companion.tasks.manager import TaskManager
 
 URL = "https://youtu.be/abcdefghijk?si=tracking"
 

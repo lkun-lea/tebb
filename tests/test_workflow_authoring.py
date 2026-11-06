@@ -9,15 +9,15 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.workflows import WorkflowService
-from desk_companion.workflow_graph import validate
-from desk_companion.workflow_nodes import execute
+from desk_companion.automation.workflows import WorkflowService
+from desk_companion.automation.workflow_graph import validate
+from desk_companion.automation.workflow_nodes import execute
 from tests.test_workflows import FakeTasks,node,graph
 
 
 class AuthoringTests(unittest.TestCase):
     def test_model_tools_describe_actual_nested_adapter_config_and_graph_structure(self):
-        from desk_companion.workflow_tools import specs
+        from desk_companion.automation.workflow_tools import specs
         tools={tool['function']['name']:tool['function']['parameters']['properties']['payload'] for tool in specs(dict(collab_run='fixture',task_id='fixture'))}
         cap=tools['capability_save'];self.assertEqual(cap['properties']['template']['type'],'object')
         self.assertEqual(cap['properties']['parameters']['additionalProperties'],dict(type='string'))
@@ -76,7 +76,7 @@ class AuthoringTests(unittest.TestCase):
         self.assertFalse(self.service.operation('save',{**payload,'name':'different'})['ok'])
 
     def test_saved_authoring_version_is_real_progress_only_once(self):
-        from desk_companion.task_budgets import Ledger,installed,record_progress
+        from desk_companion.tasks.task_budgets import Ledger, installed, record_progress
         ledger=Ledger();root=ledger.create('fixture-authoring');ledger.bind(root,'fixture-task',root_member=True,purpose='task')
         payload,cap=self.capability()
         with installed('fixture-task'):
@@ -100,7 +100,7 @@ class AuthoringTests(unittest.TestCase):
 
     def test_video_uses_actual_subtitles_with_coverage_and_never_auto_archives(self):
         source=dict(source_id='fixture',url='https://www.youtube.com/watch?v=abcdefghijk',title='source',subtitle_status='available',segments=[dict(start=12,text='真实字幕')],truncated=False)
-        with patch('desk_companion.video.read_video',return_value=dict(source_id='fixture')),patch('desk_companion.video.get_source',return_value=source),patch('desk_companion.video.export_summary') as export:
+        with patch('desk_companion.content.video.sources.read_video',return_value=dict(source_id='fixture')),patch('desk_companion.content.video.sources.get_source',return_value=source),patch('desk_companion.content.video.sources.export_summary') as export:
             value=execute('video',dict(url=source['url']),'receipt',lambda *args:None,{})
             self.assertIn('真实字幕',value['text']);self.assertIn('0:12',value['text']);self.assertTrue(value['complete']);export.assert_not_called()
             source['segments']=[]
@@ -108,7 +108,7 @@ class AuthoringTests(unittest.TestCase):
 
     def test_news_reuses_five_item_validator_and_no_publisher(self):
         report=dict(lead='verified',candidate_count=5,items=[])
-        with patch('desk_companion.news.summarize',return_value=report) as summarize:
+        with patch('desk_companion.content.news.service.summarize',return_value=report) as summarize:
             value=execute('news_report',dict(day='2026-11-02',candidates=json.dumps([{}]*5)),'receipt',lambda *args:None,{})
             self.assertEqual(summarize.call_args.args[1],dict(highlights=5));self.assertEqual(value['report'],report)
 
@@ -127,10 +127,11 @@ class AuthoringTests(unittest.TestCase):
         self.assertEqual(self.service.store.published_news('2026-10-31','2026-11-02'),{('https://example.com/known','2026-11-01')})
 
     def test_parent_checks_role_and_active_run_before_authoring_and_blocks_execution(self):
-        from desk_companion.collaboration import Collaboration,transaction
+        from desk_companion.collaboration.store import transaction
+        from desk_companion.collaboration.service import Collaboration
         from tests.test_collaboration import MODEL,Queue
-        from desk_companion.workflow_tools import execute as author
-        with patch('desk_companion.model_catalog.require_active',return_value=MODEL),patch('desk_companion.model_catalog.require_item',return_value=MODEL):
+        from desk_companion.automation.workflow_tools import execute as author
+        with patch('desk_companion.models.model_catalog.require_active',return_value=MODEL),patch('desk_companion.models.model_catalog.require_item',return_value=MODEL):
             class PhysicalQueue(Queue):
                 def get(self,task,events=False):return super().get(task)
             work=PhysicalQueue()
@@ -159,8 +160,8 @@ class AuthoringTests(unittest.TestCase):
             self.assertEqual(self.tasks.requests,[])
 
     def test_legacy_agent_tools_cannot_enable_run_retype_or_delete_workflow_plans(self):
-        from desk_companion.automation_service import AutomationService
-        from desk_companion import automation
+        from desk_companion.automation.automation_service import AutomationService
+        from desk_companion.automation import schedule as automation
         definition=self.operation('save',name='界面确认版本',graph=graph(node('trigger','trigger'),node('doc','document',title='正文',content='{{trigger.text}}')))['definition']
         scheduler=AutomationService(tasks=lambda:self.tasks);self.addCleanup(lambda:scheduler.stop(0))
         payload=dict(name='已保存计划',action='workflow',enabled=False,cadence='daily',hour=9,minute=0,weekdays=[],doc='',workflow_id=definition['id'],workflow_version=definition['version'],workflow_write_version=definition['version'])

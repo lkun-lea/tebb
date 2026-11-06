@@ -7,9 +7,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion.readonly_research import ReadonlyLoop,eligible_child
-from desk_companion.research_tools import ToolOutcome
-from desk_companion.task_budgets import Ledger,current,installed
+from desk_companion.collaboration.readonly_research import ReadonlyLoop, eligible_child
+from desk_companion.collaboration.research_tools import ToolOutcome
+from desk_companion.tasks.task_budgets import Ledger, current, installed
 
 
 SCHEMA=dict(type='function',read_only=True,function=dict(name='web_fetch',description='Read known source',
@@ -28,7 +28,7 @@ class ReadonlyLoopTests(unittest.TestCase):
     def test_only_independent_collect_children_with_supported_permissions_qualify(self):
         request=dict(kind='task',parent_run='parent',stage='collect',dependencies=[],role=dict(id='research',tools=['联网搜索','网页读取']))
         self.assertTrue(eligible_child(request))
-        with patch('desk_companion.readonly_research.os.name','posix'):self.assertFalse(eligible_child(request))
+        with patch('desk_companion.collaboration.readonly_research.os.name','posix'):self.assertFalse(eligible_child(request))
         for changes in (dict(parent_run=''),dict(stage='deliver'),dict(dependencies=['earlier']),dict(kind='plan'),dict(role=dict(id='research',tools=['网页读取','终端']))):
             self.assertFalse(eligible_child({**request,**changes}))
 

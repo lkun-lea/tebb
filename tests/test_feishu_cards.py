@@ -6,10 +6,10 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
-from desk_companion.feishu_cards import CardReply, card, memory_pages
-from desk_companion.feishu_agent import FeishuAgent, Inbox, MENU_EVENT
+from desk_companion.integrations.feishu.feishu_cards import CardReply, card, memory_pages
+from desk_companion.integrations.feishu.feishu_agent import FeishuAgent, Inbox, MENU_EVENT
 from desk_companion.local_api.host import HeadlessApp
-from desk_companion.tasks import TaskManager
+from desk_companion.tasks.manager import TaskManager
 
 BINDING = dict(profile="test", app_id="app", owner_id="ou_owner", app_name="测试")
 
@@ -34,7 +34,7 @@ class CardTests(unittest.TestCase):
             if "api" in args:
                 return '{"ok":true,"data":{"card_id":"123"}}'
             return '{"ok":true,"data":{"message_id":"om_reply"}}'
-        with patch("desk_companion.feishu_cards._run_lark", side_effect=run):
+        with patch("desk_companion.integrations.feishu.feishu_cards._run_lark", side_effect=run):
             reply = CardReply("test", "om_original", "ou_owner", "stable", persist=lambda **kw: saved.update(kw))
             reply.start()
             reply.update("查询中", "第一段")
@@ -62,7 +62,7 @@ class CardTests(unittest.TestCase):
             model.assert_not_called()
 
     def test_memory_contains_existing_facts_and_no_generated_summary(self):
-        from desk_companion.facts import add_user_fact
+        from desk_companion.memory.facts import add_user_fact
         add_user_fact("博士喜欢简短回答。")
         pages = memory_pages(self.host.state.session_id)
         self.assertIn("博士喜欢简短回答", pages[0])
@@ -78,7 +78,7 @@ class CardTests(unittest.TestCase):
         def run(args, **kwargs):
             requests.append(args)
             return '{"ok":true,"data":{"card_id":"123"}}' if "api" in args else '{"ok":true,"data":{"message_id":"om_reply"}}'
-        with patch("desk_companion.feishu_cards._run_lark", side_effect=run):
+        with patch("desk_companion.integrations.feishu.feishu_cards._run_lark", side_effect=run):
             self.gateway.process_message(row)
             finished = self.gateway._inbox.get("app", "om_1")
             self.assertEqual(finished['state'], 'sent')
@@ -103,7 +103,7 @@ class CardTests(unittest.TestCase):
         self.assertEqual(self.host.tasks.wait(first)["state"], "succeeded")
         found = self.host.bridge.continue_agent_task(first, "继续核对", False)
         self.assertEqual(self.host.tasks.wait(found["task_id"])["state"], "succeeded")
-        from desk_companion.memory import list_chat
+        from desk_companion.memory.history import list_chat
         messages = list_chat("same-feishu-session")
         users = [r['text'] for r in messages if r['role'] == 'user']
         self.assertEqual(users, ["离线查询", "继续核对"])

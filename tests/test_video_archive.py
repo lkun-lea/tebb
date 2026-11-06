@@ -7,8 +7,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion import video, wiki_connection
-from desk_companion.video_archive import VideoArchive
+from desk_companion.infrastructure.storage import atomic_write
+
+from desk_companion.content.video import sources as video
+from desk_companion.integrations.feishu import wiki_connection
+from desk_companion.content.video.archive import VideoArchive
 from tests.test_video import SOURCE, URL
 
 WIKI = "https://example.feishu.cn/wiki/root"
@@ -19,10 +22,10 @@ CFG = {"auto_video_save": True, "wiki_url": WIKI, "video_parent_url": PARENT,
 
 class ArchiveTests(unittest.TestCase):
     def test_budget_denial_precedes_export_pending_and_preserves_note(self):
-        from desk_companion.task_budgets import Ledger,installed
+        from desk_companion.tasks.task_budgets import Ledger, installed
         self.archive.record('read_video',self.source)
         ledger=Ledger();root=ledger.create('archive-negative','probe');ledger.bind(root,'archive-task',root_member=True)
-        with installed('archive-task'),patch('desk_companion.feishu_auth.create_markdown_doc')as create:
+        with installed('archive-task'),patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc')as create:
             self.archive.finish('已生成笔记')
         create.assert_not_called()
         self.assertEqual(video.get_source('session',self.source['source_id']).get('exports',{}),{})
@@ -42,7 +45,7 @@ class ArchiveTests(unittest.TestCase):
 
     def test_complete_read_archives_under_parent_and_manual_save_reuses_receipt(self):
         self.archive.record("read_video", json.dumps(self.source))
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": PARENT + "/note"}) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": PARENT + "/note"}) as create:
             self.archive.finish("概念定义、关系和拓展")
             self.archive.finish("概念定义、关系和拓展")
             video.export_summary("session", self.source["source_id"], "概念定义、关系和拓展")
@@ -53,7 +56,7 @@ class ArchiveTests(unittest.TestCase):
 
     def test_unknown_save_never_retries_and_answer_remains_available(self):
         self.archive.record("read_video", self.source)
-        with patch("desk_companion.feishu_auth.create_markdown_doc", side_effect=TimeoutError()) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", side_effect=TimeoutError()) as create:
             self.archive.finish("已生成的笔记")
             self.archive.finish("已生成的笔记")
             self.assertEqual(create.call_count, 1)
@@ -63,7 +66,7 @@ class ArchiveTests(unittest.TestCase):
     def test_incomplete_pagination_does_not_save_then_full_read_saves(self):
         page = {**self.source["transcript"], "items": self.source["transcript"]["items"][:1], "next_offset": 1, "complete": False}
         self.archive.record("read_video", {"transcript": page})
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "saved"}) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "saved"}) as create:
             self.archive.finish("不完整笔记")
             create.assert_not_called()
             self.archive.record("read_video_transcript", video.transcript_page(video.get_source("session", self.source["source_id"]), 1))
@@ -74,33 +77,33 @@ class ArchiveTests(unittest.TestCase):
         for change in ({"video_archive_config": {}}, {"text": "读视频但不要保存"}, {"text": "don't save this video"}, {"auto_video_archive": False}):
             arch = VideoArchive({**self.request, **change}, lambda *e: None)
             arch.record("read_video", self.source)
-            with patch("desk_companion.feishu_auth.create_markdown_doc") as create:
+            with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc") as create:
                 arch.finish("笔记")
                 create.assert_not_called()
         self.archive.record("read_video", self.source)
         self.archive.manual_save = True
-        with patch("desk_companion.feishu_auth.create_markdown_doc") as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc") as create:
             self.archive.finish("笔记")
             create.assert_not_called()
 
     def test_missing_and_truncated_subtitles_do_not_archive(self):
         for change in ({"subtitle_status": "missing"}, {"truncated": True}):
             value = video.get_source("session", self.source["source_id"])
-            video.atomic_write(video.source_path("session", value["source_id"]), {**value, **change})
+            atomic_write(video.source_path("session", value["source_id"]), {**value, **change})
             self.archive.record("read_video", self.source)
-            with patch("desk_companion.feishu_auth.create_markdown_doc") as create:
+            with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc") as create:
                 self.archive.finish("笔记")
                 create.assert_not_called()
 
     def test_video_workspace_generated_request_is_not_an_opt_out(self):
         from types import SimpleNamespace
-        from desk_companion.video_controller import start
+        from desk_companion.content.video.controller import start
         requests = []
         host = SimpleNamespace(tasks=SimpleNamespace(submit=lambda text, *a, **kw: requests.append(text) or "task"))
         start(host, URL)
         self.request["text"] = requests[0]
         self.archive.record("read_video", self.source)
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "saved"}) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "saved"}) as create:
             self.archive.finish("笔记")
             create.assert_called_once()
 
@@ -149,8 +152,8 @@ class WikiTests(unittest.TestCase):
             with self.assertRaises(RuntimeError): wiki_connection.catalog(CFG)
 
     def test_markdown_creator_uses_selected_profile_and_parent(self):
-        from desk_companion.feishu_auth import create_markdown_doc
-        with patch("desk_companion.feishu_auth._run_lark", return_value=json.dumps({"ok": True, "data": {"document": {"url": "saved", "document_id": "doc"}}})) as cli:
+        from desk_companion.integrations.feishu.feishu_auth import create_markdown_doc
+        with patch("desk_companion.integrations.feishu.feishu_auth._run_lark", return_value=json.dumps({"ok": True, "data": {"document": {"url": "saved", "document_id": "doc"}}})) as cli:
             create_markdown_doc("笔记", "原样笔记", parent_token="videos", profile="my-app")
         args = cli.call_args.args[0]
         self.assertEqual(args[:2], ["--profile", "my-app"])
@@ -160,7 +163,7 @@ class WikiTests(unittest.TestCase):
 
 class WorkerArchiveTests(unittest.TestCase):
     def test_real_worker_read_model_answer_archive_and_persistent_receipt(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"DESK_COMPANION_DATA_DIR": temp}):
             manager = TaskManager(command=[sys.executable, "-u", "-c", "exec(open('tests/worker_fixture.py', encoding='utf-8').read())"])
             try:

@@ -14,14 +14,17 @@ import httpx
 from openai import OpenAI
 from atlas.llm import LLM
 
-from desk_companion import context_pack, memory, state, usage
-from desk_companion.assistant_settings import AssistantSettingsService
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.context_compression import ContextCompressionService
-from desk_companion.conversation import ConversationService
-from desk_companion.memory_editing import MemoryEditingService
-from desk_companion.resource_lock import WRITES
-from desk_companion.tasks import TaskManager
+from desk_companion.memory import context_pack
+from desk_companion.memory import history as memory
+from desk_companion.infrastructure import state
+from desk_companion.observability import usage
+from desk_companion.chat.assistant_settings import AssistantSettingsService
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.memory.context_compression import ContextCompressionService
+from desk_companion.chat.conversation import ConversationService
+from desk_companion.memory.memory_editing import MemoryEditingService
+from desk_companion.infrastructure.resource_lock import WRITES
+from desk_companion.tasks.manager import TaskManager
 
 
 class CompressionFixture(unittest.TestCase):
@@ -140,7 +143,7 @@ class CompressionTests(CompressionFixture):
         self.assertFalse(self.conversation.running)
 
     def test_usage_failure_and_save_failure_before_or_after_replace_report_progress(self):
-        from desk_companion import context_compression
+        from desk_companion.memory import context_compression
         self.old_pack()
         before = context_pack.pack_path().read_bytes()
         with patch.object(self.conversation, 'record_llm_usage', side_effect=OSError('usage failed')):
@@ -265,8 +268,8 @@ assert result.wasSuccessful()
 
 class DesktopCompatibilityTests(CompressionFixture):
     def test_old_app_bridge_and_pet_busy_guard(self):
-        from desk_companion.app import App
-        from desk_companion.bridge import Bridge
+        from desk_companion.desktop.app import App
+        from desk_companion.local_api.bridge import Bridge
         app = App.__new__(App)
         app.conversation = self.conversation
         app.pet = SimpleNamespace(busy=True)

@@ -13,22 +13,22 @@ import threading
 from contextlib import contextmanager
 from typing import Callable
 
-from ..assistant_settings import AssistantSettingsService
-from ..automation_service import AutomationService
-from ..board_service import BoardService
-from ..bridge import Bridge
-from ..chat_sessions import ChatSessionService
-from ..context_compression import ContextCompressionService
-from ..conversation import ConversationService
-from ..knowledge_service import KnowledgeService
-from ..memory_editing import MemoryEditingService
-from ..notebook_service import NotebookService
-from ..state import load_state
-from ..weekly_review import WeeklyReviewService
-from ..work_board import WorkBoardService
-from ..scheduling import SchedulingService
-from ..calendar_reminders import CalendarReminderService
-from ..feishu_task_completion import FeishuTaskCompletionService
+from desk_companion.chat.assistant_settings import AssistantSettingsService
+from desk_companion.automation.automation_service import AutomationService
+from desk_companion.planning.board_service import BoardService
+from desk_companion.local_api.bridge import Bridge
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.memory.context_compression import ContextCompressionService
+from desk_companion.chat.conversation import ConversationService
+from desk_companion.knowledge.knowledge_service import KnowledgeService
+from desk_companion.memory.memory_editing import MemoryEditingService
+from desk_companion.knowledge.notebook_service import NotebookService
+from desk_companion.infrastructure.state import load_state
+from desk_companion.content.weekly_review import WeeklyReviewService
+from desk_companion.planning.work_board import WorkBoardService
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.calendar_reminders import CalendarReminderService
+from desk_companion.integrations.feishu.feishu_task_completion import FeishuTaskCompletionService
 
 
 class HeadlessApp:
@@ -36,9 +36,9 @@ class HeadlessApp:
 
     def __init__(self) -> None:
         self.turn_lock = threading.RLock()
-        from ..accounts import AccountService
+        from desk_companion.accounts.service import AccountService
         self.accounts = AccountService()
-        from ..personalization import PersonalizationService
+        from desk_companion.accounts.personalization import PersonalizationService
         self.personalization = PersonalizationService(self.accounts, scopes=self._personalization_scopes)
         self._tasks = None
         self._tasks_lock = threading.Lock()
@@ -62,9 +62,9 @@ class HeadlessApp:
         self.scheduling = SchedulingService(self.work_board)
         self.calendar_reminders=CalendarReminderService.for_work_board(self.work_board)
         self.task_completion=FeishuTaskCompletionService()
-        from ..calendar_proposals import CalendarProposalService
+        from desk_companion.planning.calendar_proposals import CalendarProposalService
         self.calendar_proposals=CalendarProposalService(self.work_board,self.scheduling,lambda ident:self.tasks.get(ident))
-        from ..feishu_agent import FeishuAgent
+        from desk_companion.integrations.feishu.feishu_agent import FeishuAgent
         self.feishu_agent = FeishuAgent(self, task_backed=True)
         self._collaboration = None
         self._collaboration_lock = threading.Lock()
@@ -75,14 +75,14 @@ class HeadlessApp:
     def project_environments(self):
         with self._project_environments_lock:
             if self._project_environments is None:
-                from ..project_environments import ProjectEnvironmentService
-                from ..paths import data_root
+                from desk_companion.projects.project_environments import ProjectEnvironmentService
+                from desk_companion.infrastructure.paths import data_root
                 self._project_environments=ProjectEnvironmentService(data_root()/'memory'/'project-environments',
                                                                     owner_active=self._project_task_active)
             return self._project_environments
 
     def _personalization_scopes(self):
-        from ..memory_inspector import read_state
+        from desk_companion.memory.memory_inspector import read_state
         state = read_state(self.collaboration)
         return [dict(scope='project', id=p['id'], label='项目 · '+p.get('name', p.get('title','项目')))
                 for p in state['projects']] + [dict(scope='companion', id=a['id'], label='伙伴 · '+a['name'])
@@ -101,7 +101,7 @@ class HeadlessApp:
     def tasks(self):
         with self._tasks_lock:
             if self._tasks is None:
-                from ..tasks import TaskManager
+                from desk_companion.tasks.manager import TaskManager
                 self._tasks = TaskManager()
             return self._tasks
 
@@ -124,7 +124,7 @@ class HeadlessApp:
     def collaboration(self):
         with self._collaboration_lock:
             if self._collaboration is None:
-                from ..collaboration import Collaboration
+                from desk_companion.collaboration.service import Collaboration
                 self._collaboration = Collaboration()
             return self._collaboration
 

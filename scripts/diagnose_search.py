@@ -9,9 +9,9 @@ import urllib.request
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from desk_companion.model_catalog import require_active
-from desk_companion.paths import data_root
-from desk_companion.web_search import _post_once,format_search,search_endpoint,search_sources,SearchFailure
+from desk_companion.models.model_catalog import require_active
+from desk_companion.infrastructure.paths import data_root
+from desk_companion.integrations.web.web_search import _post_once, format_search, search_endpoint, search_sources, SearchFailure
 
 
 def main():

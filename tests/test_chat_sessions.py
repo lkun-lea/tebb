@@ -10,10 +10,14 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from desk_companion import context_pack, facts, memory, notebook, state
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.conversation import ConversationService
-from desk_companion.tasks import TaskManager
+from desk_companion.memory import context_pack
+from desk_companion.memory import facts
+from desk_companion.memory import history as memory
+from desk_companion.knowledge import notebook
+from desk_companion.infrastructure import state
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.chat.conversation import ConversationService
+from desk_companion.tasks.manager import TaskManager
 
 
 class SessionFixture(unittest.TestCase):
@@ -227,8 +231,8 @@ class TailWriteTests(SessionFixture):
 class DesktopSessionTests(SessionFixture):
     # Only desktop-specific tests; base service tests are loaded separately above.
     def make_app(self):
-        from desk_companion.app import App
-        from desk_companion.bridge import Bridge
+        from desk_companion.desktop.app import App
+        from desk_companion.local_api.bridge import Bridge
         app = App.__new__(App)
         app.state = self.state; app.conversation = self.conversation
         app.pet = SimpleNamespace(busy=False, bubble_open=False)
@@ -262,7 +266,7 @@ class DesktopSessionTests(SessionFixture):
         app = self.make_app()
         callbacks = []
         app.ui = callbacks.append
-        with patch('desk_companion.app.threading.Thread'):
+        with patch('desk_companion.desktop.app.threading.Thread'):
             app.send_chat('desktop question')
         self.assertTrue(app._agent_running)
         self.assertFalse(app.chat_sessions.clear_chat()['ok'])
@@ -275,7 +279,7 @@ class DesktopSessionTests(SessionFixture):
             self.assertFalse(app.pet.busy)  # review() already cleared the visual flag.
             self.assertFalse(app.chat_sessions.clear_chat()['ok'])
             return original(*args, **kwargs)
-        with patch('desk_companion.app.append_chat', side_effect=append):
+        with patch('desk_companion.desktop.app.append_chat', side_effect=append):
             callbacks.pop()()
         self.assertFalse(app._agent_running)
         self.assertEqual(memory.list_chat('selected')[-1]['text'], 'desktop answer')

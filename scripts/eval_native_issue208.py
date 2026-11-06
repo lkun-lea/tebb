@@ -7,7 +7,7 @@ import subprocess
 import zipfile
 
 from eval_native_development import trial
-from desk_companion import model_catalog, model_network
+from desk_companion.models import model_catalog, model_network
 
 BASE = '1494d1c52c07e419d55f79265d77d75807a4a342'
 FIX = '88bf75853e7882567e8ab396c97e826098d4d594'

@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import knowledge as k, local_sources, material_service as service, material_sources as sources, project_workspace
+from desk_companion.knowledge import index as k
+from desk_companion.knowledge import local_sources
+from desk_companion.knowledge import material_service as service
+from desk_companion.knowledge import material_sources as sources
+from desk_companion.projects import project_workspace
 
 
 class MaterialServiceTests(unittest.TestCase):
@@ -69,7 +73,7 @@ class MaterialServiceTests(unittest.TestCase):
         with patch.object(k, '_fetch', return_value='remote original'):
             k.add_doc(locator, 'Remote', dict(source='wiki', space_id='space', space_name='Team docs'))
         source = service.listing()['sources'][0]
-        with patch('desk_companion.feishu_docs.fetch_docx_markdown', return_value='remote updated'):
+        with patch('desk_companion.integrations.feishu.feishu_docs.fetch_docx_markdown', return_value='remote updated'):
             service.operation(dict(action='refresh', source_id=source['id']))
         doc = k.indexed_documents()[0]
         self.assertEqual(doc['url'], locator); self.assertEqual(doc['space_id'], 'space')
@@ -112,7 +116,7 @@ class MaterialServiceTests(unittest.TestCase):
         self.assertEqual(sources.read_version(row['id'], version)['text'], 'original evidence')
 
     def test_saved_notebook_citation_retains_source_version(self):
-        from desk_companion.notebook import _cites
+        from desk_companion.knowledge.notebook import _cites
         row = self.register(); service.operation(dict(action='refresh', source_id=row['id']))
         found = k.retrieve_sources('evidence')
         saved = _cites(found['cites'])

@@ -9,11 +9,11 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from desk_companion.account_store import AccountRuntime, account_key, profile_root
-from desk_companion.personalization_store import PersonalizationStore
-from desk_companion.personalization import PersonalizationService
-from desk_companion.personalization_cloud import CloudError
-from desk_companion import memory_selection
+from desk_companion.accounts.account_store import AccountRuntime, account_key, profile_root
+from desk_companion.accounts.personalization_store import PersonalizationStore
+from desk_companion.accounts.personalization import PersonalizationService
+from desk_companion.accounts.personalization_cloud import CloudError
+from desk_companion.memory import memory_selection
 
 A='a0000000-0000-4000-8000-000000000001'
 B='b0000000-0000-4000-8000-000000000002'
@@ -174,10 +174,10 @@ class RecordsTests(unittest.TestCase):
 
     def test_scope_selection_is_readonly_and_freezes_records_before_later_deletion(self):
         self.act(payload=payload('本次背景')); self.send(); self.pull()
-        with patch('desk_companion.personalization.selected_items',self.store.selection_items),patch('desk_companion.facts.read_facts',return_value=[]):
+        with patch('desk_companion.accounts.personalization.selected_items',self.store.selection_items),patch('desk_companion.memory.facts.read_facts',return_value=[]):
             selection=memory_selection.select({'project':'p'})
         original=deepcopy(selection); self.act('delete',self.first())
-        from desk_companion.context_sources import Message
+        from desk_companion.memory.context_sources import Message
         message=Message({'role':'system','content':''},'system'); memory_selection.inject(message,selection)
         self.assertIn('本次背景',message['content']); self.assertEqual(selection,original)
         self.assertEqual(selection['selected'][0]['source']['account'],self.store.runtime.key)

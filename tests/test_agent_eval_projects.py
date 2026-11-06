@@ -5,8 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import unittest
-from desk_companion.agent_eval_projects import judge,receipts_bound_to_environment,final_test_receipt,active_tool_marker,original_cancel_command,HOLD_COMMAND,execute
-from desk_companion.agent_evals import CASES,evaluate
+from desk_companion.evaluation.agent_eval_projects import judge, receipts_bound_to_environment, final_test_receipt, active_tool_marker, original_cancel_command, HOLD_COMMAND, execute
+from desk_companion.evaluation.agent_evals import CASES, evaluate
 
 
 class ProjectVerdictTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class ProjectVerdictTests(unittest.TestCase):
                 def __init__(self,process):self.process=process
                 def close(self):
                     if self.process.poll()is None:self.process.returncode=-9
-            with patch('desk_companion.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.task_process.ProcessTree',Tree),patch('desk_companion.agent_eval_projects.http.client.HTTPConnection',side_effect=AssertionError('parent has not served HTTP'))as connection:
+            with patch('desk_companion.evaluation.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.tasks.task_process.ProcessTree',Tree),patch('desk_companion.evaluation.agent_eval_projects.http.client.HTTPConnection',side_effect=AssertionError('parent has not served HTTP'))as connection:
                 with self.assertRaisesRegex(RuntimeError,'fixture create EOF'):
                     execute(dict(id='setup-failure',scenario='cancel'),profile=directory,model_id='fake',timeout=20)
             proof=json.loads((folder/'result.json').read_text('utf-8'))
@@ -91,7 +91,7 @@ class ProjectVerdictTests(unittest.TestCase):
                             root['state']='cancelled';write('progress.json',dict(runs=[root],tasks=[]))
                     self.response=json.dumps(dict(result=dict(ok=True,result=result)))
                 def recv(self,**kwargs):return self.response
-            with patch('desk_companion.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.task_process.ProcessTree',Tree),patch('websockets.sync.client.connect',lambda *a,**k:WS()),patch('desk_companion.agent_eval_projects.http.client.HTTPConnection',Connection):
+            with patch('desk_companion.evaluation.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.tasks.task_process.ProcessTree',Tree),patch('websockets.sync.client.connect',lambda *a,**k:WS()),patch('desk_companion.evaluation.agent_eval_projects.http.client.HTTPConnection',Connection):
                 result,proof,_,_=execute(dict(id='cancel-test',scenario='cancel'),profile=directory,model_id='fake',timeout=20,progress=published.append)
             self.assertEqual(result['state'],'needs_input')
             self.assertEqual(proof['goal_state_before_cleanup'],'needs_input')

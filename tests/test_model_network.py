@@ -6,7 +6,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from unittest.mock import patch
 
-from desk_companion import model_network as network
+from desk_companion.models import model_network as network
 
 
 class NetworkTests(unittest.TestCase):
@@ -61,7 +61,7 @@ class NetworkTests(unittest.TestCase):
 
     def test_sdk_and_collaboration_keep_transport_timeouts(self):
         import httpx
-        from desk_companion.collaboration_llm import CollaborationLLM
+        from desk_companion.collaboration.collaboration_llm import CollaborationLLM
         for collaboration in (False, True):
             with self.subTest(collaboration=collaboration):
                 requests=[]

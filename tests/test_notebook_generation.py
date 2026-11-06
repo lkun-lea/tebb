@@ -14,7 +14,8 @@ from openai import OpenAI
 from atlas.llm import LLM, IncompleteResponseError
 from atlas.testing import FakeLLM
 
-from desk_companion import knowledge, notebook
+from desk_companion.knowledge import index as knowledge
+from desk_companion.knowledge import notebook
 from tests.test_notebook_service import NotebookFixture, CITES
 
 

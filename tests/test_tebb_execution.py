@@ -10,11 +10,12 @@ import uuid
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from desk_companion.collaboration import Collaboration, transaction
-from desk_companion.work_board import WorkBoardService
-from desk_companion.work_execution import WorkExecutionService
-from desk_companion.automation_service import AutomationService
-from desk_companion import automation as a
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration
+from desk_companion.planning.work_board import WorkBoardService
+from desk_companion.planning.work_execution import WorkExecutionService
+from desk_companion.automation.automation_service import AutomationService
+from desk_companion.automation import schedule as a
 from tests.test_collaboration import Queue, MODEL
 
 
@@ -23,7 +24,7 @@ class ExecutionTests(unittest.TestCase):
         temp=tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         env=patch.dict(os.environ,DESK_COMPANION_DATA_DIR=temp.name);env.start();self.addCleanup(env.stop)
         for name in ('require_active','require_item'):
-            mock=patch('desk_companion.model_catalog.'+name,return_value=MODEL);mock.start();self.addCleanup(mock.stop)
+            mock=patch('desk_companion.models.model_catalog.'+name,return_value=MODEL);mock.start();self.addCleanup(mock.stop)
         self.work,self.chat=Queue(),Queue()
         self.c=Collaboration(Path(temp.name)/'workspace.sqlite3',managers=dict(work=self.work,chat=self.chat),start=False)
         self.addCleanup(self.c.shutdown)

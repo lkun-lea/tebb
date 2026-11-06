@@ -12,8 +12,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from desk_companion import local_sources as sources, knowledge, wiki_connection, assistant
-from desk_companion.board_workbench import BoardWorkbench
+from desk_companion.knowledge import local_sources as sources
+from desk_companion.knowledge import index as knowledge
+from desk_companion.integrations.feishu import wiki_connection
+from desk_companion.chat import assistant
+from desk_companion.desktop.board_workbench import BoardWorkbench
 
 
 class LocalSourceTests(unittest.TestCase):
@@ -114,7 +117,7 @@ class LocalSourceTests(unittest.TestCase):
     @unittest.skipUnless(os.name == 'nt', 'Windows common dialog integration')
     def test_modern_dialog_initializes_with_per_monitor_dpi_without_showing_ui(self):
         for kind in ('file', 'folder'):
-            probe = subprocess.run([sys.executable, '-m', 'desk_companion.local_picker', '--probe', kind],
+            probe = subprocess.run([sys.executable, '-m', 'desk_companion.desktop.local_picker', '--probe', kind],
                 capture_output=True, text=True, encoding='utf-8', timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
             self.assertEqual(probe.returncode, 0, probe.stderr)
             info = json.loads(probe.stdout)
@@ -165,7 +168,7 @@ class LocalSourceTests(unittest.TestCase):
         from atlas.testing import FakeLLM
         from desk_companion.local_api.host import HeadlessApp
         host = HeadlessApp()
-        with patch('desk_companion.model_catalog.require_active', return_value={'id':'fixture','api_key':'test','base_url':'http://example.invalid','model':'fake'}):
+        with patch('desk_companion.models.model_catalog.require_active', return_value={'id':'fixture','api_key':'test','base_url':'http://example.invalid','model':'fake'}):
             host.agent = assistant.build_agent(host)
         seen = []
         fake = FakeLLM(['已根据附件回答。'])
@@ -179,7 +182,7 @@ class LocalSourceTests(unittest.TestCase):
                                    {'reasoning_effort':'low','temperature':0.5,'top_p':1}, lambda _: None)
         self.assertIn('已根据附件', answer)
         self.assertIn('附件实际文字，完整结尾', json.dumps(seen, ensure_ascii=False))
-        from desk_companion.memory import list_chat
+        from desk_companion.memory.history import list_chat
         self.assertNotIn('附件实际文字', json.dumps(list_chat(host.state.session_id), ensure_ascii=False))
 
 

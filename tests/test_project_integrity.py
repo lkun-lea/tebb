@@ -11,9 +11,9 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion.project_environments import ProjectEnvironmentService
-from desk_companion.project_integrity import GIT_PROBE,IntegritySession,RUNNER
-from desk_companion.docker_sandboxes import NO_WINDOW
+from desk_companion.projects.project_environments import ProjectEnvironmentService
+from desk_companion.projects.project_integrity import GIT_PROBE, IntegritySession, RUNNER
+from desk_companion.projects.docker_sandboxes import NO_WINDOW
 
 
 class NoExecProvider:
@@ -211,7 +211,7 @@ class IntegrityServiceTests(unittest.TestCase):
         self.assertTrue(result['ok'],result);return result
 
     def test_full_service_check_reuses_one_exec_and_stopped_query_never_reconnects(self):
-        from desk_companion.project_integrity import valid_receipt
+        from desk_companion.projects.project_integrity import valid_receipt
         self.start();self.assertEqual(len(self.calls),1)
         request=uuid.uuid4().hex;result=self.service.integrity(self.owner,self.scope,request)
         self.assertTrue(result['ok'],result);self.assertTrue(valid_receipt(result['integrity'],environment=self.owner,baseline=self.baseline))
@@ -225,7 +225,7 @@ class IntegrityServiceTests(unittest.TestCase):
 
     def test_metadata_failure_preserves_ready_web_and_full_log_does_not_hide_receipt(self):
         initial=self.start();operation=initial['service']['operation']
-        with patch('desk_companion.project_environments.LOG_LIMIT',64):
+        with patch('desk_companion.projects.project_environments.LOG_LIMIT',64):
             self.service._append(operation,b'A'*128)
             proof=self.service.integrity(self.owner,self.scope,uuid.uuid4().hex)
             self.assertTrue(proof['ok'],proof);self.assertTrue(self.service.log(self.owner,self.scope,operation)['truncated'])

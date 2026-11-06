@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import patch
 
 import psutil
-from desk_companion.tasks import TaskManager,TERMINAL
-from desk_companion.task_budgets import Ledger
+from desk_companion.tasks.manager import TaskManager, TERMINAL
+from desk_companion.tasks.task_budgets import Ledger
 
 
 class ReadonlyWorkerLifecycleTests(unittest.TestCase):

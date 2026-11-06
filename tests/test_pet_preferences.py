@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import pet_preferences as pets
+from desk_companion.desktop import pet_preferences as pets
 
 
 class PetPreferencesTests(unittest.TestCase):

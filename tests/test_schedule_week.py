@@ -10,12 +10,12 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
-from desk_companion.calendar_adapter import CalendarAdapter, CalendarError
-from desk_companion.calendar_time import TZ
-from desk_companion.resource_lock import WRITES
-from desk_companion.schedule_domain import week_range
-from desk_companion.scheduling import SchedulingService
-from desk_companion.work_board import WorkBoardService
+from desk_companion.planning.calendar_adapter import CalendarAdapter, CalendarError
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.infrastructure.resource_lock import WRITES
+from desk_companion.planning.schedule_domain import week_range
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
 from tests.schedule_fixture import DAY, START, END, TimeCalendar
 
 
@@ -295,7 +295,7 @@ class WeekServiceTests(unittest.TestCase):
         self.assertTrue(result['ok'],result);self.assertEqual(result['operation']['state'],'retimed')
 
     def test_busy_calendar_archived_item_and_stale_inspection_cannot_change_time(self):
-        from desk_companion.board_data import calendar_operation
+        from desk_companion.planning.board_data import calendar_operation
         entered,release=threading.Event(),threading.Event()
         def held():
             with calendar_operation():entered.set();release.wait(10)

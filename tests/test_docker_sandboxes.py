@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from desk_companion.docker_sandboxes import SandboxesClient,SandboxError,SHELL_KIT,DEPENDENCY_HOSTS
+from desk_companion.projects.docker_sandboxes import SandboxesClient, SandboxError, SHELL_KIT, DEPENDENCY_HOSTS
 
 
 class CLI:

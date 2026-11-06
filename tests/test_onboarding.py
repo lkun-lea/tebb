@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from desk_companion import onboarding
-from desk_companion.model_validation import validate_base_url
+from desk_companion.bootstrap import onboarding
+from desk_companion.models.model_validation import validate_base_url
 
 
 class OnboardingTests(unittest.TestCase):

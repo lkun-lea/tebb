@@ -7,8 +7,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import installation as installer,runtime_extensions as extensions
-from desk_companion.resource_lock import ResourceLock
+from desk_companion.infrastructure import installation as installer
+from desk_companion.infrastructure import runtime_extensions as extensions
+from desk_companion.infrastructure.resource_lock import ResourceLock
 
 
 class InstallerDataTests(unittest.TestCase):

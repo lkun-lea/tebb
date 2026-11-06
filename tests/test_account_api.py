@@ -11,10 +11,10 @@ from websockets.asyncio.client import connect
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from desk_companion.account_store import AccountRuntime,AccountStore
-from desk_companion.accounts import AccountService
-from desk_companion.personalization import PersonalizationService
-from desk_companion.bridge import Bridge
+from desk_companion.accounts.account_store import AccountRuntime, AccountStore
+from desk_companion.accounts.service import AccountService
+from desk_companion.accounts.personalization import PersonalizationService
+from desk_companion.local_api.bridge import Bridge
 from desk_companion.local_api import server
 from test_accounts import TestCipher,AuthFixture
 
@@ -51,7 +51,7 @@ class AccountApiTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(reply['result']['result']['runtime']['key'],'local')
 
     async def test_browser_collaboration_capability_cannot_query_or_mutate_accounts(self):
-        with patch.object(server,'HOST',self.host),patch('desk_companion.collaboration_access.preview_allowed',return_value=True):
+        with patch.object(server,'HOST',self.host),patch('desk_companion.collaboration.collaboration_access.preview_allowed',return_value=True):
             async with serve(server._handler,'127.0.0.1',0) as running:
                 port=running.sockets[0].getsockname()[1]
                 async with connect(f'ws://127.0.0.1:{port}/collaboration?token=preview-only') as ws:

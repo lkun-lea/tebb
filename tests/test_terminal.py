@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from desk_companion import terminal
+from desk_companion.projects import terminal
 
 
 class TerminalTests(unittest.TestCase):
@@ -83,7 +83,7 @@ class TerminalTests(unittest.TestCase):
 
     def test_attachment_import_copies_original_without_overwrite_and_previews_snapshot(self):
         original = Path(self.temp.name) / "source.md"; original.write_text("# 原文", "utf-8")
-        from desk_companion.local_sources import stage
+        from desk_companion.knowledge.local_sources import stage
         source = stage([str(original)], "file")["sources"][0]
         value = self.manager.import_files("s", [source["id"]])
         self.assertEqual(len(value["files"]), 1)
@@ -96,7 +96,7 @@ class TerminalTests(unittest.TestCase):
 
 
     def test_folder_import_preserves_relative_structure_and_file_names(self):
-        from desk_companion.local_sources import stage
+        from desk_companion.knowledge.local_sources import stage
         directory = Path(self.temp.name) / "project" / "sub"
         directory.mkdir(parents=True)
         (directory / "notes.md").write_text("nested", "utf-8")

@@ -8,8 +8,9 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion.collaboration import Collaboration, parse_plan, transaction
-from desk_companion.collaboration_worker import execute
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration, parse_plan
+from desk_companion.collaboration.collaboration_worker import execute
 
 MODEL = dict(id="model-one", model="fixture-model", base_url="https://example.invalid/v1", api_key="fixture-key")
 
@@ -138,11 +139,11 @@ class CollaborationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.env = patch.dict(os.environ, {"DESK_COMPANION_DATA_DIR": self.temp.name}); self.env.start()
-        self.model = patch("desk_companion.model_catalog.require_active", return_value=MODEL); self.model.start()
-        self.item = patch("desk_companion.model_catalog.require_item", return_value=MODEL); self.item.start()
+        self.model = patch("desk_companion.models.model_catalog.require_active", return_value=MODEL); self.model.start()
+        self.item = patch("desk_companion.models.model_catalog.require_item", return_value=MODEL); self.item.start()
         # Legacy scripted writers test routing/tools/streaming, not semantics.
         # The real review loop and its call accounting have dedicated tests.
-        self.review=patch('desk_companion.feedback_review.review',return_value=[dict(id='fixture_review',dimension='task_acceptance',status='pass',message='受控旧测试审阅',basis='model_assessment',required=True)])
+        self.review=patch('desk_companion.collaboration.feedback_review.review',return_value=[dict(id='fixture_review',dimension='task_acceptance',status='pass',message='受控旧测试审阅',basis='model_assessment',required=True)])
         self.review.start()
         self.work, self.chat = Queue(), Queue()
         self.service = Collaboration(path=Path(self.temp.name)/"workspace.sqlite3", managers=dict(work=self.work, chat=self.chat), start=False)
@@ -357,7 +358,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(state['conversations'][-1]['project_id'], '')
 
     def test_folder_projects_reuse_paths_keep_separate_grants_and_pin_running_workspace(self):
-        from desk_companion import project_workspace as project
+        from desk_companion.projects import project_workspace as project
         first=Path(self.temp.name)/'a'/'app';first.mkdir(parents=True);(first/'who.txt').write_text('A')
         other=Path(self.temp.name)/'b'/'app';other.mkdir(parents=True);(other/'who.txt').write_text('B')
         state=self.action(type='open_folder_project',primary=str(first));pid=state['projects'][0]['id'];cid=state['selected']
@@ -377,7 +378,7 @@ class CollaborationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'授权已变化'):project.current(cfg)
 
     def test_unbound_projects_can_attach_folders_and_share_only_explicit_materials(self):
-        from desk_companion.bridge import Bridge
+        from desk_companion.local_api.bridge import Bridge
         from types import SimpleNamespace
         folder=Path(self.temp.name)/'folder';folder.mkdir()
         state=self.action(type='create_project',name='保留项目名');pid=state['projects'][0]['id']
@@ -390,10 +391,10 @@ class CollaborationTests(unittest.TestCase):
             run=state['runs'][-1];run.update(state='succeeded',answer='明确保存的结论');run_id=run['id']
             state['messages'].append(dict(id=uuid.uuid4().hex,conversation='group-research',sender='user',text='其他聊天的私有原文'))
         bridge=Bridge(SimpleNamespace(collaboration=self.service))
-        with patch('desk_companion.notebook.save_agent_artifact',return_value={'ok':True}):
+        with patch('desk_companion.knowledge.notebook.save_agent_artifact',return_value={'ok':True}):
             bridge.save_collaboration_note(run_id);bridge.save_collaboration_note(run_id)
         self.assertEqual(len(self.state()['projects'][0]['sources']),1)
-        from desk_companion.chat_projects import search_chats
+        from desk_companion.chat.chat_projects import search_chats
         state=self.action(type='new_chat',project_id=pid);cid=state['selected']
         self.service.action(dict(type='send',conversation=cid,text='继续',mode='message',request_id=uuid.uuid4().hex))
         with transaction(self.service.path) as (state,_): context=json.dumps(state['runs'][-1]['context'],ensure_ascii=False)
@@ -410,8 +411,8 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(matches[0]['conversation'],'group-research')
 
     def test_history_folder_preview_is_readonly_and_migration_requires_current_explicit_selection(self):
-        from desk_companion.chat_projects import preview
-        from desk_companion import project_workspace as project
+        from desk_companion.chat.chat_projects import preview
+        from desk_companion.projects import project_workspace as project
         folder=Path(self.temp.name)/'history';folder.mkdir();(folder/'keep.txt').write_text('unchanged')
         second=Path(self.temp.name)/'second';second.mkdir()
         with transaction(self.service.path) as (state,_):
@@ -493,7 +494,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertFalse(any(k=='tool_start' for k,d in events))
 
     def test_invalid_plan_has_bounded_specific_failure_and_no_business_side_effect(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request();request.update(kind='plan',members=[dict(id='tebb')],budget=2);calls=[];events=[]
         class LLM:
             def chat(_,messages,tools,on_delta):
@@ -504,7 +505,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(len(calls),2);self.assertFalse(any(k in {'tool_start','result'} for k,d in events))
 
     def test_invalid_route_repair_is_bounded_and_cannot_dispatch(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request();request['kind']='route';calls=[];events=[]
         class LLM:
             def chat(_,messages,tools,on_delta):
@@ -515,7 +516,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertFalse(any(k in {'tool_start','result'} for k,d in events))
 
     def test_shared_task_limits_apply_to_collaboration_without_rewriting_existing_jobs(self):
-        from desk_companion.collaboration import execution_limits
+        from desk_companion.collaboration.service import execution_limits
         folder=Path(self.temp.name)/'memory';folder.mkdir(exist_ok=True)
         path=folder/'task_settings.json';path.write_text(json.dumps(dict(call_timeout=150,task_timeout=900)))
         self.assertEqual(execution_limits('coder'),dict(call_timeout=150,task_timeout=900))
@@ -528,7 +529,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(execution_limits('research'),dict(call_timeout=20,task_timeout=40))
 
     def test_explicit_project_capability_uses_existing_coding_default_without_changing_other_roles(self):
-        from desk_companion.collaboration import execution_limits,call_budget
+        from desk_companion.collaboration.service import execution_limits, call_budget
         self.assertEqual(execution_limits('research')['task_timeout'],360)
         self.assertEqual(execution_limits('tebb',['联网搜索','网页读取'])['task_timeout'],360)
         self.assertEqual(execution_limits('writer')['task_timeout'],300)
@@ -559,8 +560,9 @@ class CollaborationTests(unittest.TestCase):
         self.assertFalse(any(k=='tool_start' for k,d in events))
 
     def test_chat_artifact_can_be_saved_once_as_note_and_read_as_full_attachment(self):
-        from desk_companion.bridge import Bridge
-        from desk_companion import notebook, local_sources
+        from desk_companion.local_api.bridge import Bridge
+        from desk_companion.knowledge import notebook
+        from desk_companion.knowledge import local_sources
         from types import SimpleNamespace
         bridge=Bridge(SimpleNamespace(collaboration=self.service))
         self.action(type='send',text='生成一份说明',mode='message',target='research');self.service.tick()
@@ -568,7 +570,7 @@ class CollaborationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'成功完成'):bridge.save_collaboration_note(run['id'])
         body='成果正文。'*2000
         self.chat.complete('collab:'+run['id']+':0',body);self.service.tick()
-        with patch('desk_companion.knowledge.public_view',return_value=dict(docs=[])):
+        with patch('desk_companion.knowledge.index.public_view',return_value=dict(docs=[])):
             first=bridge.save_collaboration_note(run['id']);second=bridge.save_collaboration_note(run['id'])
             self.assertEqual(first,second)
             book=notebook.load_notebook();self.assertEqual(len(book['sessions'][0]['notes']),1)
@@ -600,7 +602,7 @@ class CollaborationTests(unittest.TestCase):
             self.service.action(dict(type='send',conversation='dm-coder',text='写文件',mode='auto',target='',request_id=uuid.uuid4().hex),readonly=True)
 
     def test_legacy_history_import_is_once_and_continuable_without_changing_original(self):
-        from desk_companion.memory import append_chat, memory_path
+        from desk_companion.memory.history import append_chat, memory_path
         append_chat('user','旧对话问题','legacy-one'); append_chat('pet','旧对话回答','legacy-one')
         raw=memory_path().read_bytes()
         with transaction(self.service.path) as (state,_): state.pop('legacy_imported',None)
@@ -614,7 +616,7 @@ class CollaborationTests(unittest.TestCase):
         finally: reopened.shutdown()
 
     def test_coder_real_file_tool_loop_records_failure_fix_and_fresh_verification(self):
-        from desk_companion import project_workspace as project
+        from desk_companion.projects import project_workspace as project
         folder=Path(self.temp.name)/'code';folder.mkdir();(folder/'app.py').write_bytes(b'value = 1\n')
         self.action(type='open_folder_project',primary=str(folder))
         cfg=project.save(str(folder),[],True,True)['workspace']
@@ -635,7 +637,7 @@ class CollaborationTests(unittest.TestCase):
         def command(*_):
             count[0]+=1
             return dict(command='python -m unittest',state='failed' if count[0]<3 else 'succeeded',exit_code=1 if count[0]<3 else 0,output='fixture test',changes=[])
-        with patch('desk_companion.project_workspace.run',side_effect=command): execute(request,lambda k,d:events.append((k,d)),llm=LLM())
+        with patch('desk_companion.projects.project_workspace.run',side_effect=command): execute(request,lambda k,d:events.append((k,d)),llm=LLM())
         self.assertEqual((folder/'app.py').read_text(),'value = 3\n')
         self.assertEqual(len([e for e in events if e[0]=='file_change']),2)
         self.assertEqual([e[1]['exit_code'] for e in events if e[0]=='verification'],[1,1,0])
@@ -654,7 +656,7 @@ class CollaborationTests(unittest.TestCase):
                 self.assertNotIn('workspace_run',{value['function']['name'] for value in tools})
                 return dict(message=dict(role='assistant',tool_calls=[dict(id='actual-tool-call',type='function',function=dict(name='project_start',arguments=json.dumps(dict(environment='env',command='npm start',port=3000,_call_id='forged'))))]),usage={})
         result=dict(ok=True,service_ready=True,environment=dict(id='env'),service=dict(id='service',url='http://127.0.0.1:12345/',host_port=12345,health=dict(ok=True,status=200)))
-        with patch('desk_companion.project_tools.call',return_value=result) as rpc:
+        with patch('desk_companion.projects.project_tools.call',return_value=result) as rpc:
             execute(request,lambda kind,data:events.append((kind,data)),llm=LLM())
         self.assertEqual(rpc.call_args.args[1]['task_id'],'actual-physical-task')
         self.assertEqual(rpc.call_args.args[1]['args']['_call_id'],'actual-tool-call')
@@ -671,7 +673,7 @@ class CollaborationTests(unittest.TestCase):
             def chat(_,messages,tools,on_delta):
                 calls.append((messages,tools)); on_delta('```python\ndef bubble_sort(a): return sorted(a)\n```')
                 return dict(message=dict(content='代码示例；尚未运行验证。'),usage=dict(prompt_tokens=10,completion_tokens=8))
-        with patch('desk_companion.project_workspace.lease') as lease:
+        with patch('desk_companion.projects.project_workspace.lease') as lease:
             execute(request,lambda k,d:events.append((k,d)),llm=LLM())
         lease.assert_not_called()
         self.assertEqual(len(calls),1); self.assertEqual(calls[0][1],[])
@@ -679,7 +681,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertIn('无需工作目录',calls[0][0][0]['content'])
 
     def test_coder_cannot_invent_write_tool_without_directory_or_permission(self):
-        from desk_companion import project_workspace as project
+        from desk_companion.projects import project_workspace as project
         folder=Path(self.temp.name)/'readonly'; folder.mkdir()
         self.action(type='open_folder_project',primary=str(folder))
         cfg=project.save(str(folder),[],False,False)['workspace']
@@ -824,7 +826,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertNotIn('尚未授权',request['text'])
 
     def test_child_keeps_assigned_partner_model_and_unassigned_partner_inherits_turn_model(self):
-        with patch('desk_companion.model_catalog.require_item',side_effect=lambda ident:{**MODEL,'id':ident,'model':ident}):
+        with patch('desk_companion.models.model_catalog.require_item',side_effect=lambda ident:{**MODEL,'id':ident,'model':ident}):
             writer=next(a for a in self.state()['agents'] if a['id']=='writer')
             self.action(type='agent',agent={**writer,'model':'custom-writer-model'})
             self.action(type='send',text='研究并写报告',mode='task',target='',model_id='turn-default')
@@ -876,7 +878,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(calls[-2:], [[],[]]);self.assertEqual([v['ok'] for k,v in events if k=='citation_check'],[False,True])
 
     def test_final_delivery_requires_real_body_sources_and_explicit_complete_result(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request(role=dict(id='writer',name='墨墨',role='综合报告',tools=[]))
         request.update(stage='deliver',required_sources=['repository','web'])
         sources=[dict(kind='page',url='https://example.org/doc',level='body',text='public doc'),
@@ -941,16 +943,16 @@ class CollaborationTests(unittest.TestCase):
             def chat(_,messages,tools,on_delta):
                 calls.append(copy.deepcopy(messages))
                 return dict(message=dict(content='<tool_call><function=web_fetch>https://example.org/real</function></tool_call>' if len(calls)==1 else '完整报告 [来源](https://example.org/real)',reasoning_content='PRIVATE_REASONING'),usage={})
-        with patch('desk_companion.web_sources.fetch_page') as fetch:
+        with patch('desk_companion.integrations.web.web_sources.fetch_page') as fetch:
             execute(request,lambda k,d:events.append((k,d)),llm=LLM());fetch.assert_not_called()
         self.assertEqual(len(calls),2);self.assertEqual(events[-1][0],'result')
         self.assertTrue(any(m.get('reasoning_content')=='PRIVATE_REASONING' for m in calls[-1]))
         self.assertNotIn('PRIVATE_REASONING',json.dumps(events));self.assertFalse(any(k=='tool_start' for k,v in events))
 
     def test_model_uses_evidence_ids_and_unknown_ids_are_not_accepted(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request();request['source_evidence']=[dict(kind='page',level='body',url='https://example.org/actual',text='Body')]
-        from desk_companion.web_sources import source_catalog
+        from desk_companion.integrations.web.web_sources import source_catalog
         ident=source_catalog(request['source_evidence'])[0]['id']
         events=[]
         class LLM:
@@ -969,9 +971,9 @@ class CollaborationTests(unittest.TestCase):
         return request
 
     def test_time_handoff_uses_saved_body_and_disables_collection_before_deadline(self):
-        from desk_companion.task_budgets import Ledger,installed,current_phase
-        from desk_companion.collaboration_worker import _execute
-        from desk_companion.web_sources import source_catalog
+        from desk_companion.tasks.task_budgets import Ledger, installed, current_phase
+        from desk_companion.collaboration.collaboration_worker import _execute
+        from desk_companion.integrations.web.web_sources import source_catalog
         request=self.request()
         request.update(task_id='time-child',parent_run='parent',stage='collect',
                        resume_note='原操作original-operation结果未知，先核对，不可重做。')
@@ -990,7 +992,7 @@ class CollaborationTests(unittest.TestCase):
         with installed('time-child'):
             preview=_execute(request,lambda *_:None,llm=LLM(),preview=True)
             self.assertFalse(preview['tools'])
-            with patch('desk_companion.web_sources.fetch_page')as fetch,patch('desk_companion.web_search.search_sources')as search:
+            with patch('desk_companion.integrations.web.web_sources.fetch_page')as fetch,patch('desk_companion.integrations.web.web_search.search_sources')as search:
                 execute(request,lambda k,d:events.append((k,d)),llm=LLM())
                 fetch.assert_not_called();search.assert_not_called()
         actual=json.dumps(seen,ensure_ascii=False)
@@ -1001,8 +1003,8 @@ class CollaborationTests(unittest.TestCase):
         self.assertTrue(any(k=='result'for k,d in events))
 
     def test_collection_deadline_is_rechecked_after_slow_model_before_tools(self):
-        from desk_companion.task_budgets import Ledger,installed
-        from desk_companion.web_sources import source_catalog
+        from desk_companion.tasks.task_budgets import Ledger, installed
+        from desk_companion.integrations.web.web_sources import source_catalog
         for runtime in ('legacy','atlas_readonly'):
             with self.subTest(runtime=runtime):
                 request=self.request(role=dict(id='research',name='研究助手',role='采集证据',tools=['联网搜索','网页读取']))
@@ -1019,7 +1021,7 @@ class CollaborationTests(unittest.TestCase):
                             with ledger.change(root)as budget:budget['spent_ms']=181000
                             return dict(message=dict(tool_calls=[dict(id='late-search',type='function',function=dict(name='web_search',arguments='{"query":"late"}'))]),usage={})
                         return dict(message=dict(content='已有结论 ['+source_catalog([page])[0]['id']+']'),usage={})
-                with installed(task),patch('desk_companion.web_search.search_sources')as search:
+                with installed(task),patch('desk_companion.integrations.web.web_search.search_sources')as search:
                     execute(request,lambda k,d:events.append((k,d)),llm=LLM())
                     search.assert_not_called()
                 self.assertEqual(len(seen),2)
@@ -1027,8 +1029,8 @@ class CollaborationTests(unittest.TestCase):
                 self.assertTrue(any(k=='result'for k,d in events))
 
     def test_late_collector_reads_first_body_batch_before_early_handoff(self):
-        from desk_companion.task_budgets import Ledger,installed
-        from desk_companion.collaboration_worker import _execute
+        from desk_companion.tasks.task_budgets import Ledger, installed
+        from desk_companion.collaboration.collaboration_worker import _execute
         for runtime in ('legacy','atlas_readonly'):
             with self.subTest(runtime=runtime):
                 request=self.request(role=dict(id='research',name='研究助手',role='采集证据',tools=['网页读取']))
@@ -1129,7 +1131,7 @@ class CollaborationTests(unittest.TestCase):
                 calls.append(messages.copy())
                 if len(calls)==1:return dict(message=dict(role='assistant',tool_calls=[dict(id='g',function=dict(name='github_repository',arguments='{"operation":"readme","repo":"Atlas"}'))]),usage={})
                 return dict(message=dict(content='源码分析 [README](https://github.com/owner/Atlas/blob/main/README.md)'),usage={})
-        with patch('desk_companion.github_repository.SPEC',dict(name='github_repository',description='read',parameters={},func=lambda _:dict(ok=True,source=source),isReadOnly=True)):
+        with patch('desk_companion.integrations.github.github_repository.SPEC',dict(name='github_repository',description='read',parameters={},func=lambda _:dict(ok=True,source=source),isReadOnly=True)):
             execute(request,lambda k,d:events.append((k,d)),llm=LLM())
         self.assertTrue(any(k=='evidence' and d.get('kind')=='github' for k,d in events))
         self.assertEqual(events[-1][0],'result')
@@ -1152,7 +1154,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(events[-1],("result","有证据的结果 [来源](https://example.org/verified)"))
 
     def test_no_successful_search_never_delivers_an_unverified_report(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request();events=[];calls=[]
         class LLM:
             def chat(_,messages,tools,on_delta):
@@ -1193,7 +1195,7 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual([d['ok'] for k,d in events if k=='citation_check'],[False,True])
 
     def test_fetch_permission_and_known_url_are_enforced_and_no_fake_evidence(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         class LLM:
             def chat(_,messages,tools,on_delta):
                 return dict(message=dict(role='assistant',tool_calls=[dict(id='fetch',function=dict(name='web_fetch',arguments='{"url":"https://example.org/not-discovered"}'))]),usage={})
@@ -1201,13 +1203,13 @@ class CollaborationTests(unittest.TestCase):
         with self.assertRaises(ValueError):execute(request,lambda k,d:events.append((k,d)),llm=LLM())
         self.assertFalse(any(k=='tool_start' for k,d in events))
         events=[];request=self.request()
-        with patch('desk_companion.web_sources.fetch_page') as fetch:
+        with patch('desk_companion.integrations.web.web_sources.fetch_page') as fetch:
             with self.assertRaisesRegex(PublicFailure,'预算'):execute(request,lambda k,d:events.append((k,d)),llm=LLM())
             fetch.assert_not_called()
         self.assertFalse(any(k=='evidence' for k,d in events))
 
     def test_repeated_invented_citations_fail_without_handoff(self):
-        from desk_companion.collaboration_worker import PublicFailure
+        from desk_companion.collaboration.collaboration_worker import PublicFailure
         request=self.request();request['source_evidence']=[dict(kind='page',level='body',url='https://example.org/real',text='Real')]
         events=[];calls=[]
         class LLM:
@@ -1237,14 +1239,14 @@ class PreviewAccessTests(unittest.TestCase):
         ready=threading.Event();sentinel=object()
         def connect():
             if host.collaboration is sentinel:ready.set()
-        with patch("desk_companion.collaboration.Collaboration",return_value=sentinel):
+        with patch("desk_companion.collaboration.service.Collaboration",return_value=sentinel):
             with host.turn_lock:
                 thread=threading.Thread(target=connect);thread.start()
                 self.assertTrue(ready.wait(1))
             thread.join(1)
 
     def test_capability_expires_and_requires_an_exact_local_origin(self):
-        from desk_companion.collaboration_access import preview_allowed, access_path
+        from desk_companion.collaboration.collaboration_access import preview_allowed, access_path
         with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"DESK_COMPANION_DATA_DIR": temp}):
             path = access_path(); path.parent.mkdir(parents=True)
             path.write_text(json.dumps(dict(token="x"*48, expires=200)), "utf-8")
@@ -1270,7 +1272,7 @@ class PreviewRpcTests(unittest.IsolatedAsyncioTestCase):
             async def send(self, raw): self.replies.append(json.loads(raw))
             async def close(self, **kwargs): raise AssertionError("valid scoped connection should not be closed")
         socket = Socket()
-        with patch("desk_companion.collaboration_access.preview_allowed", return_value=True), patch.object(server,"_dispatch",return_value=dict(ok=True,result={})) as dispatch:
+        with patch("desk_companion.collaboration.collaboration_access.preview_allowed", return_value=True), patch.object(server,"_dispatch",return_value=dict(ok=True,result={})) as dispatch:
             await server._handler(socket)
         self.assertEqual(dispatch.call_count,1);self.assertEqual(dispatch.call_args.args[0],"load_collaboration")
         self.assertEqual([reply["type"] for reply in socket.replies],["error","error","error","error","error","rpc_result"])

@@ -12,8 +12,8 @@ from unittest.mock import patch
 from types import SimpleNamespace
 import uuid
 
-from desk_companion.project_environments import ProjectEnvironmentService,relative_path,repository
-from desk_companion.docker_sandboxes import SandboxError,SandboxesClient
+from desk_companion.projects.project_environments import ProjectEnvironmentService, relative_path, repository
+from desk_companion.projects.docker_sandboxes import SandboxError, SandboxesClient
 
 
 class Provider:
@@ -170,7 +170,7 @@ class ProjectEnvironmentTests(unittest.TestCase):
         def local_metadata(name,ident,argv):
             command=shlex.split(argv[-1]);self.assertEqual(command[:3],['python3','-I','-c'])
             return [sys.executable,'-I','-c',command[3]]
-        with patch('desk_companion.project_environments.PROJECT',str(project)),patch.object(self.provider,'exec_command',side_effect=local_metadata,create=True):
+        with patch('desk_companion.projects.project_environments.PROJECT',str(project)),patch.object(self.provider,'exec_command',side_effect=local_metadata,create=True):
             result=self.service.read(ident,self.scope,uuid.uuid4().hex,'.')
         self.assertTrue(result['ok'],result.get('error'));self.assertEqual(len(result['entries']),200)
         self.assertEqual(result['entries'][0],dict(name='README.rst',type='file'));self.assertTrue(result['truncated'])
@@ -193,7 +193,7 @@ class ProjectEnvironmentTests(unittest.TestCase):
             if script.startswith('set -eu\nmkdir -p '):script=script.split('\n',3)[3]
             command=shlex.split(script);self.assertEqual(command[:3],['python3','-I','-c'])
             return [sys.executable,'-I','-c',command[3]]
-        with patch('desk_companion.project_environments.PROJECT',alias),patch.object(self.provider,'exec_command',side_effect=local_metadata,create=True):
+        with patch('desk_companion.projects.project_environments.PROJECT',alias),patch.object(self.provider,'exec_command',side_effect=local_metadata,create=True):
             written=self.service.write(ident,self.scope,uuid.uuid4().hex,'source.txt','actual source')
             loaded=self.service.read(ident,self.scope,uuid.uuid4().hex,'source.txt')
             listing=self.service.read(ident,self.scope,uuid.uuid4().hex,'.')

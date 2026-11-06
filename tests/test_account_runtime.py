@@ -9,15 +9,15 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from desk_companion.account_store import AccountRuntime,AccountStore,WindowsAccountCipher,account_key,profile_root
-from desk_companion.accounts import AccountService
-from desk_companion.personalization_cloud import CloudError
+from desk_companion.accounts.account_store import AccountRuntime, AccountStore, WindowsAccountCipher, account_key, profile_root
+from desk_companion.accounts.service import AccountService
+from desk_companion.accounts.personalization_cloud import CloudError
 from test_accounts import AuthFixture,TestCipher,A,B,URL,KEY
 
 
 class AccountRuntimeTests(unittest.TestCase):
     def test_binding_uses_an_explicit_selection_without_copying_anonymous_data(self):
-        from desk_companion.account_bootstrap import bind_runtime
+        from desk_companion.bootstrap.account_bootstrap import bind_runtime
         with tempfile.TemporaryDirectory() as folder:
             home=Path(folder).resolve();store=AccountStore(home,cipher=TestCipher())
             local=home/'memory';local.mkdir();(local/'facts.json').write_text('anonymous facts','utf-8')
@@ -31,7 +31,7 @@ class AccountRuntimeTests(unittest.TestCase):
                 self.assertEqual(list(data.iterdir()),[]);self.assertEqual((local/'facts.json').read_text('utf-8'),'anonymous facts')
 
     def test_initialization_failure_is_sticky_so_sitecustomize_cannot_fall_through_to_another_space(self):
-        from desk_companion import account_bootstrap as bootstrap
+        from desk_companion.bootstrap import account_bootstrap as bootstrap
         with patch.object(bootstrap,'_initialized',False),patch.object(bootstrap,'_initialization_error',None), \
              patch.object(bootstrap,'_initialize',side_effect=CloudError('account_binding_mismatch','test failure')) as initialize:
             for _ in range(2):
@@ -40,7 +40,7 @@ class AccountRuntimeTests(unittest.TestCase):
 
     def test_packaged_startup_binds_before_extension_activation_and_workers_do_not_rebind(self):
         from scripts.prepare_runtime import write_sitecustomize
-        from desk_companion import account_bootstrap as bootstrap
+        from desk_companion.bootstrap import account_bootstrap as bootstrap
         observed=[]
         with tempfile.TemporaryDirectory() as folder:
             site=Path(folder);write_sitecustomize(site);source=(site/'sitecustomize.py').read_text('utf-8')
@@ -48,7 +48,7 @@ class AccountRuntimeTests(unittest.TestCase):
             with patch.dict(os.environ,{'DESK_COMPANION_ACCOUNT_BOOTSTRAP':'1'}), \
                  patch.object(bootstrap,'_initialized',False),patch.object(bootstrap,'_initialization_error',None), \
                  patch.object(bootstrap,'_initialize',side_effect=bind) as initialized, \
-                 patch('desk_companion.runtime_extensions.activate',side_effect=lambda:observed.append(os.environ.get('DESK_COMPANION_DATA_DIR'))):
+                 patch('desk_companion.infrastructure.runtime_extensions.activate',side_effect=lambda:observed.append(os.environ.get('DESK_COMPANION_DATA_DIR'))):
                 exec(compile(source,'sitecustomize.py','exec'),{})
                 self.assertEqual(observed,['TEST_ACCOUNT_A']);self.assertEqual(initialized.call_count,1)
                 bootstrap._initialized=False
@@ -72,9 +72,9 @@ class AccountRuntimeTests(unittest.TestCase):
             code='''
 import json,os,sys,time
 from pathlib import Path
-from desk_companion.account_bootstrap import initialize_runtime
-from desk_companion.runtime_instance import InstanceInUse
-from desk_companion.paths import data_root
+from desk_companion.bootstrap.account_bootstrap import initialize_runtime
+from desk_companion.infrastructure.runtime_instance import InstanceInUse
+from desk_companion.infrastructure.paths import data_root
 report=Path(sys.argv[1])
 try:initialize_runtime()
 except InstanceInUse:

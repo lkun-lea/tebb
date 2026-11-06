@@ -12,10 +12,10 @@ class NoProvider(importlib.abc.MetaPathFinder):
         if fullname=='openai'or fullname.startswith('openai.'):raise AssertionError('offline readonly fixture cannot load provider SDK')
 sys.meta_path.insert(0,NoProvider())
 
-from desk_companion import collaboration_worker
-from desk_companion.task_worker import main
-from desk_companion.task_budgets import current
-from desk_companion.web_sources import source_catalog
+from desk_companion.collaboration import collaboration_worker
+from desk_companion.tasks.worker import main
+from desk_companion.tasks.task_budgets import current
+from desk_companion.integrations.web.web_sources import source_catalog
 import psutil
 
 original=collaboration_worker.execute
@@ -47,8 +47,8 @@ def execute(request,emit):
         return SOURCE
     return original(request,emit,llm=Model(),fetch=fetch)
 
-with patch('desk_companion.collaboration_worker.execute',execute),patch('desk_companion.model_catalog.require_item',
+with patch('desk_companion.collaboration.collaboration_worker.execute',execute),patch('desk_companion.models.model_catalog.require_item',
     return_value=dict(id='offline',model='offline',api_key='fixture-only',base_url='https://example.invalid/v1')),\
-    patch('desk_companion.collaboration_worker.updates',return_value=[]),\
-    patch('desk_companion.collaboration_worker.selected_materials',return_value={}):
+    patch('desk_companion.collaboration.collaboration_worker.updates',return_value=[]),\
+    patch('desk_companion.collaboration.collaboration_worker.selected_materials',return_value={}):
     main()

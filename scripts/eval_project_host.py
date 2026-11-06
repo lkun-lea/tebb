@@ -10,12 +10,12 @@ import time
 import uuid
 
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
-from desk_companion.agent_eval_projects import BUG,TEST,TEST_COMMAND,PYTHON_START,REPOSITORIES,atomic_json,read_json,receipts_bound_to_environment,final_test_receipt,active_tool_marker,original_cancel_command
-from desk_companion.collaboration import Collaboration
-from desk_companion.docker_sandboxes import SandboxesClient
+from desk_companion.evaluation.agent_eval_projects import BUG, TEST, TEST_COMMAND, PYTHON_START, REPOSITORIES, atomic_json, read_json, receipts_bound_to_environment, final_test_receipt, active_tool_marker, original_cancel_command
+from desk_companion.collaboration.service import Collaboration
+from desk_companion.projects.docker_sandboxes import SandboxesClient
 from desk_companion.local_api import server
 from desk_companion.local_api.host import HeadlessApp
-from desk_companion.project_environments import ProjectEnvironmentService
+from desk_companion.projects.project_environments import ProjectEnvironmentService
 
 
 def snapshot(host):
@@ -93,7 +93,7 @@ def verify(host,folder,scenario,variant,request,setup):
             proof.update(actual_log_bytes=len(data),actual_log_sha256=hashlib.sha256(data).hexdigest(),service=svc)
         if svc.get('host_port'):
             proof['preview_unreachable']=not service._http(svc['host_port']).get('ok')
-        from desk_companion.project_integrity import valid_receipt,observation_current_for_actions
+        from desk_companion.projects.project_integrity import valid_receipt, observation_current_for_actions
         checks=[value for value in receipts if value.get('tool')=='project_integrity'and value.get('ok')is True
                 and value.get('environment',{}).get('id')==ident]
         integrity={}

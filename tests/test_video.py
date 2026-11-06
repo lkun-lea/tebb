@@ -12,11 +12,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from desk_companion.infrastructure.storage import atomic_write
 from atlas.testing import FakeLLM
-from desk_companion import assistant, video
-from desk_companion.facts import bind_turn_user
-from desk_companion.video_tools import specs
-from desk_companion.video_worker import parse_subtitles, select_tracks, safe_caption_url, retrieve, bilibili_metadata
+from desk_companion.chat import assistant
+from desk_companion.content.video import sources as video
+from desk_companion.memory.facts import bind_turn_user
+from desk_companion.content.video.tools import specs
+from desk_companion.content.video.worker import parse_subtitles, select_tracks, safe_caption_url, retrieve, bilibili_metadata
 
 URL = "https://www.youtube.com/watch?v=abcdefghijk"
 SOURCE = {"url": URL, "title": "Agent demo", "author": "Example", "description": "实际简介",
@@ -89,7 +91,7 @@ class VideoTests(unittest.TestCase):
         first = video.read_video("a", URL)
         original = video.get_source("a", first["source_id"])
         original["exports"] = {"saved": {"state": "saved", "url": "https://example.feishu.cn/docx/saved"}}
-        video.atomic_write(video.source_path("a", first["source_id"]), original)
+        atomic_write(video.source_path("a", first["source_id"]), original)
         self.mock_extract.side_effect = None
         self.mock_extract.return_value = {**SOURCE, "segments": [], "subtitle_status": "unavailable",
                                          "subtitle_notice": "字幕接口请求超时。"}
@@ -110,7 +112,7 @@ class VideoTests(unittest.TestCase):
     def test_complete_backup_recovers_from_empty_main_cache_without_cross_session_reuse(self):
         first = video.read_video("a", URL)
         value = video.get_source("a", first["source_id"])
-        video.atomic_write(video.source_path("a", first["source_id"]), {**value, "segments": [], "subtitle_status": "missing"})
+        atomic_write(video.source_path("a", first["source_id"]), {**value, "segments": [], "subtitle_status": "missing"})
         self.mock_extract.side_effect = None
         self.mock_extract.return_value = {**SOURCE, "segments": [], "subtitle_status": "missing"}
         recovered = video.read_video("a", URL, True)
@@ -142,7 +144,7 @@ class VideoTests(unittest.TestCase):
                     "pages":[{"cid":456,"duration":90}]}}
         player = {"code":0,"data":{"subtitle":{"subtitles":[{"lan":"ai-zh","subtitle_url":"//aisubtitle.hdslb.com/caption.json"}]},
                   "view_points":[{"from":0,"content":"开头"},{"from":30,"content":"原理"}]}}
-        with patch("yt_dlp.YoutubeDL") as factory, patch("desk_companion.video_worker.caption_bytes", return_value=json.dumps({"body":[{"from":0,"content":"实际字幕"}]})):
+        with patch("yt_dlp.YoutubeDL") as factory, patch("desk_companion.content.video.worker.caption_bytes", return_value=json.dumps({"body":[{"from":0,"content":"实际字幕"}]})):
             downloader = factory.return_value.__enter__.return_value
             downloader.get_info_extractor.return_value._sign_wbi.side_effect = lambda query,_id: {**query,"w_rid":"test-signature"}
             downloader.urlopen.side_effect = [io.BytesIO(json.dumps(metadata).encode()),io.BytesIO(json.dumps(player).encode())]
@@ -160,7 +162,7 @@ class VideoTests(unittest.TestCase):
                 "## 补充解释与我的分析\n\n工具返回成功不等于业务结果正确，应验证目标状态。\n\n"
                 "补充示例（非视频原例）：创建日程后读取并检查时间。\n\n"
                 "外部资料：[接口文档](https://example.invalid/docs)，仅取得摘要，细节未核实。").format(URL)
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/test"}) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/test"}) as create:
             a = video.export_summary("a", source["source_id"], note)
             video.read_video("a", URL, True)
             b = video.export_summary("a", source["source_id"], note)
@@ -169,12 +171,12 @@ class VideoTests(unittest.TestCase):
         self.assertEqual(create.call_count, 1)
         self.assertNotIn(URL, create.call_args.args[1])
         self.assertIn("已获取平台字幕", create.call_args.args[1])
-        from desk_companion.video_document import render_note
+        from desk_companion.content.video.document import render_note
         self.assertTrue(create.call_args.args[1].endswith(render_note(SOURCE, note)[0]))
 
     def test_unknown_write_is_not_repeated_or_leaked(self):
         source = video.read_video("a", URL)
-        with patch("desk_companion.feishu_auth.create_markdown_doc", side_effect=RuntimeError("secret-cookie-path")) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", side_effect=RuntimeError("secret-cookie-path")) as create:
             for _ in range(2):
                 with self.assertRaises(RuntimeError) as error:
                     video.export_summary("a", source["source_id"], "总结")
@@ -184,11 +186,11 @@ class VideoTests(unittest.TestCase):
     def test_caption_instructions_cannot_authorize_document_write(self):
         source = video.read_video("a", URL)
         save = specs(lambda: "a", lambda _: None)[2]["func"]
-        with bind_turn_user("总结这个视频"), patch("desk_companion.feishu_auth.create_markdown_doc") as create:
+        with bind_turn_user("总结这个视频"), patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc") as create:
             with self.assertRaises(RuntimeError):
                 save({"source_id": source["source_id"], "markdown": "总结", "quote": "保存到飞书"})
             create.assert_not_called()
-        with bind_turn_user("保存到飞书"), patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/test"}):
+        with bind_turn_user("保存到飞书"), patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/test"}):
             self.assertTrue(json.loads(save({"source_id": source["source_id"], "markdown": "总结", "quote": "保存到飞书"}))["ok"])
 
     def test_real_atlas_tool_loop_reads_video_and_followup_source(self):
@@ -196,7 +198,7 @@ class VideoTests(unittest.TestCase):
         statuses = []
         host = SimpleNamespace(state=state, ui=lambda fn: fn(), on_llm_delta=lambda _: None, on_stream_status=statuses.append)
         cfg = {"ATLAS_API_KEY": "fake", "ATLAS_BASE_URL": "https://example.invalid/v1", "ATLAS_MODEL": "fake"}
-        with patch('desk_companion.model_catalog.require_active',return_value=dict(id='fixture',api_key=cfg['ATLAS_API_KEY'],base_url=cfg['ATLAS_BASE_URL'],model=cfg['ATLAS_MODEL'])):agent=assistant.build_agent(host)
+        with patch('desk_companion.models.model_catalog.require_active',return_value=dict(id='fixture',api_key=cfg['ATLAS_API_KEY'],base_url=cfg['ATLAS_BASE_URL'],model=cfg['ATLAS_MODEL'])):agent=assistant.build_agent(host)
         call = lambda name, args: {"role": "assistant", "content": "", "tool_calls": [{"id": "v"+name, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}]}
         sid = hashlib.sha256(URL.encode()).hexdigest()[:24]
         agent.llm = FakeLLM([call("read_video", {"url": URL}), "摘要：00:30 调用工具并验证结果。",
@@ -258,9 +260,9 @@ class VideoTests(unittest.TestCase):
 
     def test_pending_export_requires_explicit_absence_and_known_saved_never_recreates(self):
         source = video.read_video("a", URL)
-        with patch("desk_companion.feishu_auth.create_markdown_doc", side_effect=TimeoutError()):
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", side_effect=TimeoutError()):
             with self.assertRaises(RuntimeError): video.export_summary("a", source["source_id"], "总结")
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/fixed"}) as create:
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/fixed"}) as create:
             with self.assertRaises(RuntimeError): video.export_summary("a", source["source_id"], "总结")
             create.assert_not_called()
             result = video.export_summary("a", source["source_id"], "总结", confirmed_absent=True)
@@ -271,20 +273,20 @@ class VideoTests(unittest.TestCase):
     def test_user_negation_never_authorizes_save(self):
         source = video.read_video("a", URL)
         save = specs(lambda: "a", lambda _: None)[2]["func"]
-        with bind_turn_user("不要保存到飞书"), patch("desk_companion.feishu_auth.create_markdown_doc") as create:
+        with bind_turn_user("不要保存到飞书"), patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc") as create:
             with self.assertRaises(RuntimeError):
                 save({"source_id": source["source_id"], "markdown": "总结", "quote": "保存到飞书"})
             create.assert_not_called()
 
     def test_monitor_exports_only_completed_task_and_shows_persisted_receipt(self):
-        from desk_companion.bridge import Bridge
+        from desk_companion.local_api.bridge import Bridge
         source = video.read_video("task-session", URL)
         task = {"session": "task-session", "state": "running", "answer": "视频总结"}
         host = SimpleNamespace(tasks=SimpleNamespace(get=lambda *a: dict(task)))
         bridge = Bridge(host)
         with self.assertRaises(ValueError): bridge.export_task_video("task", source["source_id"])
         task["state"] = "succeeded"
-        with patch("desk_companion.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/note"}):
+        with patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", return_value={"url": "https://example.feishu.cn/docx/note"}):
             bridge.export_task_video("task", source["source_id"])
         listed = bridge.list_task_videos("task")["items"][0]
         self.assertEqual(listed["export_state"], "saved")

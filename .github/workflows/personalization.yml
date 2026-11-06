@@ -2,9 +2,9 @@ name: Personalization cloud contract
 on:
   push:
     branches: [main]
-    paths: ['supabase/**', 'desk_companion/personalization_cloud.py', 'scripts/*personalization_cloud.py', 'tests/test_personalization_cloud.py', '.github/workflows/personalization.yml']
+    paths: ['supabase/**', 'desk_companion/accounts/personalization_cloud.py', 'scripts/*personalization_cloud.py', 'tests/test_personalization_cloud.py', '.github/workflows/personalization.yml']
   pull_request:
-    paths: ['supabase/**', 'desk_companion/personalization_cloud.py', 'scripts/*personalization_cloud.py', 'tests/test_personalization_cloud.py', '.github/workflows/personalization.yml']
+    paths: ['supabase/**', 'desk_companion/accounts/personalization_cloud.py', 'scripts/*personalization_cloud.py', 'tests/test_personalization_cloud.py', '.github/workflows/personalization.yml']
   workflow_dispatch:
 permissions:
   contents: read

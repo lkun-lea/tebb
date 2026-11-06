@@ -8,7 +8,7 @@ import urllib.error
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from desk_companion import web_sources as sources
+from desk_companion.integrations.web import web_sources as sources
 REAL_OPEN=sources._open
 
 

@@ -5,8 +5,8 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import unquote
 
-from desk_companion import video
-from desk_companion.video_document import render_note, embed_video, separate_diagrams, embed_diagrams
+from desk_companion.content.video import sources as video
+from desk_companion.content.video.document import render_note, embed_video, separate_diagrams, embed_diagrams
 from tests.test_video import SOURCE, URL
 
 
@@ -41,11 +41,11 @@ class PresentationTests(unittest.TestCase):
                 self.assertEqual(unquote(component['url']), source['url'])
                 return {'children': [{'block_type': 26, 'block_id': 'embed'}]}
             return {'block': {'iframe': {'component': component}}}
-        with patch('desk_companion.wiki_connection.cli', side_effect=cli):
+        with patch('desk_companion.integrations.feishu.wiki_connection.cli', side_effect=cli):
             self.assertEqual(embed_video({}, 'doc123', source), 'embed')
             embed_video({}, 'doc123', source)
         self.assertEqual(calls[0][0], calls[2][0])
-        with patch('desk_companion.wiki_connection.cli') as tool:
+        with patch('desk_companion.integrations.feishu.wiki_connection.cli') as tool:
             with self.assertRaises(ValueError): embed_video({}, '../foreign', source)
             tool.assert_not_called()
 
@@ -53,8 +53,8 @@ class PresentationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {'DESK_COMPANION_DATA_DIR': root}), \
                 patch.object(video, 'extract', return_value=dict(SOURCE)):
             source = video.read_video('note', URL)
-            with patch('desk_companion.feishu_auth.create_markdown_doc', return_value={'url': 'https://example.feishu.cn/docx/doc', 'document_id': 'doc'} ) as create, \
-                    patch('desk_companion.video_document.embed_video', side_effect=RuntimeError('secret')) as embed:
+            with patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc', return_value={'url': 'https://example.feishu.cn/docx/doc', 'document_id': 'doc'} ) as create, \
+                    patch('desk_companion.content.video.document.embed_video', side_effect=RuntimeError('secret')) as embed:
                 first = video.export_summary('note', source['source_id'], '简洁笔记')
                 again = video.export_summary('note', source['source_id'], '简洁笔记')
             self.assertTrue(first['ok'] and again['already_saved'])
@@ -75,8 +75,8 @@ class PresentationTests(unittest.TestCase):
                 self.assertEqual(receipt['state'], 'saved')
                 self.assertEqual(receipt['embed_state'], 'pending')
                 return 'embed'
-            with patch('desk_companion.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}), \
-                    patch('desk_companion.video_document.embed_video', side_effect=embedded):
+            with patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}), \
+                    patch('desk_companion.content.video.document.embed_video', side_effect=embedded):
                 result = video.export_summary('note', source['source_id'], '笔记')
             self.assertEqual(result['presentation_warnings'], [])
 
@@ -91,9 +91,9 @@ class PresentationTests(unittest.TestCase):
                 self.assertIn('<whiteboard type="mermaid">', kwargs['stdin'])
                 return {'result': 'success', 'warnings': [], 'document': {'new_blocks': [
                     {'block_type': 'whiteboard', 'block_id': 'boardBlock', 'block_token': 'boardToken'}]}}
-            with patch('desk_companion.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}) as create, \
-                    patch('desk_companion.wiki_connection.cli', side_effect=cli), \
-                    patch('desk_companion.video_document.embed_video', return_value='embed'):
+            with patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}) as create, \
+                    patch('desk_companion.integrations.feishu.wiki_connection.cli', side_effect=cli), \
+                    patch('desk_companion.content.video.document.embed_video', return_value='embed'):
                 video.export_summary('note', source['source_id'], note)
             self.assertNotIn('<whiteboard', create.call_args.args[1])
             self.assertEqual(len(calls), 1)
@@ -107,9 +107,9 @@ class PresentationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {'DESK_COMPANION_DATA_DIR': root}), \
                 patch.object(video, 'extract', return_value=dict(SOURCE)):
             source = video.read_video('note', URL)
-            with patch('desk_companion.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}) as create, \
-                    patch('desk_companion.video_document.embed_diagrams', side_effect=RuntimeError('secret')) as board, \
-                    patch('desk_companion.video_document.embed_video', return_value='embed'):
+            with patch('desk_companion.integrations.feishu.feishu_auth.create_markdown_doc', return_value={'url': 'saved', 'document_id': 'doc'}) as create, \
+                    patch('desk_companion.content.video.document.embed_diagrams', side_effect=RuntimeError('secret')) as board, \
+                    patch('desk_companion.content.video.document.embed_video', return_value='embed'):
                 result = video.export_summary('note', source['source_id'], note)
                 video.export_summary('note', source['source_id'], note)
             self.assertEqual(create.call_count, 1)
@@ -124,7 +124,7 @@ class PresentationTests(unittest.TestCase):
     def test_native_diagram_requires_confirmed_board_block(self):
         text, diagrams = separate_diagrams(render_note(SOURCE, '文字\n```mermaid\nflowchart LR\n A --> B\n```')[0])
         self.assertEqual(text, '文字')
-        with patch('desk_companion.wiki_connection.cli', return_value={'result': 'success', 'document': {'new_blocks': []}}):
+        with patch('desk_companion.integrations.feishu.wiki_connection.cli', return_value={'result': 'success', 'document': {'new_blocks': []}}):
             with self.assertRaises(RuntimeError): embed_diagrams({}, 'doc', diagrams)
 
 

@@ -36,7 +36,7 @@ LangMem 官方示例确实覆盖语言、时区、表达正式程度、细节层
 
 已经可复用：候选/确认/撤销/到期、明确更正、版本检查与幂等操作、来源记录、run 的冻结记忆快照，以及“已发送 / 下次预览 / 独立试验”。当前的遗忘契约也要延续：停用一条记忆，不等于原聊天、摘要和历史模型请求副本都已经清除。
 
-代码依据：[facts.py](../desk_companion/facts.py)、[memory_selection.py](../desk_companion/memory_selection.py)、[memory_inspector.py](../desk_companion/memory_inspector.py)、[context_sources.py](../desk_companion/context_sources.py)、[collaboration.py](../desk_companion/collaboration.py)、[feishu_agent.py](../desk_companion/feishu_agent.py)、[feishu_auth.py](../desk_companion/feishu_auth.py)。
+代码依据：[facts.py](../desk_companion/memory/facts.py)、[memory_selection.py](../desk_companion/memory/memory_selection.py)、[memory_inspector.py](../desk_companion/memory/memory_inspector.py)、[context_sources.py](../desk_companion/memory/context_sources.py)、[collaboration.py](../desk_companion/collaboration/service.py)、[feishu_agent.py](../desk_companion/integrations/feishu/feishu_agent.py)、[feishu_auth.py](../desk_companion/integrations/feishu/feishu_auth.py)。
 
 ## 首版结构与数据边界
 

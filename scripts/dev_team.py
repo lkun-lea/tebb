@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from desk_companion.development_team import digest, inputs, registry, snapshot
+from desk_companion.evaluation.development_team import digest, inputs, registry, snapshot
 from . import dev_cycle as cycle
 
 
@@ -94,7 +94,7 @@ def main():
     elif args.command == "import-history":
         print(register(args.pair, historical=True))
     elif args.command == 'import-native':
-        from desk_companion.development_team import register_native
+        from desk_companion.evaluation.development_team import register_native
         print(register_native(args.folder, args.issue, args.title))
     elif args.command == "status":
         print(json.dumps(snapshot(), ensure_ascii=False, indent=2))

@@ -8,7 +8,8 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from desk_companion import model_network, search_service
+from desk_companion.models import model_network
+from desk_companion.integrations.web import search_service
 
 CASES = [
     ('中文技术', 'Python TaskGroup 官方文档 结构化并发', ['python.org']),

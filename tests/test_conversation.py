@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from desk_companion import memory, state, usage
+from desk_companion.memory import history as memory
+from desk_companion.infrastructure import state
+from desk_companion.observability import usage
 
 SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
 
@@ -55,7 +57,7 @@ class ConversationWorkerTests(unittest.TestCase):
         self.assertEqual(memory.list_chat('selected-desktop'), [])
 
     def test_cli_request_uses_existing_composer_without_gui_requirements(self):
-        from desk_companion.board_workbench import BoardWorkbench
+        from desk_companion.desktop.board_workbench import BoardWorkbench
         text = BoardWorkbench()._compose_turn('查询', {'cli': ['get_today_agenda']})
         self.assertIn('必须调用工具 get_today_agenda', text)
         with self.assertRaisesRegex(RuntimeError,'必须同时选'):
@@ -105,15 +107,15 @@ class ConversationServiceTests(unittest.TestCase):
 
     def make_service(self, script):
         from atlas.testing import FakeLLM
-        from desk_companion import assistant
-        from desk_companion.conversation import ConversationService
+        from desk_companion.chat import assistant
+        from desk_companion.chat.conversation import ConversationService
         settings = state.load_state(0, 0, persist=False)
         settings.session_id = 'unit-session'
         self.service = ConversationService(settings)
-        with patch('desk_companion.model_catalog.require_active', return_value=dict(
+        with patch('desk_companion.models.model_catalog.require_active', return_value=dict(
                 id='fixture',api_key='fixture',base_url='https://example.invalid/v1',model='fake')), \
-             patch('desk_companion.execution_context.ExecutionLLM', return_value=FakeLLM(script)), \
-             patch('desk_companion.model_catalog.bind_llm'):
+             patch('desk_companion.collaboration.execution_context.ExecutionLLM', return_value=FakeLLM(script)), \
+             patch('desk_companion.models.model_catalog.bind_llm'):
             self.service.agent = assistant.build_agent(self.service)
         self.service.engage_model = Mock()
         return self.service
@@ -141,10 +143,10 @@ class ConversationServiceTests(unittest.TestCase):
     def test_document_skill_and_attachment_bodies_are_not_persisted_as_user_text(self):
         self.make_service(['回答'])
         chips = dict(skills=['sample'], docs=[dict(id='https://example.invalid/docx/test',label='样本文档')], attachments=['file-1'])
-        with patch('desk_companion.skill_catalog.skill_turn_block', return_value='PRIVATE_SKILL_BODY'), \
-             patch('desk_companion.feishu_docs.doc_turn_block', return_value='PRIVATE_DOC_BODY'), \
-             patch('desk_companion.local_sources.get', return_value=dict(name='样本附件')), \
-             patch('desk_companion.local_sources.turn_block', return_value='PRIVATE_FILE_BODY'):
+        with patch('desk_companion.integrations.skill_catalog.skill_turn_block', return_value='PRIVATE_SKILL_BODY'), \
+             patch('desk_companion.integrations.feishu.feishu_docs.doc_turn_block', return_value='PRIVATE_DOC_BODY'), \
+             patch('desk_companion.knowledge.local_sources.get', return_value=dict(name='样本附件')), \
+             patch('desk_companion.knowledge.local_sources.turn_block', return_value='PRIVATE_FILE_BODY'):
             self.run_turn(chips=chips)
         model_text = self.service.agent.llm.calls[0]['messages'][-1]['content']
         stored = memory.list_chat('unit-session')[0]['text']
@@ -174,8 +176,8 @@ class ConversationServiceTests(unittest.TestCase):
         self.make_service(['回答'])
         chips = dict(mcp=[dict(server='sample',tool='lookup')])
         pieces = []
-        with patch('desk_companion.mcp_client.attach_mcp_tools', return_value=['temporary']) as attach, \
-             patch('desk_companion.mcp_client.detach_mcp_tools', side_effect=RuntimeError('cleanup failed')) as detach:
+        with patch('desk_companion.integrations.mcp_client.attach_mcp_tools', return_value=['temporary']) as attach, \
+             patch('desk_companion.integrations.mcp_client.detach_mcp_tools', side_effect=RuntimeError('cleanup failed')) as detach:
             with self.assertRaisesRegex(RuntimeError, 'cleanup failed'):
                 self.run_turn(chips=chips, delta_sink=pieces.append)
         attach.assert_called_once(); detach.assert_called_once()
@@ -187,7 +189,7 @@ class ConversationServiceTests(unittest.TestCase):
 
     def test_knowledge_failure_restores_sampling_and_busy_state(self):
         self.make_service(['unused'])
-        with patch('desk_companion.knowledge._retrieve', side_effect=RuntimeError('no source')):
+        with patch('desk_companion.knowledge.index._retrieve', side_effect=RuntimeError('no source')):
             with self.assertRaisesRegex(RuntimeError,'no source'):
                 self.run_turn(knowledge=True)
         self.assertFalse(self.service.running)
@@ -204,7 +206,7 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertFalse(self.service.running)
 
     def test_worker_settings_do_not_create_ui_state_or_change_selected_session(self):
-        from desk_companion.conversation import ConversationService
+        from desk_companion.chat.conversation import ConversationService
         service = ConversationService.for_session('only-this-task')
         self.assertEqual(service.state.session_id, 'only-this-task')
         self.assertFalse(state.state_path().exists())
@@ -212,7 +214,7 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertFalse(state.state_path().exists())
 
     def test_worker_normalizes_legacy_persona_without_writing_settings_or_backup(self):
-        from desk_companion.conversation import ConversationService
+        from desk_companion.chat.conversation import ConversationService
         settings = state.load_state(123,456)
         settings.persona = state.LEGACY_PERSONA
         settings.save()
@@ -223,7 +225,7 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertFalse(state.state_path().with_name('user_state.before-tebb-persona.json').exists())
 
     def test_legacy_desktop_reuses_service_without_duplicate_history(self):
-        from desk_companion.app import App
+        from desk_companion.desktop.app import App
         service = self.make_service(['桌面回答'])
         app = App.__new__(App)
         app.state = service.state

@@ -12,15 +12,15 @@ import sys
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from desk_companion.personalization_cloud import CloudConfig, CloudError, PersonalizationCloud
+from desk_companion.accounts.personalization_cloud import CloudConfig, CloudError, PersonalizationCloud
 
 
 def evaluate_replicas(clients, report, checkpoint, directory):
     """Exercise the product's transactional stores and sync jobs, not a second sync loop."""
-    from desk_companion.account_store import AccountRuntime, account_key, profile_root
-    from desk_companion.personalization import PersonalizationService
-    from desk_companion.personalization_store import PersonalizationStore
-    from desk_companion.memory_selection import select
+    from desk_companion.accounts.account_store import AccountRuntime, account_key, profile_root
+    from desk_companion.accounts.personalization import PersonalizationService
+    from desk_companion.accounts.personalization_store import PersonalizationStore
+    from desk_companion.memory.memory_selection import select
     services=[]
     for index,cloud in enumerate(clients):
         home=(directory/('replica-'+str(index))).resolve()

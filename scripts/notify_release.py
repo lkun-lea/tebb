@@ -8,8 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from desk_companion.release_info import load_manifest, RELEASES_URL
-from desk_companion.release_notify import Notifier, release_card
+from desk_companion.infrastructure.release_info import load_manifest, RELEASES_URL
+from desk_companion.infrastructure.release_notify import Notifier, release_card
 
 
 def main():

@@ -17,10 +17,10 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 import psutil
-from desk_companion.resource_lock import ResourceLock
-from desk_companion.runtime_instance import RUNTIME_LOCK_NAME
-from desk_companion.installation import validate_tree
-from desk_companion.calendar_time import TZ
+from desk_companion.infrastructure.resource_lock import ResourceLock
+from desk_companion.infrastructure.runtime_instance import RUNTIME_LOCK_NAME
+from desk_companion.infrastructure.installation import validate_tree
+from desk_companion.planning.calendar_time import TZ
 from scripts.bundle_release import archive_hashes
 from scripts.bundle_installer import installer_mutex_name
 
@@ -113,7 +113,7 @@ def finish_uninstall(state):
 def check_extension_fixture(state):
     install=Path(state['install_dir']);profile=Path(state['profile']);fixture=state['extension_fixture']
     environment={**os.environ,'DESK_COMPANION_DATA_DIR':str(profile)}
-    status=json.loads(subprocess.check_output([str(install/'runtime/python.exe'),'-c','from desk_companion.runtime_extensions import main; main()','status'],env=environment,text=True,encoding='utf-8'))
+    status=json.loads(subprocess.check_output([str(install/'runtime/python.exe'),'-c','from desk_companion.infrastructure.runtime_extensions import main; main()','status'],env=environment,text=True,encoding='utf-8'))
     if not status['active']or status['compatibility']!=fixture['compatibility']or Path(status['path']).parent.name!=fixture['generation']:raise RuntimeError('扩展代未保留。')
     subprocess.run([str(install/'runtime/python.exe'),'-c',"import tebb_installer_fixture;assert tebb_installer_fixture.MARKER=='synthetic-extension-only'"],env=environment,check=True)
     return dict(synthetic_extension_preserved=True,pip_and_torch_verified=False)
@@ -241,7 +241,7 @@ def action(args):
     elif args.action=='seed-extension':
         stopped(profile)
         environment={**os.environ,'DESK_COMPANION_DATA_DIR':str(profile)}
-        status=json.loads(subprocess.check_output([str(install/'runtime/python.exe'),'-c','from desk_companion.runtime_extensions import main; main()','status'],env=environment,text=True,encoding='utf-8'))
+        status=json.loads(subprocess.check_output([str(install/'runtime/python.exe'),'-c','from desk_companion.infrastructure.runtime_extensions import main; main()','status'],env=environment,text=True,encoding='utf-8'))
         if status['active']:raise RuntimeError('已有扩展，不覆盖原代。')
         generation=uuid.uuid4().hex[:16];layer=profile/'extensions'/status['compatibility'];target=layer/generation/'p';target.mkdir(parents=True)
         (target/'tebb_installer_fixture.py').write_text("MARKER='synthetic-extension-only'\n",encoding='utf-8')

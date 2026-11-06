@@ -11,8 +11,8 @@ from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock,patch
 
-from desk_companion.calendar_time import TZ
-from desk_companion.calendar_reminders import CalendarReminderService,stamp
+from desk_companion.planning.calendar_time import TZ
+from desk_companion.planning.calendar_reminders import CalendarReminderService, stamp
 
 
 class CalendarRemindersTests(unittest.TestCase):
@@ -55,7 +55,7 @@ class CalendarRemindersTests(unittest.TestCase):
         self.assertEqual(result['recovered_ids'],[result['reminders'][0]['id']]);self.assertEqual(self.make_service().claim('main-restarted-0002',[])['reminders'],[])
 
     def test_stopped_service_does_not_read_or_deliver_and_background_io_is_bounded(self):
-        from desk_companion.calendar_adapter import CalendarAdapter,CalendarError
+        from desk_companion.planning.calendar_adapter import CalendarAdapter, CalendarError
         calls=[];stopped=[]
         adapter=CalendarAdapter(run=lambda args,timeout:(calls.append(timeout)or'{"ok":true,"data":{}}'),timeout_cap=5,cancelled=lambda:bool(stopped))
         self.assertEqual(adapter._call(['test']),{});self.assertEqual(calls,[5]);stopped.append(True)
@@ -103,8 +103,8 @@ class CalendarRemindersTests(unittest.TestCase):
         self.assertEqual(sum(bool(row['merged_into'])for row in snapshot['reminders']),1)
 
     def test_actual_local_calendar_projection_reminds_without_changing_events_or_calling_cli(self):
-        from desk_companion.work_board import WorkBoardService
-        from desk_companion.scheduling import SchedulingService
+        from desk_companion.planning.work_board import WorkBoardService
+        from desk_companion.planning.scheduling import SchedulingService
         with patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(self.path.parent/'profile')):
             calendar=Mock();scheduling=SchedulingService(WorkBoardService(),calendar)
             created=scheduling.local.change(dict(type='create',request_id='create-local-reminder',summary='真实本地安排',

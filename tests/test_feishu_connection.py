@@ -4,7 +4,9 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch, Mock
-from desk_companion import feishu_auth, feishu_access as feishu_connection, feishu_tools
+from desk_companion.integrations.feishu import feishu_auth
+from desk_companion.integrations.feishu import feishu_access as feishu_connection
+from desk_companion.integrations.feishu import feishu_tools
 
 
 class ConnectionTests(unittest.TestCase):
@@ -21,7 +23,7 @@ class ConnectionTests(unittest.TestCase):
             command.assert_not_called()
 
     def test_calendar_adapter_preserves_explicit_not_connected_reason(self):
-        from desk_companion.calendar_adapter import CalendarAdapter, CalendarError
+        from desk_companion.planning.calendar_adapter import CalendarAdapter, CalendarError
         def blocked(*args,**kwargs):feishu_connection.require_connection()
         with self.assertRaisesRegex(CalendarError,'尚未连接飞书'):
             CalendarAdapter(run=blocked).primary()

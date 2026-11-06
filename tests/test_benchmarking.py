@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from desk_companion.benchmarking import BenchmarkPlan,run_benchmark
+from desk_companion.evaluation.benchmarking import BenchmarkPlan, run_benchmark
 
 
 class FakeManager:
@@ -97,7 +97,7 @@ class BenchmarkingTests(unittest.TestCase):
         class Altered(FakeManager):
             def wait(self,ident):
                 report=json.loads(self.output.read_text(encoding='utf-8'))
-                path=Path(report['source_snapshot']['directory'])/'desk_companion/benchmarking.py'
+                path=Path(report['source_snapshot']['directory'])/'desk_companion/evaluation/benchmarking.py'
                 with path.open('ab')as stream:stream.write(b'\n# altered fixture\n')
                 return super().wait(ident)
         with tempfile.TemporaryDirectory()as folder:

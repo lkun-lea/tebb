@@ -7,7 +7,7 @@ from unittest.mock import patch
 import httpx
 from openai import OpenAI
 from atlas.llm import ChatOptions
-from desk_companion.execution_context import ContextAdmissionError,ExecutionLLM,prepare_request,replace_owned_message
+from desk_companion.collaboration.execution_context import ContextAdmissionError, ExecutionLLM, prepare_request, replace_owned_message
 
 
 def counter(request,capacity):
@@ -25,7 +25,7 @@ def request(body=None):
 
 class ExecutionContextTests(unittest.TestCase):
     def test_partner_history_preserves_old_and_long_receipts_and_honors_manual_coverage(self):
-        from desk_companion.collaboration import Collaboration
+        from desk_companion.collaboration.service import Collaboration
         marker='original-op-unknown-do-not-repeat'
         conversation=dict(id='one',summary='explicit summary',summary_ids=['covered'])
         rows=[dict(id=str(i),conversation='one',sender='user',text=marker if i==0 else str(i))for i in range(24)]
@@ -38,9 +38,9 @@ class ExecutionContextTests(unittest.TestCase):
         self.assertNotIn('covered text',str(history));self.assertNotIn('private other',str(history))
 
     def test_ordinary_history_has_no_fixed_128k_auto_summary_or_write(self):
-        from desk_companion.context_pack import prepare_injection,context_view
+        from desk_companion.memory.context_pack import prepare_injection, context_view
         rows=[dict(role='user',text='original unknown receipt'),dict(role='pet',text='kept')]
-        with patch('desk_companion.context_pack.session_for_model',return_value=rows),patch('desk_companion.context_pack._read_session',return_value=None),patch('desk_companion.model_capacity.current',return_value=dict(window=None,source='unknown')):
+        with patch('desk_companion.memory.context_pack.session_for_model',return_value=rows),patch('desk_companion.memory.context_pack._read_session',return_value=None),patch('desk_companion.models.model_capacity.current',return_value=dict(window=None,source='unknown')):
             complete=unittest.mock.Mock();save=unittest.mock.Mock()
             result=prepare_injection('synthetic','system','A'*512001,exclude_user=None,manual=False,complete=complete,save=save)
             view=context_view('synthetic','system')
@@ -129,7 +129,7 @@ class ExecutionContextTests(unittest.TestCase):
         self.assertIs(messages[0],user);self.assertIs(messages[1],current);self.assertEqual(len(messages),2)
 
     def test_runtime_control_does_not_become_the_latest_user_request(self):
-        from desk_companion.context_sources import manifest
+        from desk_companion.memory.context_sources import manifest
         user=dict(role='user',content='生成日程提案，不保存。');messages=[user]
         budget=replace_owned_message(messages,None,'剩余预算30秒，不复述预算。',role='system')
         self.assertIs(next(m for m in reversed(messages)if m['role']=='user'),user)
@@ -149,7 +149,7 @@ class ExecutionContextTests(unittest.TestCase):
         sdk=OpenAI(api_key='fixture-only',base_url='https://model.invalid/v1',http_client=http,max_retries=0);self.addCleanup(sdk.close)
         observed=[];llm=ExecutionLLM(model='fixture',client=sdk,context_model_id='fixture',on_context=observed.append)
         original=request();capacity=dict(window=2048,output_reserve=128,source='fixture_config')
-        with patch('desk_companion.execution_context.model_capacity.for_call',return_value=capacity),patch('desk_companion.execution_context.model_tokenizer.count',side_effect=counter):
+        with patch('desk_companion.collaboration.execution_context.model_capacity.for_call',return_value=capacity),patch('desk_companion.collaboration.execution_context.model_tokenizer.count',side_effect=counter):
             result=llm.chat(original['messages'],original['tools'],options=ChatOptions())
         self.assertEqual(result['message']['content'],'OK');self.assertEqual(len(calls),1)
         expected,report=prepare_request(original,capacity,counter=counter)

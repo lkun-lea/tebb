@@ -26,7 +26,7 @@
 4. **补读和交接没有闭环**：虽然返回next_offset/next_line，但预算、阶段职责和目标范围没有驱动必要的下一步；汇总阶段还可能只看到子任务回答或来源清单，不能默认继承子任务未读内容。
 5. **显示或交付再次缩短**：项目材料发送有摘要截取，前序回答交接有长度边界；前端显示摘要、模型实际收到的文本、持久原文需要分别核对。当前发现代码存在边界，不等于证明每条历史都在这一层丢失内容。
 
-现有源码依据：[网页获取](../desk_companion/web_sources.py)、[同快照续读](../desk_companion/web_snapshots.py)、[研究工具与预算](../desk_companion/research_tools.py)、[本地附件分页](../desk_companion/local_sources.py)、[源码搜索与片段读取](../desk_companion/workspace_source.py)、[目录及执行输出](../desk_companion/project_workspace.py)、[阶段交接](../desk_companion/collaboration.py)。
+现有源码依据：[网页获取](../desk_companion/integrations/web/web_sources.py)、[同快照续读](../desk_companion/integrations/web/web_snapshots.py)、[研究工具与预算](../desk_companion/collaboration/research_tools.py)、[本地附件分页](../desk_companion/knowledge/local_sources.py)、[源码搜索与片段读取](../desk_companion/projects/workspace_source.py)、[目录及执行输出](../desk_companion/projects/project_workspace.py)、[阶段交接](../desk_companion/collaboration/service.py)。
 
 ## 纳入修复方案的改动
 

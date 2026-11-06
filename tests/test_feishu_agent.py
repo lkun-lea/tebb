@@ -12,9 +12,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from atlas.testing import FakeLLM
-from desk_companion import assistant, memory, logutil
-from desk_companion.feishu_agent import EVENT_KEY, FeishuAgent, Inbox, accepted, chunks, identify
-from desk_companion.feishu_connection import ConnectionFailure, classify
+from desk_companion.chat import assistant
+from desk_companion.memory import history as memory
+from desk_companion.observability import logutil
+from desk_companion.integrations.feishu.feishu_agent import EVENT_KEY, FeishuAgent, Inbox, accepted, chunks, identify
+from desk_companion.integrations.feishu.feishu_connection import ConnectionFailure, classify
 from desk_companion.local_api.host import HeadlessApp
 from desk_companion.local_api import server
 
@@ -109,7 +111,7 @@ class FeishuAgentTests(unittest.TestCase):
             if len(calls) == 2:
                 raise RuntimeError("network")
             return '{"ok":true,"identity":"bot","data":{}}'
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=send):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=send):
             with self.assertRaises(RuntimeError):
                 self.gateway.process_message(row)
             retry = self.gateway._inbox.take("test-app")
@@ -150,9 +152,9 @@ class FeishuAgentTests(unittest.TestCase):
         def reply(_args):
             replied.set()
             return '{"ok":true,"data":{}}'
-        with patch("desk_companion.feishu_agent.identify", return_value=BINDING.copy()), \
-             patch("desk_companion.feishu_agent._lark_cmd", return_value=[sys.executable, str(stub)]), \
-             patch("desk_companion.feishu_agent._run_lark", side_effect=reply):
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", return_value=BINDING.copy()), \
+             patch("desk_companion.integrations.feishu.feishu_agent._lark_cmd", return_value=[sys.executable, str(stub)]), \
+             patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=reply):
             self.gateway.enable()
             self.assertTrue(replied.wait(5))
             self.assertTrue(self.gateway.status()["connected"])
@@ -186,8 +188,8 @@ class FeishuAgentTests(unittest.TestCase):
                 self.gateway.enable()
             except RuntimeError as exc:
                 failures.append(str(exc))
-        with patch("desk_companion.feishu_agent.identify", side_effect=identity), \
-             patch("desk_companion.feishu_agent._lark_cmd") as spawn:
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", side_effect=identity), \
+             patch("desk_companion.integrations.feishu.feishu_agent._lark_cmd") as spawn:
             opening = threading.Thread(target=enable)
             opening.start()
             self.assertTrue(started.wait(2))
@@ -202,7 +204,7 @@ class FeishuAgentTests(unittest.TestCase):
         self.assertFalse((self.root / "feishu_agent.json").exists())
 
     def test_real_agent_tool_loop_and_history_do_not_expose_desktop_context(self):
-        from desk_companion.tasks import TaskManager
+        from desk_companion.tasks.manager import TaskManager
         host = HeadlessApp()
         desktop = host.state.session_id
         memory.append_chat("user", "仅在桌面保存的内容", desktop)
@@ -251,7 +253,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_settings_persist_without_switching_default_profile_and_rebind_is_explicit(self):
         self.gateway._save(False)
         profiles = {"ok": True, "profiles": [{"name": "dedicated"}, {"name": "test-profile"}]}
-        with patch.object(self.gateway, "profiles", return_value=profiles), patch("desk_companion.feishu_agent._run_lark") as cli:
+        with patch.object(self.gateway, "profiles", return_value=profiles), patch("desk_companion.integrations.feishu.feishu_agent._run_lark") as cli:
             result = self.gateway.save_settings("dedicated", False, False, 5, 60)
             cli.assert_not_called()
         self.assertEqual(result["binding"], {})
@@ -278,7 +280,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_credential_update_uses_stdin_same_named_profile_and_redacts_errors(self):
         profiles = {"profiles": [{"name": "test-profile", "appId": "test-app", "brand": "feishu"}]}
         with patch.object(self.gateway, "profiles", return_value=profiles), \
-             patch("desk_companion.feishu_agent._run_lark", return_value="{}") as cli:
+             patch("desk_companion.integrations.feishu.feishu_agent._run_lark", return_value="{}") as cli:
             self.assertTrue(self.gateway.update_credentials("test-profile", "test-only-secret")["ok"])
             args, kwargs = cli.call_args
             self.assertNotIn("test-only-secret", args[0])
@@ -286,7 +288,7 @@ class FeishuAgentTests(unittest.TestCase):
             self.assertIn("--name", args[0])
             self.assertNotIn("--use", args[0])
         with patch.object(self.gateway, "profiles", return_value=profiles), \
-             patch("desk_companion.feishu_agent._run_lark", side_effect=RuntimeError("test-only-secret")):
+             patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=RuntimeError("test-only-secret")):
             with self.assertRaises(RuntimeError) as failure:
                 self.gateway.update_credentials("test-profile", "test-only-secret")
             self.assertNotIn("test-only-secret", str(failure.exception))
@@ -296,7 +298,7 @@ class FeishuAgentTests(unittest.TestCase):
         profiles = {"profiles": [{"name": "test-profile", "appId": "test-app", "brand": "feishu"}]}
         with patch.dict(os.environ, {"HERMES_HOME": "test-hermes-home"}), \
              patch.object(self.gateway, "profiles", return_value=profiles), \
-             patch("desk_companion.feishu_agent._run_lark", return_value="{}") as cli:
+             patch("desk_companion.integrations.feishu.feishu_agent._run_lark", return_value="{}") as cli:
             self.gateway.update_credentials("test-profile", "test-only-secret")
             command = cli.call_args.args[0]
             self.assertIn("--force-init", command)
@@ -314,7 +316,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_invalid_secret_after_cli_save_has_actionable_redacted_error(self):
         profiles = {"profiles": [{"name": "test-profile", "appId": "test-app", "brand": "feishu"}]}
         with patch.object(self.gateway, "profiles", return_value=profiles), \
-             patch("desk_companion.feishu_agent._run_lark", side_effect=["", RuntimeError("invalid_client test-only-secret")]):
+             patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=["", RuntimeError("invalid_client test-only-secret")]):
             with self.assertRaisesRegex(RuntimeError, "飞书校验未通过") as failure:
                 self.gateway.update_credentials("test-profile", "test-only-secret")
             self.assertNotIn("test-only-secret", str(failure.exception))
@@ -324,13 +326,13 @@ class FeishuAgentTests(unittest.TestCase):
             replies = [json.dumps({"ok": True, "data": {"online_instance_cnt": count}}),
                        json.dumps({"apps": [{"app_id": "test-app", "running": running}]}),
                        json.dumps({"appId": "test-app"})]
-            with patch("desk_companion.feishu_agent._run_lark", side_effect=replies) as cli:
+            with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=replies) as cli:
                 result = self.gateway.check_connection("test-profile")
                 self.assertTrue(result["ok"])
                 self.assertEqual(result["count"], count)
                 self.assertEqual(result["local_running"], running)
                 self.assertEqual(cli.call_args_list[0].args[0][:2], ["--profile", "test-profile"])
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=RuntimeError("invalid_client test-only-secret")):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=RuntimeError("invalid_client test-only-secret")):
             result = self.gateway.check_connection("test-profile")
             self.assertFalse(result["ok"])
             self.assertIn("App Secret 无效", result["error"])
@@ -339,7 +341,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_identity_uses_selected_profile_and_not_the_global_default(self):
         values = [{"profile": "dedicated", "appId": "test-app"}, {"appId": "test-app", "identities": {
             "bot": {"available": True, "verified": True}, "user": {"available": True, "openId": "ou_owner"}}}]
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]) as cli:
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]) as cli:
             self.assertEqual(identify("dedicated")["profile"], "dedicated")
             self.assertTrue(all(call.args[0][:2] == ["--profile", "dedicated"] for call in cli.call_args_list))
 
@@ -349,7 +351,7 @@ class FeishuAgentTests(unittest.TestCase):
             values = [{"profile": "test-profile", "appId": "test-app"}, {"identities": {
                 "bot": {"available": False, "verified": False, "message": message},
                 "user": {"available": True, "openId": "ou_owner"}}}]
-            with self.subTest(message=message), patch("desk_companion.feishu_agent._run_lark",
+            with self.subTest(message=message), patch("desk_companion.integrations.feishu.feishu_agent._run_lark",
                     side_effect=[json.dumps(row) for row in values]):
                 with self.assertRaisesRegex(RuntimeError, "App Secret 无效.*长连接设置"):
                     identify("test-profile")
@@ -357,7 +359,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_bot_error_does_not_echo_untrusted_cli_message(self):
         values = [{"profile": "test-profile", "appId": "test-app"}, {"identities": {
             "bot": {"available": False, "verified": False, "message": "invalid_client private-secret"}}}]
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]):
             with self.assertRaises(RuntimeError) as failure:
                 identify("test-profile")
         self.assertNotIn("private-secret", str(failure.exception))
@@ -370,8 +372,8 @@ class FeishuAgentTests(unittest.TestCase):
                 gateway = FeishuAgent(self.host)
                 (self.root / "feishu_agent.json").write_text(json.dumps({"profile": "test-profile",
                     "auto_reconnect": reconnect, "retry_min": 7, "retry_max": 60}), encoding="utf-8")
-                with patch("desk_companion.feishu_agent.identify", return_value=BINDING.copy()), \
-                     patch("desk_companion.feishu_agent._lark_cmd", return_value=[sys.executable, str(stub)]), \
+                with patch("desk_companion.integrations.feishu.feishu_agent.identify", return_value=BINDING.copy()), \
+                     patch("desk_companion.integrations.feishu.feishu_agent._lark_cmd", return_value=[sys.executable, str(stub)]), \
                      patch.object(gateway._stop, "wait", return_value=True) as wait:
                     try:
                         gateway.enable()
@@ -388,7 +390,7 @@ class FeishuAgentTests(unittest.TestCase):
     def test_transient_bot_verification_has_safe_retryable_reason(self):
         values = [{"profile": "test-profile", "appId": "test-app"}, {"identities": {
             "bot": {"available": False, "verified": False, "message": "verify failed: TLS timeout private-secret"}}}]
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=[json.dumps(row) for row in values]):
             with self.assertRaises(ConnectionFailure) as failure:
                 identify("test-profile")
         self.assertTrue(failure.exception.retryable)
@@ -402,7 +404,7 @@ class FeishuAgentTests(unittest.TestCase):
         config.update(profile="test-profile", retry_min=1, retry_max=4)
         (self.root/"feishu_agent.json").write_text(json.dumps(config))
         ready = threading.Event()
-        with patch("desk_companion.feishu_agent.identify", side_effect=[classify("TLS timeout"), BINDING.copy()]) as identity, \
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", side_effect=[classify("TLS timeout"), BINDING.copy()]) as identity, \
              patch.object(self.gateway, "_start", side_effect=ready.set):
             self.gateway.autostart()
             self.assertEqual(self.gateway.status()["state"], "reconnecting")
@@ -415,7 +417,7 @@ class FeishuAgentTests(unittest.TestCase):
 
     def test_identity_retry_can_be_cancelled_and_never_changes_owner(self):
         self.gateway._save(True)
-        with patch("desk_companion.feishu_agent.identify", side_effect=classify("network failed")) as identity, \
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", side_effect=classify("network failed")) as identity, \
              patch.object(self.gateway, "_start") as start:
             self.gateway.enable()
             self.gateway.stop()
@@ -426,7 +428,7 @@ class FeishuAgentTests(unittest.TestCase):
         self.assertFalse(json.loads((self.root/"feishu_agent.json").read_text(encoding="utf-8"))["enabled"])
 
     def test_permanent_credentials_do_not_retry_or_echo_cli_secrets(self):
-        with patch("desk_companion.feishu_agent.identify", side_effect=classify("invalid_client private-secret")), \
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", side_effect=classify("invalid_client private-secret")), \
              patch.object(self.gateway, "_start") as start:
             with self.assertRaisesRegex(ConnectionFailure, "App Secret 无效"):
                 self.gateway.enable()
@@ -440,7 +442,7 @@ class FeishuAgentTests(unittest.TestCase):
         config=json.loads((self.root/"feishu_agent.json").read_text(encoding="utf-8"))
         config.update(profile="test-profile", retry_min=1, retry_max=4)
         (self.root/"feishu_agent.json").write_text(json.dumps(config))
-        with patch("desk_companion.feishu_agent.identify", side_effect=[classify("network failed"), {**BINDING, "owner_id": "ou_other"}]), \
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", side_effect=[classify("network failed"), {**BINDING, "owner_id": "ou_other"}]), \
              patch.object(self.gateway, "_start") as start:
             self.gateway.enable()
             self.gateway._identity_retry.join(3)
@@ -456,8 +458,8 @@ class FeishuAgentTests(unittest.TestCase):
             "if n==1:\n print(json.dumps({'ok':False,'error':{'type':'network','message':'TLS timeout private-secret'}}),file=sys.stderr,flush=True)\n sys.exit(1)\n" +
             f"print('[event] ready event_key={EVENT_KEY}',file=sys.stderr,flush=True)\nsys.stdin.read()\n", "utf-8")
         (self.root/"feishu_agent.json").write_text(json.dumps({"retry_min":1,"retry_max":4}))
-        with patch("desk_companion.feishu_agent.identify", return_value=BINDING.copy()), \
-             patch("desk_companion.feishu_agent._lark_cmd", return_value=[sys.executable,str(stub)]), \
+        with patch("desk_companion.integrations.feishu.feishu_agent.identify", return_value=BINDING.copy()), \
+             patch("desk_companion.integrations.feishu.feishu_agent._lark_cmd", return_value=[sys.executable,str(stub)]), \
              patch.object(self.gateway,"_consume_menu"):
             self.gateway.enable()
             self.assertTrue(self.gateway._ready.wait(5))
@@ -471,7 +473,7 @@ class FeishuAgentTests(unittest.TestCase):
         values=[{"ok":True,"data":{"online_instance_cnt":0}},
                 {"apps":[{"app_id":"other-app","running":True},{"app_id":"test-app","running":False}]},
                 {"appId":"test-app"}]
-        with patch("desk_companion.feishu_agent._run_lark", side_effect=[json.dumps(v) for v in values]):
+        with patch("desk_companion.integrations.feishu.feishu_agent._run_lark", side_effect=[json.dumps(v) for v in values]):
             self.assertFalse(self.gateway.check_connection("test-profile")["local_running"])
 
 

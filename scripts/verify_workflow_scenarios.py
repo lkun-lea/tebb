@@ -50,7 +50,7 @@ def verify_outputs(ident,run):
         proof.update(actual_subtitles=bool(source['text'].strip()),notes_present=bool(note.strip()),coverage_disclosed=source['complete']or any(w in note for w in ('缺口','不完整','部分','节选','截断')),
                      has_time_reference=bool(__import__('re').search(r'\d{1,2}:\d{2}',note)))
     else:
-        from desk_companion.workflow_nodes import reconcile,cli
+        from desk_companion.automation.workflow_nodes import reconcile, cli
         node=run['graph']['nodes'][-1];receipt=receipts[node['id']];field={'document':'document_id','base':'record_id','message':'message_id'}[node['kind']]
         cfg=receipt['input'];remote=reconcile(node['kind'],cfg,receipt['receipt_key'],receipt['output'].get(field,''))
         proof['remote_receipt_matched']=remote[field]==receipt['output'][field]
@@ -69,8 +69,8 @@ def verify_outputs(ident,run):
 
 async def run_cases(args,profile,port,token,report,save):
     from websockets.asyncio.client import connect
-    from desk_companion import agent_debug
-    from desk_companion.workflows import WorkflowStore
+    from desk_companion.observability import agent_debug
+    from desk_companion.automation.workflows import WorkflowStore
     async def rpc(method,**params):
         async with connect(f'ws://127.0.0.1:{port}/ws?token={token}',proxy=None) as ws:
             await ws.send(json.dumps(dict(type='rpc',id='scenario',method=method,args=params)))
@@ -131,15 +131,16 @@ def main():
     args.output=args.output.resolve()
     if args.output.exists():parser.error('--output must be a new directory; previous results are preserved')
     args.output.mkdir(parents=True);profile=args.output/'private-profile';profile.mkdir()
-    from desk_companion.paths import data_root
-    from desk_companion.model_catalog import require_active
+    from desk_companion.infrastructure.paths import data_root
+    from desk_companion.models.model_catalog import require_active
     original=data_root();model=require_active();env_before=os.environ.get('DESK_COMPANION_DATA_DIR')
     selected={k:model[k] for k in ('id','model','base_url','api_key')}
     sensitive=[]
     def copy_file(source,destination):
         if source.is_file():destination.parent.mkdir(parents=True,exist_ok=True);sensitive.append(destination);shutil.copyfile(source,destination)
     report=dict(schema_version=1,model=model['model'],cases=[],max_model_calls_for_examples=2*('tech-news'in args.case)+('video-notes'in args.case),source_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT).decode().strip())
-    evidence=['scripts/verify_workflow_scenarios.py',*[f'desk_companion/{name}.py' for name in ('workflow_templates','workflow_nodes','workflow_worker','workflows','news','video','tasks','execution_context')]]
+    evidence=['scripts/verify_workflow_scenarios.py','desk_companion/automation/workflow_templates.py', 'desk_companion/automation/workflow_nodes.py', 'desk_companion/automation/workflow_worker.py', 'desk_companion/automation/workflows.py', 'desk_companion/content/news/service.py', 'desk_companion/content/video/sources.py', 'desk_companion/tasks/manager.py', 'desk_companion/collaboration/execution_context.py']
+    evidence.extend(['desk_companion/collaboration/store.py','desk_companion/infrastructure/storage.py','desk_companion/infrastructure/paths.py'])
     report['source_snapshot']={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in evidence}
     def save():(args.output/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),'utf-8')
     token=secrets.token_hex(24)
@@ -175,8 +176,8 @@ def main():
                 process.wait(timeout=25)
         finally:
             for path in sensitive:path.unlink(missing_ok=True)
-            from desk_companion import agent_debug
-            from desk_companion.agent_eval_lifecycle import worker_alive
+            from desk_companion.observability import agent_debug
+            from desk_companion.evaluation.agent_eval_lifecycle import worker_alive
             calls=agent_debug.listing()['items'] if os.environ.get('DESK_COMPANION_DATA_DIR')==str(profile) else []
             report['cleanup']=dict(credentials_removed=all(not p.exists() for p in sensitive),backend_stopped=process is None or process.poll() is not None,observed_workers_exited=all(not worker_alive(c) for c in calls));save()
             if env_before is None:os.environ.pop('DESK_COMPANION_DATA_DIR',None)

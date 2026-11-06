@@ -10,8 +10,8 @@ import time
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from desk_companion.resource_lock import lock_filename
-from desk_companion.runtime_instance import RUNTIME_LOCK_NAME
+from desk_companion.infrastructure.resource_lock import lock_filename
+from desk_companion.infrastructure.runtime_instance import RUNTIME_LOCK_NAME
 from scripts.release_audit import audit
 from scripts.bundle_release import write_checksums,release_binary,binary_identity,payload_files,payload_hashes,write_archive
 from scripts.capture_installer_binary import PORTABLE_MARKER,NSIS_MARKER

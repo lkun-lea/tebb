@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from desk_companion.collaboration_stream import ReportText, RouteText
+from desk_companion.collaboration.collaboration_stream import ReportText, RouteText
 
 
 class PublicStreamTests(unittest.TestCase):

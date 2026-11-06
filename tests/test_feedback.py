@@ -1,13 +1,13 @@
 import json
 import unittest
 
-from desk_companion import feedback
-from desk_companion.web_sources import source_catalog,render_citations,check_citations
+from desk_companion.collaboration import feedback
+from desk_companion.integrations.web.web_sources import source_catalog, render_citations, check_citations
 
 
 class FeedbackTests(unittest.TestCase):
     def test_review_does_not_mix_superseded_source_versions(self):
-        from desk_companion.feedback_review import material
+        from desk_companion.collaboration.feedback_review import material
         old=dict(kind='page',level='body',url='https://example.org/source',text='Old version permits online use.',snapshot_id='a'*32,sha256='1'*64)
         current={**old,'text':'Current version permits offline use only.','snapshot_id':'b'*32,'sha256':'2'*64}
         rows=material('check current limits','draft',[old,current],[])
@@ -15,8 +15,8 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(body['segments'],[current['text']])
 
     def test_complete_json_citations_are_data_even_without_an_inferred_format_contract(self):
-        from desk_companion.delivery_feedback import assess
-        from desk_companion.json_document import json_answer
+        from desk_companion.collaboration.delivery_feedback import assess
+        from desk_companion.infrastructure.json_document import json_answer
         source=dict(level='body',url='https://example.org/rfc',text='RFC 8259 published in 2017.')
         ident=source_catalog([source])[0]['id']
         goal='实际读取头部，只返回JSON number/year/citation。'
@@ -36,7 +36,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(rendered,example)
 
     def test_wire_references_preserve_exact_whitespace_and_cannot_invent_source(self):
-        from desk_companion.feedback_review import review,excerpt_packet,material
+        from desk_companion.collaboration.feedback_review import review, excerpt_packet, material
         source=dict(level='body',url='https://example.org/fact',text='    .test\n\t.example\n  observed in 2020.')
         packet,registry=excerpt_packet(material('read','2020',[source],[]))
         body=packet[-1];ident=body['excerpts'][0]['id']
@@ -51,14 +51,14 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(review('read','2020',[source],[],call([dict(source_id=body['id'],quote=source['text'])]))[0]['status'],'unknown')
 
     def test_excerpt_packet_never_joins_unread_segments(self):
-        from desk_companion.feedback_review import excerpt_packet
+        from desk_companion.collaboration.feedback_review import excerpt_packet
         packet,registry=excerpt_packet([dict(id='actual',level='body',segments=['A'*700,'B'*200])])
         self.assertEqual([len(e['text'])for e in packet[0]['excerpts']],[600,100,200])
         self.assertEqual(packet[0]['excerpts'][-1]['id'],'E0.1.0')
         self.assertFalse(any('A'in e['quote']and 'B'in e['quote']for e in registry.values()))
 
     def test_invalid_review_dimension_keeps_unknown_and_reports_safe_repair_path(self):
-        from desk_companion.feedback_review import review
+        from desk_companion.collaboration.feedback_review import review
         item=dict(requirement='PRIVATE_CONTENT_NOT_FOR_DIAGNOSTIC',dimension='format/schema',status='supported',reason='checked',evidence=[])
         captured=[]
         def call(messages):
@@ -77,7 +77,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertNotIn('PRIVATE_CONTENT_NOT_FOR_DIAGNOSTIC',json.dumps(noisy))
 
     def test_review_rendering_stage_is_bound_to_actual_passed_provenance(self):
-        from desk_companion.feedback_review import review
+        from desk_companion.collaboration.feedback_review import review
         captured=[]
         def call(messages):
             captured.append(messages)
@@ -93,7 +93,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertNotIn('rendered_delivery',json.loads(captured[-1][1]['content']))
 
     def test_structured_review_submission_is_data_only_and_still_strict(self):
-        from desk_companion.feedback_review import review
+        from desk_companion.collaboration.feedback_review import review
         item=dict(requirement='return the given word',dimension='task_acceptance',status='supported',reason='matches provided input',evidence=['E0.0.0'])
         def call_for(name,items):
             return lambda _:dict(message=dict(tool_calls=[dict(function=dict(name=name,arguments=json.dumps(dict(requirements=items))))]))
@@ -237,7 +237,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertTrue(repair.allows('build_chart',dict(read_only=False)))
 
     def test_review_separates_real_source_and_supported_assertion(self):
-        from desk_companion.feedback_review import material,interpret
+        from desk_companion.collaboration.feedback_review import material, interpret
         sources=[dict(url='https://example.org/actual',level='body',text='The launch was in 2020.')]
         rows=material('When was launch?','It launched in 2019.',sources,[])
         ident=rows[-1]['id']
@@ -248,7 +248,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(interpret(dict(requirements=[item]),rows)[0]['status'],'unknown')
 
     def test_review_cannot_promote_snippet_or_quote_across_unread_gap(self):
-        from desk_companion.feedback_review import material,interpret
+        from desk_companion.collaboration.feedback_review import material, interpret
         sources=[dict(url='https://example.org/actual',level='body',text='first part',snapshot_id='snap',characters=100,read_ranges=[[0,10]],truncated=True),
                  dict(url='https://example.org/actual',level='body',text='last part',snapshot_id='snap',characters=100,read_ranges=[[90,100]],truncated=True)]
         rows=material('read whole','claim',sources,[]);ident=rows[-1]['id']
@@ -262,7 +262,7 @@ class FeedbackTests(unittest.TestCase):
 
 
     def test_actual_receipts_can_ground_observations_but_handoffs_are_not_body(self):
-        from desk_companion.feedback_review import material,interpret
+        from desk_companion.collaboration.feedback_review import material, interpret
         rows=material('run preview','ready',[],[dict(call_id='start',result=dict(service_ready=True))],
             [dict(id='child',answer='ready')])
         receipt=next(r for r in rows if r['level']=='actual_receipt')
@@ -273,8 +273,8 @@ class FeedbackTests(unittest.TestCase):
 
 
     def test_verified_project_observation_is_not_research_body(self):
-        from desk_companion.feedback_review import material,interpret
-        from desk_companion.delivery_feedback import assess
+        from desk_companion.collaboration.feedback_review import material, interpret
+        from desk_companion.collaboration.delivery_feedback import assess
         source=dict(kind='project_preview',level='service_preview',url='http://127.0.0.1:12345/',title='verified preview',scope='startup HTTP observation, not research body')
         rows=material('verify startup','verified',[source],[]);row=rows[-1]
         item=dict(requirement='startup observed',dimension='claim_support',status='supported',reason='recorded observation',evidence=[dict(source_id=row['id'],quote=row['segments'][0])])
@@ -284,7 +284,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertTrue(any(c['id']=='required_source_web'and c['status']=='fail'for c in checks))
 
     def test_child_goal_does_not_inherit_root_output_format(self):
-        from desk_companion.delivery_feedback import assess
+        from desk_companion.collaboration.delivery_feedback import assess
         req=dict(text='只输出JSON对象。',objective='最终用Markdown段落。',parent_run='actual-parent',stage='deliver',collab_run='child')
         _,checks,_=assess(req,'plain text',[],dict(complete=True,missing=[]),[])
         self.assertTrue(any(c['id']=='output_format'and c['status']=='fail'for c in checks))

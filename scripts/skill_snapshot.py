@@ -14,7 +14,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 
 def read_lock(path=None):
-    from desk_companion.skill_catalog import validate_source_manifest
+    from desk_companion.integrations.skill_catalog import validate_source_manifest
     lock=json.loads(Path(path or ROOT/'skills-source.json').read_text('utf-8'))
     return validate_source_manifest(lock)
 

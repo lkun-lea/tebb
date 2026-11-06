@@ -6,8 +6,9 @@ import time
 import unittest
 from unittest.mock import patch
 
-from desk_companion import video, video_login
-from desk_companion.video_worker import retrieve
+from desk_companion.content.video import sources as video
+from desk_companion.content.video import login as video_login
+from desk_companion.content.video.worker import retrieve
 
 
 def cookie(domain=".bilibili.com", name="SESSDATA", expiry=0):
@@ -30,9 +31,9 @@ class LoginTests(unittest.TestCase):
         self.assertNotIn("test-private-cookie", json.dumps(result))
         self.assertNotIn("test-private-cookie", video_login.path("Bilibili").read_text())
         self.assertEqual(video_login.cookies("Bilibili"), [cookie()])
-        with patch("desk_companion.video_login.time.time", return_value=time.time() + 30):
+        with patch("desk_companion.content.video.login.time.time", return_value=time.time() + 30):
             video_login.save("Bilibili", [cookie(expiry=int(time.time()) + 60)])
-        with patch("desk_companion.video_login.time.time", return_value=time.time() + 90):
+        with patch("desk_companion.content.video.login.time.time", return_value=time.time() + 90):
             self.assertEqual(video_login.status()["items"][0]["state"], "expired")
             self.assertEqual(video_login.cookies("Bilibili"), [])
         video_login.clear("Bilibili")

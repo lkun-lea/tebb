@@ -6,7 +6,9 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from desk_companion import local_sources, material_sources as sources, project_workspace
+from desk_companion.knowledge import local_sources
+from desk_companion.knowledge import material_sources as sources
+from desk_companion.projects import project_workspace
 
 
 class MaterialSourcesTests(unittest.TestCase):

@@ -10,11 +10,14 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from desk_companion import context_pack, facts, memory, state
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.conversation import ConversationService
-from desk_companion.memory_editing import MemoryEditingService
-from desk_companion.tasks import TaskManager
+from desk_companion.memory import context_pack
+from desk_companion.memory import facts
+from desk_companion.memory import history as memory
+from desk_companion.infrastructure import state
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.chat.conversation import ConversationService
+from desk_companion.memory.memory_editing import MemoryEditingService
+from desk_companion.tasks.manager import TaskManager
 
 
 class MemoryFixture(unittest.TestCase):
@@ -229,8 +232,8 @@ assert result.wasSuccessful()
 
 class CompatibilityTests(MemoryFixture):
     def test_old_app_and_bridge_use_shared_editor(self):
-        from desk_companion.app import App
-        from desk_companion.bridge import Bridge
+        from desk_companion.desktop.app import App
+        from desk_companion.local_api.bridge import Bridge
         app = App.__new__(App)
         app.memory_editing = self.editor
         bridge = Bridge(app)

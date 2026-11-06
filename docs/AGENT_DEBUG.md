@@ -364,7 +364,7 @@ $env:PYTHONUTF8 = '1'
 import os, tempfile, uuid
 with tempfile.TemporaryDirectory() as root:
     os.environ['DESK_COMPANION_DATA_DIR'] = root
-    from desk_companion.work_board import WorkBoardService
+    from desk_companion.planning.work_board import WorkBoardService
     service = WorkBoardService()
     request = dict(type='create', request_id=uuid.uuid4().hex,
                    fields=dict(title='隔离验收事项', priority='high', due='2026-10-25'))
@@ -406,8 +406,8 @@ $env:PYTHONUTF8 = '1'
 import os, tempfile, uuid
 with tempfile.TemporaryDirectory() as root:
     os.environ['DESK_COMPANION_DATA_DIR'] = root
-    from desk_companion.work_board import WorkBoardService
-    from desk_companion.scheduling import SchedulingService
+    from desk_companion.planning.work_board import WorkBoardService
+    from desk_companion.planning.scheduling import SchedulingService
     from tests.schedule_fixture import FakeCalendar, DAY, START, END
     board = WorkBoardService()
     item = board.change(dict(type='create', request_id=uuid.uuid4().hex,
@@ -467,8 +467,8 @@ Remove-Item Env:DESK_TEST_ATLAS_SOURCE
 ```powershell
 @'
 import os, tempfile, uuid
-from desk_companion.scheduling import SchedulingService
-from desk_companion.work_board import WorkBoardService
+from desk_companion.planning.scheduling import SchedulingService
+from desk_companion.planning.work_board import WorkBoardService
 from tests.schedule_fixture import DAY, START, END, TimeCalendar
 with tempfile.TemporaryDirectory() as data:
     os.environ['DESK_COMPANION_DATA_DIR'] = data

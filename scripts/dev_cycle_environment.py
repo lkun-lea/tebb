@@ -191,7 +191,7 @@ rows=[]
 for name in sorted({p.stem for p in root.glob('*.py')} | {p.name for p in root.iterdir() if p.is_dir() and ((p/'__init__.py').exists() or any(p.glob('*.py')))}):
     spec=importlib.util.find_spec(name)
     rows.append(dict(module=name,origin=spec.origin if spec else None,paths=list(spec.submodule_search_locations or []) if spec else []))
-for name in ['desk_companion.tasks'] if (root/'desk_companion/tasks.py').exists() else []:
+for name in ['desk_companion.tasks.manager'] if (root/'desk_companion/tasks/manager.py').exists() else []:
     module=importlib.import_module(name)
     rows.append(dict(module=name,origin=module.__file__))
 try:importlib.metadata.distribution('pywin32');has_pywin32=True

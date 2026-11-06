@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion.development_replay import native_replay
-from desk_companion.development_team import snapshot, register_native
+from desk_companion.evaluation.development_replay import native_replay
+from desk_companion.evaluation.development_team import snapshot, register_native
 
 
 class NativeReplayTests(unittest.TestCase):

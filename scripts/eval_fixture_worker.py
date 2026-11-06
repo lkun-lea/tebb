@@ -5,8 +5,8 @@ import sys
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from desk_companion.agent_eval_tools import FIXTURE_BODY,FIXTURE_URL
-from desk_companion.task_worker import main
+from desk_companion.evaluation.agent_eval_tools import FIXTURE_BODY, FIXTURE_URL
+from desk_companion.tasks.worker import main
 
 
 def fetch_page(url, *, on_body=None):
@@ -21,5 +21,5 @@ def fetch_page(url, *, on_body=None):
 if __name__=='__main__':
     # Only fixture-mode TaskManager uses this entry. Live uses its normal command.
     # PageReader still creates/loads scoped snapshots; no model loop is replaced.
-    with patch('desk_companion.web_snapshots.fetch_page',fetch_page),patch('desk_companion.web_search.search_sources',return_value='合成搜索结果：'+FIXTURE_URL):
+    with patch('desk_companion.integrations.web.web_snapshots.fetch_page',fetch_page),patch('desk_companion.integrations.web.web_search.search_sources',return_value='合成搜索结果：'+FIXTURE_URL):
         main()

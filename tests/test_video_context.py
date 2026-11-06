@@ -1,7 +1,7 @@
 """字幕分页与补充检索不能在生成笔记前被通用压缩截成 200 字。"""
 import json
 import unittest
-from desk_companion.execution_context import ContextAdmissionError,prepare_request
+from desk_companion.collaboration.execution_context import ContextAdmissionError, prepare_request
 
 
 def tool_pair(name, text, number):

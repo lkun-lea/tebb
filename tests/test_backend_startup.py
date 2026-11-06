@@ -24,7 +24,7 @@ class NoNetworkStack(importlib.abc.MetaPathFinder):
         if fullname == 'httpx' or fullname.startswith('httpx.'):
             raise AssertionError('HTTPX loaded before any network operation')
 sys.meta_path.insert(0, NoNetworkStack())
-runpy.run_module('desk_companion.account_server', run_name='__main__')
+runpy.run_module('desk_companion.bootstrap.account_server', run_name='__main__')
 '''
         with tempfile.TemporaryDirectory() as directory:
             with socket.socket() as listener:
@@ -69,15 +69,7 @@ runpy.run_module('desk_companion.account_server', run_name='__main__')
                         process.wait(timeout=5)
 
     def test_first_model_client_installs_trace_with_backend_metadata(self):
-        script = '''
-import sys
-from desk_companion import agent_debug, model_network
-agent_debug.configure_process({'channel': 'backend'})
-assert 'httpx' not in sys.modules
-with model_network.http_client(policy={'mode': 'system'}) as client:
-    assert client.send._desk_debug
-assert agent_debug.metadata()['channel'] == 'backend'
-'''
+        script = "\nimport sys\nfrom desk_companion.observability import agent_debug; from desk_companion.models import model_network\nagent_debug.configure_process({'channel': 'backend'})\nassert 'httpx' not in sys.modules\nwith model_network.http_client(policy={'mode': 'system'}) as client:\n    assert client.send._desk_debug\nassert agent_debug.metadata()['channel'] == 'backend'\n"
         result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True,
                                 cwd=Path(__file__).resolve().parents[1], timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)

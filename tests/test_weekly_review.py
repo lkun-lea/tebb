@@ -12,10 +12,13 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from desk_companion import board_data as b, automation, feishu_auth, feishu_docs
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.weekly_review import WeeklyReviewService
-from desk_companion.automation_service import AutomationService
+from desk_companion.planning import board_data as b
+from desk_companion.automation import schedule as automation
+from desk_companion.integrations.feishu import feishu_auth
+from desk_companion.integrations.feishu import feishu_docs
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.content.weekly_review import WeeklyReviewService
+from desk_companion.automation.automation_service import AutomationService
 
 
 NOW = datetime(2026, 10, 21, 12, tzinfo=b.TZ)
@@ -36,8 +39,8 @@ class ReviewFixture(unittest.TestCase):
         self.stack.enter_context(patch.object(b, 'week_range', return_value=(MONDAY, NOW)))
         self.stack.enter_context(patch.object(b, 'fetch_board', return_value=SECTIONS))
         self.materials = self.stack.enter_context(patch.object(b, 'fetch_week_feishu', return_value=SECTIONS))
-        self.github = self.stack.enter_context(patch('desk_companion.github.format_week_review_text', return_value='committed output'))
-        self.stack.enter_context(patch('desk_companion.skill_catalog.read_skill', return_value=dict(body='review rules')))
+        self.github = self.stack.enter_context(patch('desk_companion.integrations.github.client.format_week_review_text', return_value='committed output'))
+        self.stack.enter_context(patch('desk_companion.integrations.skill_catalog.read_skill', return_value=dict(body='review rules')))
         self.llm = SimpleNamespace(chat=Mock(return_value=dict(message=dict(content='new review'), usage=dict(total_tokens=5))))
         self.conversation = SimpleNamespace(running=False, agent=SimpleNamespace(llm=self.llm), agent_error='',
             state=SimpleNamespace(session_id='ordinary', persona='persona'), record_llm_usage=Mock())
@@ -133,14 +136,14 @@ class ReviewTests(ReviewFixture):
             self.assertEqual(b._read_today_file()['doc_url'], 'new day link')
 
     def test_save_before_and_after_replace_failure_never_claims_rollback(self):
-        from desk_companion.video import atomic_write
+        from desk_companion.infrastructure.storage import atomic_write
         for after in (False, True):
             self.seed()
             def write(path, value):
                 if after:
                     atomic_write(path, value)
                 raise OSError('lost write acknowledgement')
-            with patch('desk_companion.video.atomic_write', side_effect=write):
+            with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=write):
                 result = self.service.generate_week_review()
             self.assertEqual((result['stage'], result['change_state']), ('cache_save', 'unconfirmed'), result)
             self.assertEqual(result['summary'], 'new review')
@@ -222,7 +225,7 @@ class ReviewTests(ReviewFixture):
         self.assertNotEqual(b._read_today_file()['doc_url'], URL)
         self.open.assert_not_called()
         self.create.side_effect = None; self.seed()
-        with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+        with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
             result = self.service.write_today_summary_doc()
         self.assertEqual((result['remote_state'], result['cache_state']), ('confirmed', 'unconfirmed'), result)
         self.assertEqual(result['document_id'], 'created')
@@ -255,7 +258,7 @@ class ReviewTests(ReviewFixture):
         self.create.assert_called_once()
 
     def test_reservation_covers_materials_and_publication_without_holding_shared_locks(self):
-        from desk_companion.resource_lock import WRITES
+        from desk_companion.infrastructure.resource_lock import WRITES
         entered, release = threading.Event(), threading.Event()
         self.addCleanup(release.set)
         def fetch(*args):

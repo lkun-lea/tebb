@@ -12,10 +12,14 @@ import httpx
 from openai import OpenAI
 from atlas.llm import ChatOptions
 
-from desk_companion import facts, memory_selection as memory, memory_inspector as desk, agent_debug
-from desk_companion.collaboration import Collaboration, transaction
-from desk_companion.context_sources import Message, digest, manifest, at_boundary
-from desk_companion.execution_context import ExecutionLLM
+from desk_companion.memory import facts
+from desk_companion.memory import memory_selection as memory
+from desk_companion.memory import memory_inspector as desk
+from desk_companion.observability import agent_debug
+from desk_companion.collaboration.store import transaction
+from desk_companion.collaboration.service import Collaboration
+from desk_companion.memory.context_sources import Message, digest, manifest, at_boundary
+from desk_companion.collaboration.execution_context import ExecutionLLM
 
 MODEL=dict(id='fixture-model',model='fixture',base_url='https://model.invalid/v1',api_key='SECRET_CONNECTION')
 
@@ -37,7 +41,7 @@ class MemoryDeskTests(unittest.TestCase):
         self.root=Path(self.temp.name)
         p=patch.dict(os.environ,DESK_COMPANION_DATA_DIR=str(self.root));p.start();self.addCleanup(p.stop)
         for name,value in [('require_item',MODEL),('require_active',MODEL)]:
-            p=patch('desk_companion.model_catalog.'+name,return_value=value);p.start();self.addCleanup(p.stop)
+            p=patch('desk_companion.models.model_catalog.'+name,return_value=value);p.start();self.addCleanup(p.stop)
         (self.root/'models.json').write_text(json.dumps(dict(active=MODEL['id'],items=[MODEL])),encoding='utf-8')
         self.chat=Queue();self.work=Queue()
         self.collab=Collaboration(start=False,managers=dict(chat=self.chat,work=self.work))
@@ -123,7 +127,7 @@ class MemoryDeskTests(unittest.TestCase):
     def test_preview_uses_worker_assembly_without_model_task_or_business_write(self):
         self.save()
         before={str(p.relative_to(self.root)):p.read_bytes() for p in self.root.rglob('*') if p.is_file() and 'locks' not in p.parts}
-        with patch('desk_companion.task_budgets.Ledger.create',side_effect=AssertionError('preview writes budget')):
+        with patch('desk_companion.tasks.task_budgets.Ledger.create',side_effect=AssertionError('preview writes budget')):
             result=desk.preview(self.collab,self.sent())
         after={str(p.relative_to(self.root)):p.read_bytes() for p in self.root.rglob('*') if p.is_file() and 'locks' not in p.parts}
         self.assertEqual(before,after)
@@ -140,7 +144,7 @@ class MemoryDeskTests(unittest.TestCase):
             self.collab.action(dict(action,preview_revision=prepared['revision']))
             self.collab.tick()
             request=self.chat.requests[-1]
-            from desk_companion.collaboration_worker import _execute
+            from desk_companion.collaboration.collaboration_worker import _execute
             actual=_execute(request,lambda *_:None,Mock(),preview=True)
         self.assertEqual(json.dumps(prepared['request']['messages']),json.dumps(actual['messages']))
         self.assertEqual(prepared['request'].get('tools'),actual['tools'])
@@ -151,25 +155,25 @@ class MemoryDeskTests(unittest.TestCase):
         item=self.save();action=self.sent();preview=desk.preview(self.collab,action)
         self.save('已修改',id=item['id'],version=1)
         before=desk.read_state(self.collab)
-        with patch('desk_companion.task_budgets.Ledger.create',side_effect=AssertionError('stale preview side effect')):
+        with patch('desk_companion.tasks.task_budgets.Ledger.create',side_effect=AssertionError('stale preview side effect')):
             with self.assertRaisesRegex(ValueError,'变化'):
                 self.collab.action(dict(action,preview_revision=preview['revision']))
         self.assertEqual(desk.read_state(self.collab),before)
 
     def test_confirmed_account_profile_reaches_actual_worker_and_is_frozen_before_delete(self):
-        from desk_companion.account_store import AccountRuntime, account_key, profile_root
-        from desk_companion.personalization_store import PersonalizationStore
+        from desk_companion.accounts.account_store import AccountRuntime, account_key, profile_root
+        from desk_companion.accounts.personalization_store import PersonalizationStore
         owner='a0000000-0000-4000-8000-000000000001'
         key=account_key('https://profile.invalid',owner)
         home=self.root.resolve();store=PersonalizationStore(AccountRuntime(home,key,profile_root(home,key)))
         page=store.mutate(dict(type='save',request_id=str(uuid.uuid4()),confirmed=True,
             payload=dict(kind='preference',category='communication',text='ACCOUNT_PROFILE_先给结论',scope='user')))
         row=page['records'][0]
-        with patch('desk_companion.personalization.selected_items',store.selection_items):
+        with patch('desk_companion.accounts.personalization.selected_items',store.selection_items):
             prepared=desk.preview(self.collab,self.sent())
             self.collab.action(self.sent());self.collab.tick()
             request=self.chat.requests[-1]
-            from desk_companion.collaboration_worker import _execute
+            from desk_companion.collaboration.collaboration_worker import _execute
             actual=_execute(request,lambda *_:None,Mock(),preview=True)
             self.assertIn('ACCOUNT_PROFILE_先给结论',actual['messages'][0]['content'])
             source=request['memory_snapshot']['selected'][0]['source']
@@ -215,14 +219,14 @@ class MemoryDeskTests(unittest.TestCase):
         (agent_debug.root()/(call+'.meta.json')).unlink()
         with self.assertRaises(ValueError):desk.trial_material(self.collab,self.cid,call,{'unknown':None})
         (agent_debug.root()/(call+'.request.json')).unlink()
-        from desk_companion.context_inspector import inspect
+        from desk_companion.memory.context_inspector import inspect
         result=inspect(self.collab,self.cid,call)
         self.assertTrue(result['detail']['missing']);self.assertIsNone(result['detail']['request'])
 
     def test_corrupt_source_metadata_does_not_hide_existing_original_request(self):
         _,call,_=self.capture()
         (agent_debug.root()/(call+'.meta.json')).write_text('{incomplete',encoding='utf-8')
-        from desk_companion.context_inspector import inspect
+        from desk_companion.memory.context_inspector import inspect
         result=inspect(self.collab,self.cid,call)
         self.assertIsNotNone(result['detail']['request'])
         self.assertEqual(result['detail']['meta']['sources']['status'],'unknown')
@@ -264,7 +268,7 @@ class MemoryDeskTests(unittest.TestCase):
         model=Mock();model.chat.return_value=dict(message=dict(content='短回答'),usage={})
         context=Mock();context.__enter__=Mock(return_value=model);context.__exit__=Mock(return_value=False)
         before=facts.read_facts()
-        with patch('desk_companion.collaboration_llm.CollaborationLLM',return_value=context):
+        with patch('desk_companion.collaboration.collaboration_llm.CollaborationLLM',return_value=context):
             desk.execute_trial(dict(model_id=MODEL['id'],target_revision=digest({k:MODEL[k] for k in ('id','model','base_url')}),limits=dict(call_timeout=60),trial_messages=material['request']['messages'],original_call=call),lambda k,v:events.append((k,v)))
         self.assertEqual(model.chat.call_count,1);self.assertIsNone(model.chat.call_args.kwargs['tools'])
         self.assertEqual(facts.read_facts(),before)
@@ -272,7 +276,7 @@ class MemoryDeskTests(unittest.TestCase):
         self.assertEqual([k for k,_ in events].count('llm_start'),1)
         self.assertEqual([k for k,_ in events].count('llm_end'),1)
         events.clear();model.chat.side_effect=TimeoutError('synthetic timeout')
-        with patch('desk_companion.collaboration_llm.CollaborationLLM',return_value=context):
+        with patch('desk_companion.collaboration.collaboration_llm.CollaborationLLM',return_value=context):
             with self.assertRaises(TimeoutError):
                 desk.execute_trial(dict(model_id=MODEL['id'],target_revision=digest({k:MODEL[k] for k in ('id','model','base_url')}),limits=dict(call_timeout=60),trial_messages=material['request']['messages'],original_call=call),lambda k,v:events.append((k,v)))
         self.assertEqual([k for k,_ in events].count('llm_end'),1)
@@ -310,8 +314,8 @@ class MemoryDeskTests(unittest.TestCase):
         self.assertEqual(facts.read_facts(),[])
 
     def test_projection_preserves_ordinary_sources_and_unknown_boundaries_never_claim_memory_used(self):
-        from desk_companion.context_sources import carry
-        from desk_companion.assistant import build_system_message
+        from desk_companion.memory.context_sources import carry
+        from desk_companion.chat.assistant import build_system_message
         self.save()
         source=build_system_message('系统规则')
         projected=[dict(source)]
@@ -333,8 +337,8 @@ class MemoryDeskTests(unittest.TestCase):
         self.assertFalse(memory.select(self.scope)['selected'])
 
     def test_trial_source_offsets_survive_task_json_and_one_call_budget_has_no_finish_reserve(self):
-        from desk_companion.context_sources import restore
-        from desk_companion.task_budgets import Ledger
+        from desk_companion.memory.context_sources import restore
+        from desk_companion.tasks.task_budgets import Ledger
         item,call,_=self.capture()
         material=desk.trial_material(self.collab,self.cid,call,{item['id']:'试验文字比原文更长，用来核对来源位置和临时版本。'})
         serialized=json.loads(json.dumps(material,ensure_ascii=False))
@@ -369,35 +373,35 @@ class MemoryDeskTests(unittest.TestCase):
         prepared=desk.preview(self.collab,action)
         self.assertEqual(prepared['request']['temperature'],.8)
         self.assertEqual(prepared['request']['reasoning_effort'],'low')  # actual route policy
-        from desk_companion import model_capacity
+        from desk_companion.models import model_capacity
         model_capacity.save(MODEL['id'],10000,1000)
         with self.assertRaisesRegex(ValueError,'变化'):
             self.collab.action(dict(action,preview_revision=prepared['revision']))
         prepared=desk.preview(self.collab,action)
         changed=dict(action,sampling=dict(reasoning_effort='high',temperature=.1,top_p=.9),preview_revision=prepared['revision'])
         with self.assertRaisesRegex(ValueError,'变化'):self.collab.action(changed)
-        with patch('desk_companion.model_catalog.require_item',return_value={**MODEL,'base_url':'https://other.invalid/v1'}):
+        with patch('desk_companion.models.model_catalog.require_item',return_value={**MODEL,'base_url':'https://other.invalid/v1'}):
             with self.assertRaisesRegex(ValueError,'变化'):
                 self.collab.action(dict(action,preview_revision=prepared['revision']))
 
     def test_worker_refuses_changed_configuration_before_transport(self):
-        from desk_companion.execution_context import configuration_revision
-        from desk_companion.collaboration_llm import CollaborationLLM,ConfigurationChanged
+        from desk_companion.collaboration.execution_context import configuration_revision
+        from desk_companion.collaboration.collaboration_llm import CollaborationLLM, ConfigurationChanged
         revision=configuration_revision(MODEL)
         client=Mock()
         llm=CollaborationLLM(MODEL,{},20,client=client,expected_configuration_revision=revision)
-        with patch('desk_companion.model_catalog.require_item',return_value={**MODEL,'model':'changed-model'}):
+        with patch('desk_companion.models.model_catalog.require_item',return_value={**MODEL,'model':'changed-model'}):
             with self.assertRaises(ConfigurationChanged):llm.chat([dict(role='user',content='fixture')])
         self.assertIsNone(llm._llm);client.assert_not_called()
 
     def test_preview_reads_selected_skill_and_attachment_without_creating_a_task(self):
-        from desk_companion import local_sources
+        from desk_companion.knowledge import local_sources
         folder=self.root/'skills';(folder/'fixture').mkdir(parents=True)
         (folder/'fixture'/'SKILL.md').write_text('---\nname: fixture\ndescription: synthetic selected skill\n---\n合成技能正文末尾。',encoding='utf-8')
         document=self.root/'synthetic.md';document.write_text('合成附件正文末尾。',encoding='utf-8')
         source=local_sources.stage([str(document)])['sources'][0]
         action=dict(self.sent(),skills=['fixture'],attachments=[source['id']])
-        with patch('desk_companion.skill_catalog.SKILLS_DIR',folder):
+        with patch('desk_companion.integrations.skill_catalog.SKILLS_DIR',folder):
             prepared=desk.preview(self.collab,action)
         content=json.dumps(prepared['request']['messages'],ensure_ascii=False)
         self.assertIn('合成技能正文末尾',content);self.assertIn('合成附件正文末尾',content)

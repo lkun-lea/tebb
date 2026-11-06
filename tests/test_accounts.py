@@ -13,10 +13,10 @@ from uuid import uuid4
 
 import httpx
 
-from desk_companion.account_auth import AccountAuth
-from desk_companion.account_store import AccountStore, AccountRuntime, WindowsAccountCipher, account_key, profile_root
-from desk_companion.accounts import AccountService
-from desk_companion.personalization_cloud import CloudError
+from desk_companion.accounts.account_auth import AccountAuth
+from desk_companion.accounts.account_store import AccountStore, AccountRuntime, WindowsAccountCipher, account_key, profile_root
+from desk_companion.accounts.service import AccountService
+from desk_companion.accounts.personalization_cloud import CloudError
 
 A='a0000000-0000-4000-8000-000000000001'
 B='b0000000-0000-4000-8000-000000000002'

@@ -32,7 +32,7 @@
 
 **验收**：B-READY-01/02成对比较相同7+11目标：auto聊天可直接答；显式执行须真实派发并在原根完成。再覆盖缺参继续追问、错误表单、重启恢复、口头“已执行”零工具仍拒绝。原 `clarify_resume_root` 保持不变，预定3个真实样本分别记录。
 
-代码位置：[执行入口](../desk_companion/collaboration.py)、[生命周期评测](../desk_companion/agent_eval_lifecycle.py)、[route及纠正分支](../desk_companion/collaboration_worker.py)。具体定位：create_execution约441行、require_execution约459行，worker route定义约247行、正文门槛约716行；以当前提交为准。
+代码位置：[执行入口](../desk_companion/collaboration/service.py)、[生命周期评测](../desk_companion/evaluation/agent_eval_lifecycle.py)、[route及纠正分支](../desk_companion/collaboration/collaboration_worker.py)。具体定位：create_execution约441行、require_execution约459行，worker route定义约247行、正文门槛约716行；以当前提交为准。
 
 ## 2. 并行研究：原始提交与显示成品没有分清
 
@@ -50,7 +50,7 @@ legacy的审阅 `f8f63fa3e15046b5960fdd90c5de8a03` 与再次审阅 `e3626c07de26
 
 **验收**：同一真实正确候选的原始/渲染阶段应得到一致事实结论；对象/数组/完整JSON围栏的键和值不因引用编译改变。伪source_id、未读URL、错误年份、snippet冒充body、跨run来源、代码示例中的编号都保留拒绝或不渲染边界。先用本轮保留数据零调用复核确定性部分，再对legacy与Atlas各3个真实样本同时测，保留原两项失败。
 
-代码位置：[引用编译](../desk_companion/delivery_feedback.py)约20行、[共同审阅payload](../desk_companion/feedback_review.py)约111–119行、[worker收尾](../desk_companion/collaboration_worker.py)约724–756行。通用Atlas工具循环无需为本产品引用规则增加第二套实现。
+代码位置：[引用编译](../desk_companion/collaboration/delivery_feedback.py)约20行、[共同审阅payload](../desk_companion/collaboration/feedback_review.py)约111–119行、[worker收尾](../desk_companion/collaboration/collaboration_worker.py)约724–756行。通用Atlas工具循环无需为本产品引用规则增加第二套实现。
 
 ## 3. 日程提案：缺少产品阶段验收，不是已经证实界面有错
 
@@ -66,7 +66,7 @@ legacy的审阅 `f8f63fa3e15046b5960fdd90c5de8a03` 与再次审阅 `e3626c07de26
 
 **验收**：B-CAL-01/02/03/04和J-03覆盖真实表单、明确保存一次、consumed/unknown不重建、篡改来源拒绝。模型题检查字段/引用实际回执和保存前零写入；真实GUI检查按钮、可编辑性、取消与重开。禁用提案能力、自由正文假提案、归档事项、缺失保存回执全部保留反例。原题完整保留，改动题意时另立契约，不回填本轮分数。
 
-代码位置：[提案领域](../desk_companion/calendar_proposals.py)、[通用交付检查](../desk_companion/delivery_feedback.py)、[评测独立验真](../desk_companion/agent_eval_tools.py)约172–180行，以及 `client/tests/calendar-proposal.test.cjs`。现有 [提案文档](CALENDAR_PROPOSALS.md)曾记录隔离真实UI验收，但不等于本轮运行了GUI，也不保证任意新代码版本已通过。
+代码位置：[提案领域](../desk_companion/planning/calendar_proposals.py)、[通用交付检查](../desk_companion/collaboration/delivery_feedback.py)、[评测独立验真](../desk_companion/evaluation/agent_eval_tools.py)约172–180行，以及 `client/tests/calendar-proposal.test.cjs`。现有 [提案文档](CALENDAR_PROPOSALS.md)曾记录隔离真实UI验收，但不等于本轮运行了GUI，也不保证任意新代码版本已通过。
 
 ## 实施顺序和验证边界
 

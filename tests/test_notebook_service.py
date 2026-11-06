@@ -9,9 +9,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from desk_companion import knowledge, notebook
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.notebook_service import NotebookService
+from desk_companion.knowledge import index as knowledge
+from desk_companion.knowledge import notebook
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.knowledge.notebook_service import NotebookService
 
 
 CITES = [dict(n=1, doc='source', title='section', text='source text', doc_id='doc-1')]
@@ -146,15 +147,15 @@ class NotebookTests(NotebookFixture):
         self.assertFalse(list(notebook._path().parent.glob('*.tmp')))
 
     def test_failure_after_replace_reports_uncertainty_with_recoverable_identity(self):
-        from desk_companion import video
+        from desk_companion.infrastructure import storage
         sid = self.new()
-        write = video.atomic_write
+        write = storage.atomic_write
 
         def write_then_fail(path, value):
             write(path, value)
             raise OSError('completion not acknowledged')
 
-        with patch.object(video, 'atomic_write', side_effect=write_then_fail):
+        with patch.object(storage, 'atomic_write', side_effect=write_then_fail):
             result = self.service.save_notebook_note(sid, 'question', 'answer', CITES)
         self.assertEqual(result['change_state'], 'unconfirmed', result)
         self.assertEqual(notebook._read()['sessions'][0]['notes'][0]['id'], result['note_id'])
@@ -276,8 +277,8 @@ class NotebookProcessTests(NotebookFixture):
 
 class NotebookDesktopCompatibilityTests(NotebookFixture):
     def test_bridge_uses_service_and_app_facade_has_no_spurious_gui_refresh(self):
-        from desk_companion.app import App
-        from desk_companion.bridge import Bridge
+        from desk_companion.desktop.app import App
+        from desk_companion.local_api.bridge import Bridge
         app = App.__new__(App)
         app.conversation = self.conversation
         app.chat_sessions = self.sessions

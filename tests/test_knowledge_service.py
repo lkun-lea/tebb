@@ -14,9 +14,11 @@ import unittest
 from unittest.mock import Mock, patch
 
 from atlas.testing import FakeLLM
-from desk_companion import knowledge as k, local_sources, notebook
-from desk_companion.chat_sessions import ChatSessionService
-from desk_companion.knowledge_service import KnowledgeService
+from desk_companion.knowledge import index as k
+from desk_companion.knowledge import local_sources
+from desk_companion.knowledge import notebook
+from desk_companion.chat.chat_sessions import ChatSessionService
+from desk_companion.knowledge.knowledge_service import KnowledgeService
 
 
 class KnowledgeFixture(unittest.TestCase):
@@ -109,7 +111,7 @@ class KnowledgeServiceTests(KnowledgeFixture):
 
     def test_atomic_write_refresh_and_partial_delete_have_distinct_receipts(self):
         settings = k.default_settings()
-        with patch('desk_companion.video.atomic_write', side_effect=OSError('disk')):
+        with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('disk')):
             result = self.service.save_knowledge(settings)
         self.assertEqual((result['stage'], result['change_state']), ('settings_save', 'unconfirmed'))
         with patch.object(k, 'public_view', side_effect=OSError('page')):
@@ -144,7 +146,7 @@ class KnowledgeServiceTests(KnowledgeFixture):
             self.assertFalse(result['ok'], result)
             self.assertIn('变化', result['error'])
         self.assertEqual(k._read_index()['docs'][0]['title'], 'concurrent title')
-        with patch('desk_companion.video.atomic_write', side_effect=OSError('replace')):
+        with patch('desk_companion.infrastructure.storage.atomic_write', side_effect=OSError('replace')):
             result = self.service.delete_knowledge(doc_id)
         self.assertEqual(result['change_state'], 'unconfirmed')
         self.assertEqual(len(k._read_index()['docs']), 1)
@@ -271,7 +273,7 @@ class KnowledgeServiceTests(KnowledgeFixture):
             self.assertEqual(len(instances), 2)
 
     def test_real_process_model_leases_release_on_process_exit(self):
-        code = "from desk_companion.knowledge import _model_access; import sys;\nwith _model_access(sys.argv[1]):\n print('ready',flush=True); sys.stdin.readline()"
+        code = "from desk_companion.knowledge.index import _model_access; import sys;\nwith _model_access(sys.argv[1]):\n print('ready',flush=True); sys.stdin.readline()"
         process = subprocess.Popen([sys.executable, '-u', '-c', code, self.repo],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
@@ -341,26 +343,7 @@ assert_no_gui()
 
     def test_cross_process_same_local_source_has_one_atomic_commit(self):
         original = self.root / 'shared.md'; original.write_text('shared source')
-        code = '''
-import os, sys, time
-from pathlib import Path
-from unittest.mock import patch
-from desk_companion import knowledge as k, local_sources
-root = Path(os.environ['DESK_COMPANION_DATA_DIR'])
-source = local_sources.stage([str(root/'shared.md')])['sources'][0]
-def embed(texts):
- (root/(sys.argv[1]+'.ready')).touch()
- deadline=time.monotonic()+15
- while not (root/'go').exists():
-  if time.monotonic()>deadline: raise RuntimeError('timeout')
-  time.sleep(.01)
- return [[1.,0.] for _ in texts]
-with patch.object(k,'_require_models'), patch.object(k,'_embed',side_effect=embed):
- try:
-  k.add_doc('local:'+source['id'],'shared')
-  print('committed')
- except RuntimeError as exc: print('refused',str(exc))
-'''
+        code = "\nimport os, sys, time\nfrom pathlib import Path\nfrom unittest.mock import patch\nfrom desk_companion.knowledge import index as k; from desk_companion.knowledge import local_sources\nroot = Path(os.environ['DESK_COMPANION_DATA_DIR'])\nsource = local_sources.stage([str(root/'shared.md')])['sources'][0]\ndef embed(texts):\n (root/(sys.argv[1]+'.ready')).touch()\n deadline=time.monotonic()+15\n while not (root/'go').exists():\n  if time.monotonic()>deadline: raise RuntimeError('timeout')\n  time.sleep(.01)\n return [[1.,0.] for _ in texts]\nwith patch.object(k,'_require_models'), patch.object(k,'_embed',side_effect=embed):\n try:\n  k.add_doc('local:'+source['id'],'shared')\n  print('committed')\n except RuntimeError as exc: print('refused',str(exc))\n"
         processes = [subprocess.Popen([sys.executable, '-u', '-c', code, str(i)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8',
             env={**os.environ, 'PYTHONUTF8': '1'}) for i in range(2)]

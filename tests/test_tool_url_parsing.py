@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from desk_companion import web_sources as sources
-from desk_companion.feedback_review import material
+from desk_companion.integrations.web import web_sources as sources
+from desk_companion.collaboration.feedback_review import material
 
 
 class ToolURLParsingTests(unittest.TestCase):

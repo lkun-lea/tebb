@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from desk_companion import model_tokenizer as mt
+from desk_companion.models import model_tokenizer as mt
 
 
 class RealTokenizerTests(unittest.TestCase):
@@ -35,7 +35,7 @@ class RealTokenizerTests(unittest.TestCase):
         self.assertIsNone(mt.count(self.request,self.binding)['tokens'])
 
     def test_execution_admission_recounts_the_actual_offline_template_with_tools(self):
-        from desk_companion.execution_context import prepare_request
+        from desk_companion.collaboration.execution_context import prepare_request
         import copy
         messages=[dict(role='system',content='Permission read only'),dict(role='user',content='Current goal')]
         for i,body in enumerate([dict(ok=True,source_id='original',text='Hello world '*2000),dict(recent=1),dict(recent=2)]):

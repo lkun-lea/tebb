@@ -20,7 +20,7 @@
 
 扩展路径使用16位ABI/基础依赖摘要、16位随机代号和短目录p，避免把调试用长名称带入每个依赖文件路径。pip临时目录t放在同一代内，通过子进程TEMP/TMP/TMPDIR传入；Windows的pip目标、临时路径及实际加载路径使用原生扩展路径命名空间，不改系统环境或长路径策略。安装关闭pip预编译缓存，避免长pycache文件名与跨盘复制放大路径问题。只使用当前未发布布局，不添加早期实验布局的适配或迁移分支，原实验文件不会自动删除。
 
-只读状态：随包Python执行 `-c "from desk_companion.runtime_extensions import main; main()" status`；当前用户数据目录须与客户端相同。显式调用现有CLI函数，避免启动hook已导入模块后再以-m重载同一模块。result.json只保存代际、状态和异常类别，不保存pip正文、密钥或模型内容。
+只读状态：随包Python执行 `-c "from desk_companion.infrastructure.runtime_extensions import main; main()" status`；当前用户数据目录须与客户端相同。显式调用现有CLI函数，避免启动hook已导入模块后再以-m重载同一模块。result.json只保存代际、状态和异常类别，不保存pip正文、密钥或模型内容。
 
 ## 卸载
 
@@ -43,7 +43,7 @@ python -m unittest discover -s tests -p test_installation.py -v
 
 本机原生验收必须先在独立检出中构建验证标识，例如productName/mainBinaryName为tebb-verify174-<编号>、identifier为cn.deskcompanion.verify174.<编号>，并设置独立窗口标题。对应bundle_installer增加 `--verification-profile <明确的合成数据绝对目录>`；验证产物会标记verification，Draft入口禁止上传。验证安装器禁用系统默认数据清除，清除适配器另用合成目录验证。Python数据、WebView及注册表/快捷方式须与真实用户实例隔离，禁止用真实用户数据测试清除。
 
-普通安装前置查询可用随包Python执行 `-m desk_companion.installation check`。清除入口有明确确认开关，无任意数据库/数据路径参数，未加入RPC；仅安装器明确选择才调用。自动测试通过公开服务函数向临时用户根注入合成数据，验证运行权、越界、junction、隔离回滚及保留。
+普通安装前置查询可用随包Python执行 `-m desk_companion.infrastructure.installation check`。清除入口有明确确认开关，无任意数据库/数据路径参数，未加入RPC；仅安装器明确选择才调用。自动测试通过公开服务函数向临时用户根注入合成数据，验证运行权、越界、junction、隔离回滚及保留。
 
 验证安装器生成后，生命周期入口只接受verification回执和独立标识，不接受正式安装器；例如：
 

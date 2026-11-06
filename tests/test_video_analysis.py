@@ -5,7 +5,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from desk_companion import video, video_analysis as analysis
+from desk_companion.infrastructure.storage import atomic_write
+
+from desk_companion.content.video import sources as video
+from desk_companion.content.video import analysis
 
 
 class FakeLLM:
@@ -54,7 +57,7 @@ class VideoAnalysisTests(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             analysis.analyze(self.request, self.emit, first, self.source)
         second = FakeLLM()
-        with patch("desk_companion.web_search.web_search") as search:
+        with patch("desk_companion.integrations.web.web_search.web_search") as search:
             answer = analysis.analyze(self.request, self.emit, second, self.source)
             search.assert_not_called()
         self.assertIn("学习笔记", answer)
@@ -77,19 +80,19 @@ class VideoAnalysisTests(unittest.TestCase):
 
     def test_checkpoints_do_not_pollute_video_source_catalog(self):
         source = {**self.source, "fetched_at": 1, "segment_count": 15}
-        video.atomic_write(video.source_path("session", source["source_id"]), source)
+        atomic_write(video.source_path("session", source["source_id"]), source)
         analysis.analyze(self.request, self.emit, FakeLLM(), source)
         self.assertEqual([s["source_id"] for s in video.sources("session")], [source["source_id"]])
 
     def test_failed_analysis_does_not_archive_or_claim_complete_answer(self):
-        video.atomic_write(video.source_path("session", "a" * 24), self.source)
+        atomic_write(video.source_path("session", "a" * 24), self.source)
         from types import SimpleNamespace
         llm = SimpleNamespace(bind_client=lambda *args, **kwargs: None)
         with patch.object(video, "read_video", return_value={"source_id": "a" * 24}), \
-             patch("desk_companion.execution_context.ExecutionLLM", return_value=llm), \
-             patch("desk_companion.model_catalog.require_active", return_value={"model": "fake", "api_key": "fake", "base_url": "http://fake"}), \
+             patch("desk_companion.collaboration.execution_context.ExecutionLLM", return_value=llm), \
+             patch("desk_companion.models.model_catalog.require_active", return_value={"model": "fake", "api_key": "fake", "base_url": "http://fake"}), \
              patch.object(analysis, "analyze", side_effect=TimeoutError()), \
-             patch("desk_companion.video_archive.VideoArchive.finish") as archive:
+             patch("desk_companion.content.video.archive.VideoArchive.finish") as archive:
             with self.assertRaises(TimeoutError):
                 analysis.execute({**self.request, "video_url": self.source["url"]}, self.emit)
             archive.assert_not_called()
@@ -97,10 +100,10 @@ class VideoAnalysisTests(unittest.TestCase):
 
     def test_missing_subtitles_emit_failure_with_reason_and_never_claim_task_completed(self):
         missing = {**self.source, "segments":[], "subtitle_status":"unavailable", "subtitle_notice":"B站字幕接口暂未成功返回（-352），请稍后重试。"}
-        video.atomic_write(video.source_path("session", "a"*24),missing)
+        atomic_write(video.source_path("session", "a"*24),missing)
         with patch.object(video, "read_video", return_value={"source_id":"a"*24,"subtitle_status":"unavailable"}), \
-             patch("desk_companion.execution_context.ExecutionLLM") as model, patch.object(analysis,"analyze") as analyze, \
-             patch("desk_companion.video_archive.VideoArchive.finish") as archive:
+             patch("desk_companion.collaboration.execution_context.ExecutionLLM") as model, patch.object(analysis,"analyze") as analyze, \
+             patch("desk_companion.content.video.archive.VideoArchive.finish") as archive:
             analysis.execute({**self.request,"video_url":self.source["url"]},self.emit)
         model.assert_not_called(); analyze.assert_not_called(); archive.assert_not_called()
         failure = next(data for kind,data in self.events if kind=="failure")

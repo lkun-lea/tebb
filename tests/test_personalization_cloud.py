@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import httpx
 
-from desk_companion.personalization_cloud import CloudConfig, CloudError, PersonalizationCloud, preflight
+from desk_companion.accounts.personalization_cloud import CloudConfig, CloudError, PersonalizationCloud, preflight
 
 A='a0000000-0000-4000-8000-000000000001'
 B='b0000000-0000-4000-8000-000000000002'
