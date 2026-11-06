@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 import tempfile
 import threading
+import time
+import traceback
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -20,7 +22,7 @@ class Provider:
     def __init__(self):self.created=[];self.stopped=[];self.gate=None;self.admitted=threading.Event()
     def create(self,name,owner):
         self.created.append((name,owner));self.admitted.set()
-        if self.gate:self.gate.wait(3)
+        if self.gate:self.gate.wait()  # Only the test releases a pending create acknowledgement.
         return dict(id='original-uuid',name=name,status='running')
     def stop(self,name,ident):
         self.stopped.append((name,ident));return dict(ok=True,state='stopped',sandbox_id=ident)
@@ -129,14 +131,30 @@ class ProjectEnvironmentTests(unittest.TestCase):
         self.assertTrue(all(value[1]=='original-uuid' for value in self.provider.stopped))
 
     def test_late_create_ack_after_cancel_is_stopped_not_registered_as_success(self):
-        self.provider.gate=threading.Event();result=[]
-        worker=threading.Thread(target=lambda:result.append(self.prepare()));worker.start()
+        self.provider.gate=threading.Event();result=[];errors=[];completed=threading.Event()
+        def prepare():
+            try:result.append(self.prepare())
+            except BaseException:errors.append(traceback.format_exc())
+            finally:completed.set()
+        worker=threading.Thread(target=prepare);worker.start()
+        def diagnostic():
+            frame=sys._current_frames().get(worker.ident)
+            return ''.join(errors) or (''.join(traceback.format_stack(frame))if frame else repr(result))
         try:
-            self.assertTrue(self.provider.admitted.wait(2))
+            deadline=time.monotonic()+15
+            while not self.provider.admitted.wait(.05):
+                self.assertFalse(completed.is_set(),diagnostic())
+                self.assertLess(time.monotonic(),deadline,diagnostic())
+            self.assertFalse(completed.is_set(),'create must remain pending until explicitly released')
             ident=self.service.store.list()[0]['id']
             self.assertFalse(self.service.stop(ident,self.scope)['ok'])
-        finally:self.provider.gate.set();worker.join(3)
+        finally:
+            self.provider.gate.set()
+            self.assertTrue(completed.wait(15),diagnostic())
+            worker.join()  # completed is set after prepare has returned and released its resources.
+        self.assertFalse(errors,''.join(errors))
         self.assertFalse(worker.is_alive());self.assertEqual(result[0]['operation']['state'],'cancelled')
+        self.assertFalse(self.service.store.creation_active(self.request),'create operation lock was not released')
         self.assertEqual(self.provider.stopped,[(self.provider.created[0][0],'original-uuid')])
         self.assertTrue(self.prepare()['replayed']);self.assertEqual(len(self.provider.created),1)
 
