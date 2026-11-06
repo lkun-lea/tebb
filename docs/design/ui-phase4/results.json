@@ -581,13 +581,14 @@
   "ci": {
     "regression-bounded": 0,
     "types-verified": 0,
-    "build-verified": 0
+    "build-verified": 0,
+    "default-pnpm-test": 0
   },
   "regression": {
     "passed": 309,
     "failed": 0,
     "skipped": 0,
-    "runner": "package.json test files, node --test --test-concurrency=4"
+    "runner": "pnpm test (node --test --test-concurrency=4)"
   },
   "dev_server": {
     "before_http_timeout_seconds": 6,
