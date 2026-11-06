@@ -67,7 +67,7 @@
 
 ```powershell
 # 仓库根目录：Python 服务与行为回归
-python -m unittest discover -s tests -v
+uv run --locked python -m unittest discover -s tests -v
 
 # client/：界面行为与类型检查
 pnpm test

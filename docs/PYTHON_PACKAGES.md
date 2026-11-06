@@ -60,8 +60,8 @@ Rust 启动参数、安装清理入口、扩展安装命令、生成的 sitecust
 
 ```powershell
 $env:DESK_TEST_ATLAS_SOURCE = 'E:\path\to\Atlas'
-python scripts/ci_checks.py test --output E:\isolated-output\python-regression
-python -m pip wheel . --no-deps --no-build-isolation --wheel-dir E:\isolated-output\wheels
+uv run --locked python scripts/ci_checks.py test --output E:\isolated-output\python-regression
+uv build --wheel --out-dir E:\isolated-output\wheels
 # client/src-tauri 目录
 cargo check --locked
 ```

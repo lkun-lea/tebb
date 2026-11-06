@@ -5,24 +5,38 @@ description = "tebb 个人 Agent 工作台：对话、记忆、任务与协作"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
 dependencies = [
+    "atlas @ git+https://github.com/lkun-lea/Atlas.git@fdafaecab45303314829f4f5af4fee10365c6dc0",
     "supabase-auth==2.33.0",
     "httpx[socks]>=0.27,<1",
-    "pypdf>=5.0",
+    "pypdf>=5,<7",
     "psutil>=7.0,<8",
-    "pillow>=10.0",
+    "pillow>=10,<13",
     "matplotlib>=3.9,<4",
     "jsonschema>=4,<5",
-    "python-dotenv>=1.0",
-    "pywin32>=306",
-    "pywebview>=5.0",
-    "pystray>=0.19",
-    "huggingface_hub>=0.23",
-    "sentence-transformers>=3.0",
+    "python-dotenv>=1,<2",
+    "pywin32>=306; sys_platform == 'win32'",
+    "pywebview>=5,<7",
+    "pystray>=0.19,<1",
+    "huggingface_hub>=0.23,<2",
     "transformers>=5,<6",
     "jinja2>=3.1,<4",
     "yt-dlp==2026.8.19",
     "yt-dlp-ejs==0.8.0",
+    "websockets>=15,<17",
+    "tzdata>=2026.1",
 ]
+
+[project.optional-dependencies]
+knowledge = ["sentence-transformers>=3.0"]
+
+[dependency-groups]
+# Bundled pip installs opt-in user extensions; build tools are also shipped today.
+runtime = ["pip==26.0.1", "setuptools==84.0.0", "wheel==0.48.0"]
+cloud = ["httpx[socks]>=0.27,<1"]
+
+[tool.uv]
+required-version = "==0.12.10"
+default-groups = ["runtime"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

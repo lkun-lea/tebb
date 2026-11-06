@@ -56,7 +56,8 @@ def capture_runtime(destination):
             relative=Path(package.name)/path.relative_to(package);body=path.read_bytes();target=destination/relative
             target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body)
             hashes[relative.as_posix()]=hashlib.sha256(body).hexdigest();originals[relative.as_posix()]=path
-    for relative in('scripts/benchmark_agent.py','requirements.txt','scripts/runtime-lock.txt'):
+    for relative in('scripts/benchmark_agent.py','pyproject.toml','uv.lock','.python-version',
+                    'scripts/python_dependencies.py','scripts/runtime-lock.txt'):
         path=source/relative
         if path.is_file():
             body=path.read_bytes();target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body)

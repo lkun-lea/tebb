@@ -4,7 +4,7 @@
 
 ## 日常 CI
 
-ci.yml 在 main 提交、PR 或手动触发。Frontend、Python / Atlas、Rust 使用独立 runner，避免本机同时编译引起测试计时竞争。前端使用 Node24/pnpm12.5.1，验证测试、类型和发布构建；Rust 在 Windows 执行锁定测试；Python 使用 Windows/Python3.13.16、完整 runtime-lock 与 prepare_runtime 固定的 Atlas 提交，检查版本及全量回归。
+ci.yml 在 main 提交、PR 或手动触发。Frontend、Python / Atlas、Rust 使用独立 runner，避免本机同时编译引起测试计时竞争。前端使用 Node24/pnpm12.5.1，验证测试、类型和发布构建；Rust 在 Windows 执行锁定测试；Python 使用 Windows/Python3.13.16、uv 锁定基础环境与 pyproject 固定的 Atlas 提交，检查版本及全量回归。
 
 普通运行可被同分支新提交取消。日志和 backend.json 保留14天，每个用例记录耗时，失败、错误、跳过和预期失败分别统计，attempts=1，不自动重跑。最终 GitHub 结论仍由命令退出码决定。条件跳过不算通过；发布 gate 还会检查所有必要 job 都成功。
 
@@ -31,11 +31,11 @@ Release candidate 仅手动运行。sha 必须是 main 中可达的完整40位�
 ## 本地入口
 
 ```powershell
-python scripts/ci_checks.py version
+uv run --locked python scripts/ci_checks.py version
 $env:DESK_TEST_ATLAS_SOURCE='E:/path/to/Atlas'
-python scripts/ci_checks.py test --output output/ci
-python scripts/release_audit.py C:/path/to/package.zip
-python scripts/ci_checks.py smoke-zip C:/path/to/package.zip 'C:/new/中文路径 with spaces'
+uv run --locked python scripts/ci_checks.py test --output output/ci
+uv run --locked python scripts/release_audit.py C:/path/to/package.zip
+uv run --locked python scripts/ci_checks.py smoke-zip C:/path/to/package.zip 'C:/new/中文路径 with spaces'
 ```
 
 ci_checks test 必须有 Atlas 契约环境，不会因为未设置变量就默认跳过它。需要先将固定 Atlas 源码加入 PYTHONPATH 或按开发说明安装。后端测试仍依赖相应 Windows 组件；WSL/沙箱等专项仅按明确环境运行，实际跳过原因留在 JSON。自动检查不替代原生窗口的视觉与点击验收。
@@ -43,3 +43,5 @@ ci_checks test 必须有 Atlas 契约环境，不会因为未设置变量就默�
 故障定位按 job/步骤查看：Atlas 源码读取、依赖安装、版本校验、测试失败、打包审计、迁移 smoke、上传分别保留实际阶段。不得把授权或下载失败当作“未找到 Release”后继续创建，也不因为构建失败自动发送发布通知。
 
 官方技能独立仓库 lkun-lea/tebb-skills，由 skills-source.json 唯一锁定。CI及候选构建先checkout .ci-skills并调用prepare_skills；打包直接从该Git提交导出，不读取开发机skills工作树。公开仓库读取无需额外凭据，安装包离线携带正文、许可与来源快照。
+
+Python CI 使用固定版本的官方 setup-uv action、`uv sync --locked` 及发布导出一致性检查。Linux 云契约只安装 cloud 依赖组。候选构建先完成可信 gate 并检出授权 SHA，再读取候选的 uv 配置和锁。发布包保留独立 Python 与 pip，不依赖终端用户安装 uv。

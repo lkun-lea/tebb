@@ -24,7 +24,11 @@ jobs:
           python-version: '3.13.16'
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: supabase/tests/runner
-      - run: python -m pip install httpx==0.28.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version-file: pyproject.toml
+          enable-cache: true
+      - run: uv sync --locked --only-group cloud
       - run: npm test
         working-directory: supabase/tests/runner
-      - run: python -m unittest discover -s tests -p test_personalization_cloud.py -v
+      - run: uv run --locked --only-group cloud python -m unittest discover -s tests -p test_personalization_cloud.py -v

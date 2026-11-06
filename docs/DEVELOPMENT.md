@@ -16,22 +16,40 @@
 
 ## 从源码运行
 
-需要 Python 3.11+、Node / pnpm、Rust、Tauri 的 Windows 构建依赖和 Atlas 源码。Atlas 仓库已公开，开发与发布仍固定到正式提交；CI 不需要额外 Atlas 读取凭据。普通体验可使用 Windows 便携版。
+需要 uv、Node / pnpm、Rust 和 Tauri 的 Windows 构建依赖。uv 依据 `.python-version` 使用 Python 3.13，自动创建项目 `.venv`；项目最低版本仍为 Python 3.11。Atlas 自动安装 `pyproject.toml` 固定的官方 Git 提交，开发与发布共用此提交。普通体验可使用 Windows 便携版。
 
 ```powershell
 git clone https://github.com/lkun-lea/tebb.git
 cd tebb
-$atlasSource = 'E:\path\to\Atlas'
-python -m pip install -e $atlasSource
-python -m pip install -e .
+uv sync --locked
 git clone https://github.com/lkun-lea/tebb-skills.git ../tebb-skills
-python scripts/prepare_skills.py --source ../tebb-skills
+uv run --locked python scripts/prepare_skills.py --source ../tebb-skills
 cd client
 pnpm install
 pnpm tauri dev
 ```
 
 目录职责与新增模块归属见 [Python 包结构](PYTHON_PACKAGES.md)。
+
+## Python 环境与依赖
+
+默认环境与发布基础运行时一致，不安装 PyTorch 或 sentence-transformers。需要本地知识库模型时运行 `uv sync --locked --extra knowledge`；随后用 `uv run --locked --extra knowledge python ...` 保持该环境。普通 `uv sync --locked` 恢复基础环境，模型权重不会由同步命令下载。
+
+依赖更新使用 `uv add` / `uv remove`，版本升级使用 `uv lock --upgrade-package <名称>`。更新后运行 `uv run --locked python scripts/python_dependencies.py export`，同步提交 `pyproject.toml`、`uv.lock` 和生成的 `scripts/runtime-lock.txt`。不手工编辑锁文件或发布清单。
+
+开发命令统一加 `uv run --locked`，例如 `uv run --locked python -m unittest discover -s tests -v`、`uv build --wheel --out-dir E:/isolated-output/wheels`。Tauri 调试入口直接启动项目 `.venv` 的解释器，缺少环境时提示先同步。
+
+完整后端回归需要用于归档契约检查的 Atlas Git checkout：
+
+```powershell
+git clone https://github.com/lkun-lea/Atlas.git ../Atlas
+$env:DESK_TEST_ATLAS_SOURCE = (Resolve-Path ../Atlas).Path
+uv run --locked python scripts/ci_checks.py test --output E:/isolated-output/python-tests
+```
+
+独立开发任务在候选包含 `uv.lock` 时导出锁定基础依赖，并将锁文件哈希纳入环境身份；显式 `--dependency-path` 的源码包从安装清单排除，保留其依赖和源码观测。任务内的 `uv run` 复用已准备的私有环境，关闭隐式同步；依赖变化必须显式重新准备环境。其他项目继续读取其自身 requirements / pyproject 声明，不使用 tebb 的发布清单替代。
+
+用法依据 [uv 项目管理](https://docs.astral.sh/uv/guides/projects/) 与 [锁定和同步](https://docs.astral.sh/uv/concepts/projects/sync/)。
 
 ## 如何工作
 
@@ -179,6 +197,6 @@ cargo check --locked
 
 [tebb-skills](https://github.com/lkun-lea/tebb-skills) 单独管理官方内容，主仓 `skills-source.json` 是唯一固定提交及 SHA-256 清单。`skills/` 是显式准备的生成目录，同时允许本机自定义技能；不再在两个仓库独立维护正文。准备仅从固定 Git 对象导出，不采集工作树改动/未跟踪内容，不启动时联网，不将目录内的个人文件复制到发布包。
 
-`python scripts/prepare_skills.py --source ../tebb-skills` 可重复执行同一版本。发现正文编辑或其他版本时明确拒绝；请先备份自定义内容，导出到一个新目录（`--output <新目录>`）核对再自行替换，不自动覆盖用户技能。三个原有技能ID保留，另提供workflow-builder；Skill不能替伙伴扩权。发布构建也须提供 `prepare_runtime.py --skills <checkout>`，使用同一导出函数与许可，provenance记录实际提交。
+`uv run --locked python scripts/prepare_skills.py --source ../tebb-skills` 可重复执行同一版本。发现正文编辑或其他版本时明确拒绝；请先备份自定义内容，导出到一个新目录（`--output <新目录>`）核对再自行替换，不自动覆盖用户技能。三个原有技能ID保留，另提供workflow-builder；Skill不能替伙伴扩权。发布构建也须提供 `prepare_runtime.py --skills <checkout>`，使用同一导出函数与许可，provenance记录实际提交。
 
 工作流、AI能力和调试接口见[工作流](WORKFLOWS.md)及[本批边界](WORKFLOW_EVOLUTION.md)。产品UI仍为中文，README提供中英切换。

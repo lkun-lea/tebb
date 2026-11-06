@@ -416,6 +416,21 @@ fn stop_backend(child: &mut Child, info: &BackendInfo) -> Result<(), String> {
 mod menu_tests {
     use super::*;
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn development_backend_requires_project_uv_environment() {
+        let root = std::env::temp_dir().join(format!("tebb-uv-backend-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        assert!(development_backend_location(&root).unwrap_err().contains("uv sync --locked"));
+        let python = root.join(if cfg!(windows) { ".venv/Scripts/python.exe" } else { ".venv/bin/python" });
+        std::fs::create_dir_all(python.parent().unwrap()).unwrap();
+        std::fs::write(&python, b"isolated interpreter fixture").unwrap();
+        let (selected, working) = development_backend_location(&root).unwrap();
+        assert_eq!(selected, python.canonicalize().unwrap());
+        assert_eq!(working, root.canonicalize().unwrap());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn exited_duplicate_backend_reports_ownership_conflict() {
         let mut command = Command::new("python");
@@ -524,7 +539,17 @@ fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child
 
 #[cfg(debug_assertions)]
 fn backend_location() -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
-    Ok(("python".into(), std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")))
+    development_backend_location(&std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+}
+
+#[cfg(debug_assertions)]
+fn development_backend_location(root: &std::path::Path) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    let root = root.canonicalize().map_err(|err| format!("无法确定项目目录：{err}"))?;
+    let python = root.join(if cfg!(windows) { ".venv/Scripts/python.exe" } else { ".venv/bin/python" });
+    if !python.is_file() {
+        return Err("项目 Python 环境缺失。请在仓库根目录运行 uv sync --locked，再启动客户端。".into());
+    }
+    Ok((python, root))
 }
 
 #[cfg(not(debug_assertions))]

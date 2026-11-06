@@ -8,10 +8,10 @@
 
 ## 构建
 
-PowerShell，在仓库根目录运行（output 必须是新的绝对目录）：
+PowerShell，在仓库根目录运行（output 必须是新的绝对目录）。先运行 `uv sync --locked` 和 `uv run --locked python scripts/python_dependencies.py check`：
 
 ```powershell
-python scripts/prepare_runtime.py --atlas ../Atlas --skills ../tebb-skills --output C:/Build/tebb-runtime
+uv run --locked python scripts/prepare_runtime.py --atlas ../Atlas --skills ../tebb-skills --output C:/Build/tebb-runtime
 python -m unittest discover -s tests -v
 cd client
 pnpm install --frozen-lockfile
@@ -23,16 +23,16 @@ cd ..
 $env:DESK_RELEASE = '1'
 pnpm tauri build --no-bundle
 cd ..
-python scripts/smoke_release.py C:/Build/tebb-runtime
-python scripts/bundle_release.py --runtime-package C:/Build/tebb-runtime --prepare-only
-python scripts/bundle_installer.py --runtime-package C:/Build/tebb-runtime --output C:/Build/tebb-release
+uv run --locked python scripts/smoke_release.py C:/Build/tebb-runtime
+uv run --locked python scripts/bundle_release.py --runtime-package C:/Build/tebb-runtime --prepare-only
+uv run --locked python scripts/bundle_installer.py --runtime-package C:/Build/tebb-runtime --output C:/Build/tebb-release
 ```
 
-运行时取 [Python 官方 3.13.16 x64 嵌入包](https://www.python.org/downloads/release/python-31316/)，校验官方 SHA256 后解压。依赖版本固定在 `scripts/runtime-lock.txt`，包内记录 `runtime-packages.txt` 和 `runtime-provenance.json`。
+运行时取 [Python 官方 3.13.16 x64 嵌入包](https://www.python.org/downloads/release/python-31316/)，校验官方 SHA256 后解压。依赖版本以 `uv.lock` 为准；`scripts/runtime-lock.txt` 由 `uv run --locked python scripts/python_dependencies.py export` 生成，包含基础依赖及 runtime 工具组、排除 Atlas 本体和 knowledge 可选模型依赖。构建使用宿主 uv 安装到嵌入式 Python，要求哈希完整且导出清单与锁一致；终端用户不需要 uv，随包 pip 继续安装独立用户扩展。包内记录 `runtime-packages.txt` 和 `runtime-provenance.json`。
 
 Atlas 取源码库的固定正式提交 `fdafaecab45303314829f4f5af4fee10365c6dc0`，包含统一模型契约、采样与思考回调、严格完成校验、工具增量、客户端所有权、延迟加载模型 SDK 接口及 MIT／HumanEval 许可。直接归档提交源码与同提交的许可，不附加开发机补丁；`runtime-provenance.json` 记录真实 Atlas commit。
 
-打包阶段从实际 pnpm 生产依赖、Windows Cargo 锁定图和随包 Python 元数据生成 licenses/dependencies.json，保留完整许可证与来源。已安装包漏带的原许可使用 licenses/SOURCES.json 中按版本记录的上游快照；缺失前端／Rust 许可文本直接阻止打包。包根带 LICENSE、THIRD_PARTY_NOTICES.md，Atlas 原许可位于随包 atlas/licenses/，Python／字体原许可继续保留。可单独执行 python scripts/release_audit.py --require-licenses path/to/package.zip 核对候选许可材料。
+打包阶段从实际 pnpm 生产依赖、Windows Cargo 锁定图和随包 Python 元数据生成 licenses/dependencies.json，保留完整许可证与来源。已安装包漏带的原许可使用 licenses/SOURCES.json 中按版本记录的上游快照；缺失前端／Rust 许可文本直接阻止打包。包根带 LICENSE、THIRD_PARTY_NOTICES.md，Atlas 原许可位于随包 atlas/licenses/，Python／字体原许可继续保留。可单独执行 uv run --locked python scripts/release_audit.py --require-licenses path/to/package.zip 核对候选许可材料。
 
 修改 Atlas 固定提交后，先通过与构建脚本共用的归档入口，验证真实归档源码及协作适配器的同一套行为契约（不构建完整运行时、不调用真实模型）：
 
@@ -67,6 +67,6 @@ python -m unittest discover -s tests -p test_atlas_runtime.py -v
 
 通知失败不回滚已发布版本，Actions 明确报失败。在 Actions → Release to Feishu → Run workflow，填写相同正式 tag，默认 reconcile=auto。若 pending 回执因权限不足无法自动核实，先人工检查群：确认存在卡片选择 confirmed_sent（只登记回执）；确认不存在才选择 confirmed_absent（补发）。其他状态不接受人工核实选项，避免把未经核实的失败当成成功。
 
-本地无副作用预览：`python scripts/notify_release.py --dry-run`。手动执行发送或核实时需要相同 Secrets 对应环境变量、`GH_TOKEN`（该仓库 contents:write），以及 `--tag vX.Y.Z`。不要把密钥放入命令参数或提交记录。
+本地无副作用预览：`uv run --locked python scripts/notify_release.py --dry-run`。手动执行发送或核实时需要相同 Secrets 对应环境变量、`GH_TOKEN`（该仓库 contents:write），以及 `--tag vX.Y.Z`。不要把密钥放入命令参数或提交记录。
 
 官方技能通过 skills-source.json 固定独立 tebb-skills 提交；候选构建checkout该提交，只导出清单中的正文和LICENSE，provenance包含skills_repository和skills_commit。不得复制本机整个skills目录。冻结旧发布资产保持原样。

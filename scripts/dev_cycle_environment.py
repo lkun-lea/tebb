@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -44,12 +45,27 @@ def node_dependencies(source,on_progress=None):
 
 def requirements(source, dependency_paths=()):
     source = Path(source)
-    # The release runtime lock targets its embedded interpreter, which may be
-    # different from the development interpreter. Do not select it implicitly.
+    # Explicit source owners must not be shadowed by installed distributions.
+    owners = set()
+    for dependency in dependency_paths:
+        metadata = Path(dependency)/'pyproject.toml'
+        if metadata.is_file():
+            name = tomllib.loads(metadata.read_text('utf-8')).get('project', {}).get('name')
+            if name:
+                owners.add(re.sub(r'[-_.]+', '-', name).lower())
+    # A uv project owns its lock; the embedded release export is never a task plan.
     plan = None
+    lock = source/'uv.lock'
+    if lock.is_file():
+        command = ['uv', 'export', '--project', str(source.resolve()), '--locked',
+                   '--no-default-groups', '--no-emit-project', '--no-header', '--no-annotate', '--no-hashes']
+        for name in sorted(owners):
+            command += ['--no-emit-package', name]
+        result = subprocess.run(command, check=True, capture_output=True, text=True, encoding='utf-8')
+        plan = dict(origin='uv.lock', text=result.stdout, lock_sha256=sha(lock))
     for name in ('requirements.lock', 'requirements.txt'):
         path = source/name
-        if path.is_file():
+        if plan is None and path.is_file():
             plan = dict(origin=name, text=path.read_text('utf-8-sig'))
             break
     project = source/'pyproject.toml'
@@ -57,16 +73,18 @@ def requirements(source, dependency_paths=()):
         data = tomllib.loads(project.read_text('utf-8'))
         if 'dependencies' in data.get('project', {}).get('dynamic', []):
             raise ValueError('动态依赖需先提供固定requirements文件')
-        plan = dict(origin='pyproject.toml:project.dependencies',
-                    text='\n'.join(data.get('project', {}).get('dependencies', []))+'\n')
+        dependencies = data.get('project', {}).get('dependencies', [])
+        dependencies = [value for value in dependencies
+                        if re.sub(r'[-_.]+', '-', re.split(r'[\s\[<>=!~;@]', value.strip(), 1)[0]).lower() not in owners]
+        plan = dict(origin='pyproject.toml:project.dependencies', text='\n'.join(dependencies)+'\n')
     plan = plan or dict(origin='stdlib', text='')
     extras = []
     for dependency in dependency_paths:
         extra = requirements(dependency)
         if extra['text'].strip():
             extras.append(dict(path=str(Path(dependency).resolve()), **extra))
-    return dict(**plan, source_dependencies=extras) if not extras else dict(
-        origin=plan['origin'], text=plan['text']+'\n'+'\n'.join(extra['text'] for extra in extras), source_dependencies=extras)
+    return {**plan, 'source_dependencies': extras,
+            'text': plan['text']+'\n'+'\n'.join(extra['text'] for extra in extras)} if extras else dict(**plan, source_dependencies=extras)
 
 
 def layout(folder):
@@ -95,7 +113,7 @@ def clean_environment():
 
 
 def prepare_environment(folder, source, record, dependency_paths=(), *, wheelhouse=None, offline=False):
-    """Install dependencies using pip, never append host site-packages or run its .pth."""
+    """Install the project's own plan; never append host site-packages or run its .pth."""
     folder, source, record = Path(folder).resolve(), Path(source).resolve(), Path(record)
     record.mkdir(parents=True, exist_ok=True)
     python, site = layout(folder)
@@ -126,11 +144,14 @@ def prepare_environment(folder, source, record, dependency_paths=(), *, wheelhou
     env = clean_environment()
     env.update(DEV_CYCLE_SOURCE_ROOT=str(source), DEV_CYCLE_IMPORT_LOG=str((record/'evidence/imports').resolve()))
     command = [sys.executable, '-m', 'pip', '--python', str(python), '--disable-pip-version-check']
+    uv_project = plan['origin'] == 'uv.lock'
     installed = any(line.strip() and not line.lstrip().startswith('#') for line in plan['text'].splitlines())
     with (record/'install.log').open('wb') as log:
         if installed:
             args = command+['install', '--no-input', '-r', str(frozen),
                             '--report', str(record/'install-report.json')]
+            if uv_project:
+                args = ['uv', 'pip', 'install', '--python', str(python), '-r', str(frozen)]
             if offline:
                 args += ['--no-index']
             if wheelhouse is not None:
@@ -141,7 +162,12 @@ def prepare_environment(folder, source, record, dependency_paths=(), *, wheelhou
             result = subprocess.run(args, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT)
             if result.returncode:
                 raise ValueError('任务依赖安装失败，未启动模型；查看 '+str(record/'install.log'))
-            checked = subprocess.run(command+['check'], cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT)
+            if uv_project:
+                (record/'install-report.json').write_text(json.dumps(dict(
+                    installer='uv', command=args, lock_sha256=plan['lock_sha256'],
+                    version=subprocess.check_output(['uv', '--version'], text=True).strip()), indent=2), 'utf-8')
+            check = ['uv', 'pip', 'check', '--python', str(python)] if uv_project else command+['check']
+            checked = subprocess.run(check, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT)
             if checked.returncode:
                 raise ValueError('任务依赖一致性检查失败；查看 '+str(record/'install.log'))
     inventory = subprocess.run([str(python), '-c',
@@ -172,6 +198,10 @@ def python_environment(folder, source, record, dependency_paths=(), *, evidence_
                PATH=str(python.parent)+os.pathsep+env.get('PATH', ''),
                DEV_CYCLE_SOURCE_ROOT=str(source), DEV_CYCLE_PYTHON=str(python),
                DEV_CYCLE_IMPORT_LOG=str(((Path(evidence_dir) if evidence_dir is not None else record/'evidence')/'imports').resolve()))
+    if (source/'uv.lock').is_file():
+        # uv run must reuse the prepared, provenance-checked task environment.
+        # Dependency changes require a new explicit prepare, not an implicit sync.
+        env.update(UV_PROJECT_ENVIRONMENT=str(folder), UV_NO_SYNC='1')
     return env
 
 

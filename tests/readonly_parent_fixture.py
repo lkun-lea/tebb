@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 import sys
 import time
+import psutil
 
 from desk_companion.tasks.manager import TaskManager
 from desk_companion.tasks.task_budgets import Ledger
 
 config=json.loads(sys.stdin.readline());folder=Path(config['folder'])
+(folder/'parent.json').write_text(json.dumps(dict(pid=os.getpid(), created=psutil.Process().create_time())),encoding='utf-8')
 manager=TaskManager(path=folder/'tasks.sqlite3',command=[sys.executable,'-u',str(Path(__file__).with_name('readonly_worker_fixture.py'))])
 manager.configure(1,30,60,False)
 ledger=Ledger();budget=ledger.create('abrupt-parent','research',60000)

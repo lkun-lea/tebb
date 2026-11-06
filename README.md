@@ -83,7 +83,7 @@ A small, customizable desktop pet opens floating chat. Hide it or change its app
 
 Windows 10/11 x64 and WebView2 Runtime are required. The portable package includes Python; installing Python, Node or Rust is unnecessary for the packaged client. Model service charges may apply, and tool execution requires model support for tool calling.
 
-Optional connections can be configured later. See [getting started](docs/GETTING_STARTED.md). To run from source, follow [development](docs/DEVELOPMENT.md): Atlas and tebb-skills use pinned commits, and skills must be explicitly prepared before first use. The app does not download skill updates at startup.
+Optional connections can be configured later. See [getting started](docs/GETTING_STARTED.md). Source development uses `uv sync --locked` and `uv run --locked`; follow [development](docs/DEVELOPMENT.md): Atlas and tebb-skills use pinned commits, and skills must be explicitly prepared before first use. The app does not download skill updates at startup.
 
 ## Project status
 

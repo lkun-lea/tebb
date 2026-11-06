@@ -270,6 +270,7 @@ def main():
         tokenizer_bound=bool(capacity.get('tokenizer_dir')),tokenizer_signature=capacity.get('tokenizer_signature'))
     import hashlib
     source_paths=(
+            'pyproject.toml','uv.lock','.python-version','scripts/python_dependencies.py','scripts/runtime-lock.txt',
             'desk_companion/collaboration/store.py','desk_companion/infrastructure/storage.py','desk_companion/infrastructure/paths.py',
             'scripts/eval_agent.py','desk_companion/evaluation/agent_evals.py','desk_companion/tasks/manager.py',
             'desk_companion/tasks/worker.py','desk_companion/collaboration/collaboration_worker.py',

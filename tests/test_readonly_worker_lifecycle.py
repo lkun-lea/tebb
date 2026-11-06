@@ -85,14 +85,31 @@ class ReadonlyWorkerLifecycleTests(unittest.TestCase):
         parent=subprocess.Popen([sys.executable,'-u',str(Path(__file__).with_name('readonly_parent_fixture.py'))],
             stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,
             env={**os.environ,'DESK_COMPANION_DATA_DIR':str(folder)},creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-        marker=None
+        marker=None;execution=None;identity=None
         try:
             parent.stdin.write((json.dumps(dict(folder=str(folder),marker=str(marker_path)))+'\n').encode());parent.stdin.flush();parent.stdin.close()
+            identity=self.until(lambda:self.marker(folder/'parent.json'))
+            execution=psutil.Process(identity['pid'])
+            self.assertEqual(execution.create_time(),identity['created'])
+            self.assertIn(str(Path(__file__).with_name('readonly_parent_fixture.py')),execution.cmdline())
+            # Windows venv launchers introduce real intermediate processes.
+            # Verify ownership before killing the process that actually holds the job.
+            self.assertTrue(execution.pid==parent.pid or any(p.pid==parent.pid for p in execution.parents()))
             marker=self.until(lambda:self.marker(marker_path))
-            self.assertIsNone(parent.poll());self.assertEqual(psutil.Process(marker['pid']).ppid(),parent.pid)
-            parent.kill();parent.wait(timeout=5)
+            worker=psutil.Process(marker['pid'])
+            self.assertEqual(worker.create_time(),marker['created'])
+            ancestors=worker.parents()
+            self.assertIn(execution.pid,[p.pid for p in ancestors])
+            owned=[dict(pid=p.pid,created=p.create_time())for p in ancestors[:next(i for i,p in enumerate(ancestors)if p.pid==execution.pid)]]
+            self.assertIsNone(parent.poll())
+            execution.kill();parent.wait(timeout=5)
+            self.until(lambda:self.gone(identity),timeout=5)
             self.until(lambda:self.gone(marker),timeout=5)
+            for wrapper in owned:self.until(lambda:self.gone(wrapper),timeout=5)
         finally:
+            if execution and identity and not self.gone(identity):
+                if str(Path(__file__).with_name('readonly_parent_fixture.py'))in execution.cmdline():
+                    execution.kill();execution.wait(timeout=5)
             if parent.poll()is None:parent.kill();parent.wait(timeout=5)
             if marker and not self.gone(marker):
                 process=psutil.Process(marker['pid'])

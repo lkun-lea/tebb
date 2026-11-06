@@ -110,6 +110,8 @@ tebb 正在快速迭代，当前以 **Windows 本机运行**为主。会话和�
 
 云端常驻、远程连接与更多运行环境属于后续探索。当前进展与已知问题见 [Issues](https://github.com/lkun-lea/tebb/issues)，实测边界见 [性能记录](docs/PERFORMANCE.md)。
 
+源码 Python 环境由 uv 管理：`uv sync --locked` 安装基础依赖，`uv sync --locked --extra knowledge` 安装可选知识库模型依赖。详见 [开发指南](docs/DEVELOPMENT.md)。
+
 ## 文档与参与
 
 | 想做什么 | 从这里开始 |
