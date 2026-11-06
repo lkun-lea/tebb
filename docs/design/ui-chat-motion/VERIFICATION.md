@@ -1,5 +1,7 @@
 # 聊天动效与反馈第二批验收
 
+后续更新：本报告保留的桌宠测试失败已由 #288 修复，当前完整回归298/298通过；原始验收结果仍保留。见 [桌宠测试同步](../../PET_FEEDBACK.md)。
+
 关联 [#287](https://github.com/lkun-lea/tebb/issues/287)，契约与复验入口见 [聊天动效与反馈](../../UI_CHAT_MOTION.md)。2026-11-06 使用 Windows Chromium headless 1228，Vite `/client.html?preview=motion` 挂载真实 ChatPrototype、StreamText、Markdown、InspectorDisclosure 和 CopyButton，输入为显式合成数据；不调用模型或真实飞书。
 
 ## 通过的行为检查

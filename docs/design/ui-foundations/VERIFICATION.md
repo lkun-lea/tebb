@@ -1,5 +1,7 @@
 # UI 基础样式首批验收
 
+后续更新：本报告保留的桌宠测试失败已由 #288 修复，当前完整回归298/298通过；原始验收结果仍保留。见 [桌宠测试同步](../../PET_FEEDBACK.md)。
+
 关联 [#285](https://github.com/lkun-lea/tebb/issues/285)，规范见 [UI 开发规范](../../UI_DEVELOPMENT.md)。2026-11-06 在 Windows 上对 Vite 的 `/client.html?debug=work` 进行真实 Chromium 无头渲染，使用既有内存看板和日程示例；未调用模型或真实飞书写入。
 
 ## 通过的检查
