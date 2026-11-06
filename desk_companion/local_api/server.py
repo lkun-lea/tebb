@@ -386,8 +386,8 @@ async def main() -> None:
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--token", type=str, default="")
     args = parser.parse_args()
-    from ..agent_debug import install
-    install({"channel": "backend"})
+    from ..agent_debug import configure_process
+    configure_process({"channel": "backend"})
     TOKEN = args.token
     os.environ["DESK_TERMINAL_PORT"] = str(args.port)
     os.environ["DESK_TERMINAL_TOKEN"] = TOKEN

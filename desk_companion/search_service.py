@@ -9,8 +9,6 @@ import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlencode, urlsplit
 
-import httpx
-
 from . import model_network
 from .paths import data_root
 
@@ -90,6 +88,7 @@ def _remaining(deadline, cancelled=None):
 
 
 def _request(client, method, url, deadline, *, cancelled=None, **kwargs):
+    import httpx
     remaining = _remaining(deadline, cancelled)
     stage = 'connect_or_response_headers'
     try:

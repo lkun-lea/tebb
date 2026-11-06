@@ -3,14 +3,17 @@ from contextlib import contextmanager
 import time
 from uuid import UUID
 
-import httpx
-
 from .personalization_cloud import CloudError
 
 
 class AccountAuth:
     def __init__(self, client_factory=None):
-        self.client_factory = client_factory or (lambda:httpx.Client(timeout=15,follow_redirects=False))
+        self.client_factory = client_factory or self._http_client
+
+    @staticmethod
+    def _http_client():
+        import httpx
+        return httpx.Client(timeout=15, follow_redirects=False)
 
     @contextmanager
     def sdk(self, config):

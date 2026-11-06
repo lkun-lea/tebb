@@ -57,6 +57,8 @@ def save(payload):
 
 
 def http_client(timeout=90, policy=None):
+    from .agent_debug import install
+    install()
     import certifi
     import httpx
     cfg = validate(policy) if policy is not None else load()

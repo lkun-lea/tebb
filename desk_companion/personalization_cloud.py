@@ -14,8 +14,10 @@ import os
 import re
 from urllib.parse import urlsplit
 from uuid import UUID
+from typing import TYPE_CHECKING
 
-import httpx
+if TYPE_CHECKING:
+    import httpx
 
 CONTRACT = 'tebb.personalization.v2'
 
@@ -86,6 +88,7 @@ class CloudConfig:
 
 class PersonalizationCloud:
     def __init__(self, config: CloudConfig, access_token: str = '', *, client: httpx.Client | None = None):
+        import httpx
         if not isinstance(access_token, str) or len(access_token) > 16384 or any(c.isspace() for c in access_token):
             raise CloudError('invalid_session', '登录凭据格式无效。')
         self.config = config
@@ -105,6 +108,7 @@ class PersonalizationCloud:
         self.close()
 
     def _request(self, method, path, body=None, *, authenticated=True):
+        import httpx
         if authenticated and not self._access_token:
             raise CloudError('needs_login', '需要已登录的测试用户，不能用公开密钥代替登录。')
         headers = {'apikey': self.config.publishable_key, 'Accept': 'application/json'}

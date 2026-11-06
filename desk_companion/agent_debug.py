@@ -115,12 +115,17 @@ def begin(request, payload):
     return call_id
 
 
+def configure_process(default):
+    """Set process trace metadata without loading the network stack."""
+    global _default
+    _default = dict(default)
+
+
 def install(default=None):
     """覆盖 httpx 的发送边界；不改动请求、模型采样或响应消费方式。"""
     import httpx
-    global _default
     if default is not None:
-        _default = dict(default)
+        configure_process(default)
     if getattr(httpx.Client.send, "_desk_debug", False):
         return
     original = httpx.Client.send
