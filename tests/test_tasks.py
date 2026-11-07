@@ -407,12 +407,40 @@ class TaskTests(unittest.TestCase):
         self.assertIn("归档达到时限", task["error"])
 
     def test_streaming_progress_extends_idle_deadline_but_stalls_still_timeout(self):
-        self.manager.settings.update(call_timeout=.2, task_timeout=3)
-        task = self.manager.wait(self.manager.submit("stream", "a"))
-        self.assertEqual(task["state"], "succeeded")
-        stalled = self.manager.wait(self.manager.submit("stream_stalls", "a"))
+        call_timeout = .2
+        self.manager.settings.update(call_timeout=call_timeout, task_timeout=3)
+        now = 0.0
+        clock = SimpleNamespace(time=time.time, sleep=time.sleep, monotonic=lambda: now)
+
+        def run_stream(text, time_after_token):
+            finished = threading.Event()
+
+            def on_event(kind, data):
+                nonlocal now
+                # Advance only after TaskManager has consumed the frame.
+                if kind == 'llm_start':
+                    now += .07
+                elif kind == 'token' and data == '流':
+                    now += time_after_token
+                elif kind in {'done', 'error'}:
+                    finished.set()
+
+            task_id = self.manager.submit(text, 'a', callback=on_event)
+            if not finished.wait(15):
+                self.fail(f'{text} did not finish: {self.manager.get(task_id)}')
+            return self.manager.get(task_id)
+
+        with patch('desk_companion.tasks.manager.time', clock):
+            task = run_stream('stream', .07)
+            self.assertGreater(now, call_timeout)
+            self.assertEqual(task["state"], "succeeded")
+            stalled = run_stream('stream_stalls', call_timeout + .01)
         self.assertEqual(stalled["state"], "timed_out")
         self.assertIn("流", stalled["answer"])
+        self.assertIn(
+            dict(stage='llm_start', scope='call'),
+            [event['data'] for event in stalled['events'] if event['kind'] == 'timeout_phase'],
+        )
 
     def test_streaming_cannot_extend_total_task_deadline(self):
         self.manager.settings.update(call_timeout=.2, task_timeout=.3)
