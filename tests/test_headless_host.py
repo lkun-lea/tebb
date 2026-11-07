@@ -1,6 +1,7 @@
 """Composition and real authenticated backend without legacy GUI imports."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 import http.client
 import json
 import os
@@ -202,26 +203,32 @@ assert_no_gui()
             result = json.loads(await asyncio.wait_for(ws.recv(), 10))['result']['result']
             self.assertTrue(result['ok'], result)
             self.assertEqual(result['items'][0]['state'], 'review')
-            from tests.schedule_fixture import DAY, START, END
-            item=result['items'][0]
-            action=dict(type='create',request_id='headless-schedule',item_id=item['id'],version=item['version'],
-                        day=DAY,summary='offline schedule',start=START,end=END)
-            await ws.send(json.dumps(dict(type='rpc',id='schedule-create',method='change_schedule',args=dict(action=action))))
-            result=json.loads(await asyncio.wait_for(ws.recv(),10))['result']['result']
-            self.assertTrue(result['ok'],result)
-            await ws.send(json.dumps(dict(type='rpc',id='schedule-read',method='load_schedule',args=dict(day=DAY,item_id=item['id'],refresh=True))))
-            result=json.loads(await asyncio.wait_for(ws.recv(),10))['result']['result']
-            self.assertTrue(result['events_valid']);self.assertEqual(len(result['links']),1)
-            for method, args in (
-                ('load_schedule_week', dict(day=DAY, refresh=True)),
-                ('inspect_schedule_event', dict(calendar_id='calendar-one', event_id='existing_0')),
-                ('change_schedule', dict(action=dict(type='retime', request_id='headless-week-retime',
-                    calendar_id='calendar-one', event_id='existing_0', day=DAY, original_start=START, original_end=END,
-                    start=DAY+'T11:00:00+08:00', end=DAY+'T12:00:00+08:00')))):
+            async def schedule_rpc(method, **args):
                 await ws.send(json.dumps(dict(type='rpc', id=method, method=method, args=args)))
-                checked = json.loads(await asyncio.wait_for(ws.recv(),10))['result']['result']
+                checked = json.loads(await asyncio.wait_for(ws.recv(), 10))['result']['result']
                 self.assertTrue(checked['ok'], checked)
-            self.assertEqual(checked['operation']['state'],'retimed')
+                return checked
+
+            # The backend may have loaded its calendar fixture on a different day.
+            inspected = await schedule_rpc('inspect_schedule_event', calendar_id='calendar-one', event_id='existing_0')
+            event = inspected['event']
+            original_start = datetime.fromisoformat(event['start'])
+            original_end = datetime.fromisoformat(event['end'])
+            day = original_start.date().isoformat()
+            item = result['items'][0]
+            await schedule_rpc('change_schedule', action=dict(
+                type='create', request_id='headless-schedule', item_id=item['id'], version=item['version'],
+                day=day, summary='offline schedule', start=event['start'], end=event['end']))
+            schedule = await schedule_rpc('load_schedule', day=day, item_id=item['id'], refresh=True)
+            self.assertTrue(schedule['events_valid'])
+            self.assertEqual(len(schedule['links']), 1)
+            await schedule_rpc('load_schedule_week', day=day, refresh=True)
+            shift = timedelta(hours=2)
+            checked = await schedule_rpc('change_schedule', action=dict(
+                type='retime', request_id='headless-week-retime', calendar_id=event['calendar_id'],
+                event_id=event['event_id'], day=day, original_start=event['start'], original_end=event['end'],
+                start=(original_start + shift).isoformat(), end=(original_end + shift).isoformat()))
+            self.assertEqual(checked['operation']['state'], 'retimed')
             for method in ('close_board','send_chat','does_not_exist'):
                 await ws.send(json.dumps(dict(type='rpc', id=method, method=method)))
                 self.assertFalse(json.loads(await ws.recv())['result']['ok'])
