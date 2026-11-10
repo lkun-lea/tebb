@@ -573,8 +573,9 @@ test('migration preview separates evidence categories and makes no move until ex
 });
 
 
-test('normal App starts in core chat and keeps its draft mounted across settings and source previews', async () => {
+test('normal App starts in core chat and keeps its draft mounted while settings opens in its own window', async () => {
   environment(); global.window.addEventListener = () => {}; global.window.removeEventListener = () => {}; global.window.dispatchEvent = () => true;
+  const opened=[]; global.window.open=(url)=>{opened.push(url);return null;};
   let sideProps, liveProps, mounts = 0, unmounts = 0;
   const Empty = () => null;
   function LiveStub(props) {
@@ -622,20 +623,15 @@ test('normal App starts in core chat and keeps its draft mounted across settings
   await act(async () => sideProps.onTerminalDraft('可引用的终端输出'));
   assert.equal(liveProps.composeRequest.text, '可引用的终端输出');
   assert.equal(root().props['data-pane'], 'collaboration');
+  // 设置改为独立窗口：主窗口停留在当前页，草稿与协作页保持挂载。
   await act(async () => button(view, '设置').props.onClick());
-  assert.equal(root().props['data-pane'], 'settings');
-  const slot = view.root.findByProps({'data-content-slot': true});
-  const route = () => view.root.findByProps({className: 'tebb-route-page'});
-  assert.equal(route().props.hidden, false); assert.equal(route().findAllByType('section').length, 1);
-  assert.equal(route().findByType('section').props.initial, undefined);
+  assert.deepEqual(opened, ['settings.html']);
+  assert.equal(root().props['data-pane'], 'collaboration');
   assert.equal(draft().props.value, '跨页保留的草稿'); assert.equal(unmounts, 0);
   const rail = view.root.findByProps({'aria-label':'工作区快捷栏'});
   await act(async () => rail.findAllByType('button').find(n => n.props['aria-label'] === '伙伴聊天').props.onClick());
   assert.equal(root().props['data-pane'], 'collaboration'); assert.equal(draft().props.value, '跨页保留的草稿');
   assert.equal(mounts, 1);
-  assert.equal(view.root.findByProps({'data-content-slot': true}), slot);
-  assert.equal(route().props.hidden, true); assert.equal(route().findAllByType('section').length, 1);
-  assert.equal(view.root.findByProps({'data-page-panel': 'settings'}).props.hidden, true);
   await act(async()=>rail.findAllByType('button').find(n=>n.props['aria-label']==='笔记').props.onClick());
   assert.equal(root().props['data-pane'],'chat');assert.equal(view.root.findAllByProps({'data-notebook-empty':true}).length,1);
   assert.match(text(view.root.findByProps({'data-notebook-empty':true})),/还没有连上本地后端/);

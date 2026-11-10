@@ -1,0 +1,181 @@
+/* 独立设置窗口外壳：左侧分组导航 + 右侧内容区。
+   语义 token 与字段外观由 ui-foundations.css 拥有；这里只负责布局与层级。 */
+
+.settings-window {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.settings-window aside {
+  display: flex;
+  flex: 1 0 216px;
+  max-width: 264px;
+  flex-direction: column;
+  gap: var(--ui-space-md);
+  padding: var(--ui-space-md);
+  background: hsl(var(--secondary));
+  overflow-y: auto;
+}
+
+.settings-search {
+  position: relative;
+  border-radius: var(--ui-radius);
+  background: hsl(var(--background));
+  box-shadow: var(--ui-field-shadow);
+  transition: box-shadow var(--ui-duration) var(--ui-ease);
+}
+
+.settings-search:focus-within {
+  box-shadow: var(--ui-field-focus-shadow);
+}
+
+.settings-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  color: hsl(var(--foreground));
+  font-size: var(--ui-text-sm);
+  font-family: inherit;
+}
+
+.settings-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.settings-search input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.8);
+}
+
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-group-label {
+  margin: var(--ui-space-sm) 0 var(--ui-space-xs);
+  padding: 0 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: var(--ui-text-sm);
+  font-weight: var(--ui-weight-500);
+}
+
+.settings-nav-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: var(--ui-text-body);
+  font-weight: var(--ui-weight-400);
+  text-align: left;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background-color var(--ui-duration) var(--ui-ease);
+}
+
+.settings-nav-item:hover {
+  background: hsl(var(--foreground) / 0.05);
+}
+
+.settings-nav-item[aria-current="true"] {
+  background: hsl(var(--ui-surface-raised));
+  font-weight: var(--ui-weight-550);
+}
+
+.settings-nav-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.settings-window main {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.settings-main-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-md);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 28px 40px;
+}
+
+.settings-section-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--ui-weight-600);
+}
+
+.settings-section-header p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: var(--ui-text-sm);
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-md);
+  border-radius: var(--ui-radius);
+  background: hsl(var(--card));
+  padding: 16px;
+  box-shadow: 0 1px 2px hsl(var(--ui-shadow-tone) / 0.06);
+}
+
+.settings-card > h2 {
+  margin: 0;
+  font-size: var(--ui-text-body);
+  font-weight: var(--ui-weight-600);
+  color: hsl(var(--foreground));
+}
+
+.settings-card > p {
+  margin: 0;
+  font-size: var(--ui-text-sm);
+  color: hsl(var(--muted-foreground));
+}
+
+.settings-crop-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: hsl(var(--background));
+}
+
+.settings-crop-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ui-radius);
+  background: hsl(var(--background));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-nav-item, .settings-search { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .settings-nav-item[aria-current="true"] { border: 1px solid Highlight; }
+  .settings-card { border: 1px solid CanvasText; }
+}
+
+/* 窄窗口：侧栏收窄为图标列不可行（纯文字导航），改为上下堆叠并限制搜索宽度。 */
+@media (max-width: 640px) {
+  .settings-window { flex-direction: column; }
+  .settings-window aside { max-width: none; flex: 0 0 auto; }
+  .settings-main-inner { padding: 16px 16px 32px; }
+}

@@ -21,7 +21,7 @@ pnpm build
 pnpm dev --host 127.0.0.1
 ```
 
-开发模式打开 `http://127.0.0.1:5180/client.html?debug=profile`，可检查“我”字、分类、冲突与来源详情。该入口使用合成资料，资料写入按钮禁用，不修改真实账号。生产构建不接受此调试参数。
+开发模式打开 `http://127.0.0.1:5180/settings.html?debug=profile`，可检查“我”字、分类、冲突与来源详情。该入口使用合成资料，资料写入按钮禁用，不修改真实账号。生产构建不接受此调试参数。
 
 `window.__deskDebug.profileSnapshot()` 只读返回 `marker`、`category` 和所选 `records` 编号。例如中心标识为 `我`；切换类别后可核对实际组件选择，记录编号来自当前显示的卡片。生产构建不安装调试对象。
 

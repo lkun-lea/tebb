@@ -1,12 +1,10 @@
-import {accountStorage} from './account-storage';
-import {AccountsPane} from './accounts';
-import { isTauri } from "@tauri-apps/api/core";
+import {accountStorage,accountStorageKey} from './account-storage';
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Fragment, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button, Card, CardBody } from "reend-components";
 import { useBoardActions } from "./board-actions";
-import { PersonalUsagePane } from './usage-center';
-import {ReminderNotice,ReminderSettings}from'./reminders';
+import {ReminderNotice}from'./reminders';
 import{CalendarProposalNavigation}from'./calendar-proposal-navigation';
 import{CalendarProposalCards}from'./calendar-proposal';
 import{proposalsFromEvents,type CalendarProposal}from'./calendar-proposal-state';
@@ -20,9 +18,6 @@ import {
   KNOWLEDGE_CATALOG,
   KNOWLEDGE_FIXTURE,
   NOTE_FIXTURE,
-  FEISHU_LOGGED_OUT,
-  FEISHU_WAITING,
-  STATUS_FIXTURE,
   debugPane,
   debugRequested,
   installDeskDebug,
@@ -31,10 +26,7 @@ import { ContextCard, ContextSplit, modelVerbatim, splitIndex, type ContextView,
 import { KnowledgePane, KnowledgeTraceView, mergeKnowledgePage, type FeishuDoc, type KnowledgePayload } from "./knowledge";
 import { MaterialsPane } from './materials';
 import { NoteMode, type NotebookPage, type NoteDoc, type NoteSession } from "./note";
-import { FeishuPane, feishuLoggedIn, feishuWaiting, type FeishuSnap } from "./feishu";
-import { FeishuAgentPane } from "./feishu-agent";
 import { AgentMonitor } from "./agent-monitor";
-import { AgentDebugDialog } from "./agent-debug";
 import { WorkspaceRuns } from "./workspace-runs";
 import { NotebookSources } from "./notebook-sources";
 import { CalendarWorkspace } from "./calendar-workspace";
@@ -44,8 +36,6 @@ import { navigateWorkspace } from "./workspace-navigation";
 import { WorkspaceRail } from "./workspace-shell";
 import { PageStack } from "./page-stack";
 import { PetSettings } from "./pet-settings";
-import { ModelNetworkSettings } from './model-network';
-import { SearchSettings } from './search-settings';
 import { RailButton, readDeveloperMode, saveDeveloperMode } from "./companion-ui";
 import { TopToolbar } from "./top-toolbar";
 import "./workspace-navigation.css";
@@ -54,14 +44,12 @@ import { SideWorkspace, previewSource, openTerminal, openProject, openProjectFol
 import { LoadingText } from "./loading-text";
 import { AutomationPane } from "./automation";
 import { DevelopmentTeam } from "./development-team";
-import { VideoLogin, VideoSettings, WikiConnectionSettings } from "./video";
-import { StatusGrid, loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusKind, type StatusView } from "./status";
+import { WikiConnectionSettings } from "./video";
 import { Markdown, MdLink, openableHref, PlainLinks } from "./Markdown";
 import { DEFAULT_SAMPLING, samplingFromInputs, EFFORTS, type Sampling } from "./sampling";
 import { startupFailed, startupReady, startupStatus } from "./startup";
-import { SetupGuide, type SetupStatus } from "./onboarding";
-import type { ModelSetupState } from './onboarding-state';
-import { ReleaseIntro, ReleaseSettings, useReleaseIntro } from "./release";
+import { type SetupStatus } from "./onboarding";
+import { ReleaseIntro, useReleaseIntro } from "./release";
 import {
   backendInfo,
   rpc,
@@ -88,23 +76,17 @@ import {
 
 type SideList = { ok: boolean; error?: string; items: SlashItem[] } | null;
 import {
+  BG_STORAGE_KEY,
   clearStoredBackground,
-  BackgroundCrop,
-  readBackgroundFile,
-  readStoredBackground,
   MODELS_FIXTURE,
-  PERSONA_FIXTURE,
-  SettingsPane,
+  readStoredBackground,
   storeBackground,
   type ModelEntry,
   type ModelList,
-  type ModelPublic,
-  type PersonaPublic,
 } from "./settings";
 
-const PersonalizationPane=lazy(()=>import('./personalization').then(module=>({default:module.PersonalizationPane})));
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
-type Pane = "work" | "chat" | "board" | "settings" | "automation" | "monitor" | "collaboration" | "pet" | "team";
+type Pane = "work" | "chat" | "board" | "automation" | "monitor" | "collaboration" | "pet" | "team";
 
 const debugKind = debugPane();
 const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "monitor" || debugKind === "video";
@@ -118,13 +100,9 @@ type Thread = {
 
 export function App() {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
-  const [showGuide, setShowGuide] = useState(false);
-  const [guideModel, setGuideModel] = useState<ModelSetupState | null>(null);
   const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") !== "light"; } catch { return true; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
-  const [settingsSection,setSettingsSection] = useState(debugKind==='profile'?'personalization':debugKind==='usage'?'usage':debugKind==='feishu'||debugKind==='video'?'connections':"assistant");
-  const [profileTarget,setProfileTarget] = useState<{id:string;nonce:number}|null>(null);
-  useEffect(()=>{const open=(event:Event)=>{setProfileTarget({id:(event as CustomEvent<{id:string}>).detail.id,nonce:Date.now()});setSettingsSection('personalization');setPane('settings');};window.addEventListener('tebb-open-personalization',open);return()=>window.removeEventListener('tebb-open-personalization',open);},[]);
+  useEffect(()=>{const open=(event:Event)=>{openSettings('personalization',(event as CustomEvent<{id:string}>).detail?.id);};window.addEventListener('tebb-open-personalization',open);return()=>window.removeEventListener('tebb-open-personalization',open);},[]);
   const [workspaceModalOpen,setWorkspaceModalOpen] = useState(false);
   useEffect(()=>{const dialogs=new Set<string>();const change=(event:Event)=>{const {id,open}=(event as CustomEvent<{id:string;open:boolean}>).detail;if(open)dialogs.add(id);else dialogs.delete(id);setWorkspaceModalOpen(dialogs.size>0);};window.addEventListener('tebb-workspace-dialog',change);return()=>window.removeEventListener('tebb-workspace-dialog',change);},[]);
   const [noteSourcesOpen, setNoteSourcesOpen] = useState(false);
@@ -136,40 +114,17 @@ export function App() {
   const[chatProposals,setChatProposals]=useState<CalendarProposal[]>([]);
   const [composeRequest, setComposeRequest] = useState<{ id: number; text: string }>();
   const [developerMode, setDeveloperMode] = useState(readDeveloperMode);
-  const [agentDebugOpen, setAgentDebugOpen] = useState(false);
   const [storedBg] = useState(() => readStoredBackground());
   const [bgUrl, setBgUrl] = useState(storedBg.url);
-  const [bgError, setBgError] = useState(storedBg.error);
-  const [cropSrc, setCropSrc] = useState("");
-  const [cropError, setCropError] = useState("");
-  const releaseIntro = useReleaseIntro(!!setupStatus && !setupStatus.show && !showGuide && !cropSrc && !debugKind);
+  const releaseIntro = useReleaseIntro(!!setupStatus && !setupStatus.show && !debugKind);
   const [modelItems, setModelItems] = useState<ModelEntry[]>(() => (debugKind ? MODELS_FIXTURE.items : []));
   const [activeModelId, setActiveModelId] = useState(() => (debugKind ? MODELS_FIXTURE.active : ""));
-  const [editingModelId, setEditingModelId] = useState(() => (debugKind ? MODELS_FIXTURE.active : ""));
-  const [modelForm, setModelForm] = useState<ModelPublic | null>(() => {
-    if (!debugKind) return null;
-    const item = MODELS_FIXTURE.items.find((row) => row.id === MODELS_FIXTURE.active);
-    return item ? { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key } : null;
-  });
-  const [personaForm, setPersonaForm] = useState<PersonaPublic | null>(null);
-  const [settingsError, setSettingsError] = useState("");
-  const [settingsNotice, setSettingsNotice] = useState("");
-  const [personaError, setPersonaError] = useState("");
-  const [personaNotice, setPersonaNotice] = useState("");
-  const [settingsBusy, setSettingsBusy] = useState(false);
-  const [keyEpoch, setKeyEpoch] = useState(0);
-  const applyBgRef = useRef<(url: string) => void>(() => {});
-  const clearBgRef = useRef<() => void>(() => {});
   const [pane, setPane] = useState<Pane>(
     debugKind === "work" || debugKind === "automation" || debugKind === "monitor"
       ? debugKind
-      : debugKind === "feishu" || debugKind === "video"
-        ? "settings"
-        : debugKind === "board"
-          ? "board"
-          : debugKind === "settings" || debugKind === "usage" || debugKind === "profile"
-            ? "settings"
-            : debugKind ? "chat" : "collaboration",
+      : debugKind === "board"
+        ? "board"
+        : debugKind ? "chat" : "collaboration",
   );
   const [info, setInfo] = useState<BackendInfo | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
@@ -186,7 +141,6 @@ export function App() {
   const [error, setError] = useState("");
   const [board, setBoard] = useState<BoardPayload | null>(boardDebug ? BOARD_FIXTURE : null);
   const [boardClock, setBoardClock] = useState<string | null>(debugKind ? BOARD_NOW : null);
-  const [statuses, setStatuses] = useState<StatusView[]>(boardDebug ? STATUS_FIXTURE : []);
   const [chatFace, setChatFace] = useState<"thread" | "knowledge" | "notebooks">(
     debugKind === "knowledge" ? "knowledge" : "thread",
   );
@@ -232,12 +186,6 @@ export function App() {
       window.clearInterval(id);
     };
   }, [info, knowledge?.downloads]);
-  const [feishu, setFeishu] = useState<FeishuSnap | null>(debugKind === "feishu" ? FEISHU_LOGGED_OUT : null);
-  const [feishuBusy, setFeishuBusy] = useState(false);
-  const feishuBusyRef = useRef(false);
-  const openFeishuRef = useRef<() => void>(() => {});
-  const rememberFeishuRef = useRef<(snap: FeishuSnap) => void>(() => {});
-  const statusGen = useRef(0);
   const boardSeen = useRef(false);
   const { loading: boardLoading, loadError: boardLoadError, rowDeleting, taskErrors,
     loadBoardSnapshot, deleteTask } =
@@ -284,6 +232,47 @@ export function App() {
     document.documentElement.classList.toggle("light", !dark);
     try { accountStorage().setItem("tebb.theme", dark ? "dark" : "light"); } catch { /* theme stays active */ }
   }, [dark]);
+
+  // 设置窗口负责改写主题与背景；主窗口通过本地存储事件同步当前呈现。
+  useEffect(() => {
+    const sync = (ev: StorageEvent) => {
+      if (ev.key === accountStorageKey("tebb.theme")) {
+        try { setDark(accountStorage().getItem("tebb.theme") !== "light"); } catch { /* 保持当前主题 */ }
+      } else if (ev.key === accountStorageKey(BG_STORAGE_KEY)) {
+        setBgUrl(ev.newValue || "");
+      }
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+
+  // 设置窗口可能增删模型：主窗口重新获得焦点时刷新对话可用的模型列表。
+  useEffect(() => {
+    const reload = () => {
+      if (debugKind || !info) return;
+      void rpc<ModelList>(info, "load_models").then((models) => {
+        if (!models.ok) return;
+        setModelItems(models.items);
+        setActiveModelId(models.active);
+      }).catch(() => { /* 焦点刷新失败不提示，下次聚焦重试 */ });
+    };
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+  }, [info, debugKind]);
+
+  function openSettings(section?: string, profile?: string) {
+    if (isTauri()) {
+      void invoke("open_settings_window", { section: section ?? null, profile: profile ?? null }).catch((err: unknown) => setError(String(err)));
+      return;
+    }
+    const params = new URLSearchParams();
+    const kind = debugPane();
+    if (kind) params.set("debug", kind);
+    if (section) params.set("section", section);
+    if (profile) params.set("profile", profile);
+    const query = params.toString();
+    window.open(`settings.html${query ? `?${query}` : ""}`, "_blank");
+  }
 
   useEffect(() => {
     slashIndexRef.current = 0;
@@ -428,21 +417,12 @@ export function App() {
     });
   }
 
-  function formFromEntry(item: ModelEntry): ModelPublic {
-    return { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key };
-  }
-
-  function rememberModels(data: ModelList, editId = "") {
-    setModelItems(data.items);
-    setActiveModelId(data.active);
-    const nextEdit = data.items.some((item) => item.id === editId) ? editId : data.active;
-    setEditingModelId(nextEdit);
-    const item = data.items.find((row) => row.id === nextEdit);
-    setModelForm(item ? formFromEntry(item) : null);
-    setKeyEpoch((n) => n + 1);
-  }
-
   useEffect(() => {
+    // 设置类调试页由独立设置窗口承载：直接跳转，避免主窗口再渲染一套设置面板。
+    if (debugKind && ["settings", "usage", "profile", "feishu", "video"].includes(debugKind)) {
+      location.replace(`settings.html${location.search}`);
+      return;
+    }
     installDeskDebug({
       seed: setPreview,
       seedBoard: (payload, nowIso) => {
@@ -450,14 +430,8 @@ export function App() {
         setBoard(payload);
         setBoardClock(nowIso);
       },
-      seedStatus: (raw) => {
-        setPane("board");
-        setStatuses(STATUS_KINDS.map((kind) => statusFromPayload(kind, raw[kind])));
-      },
       openBoard: (refresh = false) => openBoardRef.current(refresh),
       requestToday: () => {setCalendarTarget({view:'today'});openBoardRef.current(false);},
-      openFeishu: () => openFeishuRef.current(),
-      seedFeishu: (snap) => rememberFeishuRef.current(snap),
       seedMemory: () => {
         setPane("collaboration");
         setChatFace("thread");
@@ -469,10 +443,15 @@ export function App() {
       pulseThinking: setThinkPulse,
       setGenerating: setBusy,
       fillDraft: (text) => fillDraftRef.current(text),
-      openSettings: () => setPane("settings"),
-      setBackground: (url) => applyBgRef.current(url),
-      clearBackground: () => clearBgRef.current(),
-      openBackgroundCrop: (url) => openCropRef.current(url),
+      openSettings: () => openSettings(),
+      setBackground: (url) => {
+        const saved = storeBackground(url);
+        if (!saved.error) { setBgUrl(saved.url); }
+      },
+      clearBackground: () => {
+        clearStoredBackground();
+        setBgUrl("");
+      },
     });
     if (debugPane()) {
       if (debugPane() === "chat" || debugPane() === "note") {
@@ -502,7 +481,8 @@ export function App() {
         setActiveModelId(models.active);
         const setup = await rpc<SetupStatus>(backend, "load_onboarding");
         setSetupStatus(setup);
-        setShowGuide(setup.show);
+        // 首次使用引导由设置窗口承载（模型与飞书阶段锚点都在设置窗口内）。
+        if (setup.show) openSettings();
         startupReady();
       })
       .catch((err: unknown) => {
@@ -510,44 +490,6 @@ export function App() {
         startupFailed(err);
       });
   }, []);
-
-  useEffect(() => {
-    if (pane !== "settings") return;
-    if (debugKind) {
-      setPersonaForm(PERSONA_FIXTURE);
-      setSettingsError("");
-      setPersonaError("");
-      return;
-    }
-    if (!info) {
-      setSettingsError("还没有连上本地后端。恢复：重启客户端。");
-      return;
-    }
-    let gone = false;
-    void (async () => {
-      try {
-        const data = await rpc<ModelList>(info, "load_models");
-        if (gone) return;
-        if (!data.ok) throw new Error(data.error || "模型列表读取失败。");
-        rememberModels(data);
-        setSettingsError("");
-      } catch (err) {
-        if (!gone) setSettingsError(String(err));
-      }
-      try {
-        const data = await rpc<PersonaPublic>(info, "load_persona");
-        if (gone) return;
-        if (!data.ok) throw new Error(data.error || "系统提示词读取失败。");
-        setPersonaForm(data);
-        setPersonaError("");
-      } catch (err) {
-        if (!gone) setPersonaError(String(err));
-      }
-    })();
-    return () => {
-      gone = true;
-    };
-  }, [pane, info]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
@@ -604,7 +546,7 @@ export function App() {
       return;
     }
     if (!activeModelId) {
-      setError("还没有可选模型。打开设置添加一个。");
+      setError("还没有可选模型。打开设置窗口添加一个。");
       return;
     }
     if (!info || !thread) return;
@@ -1161,37 +1103,14 @@ export function App() {
     }
   }
 
-  function loadStatuses(backend: BackendInfo) {
-    const mine = statusGen.current + 1;
-    statusGen.current = mine;
-    setStatuses(loadingStatuses());
-    const methods: Record<StatusKind, string> = {
-      feishu: "load_feishu",
-      github: "load_github",
-    };
-    for (const kind of STATUS_KINDS) {
-      rpc<unknown>(backend, methods[kind])
-        .then((data) => {
-          if (statusGen.current !== mine) return;
-          setStatuses((cur) => cur.map((card) => (card.kind === kind ? statusFromPayload(kind, data) : card)));
-        })
-        .catch((err: unknown) => {
-          if (statusGen.current !== mine) return;
-          setStatuses((cur) => cur.map((card) => (card.kind === kind ? statusError(kind, String(err)) : card)));
-        });
-    }
-  }
-
   function openBoard(refresh = false) {
     setPane("board");
     if (!shouldReloadBoard({ refresh, seen: boardSeen.current, debug: boardClock !== null })) return;
     boardSeen.current = true;
     if (!info) {
       setBoard({ ok: false, error: "还没有连上本地后端。恢复：重启客户端。" });
-      setStatuses(STATUS_KINDS.map((kind) => statusError(kind, "还没有连上本地后端。恢复：重启客户端。")));
       return;
     }
-    loadStatuses(info);
     void loadBoardSnapshot(refresh);
   }
 
@@ -1294,176 +1213,22 @@ export function App() {
     }
   }
 
-  openFeishuRef.current = () => {
-    void openFeishu();
-  };
   openBoardRef.current = openBoard;
-
-  function rememberFeishu(snap: FeishuSnap) {
-    setFeishu(snap);
-    setStatuses((cur) => cur.map((card) => (card.kind === "feishu" ? statusFromPayload("feishu", snap) : card)));
-  }
-  rememberFeishuRef.current = rememberFeishu;
-
-  async function pullFeishu(backend: BackendInfo) {
-    const snap = await rpc<FeishuSnap>(backend, "load_feishu");
-    rememberFeishu(snap);
-  }
-
-  async function openFeishu() {
-    setSettingsSection("connections"); setPane("settings");
-    if (boardClock !== null) {
-      setFeishu((cur) => cur || FEISHU_LOGGED_OUT);
-      return;
-    }
-    if (!info) {
-      setFeishu({ ok: false, logged_in: false, error: "还没有连上本地后端。恢复：重启客户端。" });
-      return;
-    }
-    try {
-      await pullFeishu(info);
-    } catch (err) {
-      setFeishu({ ok: false, logged_in: false, error: String(err) });
-    }
-  }
-
-  async function startFeishuLogin() {
-    if (feishuBusyRef.current || feishuWaiting(feishu)) return;
-    feishuBusyRef.current = true;
-    setFeishuBusy(true);
-    try {
-      if (boardClock !== null) {
-        rememberFeishu(FEISHU_WAITING);
-        return;
-      }
-      if (!info) {
-      setFeishu({ ok: false, logged_in: false, error: "还没有连上本地后端。恢复：重启客户端。" });
-        return;
-      }
-      await rpc(info, "feishu_login");
-      await pullFeishu(info);
-    } catch (err) {
-      setFeishu({ ...(feishu || {}), ok: false, logged_in: false, login_busy: false, error: String(err) });
-    } finally {
-      feishuBusyRef.current = false;
-      setFeishuBusy(false);
-    }
-  }
-
-  async function logoutFeishu() {
-    if (feishuBusyRef.current || !feishuLoggedIn(feishu)) return;
-    feishuBusyRef.current = true;
-    setFeishuBusy(true);
-    try {
-      if (boardClock !== null) {
-        rememberFeishu(FEISHU_LOGGED_OUT);
-        return;
-      }
-      if (!info) {
-        setFeishu({ ...(feishu || {}), ok: false, error: "还没有连上本地后端。恢复：重启客户端。" });
-        return;
-      }
-      await rpc(info, "feishu_logout");
-      await pullFeishu(info);
-    } catch (err) {
-      setFeishu({ ...(feishu || {}), ok: false, error: String(err) });
-    } finally {
-      feishuBusyRef.current = false;
-      setFeishuBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if(pane!=="settings"||settingsSection!=="connections"||boardClock!==null||!info)return;
-    void pullFeishu(info).catch(err=>setFeishu({ok:false,logged_in:false,error:String(err)}));
-  },[pane,settingsSection,boardClock,info]);
-
-  useEffect(() => {
-    if ((pane !== "settings" || settingsSection !== "connections") || boardClock !== null || !info || !feishuWaiting(feishu)) return;
-    const timer = window.setInterval(() => {
-      if (feishuBusyRef.current) return;
-      void pullFeishu(info).catch((err: unknown) => {
-        setFeishu({ ok: false, logged_in: false, error: String(err) });
-      });
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [pane, settingsSection, boardClock, info, feishu]);
 
   draftRef.current = draft;
   userLinesRef.current = (preview || thread?.items || [])
     .filter((item) => item.role === "user" && item.text.trim())
     .map((item) => item.text);
-  applyBgRef.current = (url) => {
-    const saved = storeBackground(url);
-    if (saved.error) {
-      setBgError(saved.error);
-      return;
-    }
-    setBgUrl(saved.url);
-    setBgError("");
-  };
-  clearBgRef.current = () => {
-    clearStoredBackground();
-    setBgUrl("");
-    setBgError("");
-  };
-
-  const openCropRef = useRef<(url: string) => void>(() => {});
-  openCropRef.current = (url) => {
-    setCropError("");
-    setCropSrc(url);
-  };
-
-  async function pickBackground(file: File) {
-    const read = await readBackgroundFile(file);
-    if (read.error || !read.url) {
-      setBgError(read.error || "这张图打不开。恢复：换一张 png、jpg 或 webp。");
-      return;
-    }
-    setBgError("");
-    openCropRef.current(read.url);
-  }
-
-  function confirmCrop(url: string) {
-    const saved = storeBackground(url);
-    if (saved.error) {
-      setCropError(saved.error);
-      return;
-    }
-    setBgUrl(saved.url);
-    setBgError("");
-    setCropError("");
-    setCropSrc("");
-  }
-
-  function settingsPayload(draft: { base_url: string; model: string; api_key: string }) {
-    const base_url = draft.base_url.trim();
-    const model = draft.model.trim();
-    const api_key = draft.api_key.trim();
-    return { base_url, model, api_key };
-  }
-
-  function editModel(id: string) {
-    const item = modelItems.find((row) => row.id === id);
-    if (!item) return;
-    setEditingModelId(id);
-    setModelForm(formFromEntry(item));
-    setKeyEpoch((n) => n + 1);
-    setSettingsError("");
-    setSettingsNotice("");
-  }
-
   async function useModel(id: string) {
     const previous = activeModelId;
     setActiveModelId(id);
     if (debugKind) {
-      setSettingsError("");
-      setSettingsNotice("调试样本，未切换磁盘上的模型。");
+      setComposerNotice("调试样本，未切换磁盘上的模型。");
       return;
     }
     if (!info) {
       setActiveModelId(previous);
-      setSettingsError("还没有连上本地后端。恢复：重启客户端。");
+      setError("还没有连上本地后端。恢复：重启客户端。");
       return;
     }
     try {
@@ -1471,186 +1236,11 @@ export function App() {
       if (!data.ok) throw new Error(data.error || "切换模型失败。");
       setModelItems(data.items);
       setActiveModelId(data.active);
-      setSettingsError("");
-      setSettingsNotice(data.message || "已切换模型。");
+      setComposerNotice(data.message || "已切换模型。");
       setError("");
     } catch (err) {
       setActiveModelId(previous);
-      setSettingsError(String(err));
       setError(String(err));
-    }
-  }
-
-  async function deleteModel(id: string) {
-    if (modelItems.length <= 1) {
-      setSettingsNotice("");
-      setSettingsError("至少留一个模型。要换的话直接改这一条。");
-      return;
-    }
-    if (debugKind) {
-      const items = modelItems.filter((row) => row.id !== id);
-      const active = activeModelId === id ? items[0].id : activeModelId;
-      const edit = editingModelId === id ? active : editingModelId;
-      const next = items.find((row) => row.id === edit) || items[0];
-      setModelItems(items);
-      setActiveModelId(active);
-      setEditingModelId(next.id);
-      setModelForm(formFromEntry(next));
-      setKeyEpoch((n) => n + 1);
-      setSettingsError("");
-      setSettingsNotice("调试样本，未删除磁盘上的模型。");
-      return;
-    }
-    if (!info) {
-      setSettingsError("还没有连上本地后端。恢复：重启客户端。");
-      return;
-    }
-    setSettingsBusy(true);
-    setSettingsError("");
-    setSettingsNotice("");
-    try {
-      const data = await rpc<ModelList>(info, "delete_model_entry", { model_id: id });
-      if (!data.ok) throw new Error(data.error || "删除模型失败。");
-      rememberModels(data, data.active);
-      setSettingsNotice(data.message || "模型已删除。");
-    } catch (err) {
-      setSettingsError(String(err));
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-
-  async function saveSettings(draft: { id: string; base_url: string; model: string; api_key: string }) {
-    const { base_url, model, api_key } = settingsPayload(draft);
-    const sourceId = draft.id || editingModelId;
-    const editing = modelItems.find((row) => row.id === sourceId);
-    if (!base_url) {
-      setSettingsNotice("");
-      setSettingsError("API 地址不能为空。");
-      return;
-    }
-    if (!model) {
-      setSettingsNotice("");
-      setSettingsError("模型名不能为空。");
-      return;
-    }
-    if (!api_key && !editing?.has_key) {
-      setSettingsNotice("");
-      setSettingsError("API Key 不能为空。要沿用已有 Key，先在列表里点一条。");
-      return;
-    }
-    if (debugKind) {
-      const id = draft.id || `local-${Date.now()}`;
-      const nextItem = { id, base_url, model, has_key: true };
-      const items = draft.id
-        ? modelItems.map((row) => (row.id === draft.id ? nextItem : row))
-        : [...modelItems, nextItem];
-      const active = activeModelId || id;
-      setModelItems(items);
-      setActiveModelId(active);
-      setEditingModelId(id);
-      setModelForm({ ok: true, base_url, model, has_key: true });
-      setSettingsError("");
-      setSettingsNotice("调试样本，未写入模型。");
-      setKeyEpoch((n) => n + 1);
-      return;
-    }
-    if (!info) {
-      setSettingsError("还没有连上本地后端。恢复：重启客户端。");
-      return;
-    }
-    setSettingsBusy(true);
-    setSettingsError("");
-    setSettingsNotice("");
-    try {
-      const data = await rpc<ModelList>(info, "save_model_entry", {
-        payload: { id: draft.id, base_url, model, api_key, copy_key_from: draft.id ? "" : sourceId },
-      });
-      if (!data.ok) throw new Error(data.error || "模型保存失败。");
-      const created = data.items.find((row) => !modelItems.some((old) => old.id === row.id));
-      rememberModels(data, draft.id || created?.id || data.active);
-      setSettingsNotice(data.message || "模型已保存。");
-    } catch (err) {
-      setSettingsError(String(err));
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-
-  async function savePersona(text: string) {
-    const persona = text.trim();
-    if (!persona) {
-      setPersonaNotice("");
-      setPersonaError("系统提示词不能为空。");
-      return;
-    }
-    if (!personaForm) {
-      setPersonaError("系统提示词还没读到。恢复：重新打开设置。");
-      return;
-    }
-    if (debugKind) {
-      setPersonaForm({ ...personaForm, persona });
-      setPersonaError("");
-      setPersonaNotice("调试样本，未写入人设。");
-      return;
-    }
-    if (!info) {
-      setPersonaError("还没有连上本地后端。恢复：重启客户端。");
-      return;
-    }
-    setSettingsBusy(true);
-    setPersonaError("");
-    setPersonaNotice("");
-    try {
-      const data = await rpc<PersonaPublic>(info, "save_persona", {
-        payload: {
-          persona,
-          max_steps: personaForm.max_steps,
-          nudge_enabled: personaForm.nudge_enabled,
-        },
-      });
-      if (!data.ok) throw new Error(data.error || "系统提示词保存失败。");
-      setPersonaForm({ ...personaForm, persona });
-      setPersonaNotice(data.message || "人设已保存。");
-    } catch (err) {
-      setPersonaError(String(err));
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-
-  async function testSettings(draft: { base_url: string; model: string; api_key: string }): Promise<boolean> {
-    const { base_url, model, api_key } = settingsPayload(draft);
-    const editing = modelItems.find((row) => row.id === editingModelId);
-    if (!base_url || !model || (!api_key && !editing?.has_key)) {
-      setSettingsNotice("");
-      setSettingsError("测试前先填 API 地址、模型名和 Key。");
-      return false;
-    }
-    if (debugKind) {
-      setSettingsError("");
-      setSettingsNotice("调试样本，未测试连通。");
-      return false;
-    }
-    if (!info) {
-      setSettingsError("还没有连上本地后端。恢复：重启客户端。");
-      return false;
-    }
-    setSettingsBusy(true);
-    setSettingsError("");
-    setSettingsNotice("");
-    try {
-      const data = await rpc<ModelPublic>(info, "test_model", {
-        payload: { id: editingModelId, base_url, model, api_key },
-      });
-      if (!data.ok) throw new Error(data.error || "连通测试失败。");
-      setSettingsNotice(data.message || "连通正常。");
-      return true;
-    } catch (err) {
-      setSettingsError(String(err));
-      return false;
-    } finally {
-      setSettingsBusy(false);
     }
   }
 
@@ -1811,7 +1401,6 @@ export function App() {
   const coreChat = pane === "collaboration" || (!debugKind && pane === "chat" && chatFace === "thread" && !noteSessionId);
   const changeDeveloperMode = (value: boolean) => {
     setDeveloperMode(value); setComposerNotice(value ? "开发者模式已开启" : "开发者模式已关闭"); const notice = saveDeveloperMode(value); if (notice) setError(notice);
-    if (!value) setAgentDebugOpen(false);
   };
   async function openNotes(){
     setPane('chat');setChatFace('notebooks');
@@ -1836,7 +1425,7 @@ export function App() {
     <RailButton icon="notes" label="笔记" active={pane === "chat" && (chatFace === "notebooks" || chatFace === "thread" && !!noteSessionId)} onClick={() => navigateWorkspace(()=>void openNotes())} />
     <RailButton icon="knowledge" label="知识库" active={pane === "chat" && chatFace === "knowledge"} onClick={() => navigateWorkspace(()=>void openKnowledge())} />
     <span className="tebb-nav-group">偏好</span>
-    <RailButton icon="settings" label="设置" active={pane === "settings"} onClick={() => navigateWorkspace(()=>setPane("settings"))} />
+    <RailButton icon="settings" label="设置" active={false} onClick={() => openSettings()} />
     <div className="tebb-nav-actions"><RailButton icon="pet" label="桌宠" active={pane==='pet'} onClick={()=>navigateWorkspace(()=>setPane('pet'))}/></div>
   </>;
 
@@ -1844,21 +1433,7 @@ export function App() {
     <div className="tebb-workspace relative flex h-full overflow-hidden bg-background text-foreground" data-pane={pane}>
       <ReminderNotice info={info} debug={!!debugKind}/>
       <CalendarProposalNavigation info={info} onTarget={target=>navigateWorkspace(()=>openCalendar(target))}/>
-      {showGuide && info && setupStatus ? <SetupGuide
-        info={info} status={setupStatus} modelState={guideModel} configured={!!modelItems.length}
-        feishuConnected={feishuLoggedIn(feishu)} modelBusy={settingsBusy || feishuBusy}
-        onClose={(completed) => {
-          setShowGuide(false);
-          if (completed) setSetupStatus(current => current ? { ...current, show: false } : current);
-        }}
-        onNavigate={(nextPane) => {
-          if (nextPane === "feishu") void openFeishu();
-          else if (nextPane === "terminal") openTerminal();
-          else { if (nextPane === "settings") setSettingsSection('assistant'); setPane(nextPane); }
-        }}
-      /> : null}
-      {agentDebugOpen ? <AgentDebugDialog info={info} debug={!!debugKind} onClose={() => setAgentDebugOpen(false)} /> : null}
-      {releaseIntro.open && !showGuide && !cropSrc && !agentDebugOpen ? <ReleaseIntro daily={releaseIntro.daily}
+      {releaseIntro.open ? <ReleaseIntro daily={releaseIntro.daily}
         onDaily={releaseIntro.setDaily} onClose={releaseIntro.close} error={releaseIntro.preferenceError} /> : null}
       <div
         className="desk-bg"
@@ -1872,7 +1447,7 @@ export function App() {
       <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
-          ({ team:"开发团队", work: "事项", board: "日程", feishu: "飞书", settings: "设置", automation: "自动化", monitor: "AI 执行", video: "视频学习", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
+          ({ team:"开发团队", work: "事项", board: "日程", automation: "自动化", monitor: "AI 执行", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
           model={modelItems.find(m => m.id === activeModelId)?.model ? `默认：${modelItems.find(m => m.id === activeModelId)?.model}` : ""} connected={!!info || !!debugKind} busy={busy || noteBusy}
           onFile={() => setLocalDialog("file")} onFolder={openProjectFolder} onTerminal={openTerminal} sidebarOpen={sidebarState.open} sidebarAvailable={sidebarState.available} onSidebarToggle={togglePreview} />
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
@@ -1881,7 +1456,7 @@ export function App() {
           onIndex={source => knowledgeCall("add_knowledge", { doc_id: `local:${source.id}`, label: source.name })} />}
         <div className="tebb-page-body">
         <SideWorkspace onVisibilityChange={setSidebarState} info={info} session={noteSessionId || thread?.sessionId || ""} onTerminalDraft={text => { if (noteSessionId && pane === "chat" && chatFace === "thread") { setDraft(previous => `${previous}${previous ? "\n\n" : ""}${text}`); setComposerNotice("内容已加入笔记提问草稿，尚未发送。"); } else { setComposeRequest({ id: Date.now(), text }); setPane("collaboration"); } }} enabled={true} debug={!!debugKind}
-          suspended={workspaceModalOpen || agentDebugOpen || showGuide || !!cropSrc || releaseIntro.open || (!!localDialog && !localDialogMinimized)}
+          suspended={workspaceModalOpen || releaseIntro.open || (!!localDialog && !localDialogMinimized)}
           attachments={pickedAttachments}
           onAttach={sources => { setPickedAttachments(sources); setPane("collaboration"); setNoteSessionId(null); }}
           onDetach={id => setPickedAttachments(prev => prev.filter(s => s.id !== id))}
@@ -2180,50 +1755,7 @@ export function App() {
             </section>
           ) : pane === "pet" ? (
             <section key="pet" className="flex-1 overflow-y-auto px-8 py-6"><h1 className="text-2xl mb-4">桌宠</h1><p className="mb-5 text-sm text-muted-foreground">选择外观、预览并管理桌宠窗口。</p><PetSettings info={info} debug={!!debugKind}/></section>
-          ) : pane === "settings" ? (
-            <section
-              key="settings"
-              className="flex-1 overflow-y-auto px-8 py-6"
-            >
-              <nav className="workspace-tabs" aria-label="设置分类">{[['assistant','模型与人设'],['account','账号与空间'],['personalization','个人资料'],['connections','连接与网络'],['appearance','界面外观'],['usage','个人使用'],['about','版本与诊断']].map(([id,label])=><button type="button" key={id} aria-pressed={settingsSection===id} onClick={()=>setSettingsSection(id)}>{label}</button>)}</nav>
-              {settingsSection==='account'&&<AccountsPane info={info} debug={!!debugKind}/>}
-              {settingsSection==='personalization'&&<Suspense fallback={<p role="status">正在打开个人画像…</p>}><PersonalizationPane info={info} debug={!!debugKind} target={profileTarget} onInspect={()=>setAgentDebugOpen(true)}/></Suspense>}
-              {settingsSection==='assistant'&&<ReminderSettings info={info} debug={!!debugKind}/>}
-              <div hidden={settingsSection!=='usage'}><PersonalUsagePane info={info} debug={!!debugKind} visible={settingsSection==='usage'}/></div>
-              <div hidden={settingsSection!=='about'}><ReleaseSettings info={info} onShowIntro={releaseIntro.show}/>{developerMode&&<button type="button" className="desk-menu-item" onClick={()=>setAgentDebugOpen(true)}>调用调试</button>}</div>
-              <div hidden={settingsSection!=='connections'}><ModelNetworkSettings info={info} debug={!!debugKind}/><SearchSettings info={info} debug={!!debugKind}/><StatusGrid cards={statuses} onOpenFeishu={()=>void openFeishu()}/>{settingsSection==='connections'&&<><FeishuPane snap={feishu} busy={feishuBusy} debug={boardClock!==null} onLogin={()=>void startFeishuLogin()} onLogout={()=>void logoutFeishu()}/><FeishuAgentPane info={info} debug={boardClock!==null}/><h2 className="mt-6 text-lg">视频来源与登录</h2><p>学习笔记在自动化工作流中编排；这里管理读取来源所需的连接。</p><VideoLogin info={info} debug={!!debugKind}/><VideoSettings info={info} debug={!!debugKind}/></>}</div>
-              <div hidden={!['assistant','appearance'].includes(settingsSection)}><SettingsPane section={settingsSection==='appearance'?'appearance':'assistant'}
-                onOpenGuide={(replay = false) => {
-                  if (!info) return;
-                  void rpc<SetupStatus>(info, "load_onboarding").then((setup) => {
-                    setSetupStatus(replay ? { ...setup, step: 'model' } : setup); setShowGuide(true);
-                  }).catch((err) => setSettingsError(String(err)));
-                }}
-                model={modelForm}
-                models={modelItems}
-                editingId={editingModelId}
-                modelError={settingsError}
-                notice={settingsNotice}
-                persona={personaForm?.persona || ""}
-                personaError={personaError}
-                personaNotice={personaNotice}
-                busy={settingsBusy}
-                keyEpoch={keyEpoch}
-                dark={dark}
-                photo={!!bgUrl}
-                bgError={bgError}
-                onToggleTheme={() => setDark((v) => !v)}
-                onPickFile={(file) => void pickBackground(file)}
-                onClearBackground={() => clearBgRef.current()}
-                onSave={(draft) => void saveSettings(draft)}
-                onTest={testSettings}
-                onSetupChange={setGuideModel}
-                onEdit={editModel}
-                onDelete={(id) => void deleteModel(id)}
-                onSavePersona={(text) => void savePersona(text)}
-              /></div>
-            </section>
-          ) : pane === "team" ? <DevelopmentTeam info={info} onSetup={()=>setPane("collaboration")} onOpen={async id=>{
+                    ) : pane === "team" ? <DevelopmentTeam info={info} onSetup={()=>setPane("collaboration")} onOpen={async id=>{
             if(!info)throw Error("后端尚未连接");
             await rpc(info,"collaboration_action",{action:{type:"select",id,conversation:id,request_id:crypto.randomUUID()}});
             setPane("collaboration");
@@ -2273,22 +1805,6 @@ export function App() {
       </main>
 
       {error && pane !== "chat" && <div className="tebb-global-error" role="alert"><span>{error}</span><button type="button" aria-label="关闭错误提示" onClick={() => setError("")}>×</button></div>}
-      {cropSrc ? (
-        <BackgroundCrop
-          src={cropSrc}
-          error={cropError}
-          onConfirm={confirmCrop}
-          onCancel={() => {
-            setCropSrc("");
-            setCropError("");
-          }}
-          onBroken={() => {
-            setCropSrc("");
-            setCropError("");
-            setBgError("这张图打不开。恢复：换一张 png、jpg 或 webp。");
-          }}
-        />
-      ) : null}
     </div>
   );
 }

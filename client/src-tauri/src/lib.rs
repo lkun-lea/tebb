@@ -11,7 +11,9 @@ pub mod main_window;
 use main_window::{show_main, open_today};
 mod video_login;
 mod pet_chat;
+mod settings_window;
 use pet_chat::{set_pet_chat_visible, toggle_pet_chat, get_pet_chat_state, set_pet_chat_pinned};
+use settings_window::{open_settings_window, take_settings_target, main_window_inner_size, PendingSettingsTarget};
 pub mod side_browser;
 use side_browser::{open_side_browser, side_browser_layout, side_browser_action};
 use video_login::{open_video_login, capture_video_login, clear_video_login_window};
@@ -323,6 +325,7 @@ pub fn run() {
         .manage(HitRegions(regions_for_state))
         .manage(DragLock(drag_lock_for_state))
         .manage(MenuRegion(menu_region.clone()))
+        .manage(PendingSettingsTarget(std::sync::Mutex::new(None)))
         .setup(move |app| {
             if let Some(main) = app.get_webview_window("main") {
                 main_window::retain_on_close(&main);
@@ -348,7 +351,7 @@ pub fn run() {
         })
         .invoke_handler(|invoke| {
             // Remote platform pages must never obtain backend tokens or invoke app commands.
-            if !matches!(invoke.message.webview_ref().label(), "main" | "pet" | "pet-chat") {
+            if !matches!(invoke.message.webview_ref().label(), "main" | "pet" | "pet-chat" | "settings") {
                 invoke.resolver.reject("远程网页不能调用本地助手。");
                 return true;
             }
@@ -371,6 +374,9 @@ pub fn run() {
             nudge_pet,
             show_main,
             open_today,
+            open_settings_window,
+            take_settings_target,
+            main_window_inner_size,
             open_link,
             restart_for_account,
             quit_app

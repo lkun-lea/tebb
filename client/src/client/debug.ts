@@ -335,23 +335,23 @@ export type StatusSnap = { kind: string; state: string; line: string }[];
 export type ProfileSnap={marker:string;category:string;records:string[]};
 
 export function installDeskDebug(api: {
-  seed: (items: ChatItem[]) => void;
-  seedBoard: (payload: BoardPayload, nowIso: string) => void;
-  seedStatus: (raw: Record<string, unknown>) => void;
-  openBoard: (refresh?: boolean) => void;
-  requestToday: () => void;
-  openFeishu: () => void;
-  seedFeishu: (snap: FeishuSnap) => void;
-  seedMemory: (payload: MemoryPayload) => void;
-  shouldReloadBoard: (opts: { refresh: boolean; seen: boolean; debug: boolean }) => boolean;
-  setSampling: (effort: string, temperature: number, topP: number) => void;
-  pulseThinking: (on: boolean) => void;
-  setGenerating: (on: boolean) => void;
-  fillDraft: (text: string) => void;
-  openSettings: () => void;
-  setBackground: (url: string) => void;
-  clearBackground: () => void;
-  openBackgroundCrop: (url: string) => void;
+  seed?: (items: ChatItem[]) => void;
+  seedBoard?: (payload: BoardPayload, nowIso: string) => void;
+  seedStatus?: (raw: Record<string, unknown>) => void;
+  openBoard?: (refresh?: boolean) => void;
+  requestToday?: () => void;
+  openFeishu?: () => void;
+  seedFeishu?: (snap: FeishuSnap) => void;
+  seedMemory?: (payload: MemoryPayload) => void;
+  shouldReloadBoard?: (opts: { refresh: boolean; seen: boolean; debug: boolean }) => boolean;
+  setSampling?: (effort: string, temperature: number, topP: number) => void;
+  pulseThinking?: (on: boolean) => void;
+  setGenerating?: (on: boolean) => void;
+  fillDraft?: (text: string) => void;
+  openSettings?: (section?: string) => void;
+  setBackground?: (url: string) => void;
+  clearBackground?: () => void;
+  openBackgroundCrop?: (url: string) => void;
 }): void {
   if (!import.meta.env.DEV) return;
   window.__deskDebug = {
@@ -359,23 +359,23 @@ export function installDeskDebug(api: {
       const root=document.querySelector('.profile-model');
       return {marker:root?.querySelector('.profile-me-mark')?.textContent||'',category:root?.getAttribute('data-profile-category')||'',records:[...(root?.querySelectorAll('.profile-card[id]')||[])].map(el=>el.id.replace(/^profile-/,''))};
     },
-    seed: api.seed,
-    seedBoard: api.seedBoard,
-    seedStatus: api.seedStatus,
-    openBoard: api.openBoard,
-    requestToday: api.requestToday,
-    openFeishu: api.openFeishu,
-    seedFeishu: api.seedFeishu,
-    seedMemory: api.seedMemory,
-    shouldReloadBoard: api.shouldReloadBoard,
-    setSampling: api.setSampling,
-    pulseThinking: api.pulseThinking,
-    setGenerating: api.setGenerating,
-    fillDraft: api.fillDraft,
-    openSettings: api.openSettings,
-    setBackground: api.setBackground,
-    clearBackground: api.clearBackground,
-    openBackgroundCrop: api.openBackgroundCrop,
+    seed: api.seed ?? (() => {}),
+    seedBoard: api.seedBoard ?? (() => {}),
+    seedStatus: api.seedStatus ?? (() => {}),
+    openBoard: api.openBoard ?? (() => {}),
+    requestToday: api.requestToday ?? (() => {}),
+    openFeishu: api.openFeishu ?? (() => {}),
+    seedFeishu: api.seedFeishu ?? (() => {}),
+    seedMemory: api.seedMemory ?? (() => {}),
+    shouldReloadBoard: api.shouldReloadBoard ?? (() => false),
+    setSampling: api.setSampling ?? (() => {}),
+    pulseThinking: api.pulseThinking ?? (() => {}),
+    setGenerating: api.setGenerating ?? (() => {}),
+    fillDraft: api.fillDraft ?? (() => {}),
+    openSettings: api.openSettings ?? (() => {}),
+    setBackground: api.setBackground ?? (() => {}),
+    clearBackground: api.clearBackground ?? (() => {}),
+    openBackgroundCrop: api.openBackgroundCrop ?? (() => {}),
     samplingSnapshot(): { effort: string; temperature: string; topP: string } {
       const row = document.querySelector("[data-sampling]");
       return {
@@ -789,23 +789,23 @@ declare global {
   interface Window {
     __deskDebug?: {
       profileSnapshot:()=>ProfileSnap;
-      seed: (items: ChatItem[]) => void;
-      seedBoard: (payload: BoardPayload, nowIso: string) => void;
-      seedStatus: (raw: Record<string, unknown>) => void;
-      openBoard: (refresh?: boolean) => void;
-      requestToday: () => void;
-      openFeishu: () => void;
-      seedFeishu: (snap: FeishuSnap) => void;
-      seedMemory: (payload: MemoryPayload) => void;
-      shouldReloadBoard: (opts: { refresh: boolean; seen: boolean; debug: boolean }) => boolean;
-      setSampling: (effort: string, temperature: number, topP: number) => void;
-      pulseThinking: (on: boolean) => void;
-      setGenerating: (on: boolean) => void;
-      fillDraft: (text: string) => void;
-      openSettings: () => void;
-      setBackground: (url: string) => void;
-      clearBackground: () => void;
-      openBackgroundCrop: (url: string) => void;
+      seed?: (items: ChatItem[]) => void;
+      seedBoard?: (payload: BoardPayload, nowIso: string) => void;
+      seedStatus?: (raw: Record<string, unknown>) => void;
+      openBoard?: (refresh?: boolean) => void;
+      requestToday?: () => void;
+      openFeishu?: () => void;
+      seedFeishu?: (snap: FeishuSnap) => void;
+      seedMemory?: (payload: MemoryPayload) => void;
+      shouldReloadBoard?: (opts: { refresh: boolean; seen: boolean; debug: boolean }) => boolean;
+      setSampling?: (effort: string, temperature: number, topP: number) => void;
+      pulseThinking?: (on: boolean) => void;
+      setGenerating?: (on: boolean) => void;
+      fillDraft?: (text: string) => void;
+      openSettings?: (section?: string) => void;
+      setBackground?: (url: string) => void;
+      clearBackground?: () => void;
+      openBackgroundCrop?: (url: string) => void;
       settingsSnapshot: () => {
         pane: string;
         photo: string;
