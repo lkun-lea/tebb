@@ -34,6 +34,7 @@ type Props={info:BackendInfo|null;debug?:boolean;transport?:WeekTransport;target
 type Form={key:string;start:string;end:string;summary:string};
 type KeyboardDraft={event:CalendarEvent;draft:TimeDraft};
 const calendarHelp='双击空白新建日程，单击日程查看详情；普通个人日程可长按拖动改期。';
+const keyboardHelp='聚焦时间块后：空格抓取，方向键移动；Shift + 上下调整结束，Alt + 上下调整开始；Enter 保存，Escape 取消。';
 const sameDraft=(event:CalendarEvent,draft:TimeDraft)=>Date.parse(event.start)===Date.parse(draft.start)&&Date.parse(event.end)===Date.parse(draft.end)&&(draft.summary===undefined||draft.summary===event.summary);
 // ISO 周序号用于周期标题，不依赖服务端返回值。
 function isoWeek(day:string){
@@ -361,6 +362,10 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const remoteCount=visible.filter(row=>row.sync_state!=='local').length;
   const localWeekCount=visible.filter(row=>row.sync_state==='local').length;
   const checkedAt=controller.page.checked_at&&Number.isFinite(Date.parse(controller.page.checked_at))?beijingStamp(controller.page.checked_at).slice(11,16):'';
+  // 底部状态条固定文案；实时播报仍通过 aria-live 覆盖这一段。
+  const statusSummary=controller.page.events_valid
+    ?`已读取本周日程 · 飞书 ${remoteCount} 条 / 本地 ${localWeekCount} 条${checkedAt?` · 上次核对 ${checkedAt}`:''}`
+    :'上次读取的日程尚未核对';
   const confirmItems:SyncItem[]=[];
   if(controller.error)confirmItems.push({id:'error:schedule',title:'日程读取未完成',detail:controller.error,hint:'保留上次已读内容；不会用旧数据判断没有安排。',
     actions:[{label:'重新读取',primary:true,run:()=>void controller.read(day,true)}]});
@@ -427,6 +432,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
             <button type="button" onClick={openBulk}>整体同步到飞书</button>
             <button type="button" disabled={controller.loading} onClick={()=>{void controller.read(day,true);void local.read();}}>读取核对</button>
             <button type="button" onClick={()=>guard(()=>onDay({day,item_id:item?.id||target.item_id,...(event?{calendar_id:event.calendar_id,event_id:event.event_id}:{})}))}>关联事项</button>
+            <button type="button" onClick={()=>setAnnouncement(keyboardHelp)}>快捷键说明</button>
             {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
           </div>
         </details>
@@ -451,8 +457,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       <div className={`sw-calendar sw-${view}`} role="region" aria-label="日程时间轴" tabIndex={0}>{calendarView}</div>
     </div></CalendarDragSurface>
     <footer className="sw-statusbar">
-      <div className="sw-live" role="status" aria-live="polite" title={announcement||controller.notice||syncHint||calendarHelp}><UiStableText reserve={calendarHelp}>{announcement||controller.notice||syncHint||(checking?'正在核对组织者、权限和完整参与人…':calendarHelp)}</UiStableText></div>
-      <span className="sw-status-counts">{controller.page.events_valid?`飞书 ${remoteCount} / 本地 ${localWeekCount}`:'上次读取数据未核对'}</span>
+      <div className="sw-live" role="status" aria-live="polite" title={announcement||controller.notice||syncHint||calendarHelp}><span className={`sw-status-dot${confirmItems.length?' sw-warn':''}`} aria-hidden="true"/><UiStableText reserve={statusSummary}>{announcement||controller.notice||syncHint||statusSummary}</UiStableText></div>
+      <button type="button" className="sw-status-help" title={keyboardHelp} onClick={()=>setAnnouncement(keyboardHelp)}>双击空白处新建 · 拖动改期 · 快捷键说明</button>
     </footer>
     {detailsOpen&&event&&<section className="sw-details" ref={details} role="dialog" aria-modal="false" style={narrow?undefined:popover} aria-label="日程时间详情"><button type="button" className="sw-popover-close" aria-label="关闭日程详情" onClick={()=>guard(()=>setDetailsOpen(false))}>×</button>
       <div className="sw-detail-heading"><h2>{event?.summary||'选择一场日程'}</h2>{event&&<button type="button" onClick={()=>locate(event)}>定位日程</button>}{item&&<button type="button" onClick={()=>guard(()=>onReturn(item.id))}>↗ {item.title}{item.archived?' · 已归档':''}</button>}</div>

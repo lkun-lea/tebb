@@ -1,4 +1,4 @@
-.sw-sync{position:relative;display:inline-flex;align-items:center;min-width:0}
+.sw-sync{position:static;display:inline-flex;align-items:center;min-width:0}
 .sw-sync-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--wb-surface);color:var(--wb-muted);font-size:12px;line-height:1.6;white-space:nowrap;cursor:pointer}
 .sw-sync-pill:hover{background:color-mix(in srgb,var(--wb-surface) 97%,var(--wb-text))}
 .sw-sync-pill[aria-expanded=true]{background:var(--wb-soft);color:var(--wb-text)}
@@ -14,7 +14,7 @@
 .sw-sync-group{display:flex;flex-direction:column;gap:8px;min-width:0}
 .sw-sync-group-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .sw-sync-group-head h3{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--ui-weight-500);margin:0}
-.sw-sync-group-head h3 span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);color:var(--wb-muted);font-size:11px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.sw-sync-group-head h3 span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);color:var(--wb-muted);font-size:12px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
 .sw-sync-group-head>button{padding:4px 8px!important;font-size:12px!important}
 .sw-sync-items{display:flex;flex-direction:column;gap:7px;min-width:0}
 .sw-sync-item{min-width:0;padding:10px 11px;border-radius:9px;background:var(--wb-bg);font-size:12px;overflow-wrap:anywhere}
@@ -31,7 +31,7 @@
 .sw-sync-input input,.sw-sync-input select{min-width:0;width:100%;padding:6px 8px;border:0;border-radius:7px;background:var(--wb-surface);color:var(--wb-text);font-size:12px}
 .sw-sync-empty{font-size:12px;color:var(--wb-muted);margin:0}
 .sw-sync-collapsed>summary{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--wb-muted)}
-.sw-sync-collapsed>summary span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);font-size:11px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.sw-sync-collapsed>summary span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);font-size:12px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
 .sw-sync-collapsed .sw-sync-items{margin-top:8px}
 .sw-sync-collapsed .sw-sync-item{display:flex;align-items:center;gap:7px}
 .sw-sync-collapsed .sw-sync-item::before{content:"✓";flex:none;color:hsl(var(--ui-status-success))}
