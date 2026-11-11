@@ -47,6 +47,7 @@ function ItemCard({item,controller,onSelect,onSchedule,overlay=false}:{item:Work
     transition={reduce?{duration:0}:DRAG_SPRING} className={`wb-card${drag.isDragging?' wb-lifted':''}${overlay?' wb-ghost':''}`}
     data-work-card={item.id} data-state={item.state} aria-label={`${item.title}，${workStateLabel(item.state)}`}>
     <div className="wb-card-top"><span className="wb-project">▱ {item.project_name||'未归属'}</span>
+      {!overlay&&<span className="wb-card-state" role="status">{uncertain?'结果未确认':busy?'保存中…':controller.intents.has(item.id)?'待保存':''}</span>}
       {!overlay&&<button type="button" className="wb-grip" ref={drag.setActivatorNodeRef} {...drag.listeners} {...drag.attributes}
         aria-label={`拖动 ${item.title}`} disabled={item.archived||uncertain}>⠿</button>}</div>
     <button type="button" className="wb-card-title" onClick={onSelect}>{item.title}</button>
@@ -56,7 +57,6 @@ function ItemCard({item,controller,onSelect,onSchedule,overlay=false}:{item:Work
     {!overlay&&!!item.schedules?.events.length&&<button type="button" className="wb-schedule-summary" onClick={()=>onSchedule(item)}>{arrangement?`◷ ${arrangement.start.includes('T')?beijingStamp(arrangement.start).slice(5).replace('T',' '):arrangement.start}${item.schedules.unchecked?' · 未核对':''}`:`◷ 历史安排 · ${item.schedules.events.length} 场`}</button>}
     <div className="wb-ai">负责人：{controller.page.agents?.find(a=>a.id===(item.agent_id||'tebb'))?.name||'tebb · 通用助手'}</div>
     {!!item.links.length&&<div className="wb-ai"><span className="wb-avatar">{linked[0]?.agent.slice(0,1)||'AI'}</span><span>{linked[0]?`${linked[0].agent} · ${runStateLabel(linked[0])}`:'关联记录已失效'}{item.links.length>1?` · 共 ${item.links.length} 条`:''}</span></div>}
-    {!overlay&&<div className="wb-card-bottom"><span role="status">{uncertain?'结果未确认':busy?'保存中…':controller.intents.has(item.id)?'待保存':''}</span></div>}
     {controller.rowErrors.get(item.id)&&<p className="wb-row-error" role="alert">{controller.rowErrors.get(item.id)}</p>}
   </motion.article>;
 }

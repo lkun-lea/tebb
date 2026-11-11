@@ -29,7 +29,7 @@
 .wb-card:hover,.wb-card:focus-within{background:hsl(var(--ui-surface-hover))}
 .wb-card.wb-lifted{opacity:.25}.wb-card.wb-ghost{box-shadow:0 16px 32px hsl(var(--foreground)/.14)}
 .wb-card-top{display:flex;align-items:center;gap:7px;margin-bottom:10px;min-width:0}
-.wb-project{display:inline-flex;align-items:center;gap:3px;font-size:12px;background:hsl(var(--foreground)/.045);color:var(--wb-muted);padding:2px 6px;border-radius:5px;overflow-wrap:anywhere}
+.wb-project{display:inline-block;min-width:0;max-width:calc(100% - 34px);font-size:12px;background:hsl(var(--foreground)/.045);color:var(--wb-muted);padding:2px 6px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
 .work-board .wb-grip{margin-left:auto;flex:none;touch-action:none;border:0;background:transparent;cursor:grab;padding:3px 5px;color:var(--wb-muted);font-size:16px;line-height:1}
 .work-board .wb-grip:active{cursor:grabbing}
 .work-board .wb-card-title{font-weight:var(--ui-weight-500);display:block;text-align:left;overflow-wrap:anywhere;font-size:14px;width:100%;padding:0;background:transparent;border:0;line-height:1.7}
@@ -39,7 +39,8 @@
 .wb-ai{display:flex;align-items:center;gap:6px;padding-top:10px;margin-top:12px;font-size:12px;color:var(--wb-muted);overflow-wrap:anywhere}
 .work-board .wb-schedule-summary{display:block;text-align:left;font-size:12px!important;background:var(--wb-soft)!important;border:0!important;margin-top:10px;max-width:100%;overflow-wrap:anywhere}
 .wb-avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:21px;height:21px;border-radius:5px;background:var(--wb-soft);color:var(--wb-accent);font-size:12px}
-.wb-card-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;margin-top:9px;color:var(--wb-muted);font-size:12px}
+.wb-card-state{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--wb-muted)}
+.wb-card-state+.wb-grip{margin-left:6px}
 .wb-empty-column,.wb-drop-slot{border:1px dashed var(--wb-line);border-radius:10px;padding:22px 8px;text-align:center;font-size:12px;color:var(--wb-muted)}
 .wb-drop-slot{background:var(--wb-soft);border-color:var(--wb-accent);margin-top:10px;color:var(--wb-accent)}
 .wb-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex:none;padding:13px 0 15px;font-size:12px;color:var(--wb-muted)}
