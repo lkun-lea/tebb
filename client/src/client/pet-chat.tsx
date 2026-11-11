@@ -13,7 +13,7 @@ import{CalendarProposalCards}from'./calendar-proposal';
 import{proposalTree}from'./calendar-proposal-state';
 import { useAutoGrowInput } from './auto-grow-input';
 import { DraftNotice, ExecutionTree, executionMessage, visibleChatMessage } from './run-progress';
-import { CollaborationSync, loadCollaboration } from './collaboration-sync';
+import { CollaborationSync, loadCollaboration, useCollaborationStream } from './collaboration-sync';
 import { composerTrigger, applyComposerChoice } from './composer-picker';
 import { AppIcon } from './companion-ui';
 
@@ -39,6 +39,8 @@ export function PetChat({ backend }: { backend?: BackendInfo }) {
   const trigger=dismissed ? null : composerTrigger(draft,cursor);
   const options=trigger?.kind==='members' ? (state?.agents || []).filter(a=>(!current?.members || current.members.includes(a.id)) && a.name.toLowerCase().includes(trigger.query.toLowerCase())).map(a=>({id:a.id,name:a.name,detail:a.personality || a.role})) : (state?.skills || []).filter(s=>(s.id+' '+s.description).toLowerCase().includes((trigger?.query || '').toLowerCase())).map(s=>({id:s.id,name:s.id,detail:s.description}));
   const runs = state?.runs.filter(r => r.conversation === cid) || [], active = runs.filter(runActive);
+  // 推送正文增长时保持跟随到底部，不必等下一次轮询。
+  const streamed = active.reduce((total, run) => total + (run.answer?.length || 0) + (run.chain?.answer?.length || 0), 0);
   const messages = state?.messages.filter(m => m.conversation === cid && visibleChatMessage(m,runs)) || [];
   useAutoGrowInput(input, draft, `${cid}:${visible}`);
   const accept = (next: DemoState) => { const accepted=sync.current.snapshot(next);if(accepted)setState(accepted);setConversation(old=>old || next.selected); };
@@ -65,9 +67,10 @@ export function PetChat({ backend }: { backend?: BackendInfo }) {
     void refresh(); const timer = window.setInterval(() => void refresh(), 400);
     return () => { live = false; window.clearInterval(timer); };
   }, [info?.port, info?.token, visible]);
+  useCollaborationStream(info, sync.current, setState);
   useEffect(() => {
     if (following.current && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
-  }, [state?.revision, progress?.task?.answer, progress?.task?.status, cid, visible]);
+  }, [state?.revision, streamed, progress?.task?.answer, progress?.task?.status, cid, visible]);
   useEffect(()=>{setPickerIndex(0);},[trigger?.query,trigger?.kind,cid,options.length]);
   useEffect(()=>{setDismissed(false);setResumeRun('');setCursor(drafts[cid]?.length || 0);},[cid]);
   function changeDraft(value:string, position=value.length) {setDrafts(old=>({...old,[cid]:value}));setCursor(position);setDismissed(false);}

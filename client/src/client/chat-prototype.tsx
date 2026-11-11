@@ -153,6 +153,8 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   const runs = state.runs.filter(run => run.conversation === conversation.id);
   const messages = state.messages.filter(message => message.conversation === conversation.id && visibleChatMessage(message, runs));
   const active = state.runs.filter(runActive);
+  // 推送正文增长时保持跟随到底部，不必等下一次轮询。
+  const streamed = active.reduce((total, run) => total + (run.answer?.length || 0) + (run.chain?.answer?.length || 0), 0);
   const visibleRuns = developer ? runs : runs.filter(run => !run.parent && (run.require_execution || run.state==='needs_input' || run.chain?.children.length || runs.some(child=>child.parent===run.id) || !["chat", "route", "compress"].includes(run.kind || "")));
   const pending = state.requests.filter(request => request.state === "pending");
   const waitingInputs=pendingClarifications(state.runs);
@@ -200,7 +202,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   }, [automatic, real]);
   useEffect(() => { if (!active.length) setAutomatic(false); }, [active.length]);
   useEffect(() => { following.current=true; }, [state.selected]);
-  useEffect(() => { if(following.current && messageList.current)messageList.current.scrollTop=messageList.current.scrollHeight; }, [state.selected,state.revision,messages.length]);
+  useEffect(() => { if(following.current && messageList.current)messageList.current.scrollTop=messageList.current.scrollHeight; }, [state.selected,state.revision,streamed,messages.length]);
   useEffect(() => { if (tab === "tasks" && inspector && focusedRun) document.getElementById(`cp-run-${focusedRun}`)?.scrollIntoView?.({ block: "nearest" }); }, [focusedRun, tab, inspector]);
 
   useEffect(() => {
