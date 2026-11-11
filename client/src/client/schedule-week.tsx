@@ -69,6 +69,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const [selected,setSelected]=useState(target.event_id&&target.calendar_id?calendarKey(target as {calendar_id:string;event_id:string}):'');
   const [form,setForm]=useState<Form|null>(null),[picker,setPicker]=useState<'start'|'end'|null>(null),[formError,setFormError]=useState('');
   const [leave,setLeave]=useState<null|(()=>void)>(null),[keyboard,setKeyboard]=useState<KeyboardDraft|null>(null),[announcement,setAnnouncement]=useState('');
+  // 快捷键说明在「更多」菜单内就地展开/收起，复用现有菜单，不另开弹出层
+  const [keyboardHelpOpen,setKeyboardHelpOpen]=useState(false);
   const [pointerCancelled,setPointerCancelled]=useState(false),[locateCount,setLocateCount]=useState(0);
   const [detailsOpen,setDetailsOpen]=useState(!!target.event_id),[draft,setDraft]=useState<CalendarDraft|null>(null),[draftError,setDraftError]=useState('');
   const [bulk,setBulk]=useState(false),[batchChoice,setBatchChoice]=useState<SyncBatch|null>(null),[resolveId,setResolveId]=useState('');
@@ -103,7 +105,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>local.subscribe(redraw),[local]);
   // 点击菜单外部时收起「更多」；菜单内按钮由点击代理统一关闭。
-  useEffect(()=>{const close=(event:PointerEvent)=>{if(moreMenu.current?.open&&!moreMenu.current.contains(event.target as Node))moreMenu.current.open=false;};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[]);
+  useEffect(()=>{const close=(event:PointerEvent)=>{if(moreMenu.current?.open&&!moreMenu.current.contains(event.target as Node)){moreMenu.current.open=false;setKeyboardHelpOpen(false);}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[]);
   useEffect(()=>{if(!active)return;void(async()=>{if(await local.read()){const hint=local.syncNotice();if(hint)setSyncHint(hint);}})();},[active,local,revision]);
   useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
   useEffect(()=>{if(!target.proposal)return;try{
@@ -426,13 +428,14 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         checking={controller.loading||local.loading} lastChecked={checkedAt} onRefresh={()=>{void controller.read(day,true);void local.read();}}/></div>
       <p>本地与飞书主日历 · 北京时间 UTC+8{debug?' · 演示数据':''}</p></div>
       <div className="sw-primary-actions">
-        <details className="sw-more" ref={moreMenu} onClick={event=>{if((event.target as HTMLElement).closest('button'))moreMenu.current&&(moreMenu.current.open=false);}}>
+        <details className="sw-more" ref={moreMenu} onClick={event=>{const target=event.target as HTMLElement;if(!target.closest('button')||target.closest('[data-menu-keep-open]'))return;setKeyboardHelpOpen(false);if(moreMenu.current)moreMenu.current.open=false;}}>
           <summary>更多</summary>
           <div className="sw-more-menu">
             <button type="button" onClick={openBulk}>整体同步到飞书</button>
             <button type="button" disabled={controller.loading} onClick={()=>{void controller.read(day,true);void local.read();}}>读取核对</button>
             <button type="button" onClick={()=>guard(()=>onDay({day,item_id:item?.id||target.item_id,...(event?{calendar_id:event.calendar_id,event_id:event.event_id}:{})}))}>关联事项</button>
-            <button type="button" onClick={()=>setAnnouncement(keyboardHelp)}>快捷键说明</button>
+            <button type="button" data-menu-keep-open aria-expanded={keyboardHelpOpen} onClick={()=>setKeyboardHelpOpen(open=>!open)}>快捷键说明</button>
+            {keyboardHelpOpen&&<p className="sw-more-help">{keyboardHelp}</p>}
             {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
           </div>
         </details>

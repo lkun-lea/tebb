@@ -13,6 +13,7 @@
 .sw-more-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:55;display:flex;flex-direction:column;min-width:168px;padding:6px;border-radius:10px;background:var(--wb-surface);box-shadow:0 14px 30px color-mix(in srgb,var(--wb-text) 16%,transparent)}
 .sw-more-menu button{display:block;width:100%;padding:7px 9px!important;border:0;border-radius:7px;background:transparent!important;color:var(--wb-text);font-size:12px!important;text-align:left;white-space:nowrap}
 .sw-more-menu button:not(:disabled):hover{background:var(--wb-bg)!important}
+.sw-more-help{margin:2px 0 0;padding:8px 9px;border-radius:7px;background:var(--wb-bg);color:var(--wb-muted);font-size:12px;line-height:1.6;white-space:normal;overflow-wrap:anywhere}
 .sw-datenav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .sw-datenav-controls{display:flex;align-items:center;gap:6px;min-width:0}
 .sw-datenav-controls>button{height:30px;padding:0 10px!important;border-radius:7px;font-size:12px!important}
