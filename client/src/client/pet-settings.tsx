@@ -25,8 +25,9 @@ export function PetSettings({ info, debug = false }: { info: BackendInfo | null;
     finally { setBusy(false); }
   }
   async function visibility(visible:boolean){setError('');try{await invoke('set_pet_visible',{visible});setNotice(visible?'桌宠已显示。':'桌宠已隐藏。');}catch(e){setError(String(e));}}
+  async function recover(){setError('');try{await invoke('recover_pet');setNotice('桌宠已移回当前屏幕右下角。');}catch(e){setError(String(e));}}
   return <section className="pet-settings mb-6 border border-border bg-card/80 p-5" aria-label="桌宠形象">
-    <header><div><h2 className="text-lg font-semibold">桌宠形象</h2><p>圆点 · 单击打开浮动聊天框，拖动调整位置。外观独立于 Agent 人格。</p></div><div><button type="button" className="desk-menu-item" disabled={!isTauri()} onClick={()=>void visibility(true)}>显示桌宠</button><button type="button" className="desk-menu-item" disabled={!isTauri()} onClick={()=>void visibility(false)}>隐藏桌宠</button></div></header>
+    <header><div><h2 className="text-lg font-semibold">桌宠形象</h2><p>圆点 · 单击打开浮动聊天框，拖动调整位置。外观独立于 Agent 人格，桌宠移到屏幕外时点「找回桌宠」。</p></div><div><button type="button" className="desk-menu-item" disabled={!isTauri()} onClick={()=>void visibility(true)}>显示桌宠</button><button type="button" className="desk-menu-item" disabled={!isTauri()} onClick={()=>void visibility(false)}>隐藏桌宠</button><button type="button" className="desk-menu-item" disabled={!isTauri()} onClick={()=>void recover()}>找回桌宠</button></div></header>
     <div className="pet-appearance-preview" aria-label="当前桌宠外观预览">{prefs.skin==='kaltsit'?<p>凯尔希 Live2D · 点击“显示桌宠”查看实际动态外观。</p>:<img width={prefs.size||48} height={prefs.size||48} src={`data:image/svg+xml,${encodeURIComponent(petSvg(prefs.skin as BuiltinSkin))}`} alt="当前圆点桌宠"/>}</div>
     <div className="pet-skin-options">{Object.entries(PET_PALETTES).map(([id, palette]) => <button key={id} type="button" aria-pressed={prefs.skin === id} disabled={busy} onClick={() => void choose(id)}>
       <img src={`data:image/svg+xml,${encodeURIComponent(petSvg(id as BuiltinSkin))}`} alt={`圆点 · ${palette.name}`} /><strong>{palette.name}</strong><small>内置 · 离线可用</small>

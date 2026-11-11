@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager, PhysicalPosition};
 pub mod main_window;
 use main_window::{show_main, open_today};
+mod pet_window;
 mod video_login;
 mod pet_chat;
 mod settings_window;
@@ -80,12 +81,25 @@ fn set_pet_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
     if visible {
+        // 显示器拔插或分辨率变化后，旧位置可能已在工作区外，先校正再显示。
+        pet_window::ensure_visible(&window)?;
         window.show().map_err(|err| err.to_string())?;
         window.set_focus().map_err(|err| err.to_string())?;
     } else {
         window.hide().map_err(|err| err.to_string())?;
     }
     Ok(())
+}
+
+// 找回入口：把桌宠移回当前显示器右下角并显示，避免用户只能重启客户端。
+#[tauri::command]
+fn recover_pet(app: tauri::AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("pet")
+        .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
+    pet_window::recover(&window)?;
+    window.show().map_err(|err| err.to_string())?;
+    window.set_focus().map_err(|err| err.to_string())
 }
 
 // 拖动中禁止穿透，否则窗口一动，松手事件会丢。
@@ -99,13 +113,7 @@ fn nudge_pet(app: tauri::AppHandle, dx: f64, dy: f64) -> Result<(), String> {
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
-    let scale = window.scale_factor().map_err(|err| err.to_string())?;
-    let pos = window.outer_position().map_err(|err| err.to_string())?;
-    let nx = pos.x + (dx * scale).round() as i32;
-    let ny = pos.y + (dy * scale).round() as i32;
-    window
-        .set_position(tauri::PhysicalPosition::new(nx, ny))
-        .map_err(|err| err.to_string())
+    pet_window::move_by(&window, dx, dy)
 }
 
 #[tauri::command]
@@ -366,6 +374,7 @@ pub fn run() {
             set_pet_menu_region,
             backend_info,
             set_pet_visible,
+            recover_pet,
             set_pet_chat_visible,
             toggle_pet_chat,
             get_pet_chat_state,
