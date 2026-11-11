@@ -35,6 +35,8 @@ struct Rect {
 
 struct BackendProcess(Mutex<Option<Child>>);
 struct BackendFailure(Mutex<Option<String>>);
+// 退出收尾只在后台线程执行一次，期间持续拦截退出请求。
+static EXIT_CLEANUP_RUNNING: AtomicBool = AtomicBool::new(false);
 struct HitRegions(std::sync::Arc<Mutex<Vec<Rect>>>);
 struct DragLock(std::sync::Arc<AtomicBool>);
 struct MenuRegion(std::sync::Arc<Mutex<Option<Rect>>>);
@@ -418,15 +420,29 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败")
         .run(|app, event| {
-            if let tauri::RunEvent::ExitRequested { .. } = event {
-                if let Some(state) = app.try_state::<BackendProcess>() {
-                    if let Ok(mut guard) = state.0.lock() {
-                        if let Some(mut child) = guard.take() {
-                            let backend = app.state::<BackendInfo>();
-                            if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
-                        }
-                    }
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let Some(state) = app.try_state::<BackendProcess>() else { return; };
+                // 后端已停（账号切换已收尾）且没有进行中的收尾时放行退出。
+                let running = state.0.lock().map(|guard| guard.is_some()).unwrap_or(false);
+                if !running && !EXIT_CLEANUP_RUNNING.load(Ordering::SeqCst) { return; }
+                // 后端收尾要等同步线程、定时扫描和进程退出，最长上百秒，不能占住事件循环：
+                // 先拦下退出并隐藏窗口，收尾移到后台线程，完成后再真正退出。
+                api.prevent_exit();
+                if EXIT_CLEANUP_RUNNING.swap(true, Ordering::SeqCst) { return; }
+                for (_, window) in app.webview_windows() {
+                    let _ = window.hide();
                 }
+                let handle = app.clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<BackendProcess>();
+                    let child = state.0.lock().ok().and_then(|mut guard| guard.take());
+                    if let Some(mut child) = child {
+                        let backend = handle.state::<BackendInfo>();
+                        if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
+                    }
+                    EXIT_CLEANUP_RUNNING.store(false, Ordering::SeqCst);
+                    handle.exit(0);
+                });
             }
         });
 }
