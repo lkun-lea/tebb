@@ -509,6 +509,22 @@ server.server_close()
     }
 }
 
+/// 去掉 Windows 扩展长度前缀。Python 的 Path.as_uri() 会把前缀里的 ? 编码成 %3F，
+/// 生成的 file URI 会被 SQLite 判为非法 authority，只读连接全部失败。
+fn backend_data_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let text = path.to_string_lossy();
+        if let Some(rest) = text.strip_prefix("\\\\?\\") {
+            // UNC 路径去掉前缀会丢失服务器/共享语义，保留原样。
+            if !rest.starts_with("UNC\\") {
+                return std::path::PathBuf::from(rest);
+            }
+        }
+    }
+    path
+}
+
 fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child, String> {
     let (python, working_dir) = backend_location()?;
     let data_dir = if let Some(value) = std::env::var_os("DESK_COMPANION_DATA_DIR") {
@@ -518,6 +534,7 @@ fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child
     } else {
         app.path().local_data_dir().map_err(|err| err.to_string())?.join("DeskCompanion")
     };
+    let data_dir = backend_data_path(data_dir);
     std::fs::create_dir_all(&data_dir).map_err(|err| format!("无法创建用户数据目录：{err}"))?;
     let assets_dir = if cfg!(debug_assertions) { working_dir.join("client/public") } else { data_dir.join("assets") };
     std::fs::create_dir_all(&assets_dir).map_err(|err| err.to_string())?;
