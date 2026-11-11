@@ -224,7 +224,10 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   act(()=>calendarProps.eventClick({jsEvent:{preventDefault(){}},event:{id:'cal/event_0'}}));
   act(()=>button('修改时间').props.onClick());
   act(()=>view.root.findByProps({'aria-label':'start'}).props.onChange({target:{value:day+'T10:30'}}));
+  // 「更多」改为按钮 + 受控菜单，菜单内容展开后才进入文档
+  act(()=>view.root.findByProps({className:'sw-more-trigger'}).props.onClick());
   act(()=>button('返回工作看板').props.onClick());assert.equal(closed,false);assert(view.root.findByProps({role:'alertdialog'}));
+  act(()=>view.root.findByProps({className:'sw-more-trigger'}).props.onClick());
   act(()=>button('继续编辑').props.onClick());
   // Invalid candidate is rejected before either drag or resize can write.
   assert.equal(calendarProps.eventAllow({allDay:false,start:new Date(time('23:30')),end:new Date(shared.addCalendarDays(day,1)+'T00:30:00+08:00')},{extendedProps:{source:current}}),false);

@@ -71,13 +71,15 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const [leave,setLeave]=useState<null|(()=>void)>(null),[keyboard,setKeyboard]=useState<KeyboardDraft|null>(null),[announcement,setAnnouncement]=useState('');
   // 快捷键说明在「更多」菜单内就地展开/收起，复用现有菜单，不另开弹出层
   const [keyboardHelpOpen,setKeyboardHelpOpen]=useState(false);
+  // 「更多」改为按钮 + 受控菜单，沿用原有外部点击、菜单项点击与 Escape 关闭逻辑
+  const [moreOpen,setMoreOpen]=useState(false);
   const [pointerCancelled,setPointerCancelled]=useState(false),[locateCount,setLocateCount]=useState(0);
   const [detailsOpen,setDetailsOpen]=useState(!!target.event_id),[draft,setDraft]=useState<CalendarDraft|null>(null),[draftError,setDraftError]=useState('');
   const [bulk,setBulk]=useState(false),[batchChoice,setBatchChoice]=useState<SyncBatch|null>(null),[resolveId,setResolveId]=useState('');
   const [bulkPreview,setBulkPreview]=useState<CalendarEvent[]>([]);
   const [syncHint,setSyncHint]=useState('');
   const [syncOpen,setSyncOpen]=useState(false),[periodOpen,setPeriodOpen]=useState(false);
-  const moreMenu=useRef<HTMLDetailsElement|null>(null);
+  const moreMenu=useRef<HTMLDivElement|null>(null),moreTrigger=useRef<HTMLButtonElement|null>(null);
   const [popover,setPopover]=useState<{left:number;top:number;maxHeight?:number}>({left:12,top:150});
   const dragElement=useRef<HTMLElement|null>(null);
   const dragPointer=useRef<{x:number;y:number}|null>(null),grabOffset=useRef(0);
@@ -105,7 +107,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>local.subscribe(redraw),[local]);
   // 点击菜单外部时收起「更多」；菜单内按钮由点击代理统一关闭。
-  useEffect(()=>{const close=(event:PointerEvent)=>{if(moreMenu.current?.open&&!moreMenu.current.contains(event.target as Node)){moreMenu.current.open=false;setKeyboardHelpOpen(false);}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[]);
+  useEffect(()=>{const close=(event:PointerEvent)=>{if(moreOpen&&!moreMenu.current?.contains(event.target as Node)){setMoreOpen(false);setKeyboardHelpOpen(false);}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[moreOpen]);
   useEffect(()=>{if(!active)return;void(async()=>{if(await local.read()){const hint=local.syncNotice();if(hint)setSyncHint(hint);}})();},[active,local,revision]);
   useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
   useEffect(()=>{if(!target.proposal)return;try{
@@ -180,6 +182,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   function stopPointer(){const generation=pointerGeneration.current;controller.endInteraction();draggedRange.current=null;window.setTimeout(()=>{if(generation!==pointerGeneration.current)return;pointerActive.current=false;cancelPointer.current=false;setPointerCancelled(false);},0);}
   function keyboardMove(e:KeyboardEvent<HTMLElement>){
     if(e.key==='Escape'){
+      // 「更多」菜单在最上层，Escape 先收起它并把焦点交还触发按钮
+      if(moreOpen){setMoreOpen(false);setKeyboardHelpOpen(false);moreTrigger.current?.focus();e.preventDefault();e.stopPropagation();return;}
       if(pointerActive.current){cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('已取消拖动，未发送修改。');e.preventDefault();
         // Custom dnd-kit gestures must receive Escape at their document listener.
         if(!draggedRange.current)e.stopPropagation();return;}
@@ -428,17 +432,21 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         checking={controller.loading||local.loading} lastChecked={checkedAt} onRefresh={()=>{void controller.read(day,true);void local.read();}}/></div>
       <p>本地与飞书主日历 · 北京时间 UTC+8{debug?' · 演示数据':''}</p></div>
       <div className="sw-primary-actions">
-        <details className="sw-more" ref={moreMenu} onClick={event=>{const target=event.target as HTMLElement;if(!target.closest('button')||target.closest('[data-menu-keep-open]'))return;setKeyboardHelpOpen(false);if(moreMenu.current)moreMenu.current.open=false;}}>
-          <summary>更多</summary>
-          <div className="sw-more-menu">
+        <div className="sw-more" ref={moreMenu}>
+          <button type="button" className="sw-more-trigger" ref={moreTrigger} aria-haspopup="true" aria-expanded={moreOpen}
+            onClick={()=>{if(moreOpen){setMoreOpen(false);setKeyboardHelpOpen(false);}else setMoreOpen(true);}}>
+            <span>更多</span>
+            <span className="sw-more-dots" aria-hidden="true"><i/><i/><i/></span>
+          </button>
+          {moreOpen&&<div className="sw-more-menu" onClick={click=>{const el=click.target as HTMLElement;if(!el.closest('button')||el.closest('[data-menu-keep-open]'))return;setMoreOpen(false);setKeyboardHelpOpen(false);}}>
             <button type="button" onClick={openBulk}>整体同步到飞书</button>
             <button type="button" disabled={controller.loading} onClick={()=>{void controller.read(day,true);void local.read();}}>读取核对</button>
             <button type="button" onClick={()=>guard(()=>onDay({day,item_id:item?.id||target.item_id,...(event?{calendar_id:event.calendar_id,event_id:event.event_id}:{})}))}>关联事项</button>
             <button type="button" data-menu-keep-open aria-expanded={keyboardHelpOpen} onClick={()=>setKeyboardHelpOpen(open=>!open)}>快捷键说明</button>
             {keyboardHelpOpen&&<p className="sw-more-help">{keyboardHelp}</p>}
             {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
-          </div>
-        </details>
+          </div>}
+        </div>
         <button type="button" className="wb-primary" onClick={()=>beginDraft(day+'T09:00:00+08:00')}>＋ 新建日程</button>
       </div></header>
     <div className="sw-datenav"><div className="sw-datenav-controls">
