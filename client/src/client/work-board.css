@@ -40,7 +40,6 @@
 .work-board .wb-schedule-summary{display:block;text-align:left;font-size:12px!important;background:var(--wb-soft)!important;border:0!important;margin-top:10px;max-width:100%;overflow-wrap:anywhere}
 .wb-avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:21px;height:21px;border-radius:5px;background:var(--wb-soft);color:var(--wb-accent);font-size:12px}
 .wb-card-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;margin-top:9px;color:var(--wb-muted);font-size:12px}
-.work-board .wb-card-bottom select{background:transparent;border:0;font-size:12px;padding:3px 0;max-width:100%}
 .wb-empty-column,.wb-drop-slot{border:1px dashed var(--wb-line);border-radius:10px;padding:22px 8px;text-align:center;font-size:12px;color:var(--wb-muted)}
 .wb-drop-slot{background:var(--wb-soft);border-color:var(--wb-accent);margin-top:10px;color:var(--wb-accent)}
 .wb-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex:none;padding:13px 0 15px;font-size:12px;color:var(--wb-muted)}
