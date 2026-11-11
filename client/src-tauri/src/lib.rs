@@ -76,13 +76,17 @@ async fn backend_info(app: tauri::AppHandle, info: tauri::State<'_, BackendInfo>
 
 // 隐藏只是把宠物窗收起，主窗还在，可再唤出。不要关整个进程。
 #[tauri::command]
-fn set_pet_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+fn set_pet_visible(
+    app: tauri::AppHandle,
+    tracker: tauri::State<pet_window::Tracker>,
+    visible: bool,
+) -> Result<(), String> {
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
     if visible {
         // 显示器拔插或分辨率变化后，旧位置可能已在工作区外，先校正再显示。
-        pet_window::ensure_visible(&window)?;
+        pet_window::ensure_visible(&window, &tracker)?;
         window.show().map_err(|err| err.to_string())?;
         window.set_focus().map_err(|err| err.to_string())?;
     } else {
@@ -93,27 +97,45 @@ fn set_pet_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
 
 // 找回入口：把桌宠移回当前显示器右下角并显示，避免用户只能重启客户端。
 #[tauri::command]
-fn recover_pet(app: tauri::AppHandle) -> Result<(), String> {
+fn recover_pet(app: tauri::AppHandle, tracker: tauri::State<pet_window::Tracker>) -> Result<(), String> {
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
-    pet_window::recover(&window)?;
+    pet_window::recover(&window, &tracker)?;
     window.show().map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())
 }
 
 // 拖动中禁止穿透，否则窗口一动，松手事件会丢。
 #[tauri::command]
-fn set_drag_lock(lock: tauri::State<DragLock>, locked: bool) {
+fn set_drag_lock(
+    app: tauri::AppHandle,
+    lock: tauri::State<DragLock>,
+    tracker: tauri::State<pet_window::Tracker>,
+    locked: bool,
+) -> Result<(), String> {
     lock.0.store(locked, Ordering::Relaxed);
-}
-
-#[tauri::command]
-fn nudge_pet(app: tauri::AppHandle, dx: f64, dy: f64) -> Result<(), String> {
+    if !locked {
+        return Ok(());
+    }
+    // 每次按下重新读取实际位置，作为本次拖动和后续惯性滑行的基准。
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
-    pet_window::move_by(&window, dx, dy)
+    pet_window::refresh(&window, &tracker)
+}
+
+#[tauri::command]
+fn nudge_pet(
+    app: tauri::AppHandle,
+    tracker: tauri::State<pet_window::Tracker>,
+    dx: f64,
+    dy: f64,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window("pet")
+        .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
+    pet_window::move_by(&window, &tracker, dx, dy)
 }
 
 #[tauri::command]
@@ -334,6 +356,7 @@ pub fn run() {
         .manage(DragLock(drag_lock_for_state))
         .manage(MenuRegion(menu_region.clone()))
         .manage(PendingSettingsTarget(std::sync::Mutex::new(None)))
+        .manage(pet_window::Tracker::default())
         .setup(move |app| {
             if let Some(main) = app.get_webview_window("main") {
                 main_window::retain_on_close(&main);
