@@ -91,7 +91,11 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   function move(id:string,state:WorkState){const label=document.activeElement?.getAttribute('aria-label')||'';if(label.startsWith('拖动 '))moveFocus.current=label;void controller.move(id,state);}
   const dragSensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}),useSensor(KeyboardSensor,{coordinateGetter:keyboardCoordinates,scrollBehavior:reduce?'auto':'smooth'}));
   useEffect(()=>controller.subscribe(redraw),[controller]);
-  useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();const timer=window.setInterval(()=>{if(!controller.loading)void controller.load();},5000);return()=>window.clearInterval(timer);},[active,controller,info,debug]);
+  useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();
+    // 进入页面核对一次；之后只在窗口重新聚焦时按需核对，避免定时轮询反复刷新提示。
+    const reload=()=>{if(!controller.loading)void controller.load();};
+    window.addEventListener('focus',reload);return()=>window.removeEventListener('focus',reload);
+  },[active,controller,info,debug]);
   const item=controller.items.find(i=>i.id===selected);
   const drawer=!weekTarget&&!scheduleTarget&&(!!draft||!!item);
   useEffect(()=>{if(!drawer)return;const previous=document.activeElement as HTMLElement|null;formRoot.current?.querySelector<HTMLElement>('button,input')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[drawer,!!draft,selected]);
@@ -139,7 +143,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
       <button type="button" aria-pressed={archived} onClick={()=>setArchived(value=>!value)}>{archived?'查看日常事项':'已归档'}</button>
       <button type="button" onClick={()=>openWeek()}>日程安排</button>
       <UiButton busy={controller.loading} busyLabel="读取中…" onClick={()=>void refresh()}>刷新核对</UiButton><span className="wb-sort">优先级 · 截止日期</span></div>
-    {controller.error&&controller.error!==formError&&<UiFeedback state="error" title={controller.error} className="wb-error"/>}
+    <div className="wb-alert-slot" aria-live="polite">{controller.error&&controller.error!==formError&&<UiFeedback state="error" title={controller.error} className="wb-error"/>}</div>
     {[...controller.uncertain].map(([key,record])=><UiFeedback state="unconfirmed" title="保存结果未确认" className="wb-uncertain" key={key}><div><p>{record.message}</p><small>操作编号：{record.action.request_id}</small></div><div><UiButton onClick={()=>void refresh()} busy={controller.loading} busyLabel="核对中…">重新读取核对</UiButton><UiButton onClick={()=>void retry(key)} busy={controller.pending.has(key)} busyLabel="原操作处理中…">手动重试原操作</UiButton></div></UiFeedback>)}
     {!controller.loaded&&controller.loading&&<UiFeedback state="loading" title="正在读取事项…"/>}
     {controller.loaded&&!visible.length&&<UiFeedback state={query||project!=='all'||archived?'no_results':'empty'} title={query||project!=='all'||archived?'当前筛选没有匹配事项':'还没有事项'}>可调整筛选，或用「新增事项」开始。</UiFeedback>}
