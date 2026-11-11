@@ -375,6 +375,10 @@ a.md-link {
 .workspace-reopen { position: absolute; right: 10px; top: 6px; z-index: 15; background: hsl(var(--card)); }
 .workspace-file-link { display: block; width: 100%; text-align: left; padding: 8px 0; font-size: 12px; color: hsl(var(--primary)); }
 .note-board { display: grid; }
+/* 三栏并排时中间问答列要能收住高度，线程区才会出现滚动条；窄屏堆叠布局仍由看板整体滚动。 */
+@container conversation (min-width: 521px) {
+  [data-note-thread-column] { min-height: 0; }
+}
 .note-directory-row { border-left: 2px solid transparent; border-bottom: 1px solid hsl(var(--border)); padding: 10px 8px; }
 .note-directory-row.active { border-left-color: hsl(var(--primary)); }
 .note-directory-title { flex: 1; min-width: 0; color: hsl(var(--foreground)); text-decoration: none; font-size: 13px; overflow-wrap: anywhere; }
