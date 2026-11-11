@@ -38,6 +38,7 @@ import { PageStack } from "./page-stack";
 import { PetSettings } from "./pet-settings";
 import { RailButton, readDeveloperMode, saveDeveloperMode } from "./companion-ui";
 import { TopToolbar } from "./top-toolbar";
+import { WindowTitleBar } from "./window-chrome";
 import "./workspace-navigation.css";
 import { LocalSourcesDialog, type LocalSource } from "./local-sources";
 import { SideWorkspace, previewSource, openTerminal, openProject, openProjectFolder, togglePreview } from "./side-workspace";
@@ -1430,7 +1431,7 @@ export function App() {
   </>;
 
   return (
-    <div className="tebb-workspace relative flex h-full overflow-hidden bg-background text-foreground" data-pane={pane}>
+    <div className="tebb-workspace relative flex h-full flex-col overflow-hidden bg-background text-foreground" data-pane={pane}>
       <ReminderNotice info={info} debug={!!debugKind}/>
       <CalendarProposalNavigation info={info} onTarget={target=>navigateWorkspace(()=>openCalendar(target))}/>
       {releaseIntro.open ? <ReleaseIntro daily={releaseIntro.daily}
@@ -1444,6 +1445,8 @@ export function App() {
       >
         {bgUrl ? <div className="desk-bg-scrim" data-bg-scrim /> : null}
       </div>
+      <WindowTitleBar />
+      <div className="tebb-workspace-body flex min-h-0 flex-1">
       <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
@@ -1803,6 +1806,7 @@ export function App() {
         </SideWorkspace>
         </div>
       </main>
+      </div>
 
       {error && pane !== "chat" && <div className="tebb-global-error" role="alert"><span>{error}</span><button type="button" aria-label="关闭错误提示" onClick={() => setError("")}>×</button></div>}
     </div>

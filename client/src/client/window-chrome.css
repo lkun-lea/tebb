@@ -1,0 +1,91 @@
+/* 自绘窗口标题栏。语义 token 由 ui-foundations.css 拥有，这里只负责布局与层级。 */
+
+.tebb-window-titlebar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding-left: 16px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  user-select: none;
+}
+
+.tebb-window-title {
+  font-size: var(--ui-text-sm);
+  font-weight: var(--ui-weight-500);
+  letter-spacing: 0.08em;
+}
+
+.tebb-window-controls {
+  display: flex;
+  align-self: stretch;
+}
+
+.tebb-window-controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  align-self: stretch;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: default;
+  transition: background-color var(--ui-duration) var(--ui-ease), color var(--ui-duration) var(--ui-ease);
+}
+
+.tebb-window-controls button:hover {
+  background: hsl(var(--foreground) / 0.06);
+  color: hsl(var(--foreground));
+}
+
+.tebb-window-controls button:focus-visible {
+  outline: 1px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+.tebb-window-controls .tebb-window-control-close:hover {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+/* 设置窗没有标题栏，关闭按钮浮在右上角，不占用内容区布局。 */
+.tebb-window-close-floating {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background-color var(--ui-duration) var(--ui-ease), color var(--ui-duration) var(--ui-ease);
+}
+
+.tebb-window-close-floating:hover {
+  background: hsl(var(--foreground) / 0.06);
+  color: hsl(var(--foreground));
+}
+
+.tebb-window-close-floating:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tebb-window-controls button, .tebb-window-close-floating { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .tebb-window-controls button, .tebb-window-close-floating { border: 1px solid ButtonText; }
+}
