@@ -18,10 +18,14 @@
 .workflow-home-heading h2{font-size:24px;letter-spacing:-.5px;margin:8px 0;font-weight:var(--ui-weight-600)}
 .workflow-template-picker>p{font-size:12px;margin:0;color:hsl(var(--workflow-muted-foreground))}
 .workflow-home-actions,.workflow-home-toolbar,.workflow-home-tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.workflow-home-toolbar{justify-content:space-between;padding-bottom:12px;margin-bottom:20px;border-bottom:1px solid hsl(var(--workflow-border))}
-.workflow-home-tabs button{border:0;background:transparent;color:hsl(var(--workflow-muted-foreground));padding:9px 11px}
-.workflow-home-tabs button[aria-selected=true]{color:hsl(var(--workflow-primary));background:hsl(var(--workflow-primary)/.1)}
-.workflow-home-tabs button>span{font-size:10px;background:hsl(var(--workflow-primary)/.1);padding:1px 5px;border-radius:4px}
+.workflow-home-toolbar{gap:12px 28px;justify-content:space-between;padding-bottom:12px;margin-bottom:20px;border-bottom:1px solid hsl(var(--workflow-border))}
+.workflow-home-heading .workflow-home-actions{justify-content:flex-end;gap:10px}
+.workflow-home-tabs{gap:2px;flex-wrap:nowrap;padding:2px;border-radius:11px;background:hsl(var(--workflow-muted)/.6)}
+.workflow-home-tabs button{border:0;background:transparent;color:hsl(var(--workflow-muted-foreground));padding:7px 14px;border-radius:9px;font-weight:var(--ui-weight-500)}
+.workflow-home-tabs button:hover{background:hsl(var(--workflow-foreground)/.05);border-color:transparent}
+.workflow-home-tabs button[aria-selected=true],.workflow-home-tabs button[aria-selected=true]:hover{color:hsl(var(--workflow-primary));background:hsl(var(--workflow-primary)/.14)}
+.workflow-home-tabs button:focus-visible{outline-offset:1px}
+.workflow-home-tabs button>span{font-size:10px;background:hsl(var(--workflow-foreground)/.08);padding:1px 5px;border-radius:4px}
 .workflow-home-toolbar>.workflow-home-actions{flex-wrap:nowrap;margin-left:auto}.workflow-home-actions input{width:180px!important;max-width:190px;flex:1}
 .workflow-draft{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:hsl(var(--workflow-primary)/.06);border:1px solid hsl(var(--workflow-primary)/.18);padding:12px 15px;border-radius:12px;margin-bottom:20px;font-size:12px}
 .workflow-draft>div{display:flex;gap:12px;min-width:0;flex-wrap:wrap}.workflow-draft span{color:hsl(var(--workflow-muted-foreground));overflow-wrap:anywhere}
