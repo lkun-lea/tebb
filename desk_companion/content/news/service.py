@@ -269,9 +269,17 @@ def fetch_source(url):
     return {"text": " ".join(page.parts)[:6000], "published": page.published}
 
 
+def _search_reason(exc):
+    """搜索异常转成可核对的渠道诊断，不包括查询词、凭证或原始响应。"""
+    attempts = getattr(exc, "attempts", None) or []
+    detail = "、".join(f"{row.get('provider', '')}:{row.get('category') or 'ok'}" for row in attempts if row.get("provider"))
+    return detail or str(exc).strip() or "搜索未返回原因。"
+
+
 def collect(day, cfg, progress, *, max_sources=32, published=()):
     if type(max_sources) is not int or not 1<=max_sources<=32:raise ValueError('来源核实数量须为1–32。')
     from desk_companion.integrations.web.web_search import search_sources, format_search
+    from desk_companion.integrations.web.search_service import cooldown_seconds
     since = (date.fromisoformat(day) - timedelta(days=cfg["lookback_days"])).isoformat()
     candidates = []
     seen = set()
@@ -286,11 +294,26 @@ def collect(day, cfg, progress, *, max_sources=32, published=()):
         format_search(value)  # 服务端错误不能作为工具成功记录。
         return value
     topics = cfg["topics"] + [topic for topic in SUPPLEMENT_TOPICS if topic not in cfg["topics"]]
+    # 主渠道限流后继续逐条检索只会整批退化成对中文查询无效的备用渠道；先按冷却时间等待恢复。
+    wait_deadline = time.monotonic() + 90
+    fallback_warned = False
     for index, topic in enumerate(topics):
+        pause = cooldown_seconds()
+        if pause > 0:
+            allowed = max(0.0, wait_deadline - time.monotonic())
+            if pause <= allowed:
+                progress("status", f"主搜索渠道冷却中，等待 {int(pause) + 1} 秒后继续检索。")
+                time.sleep(pause)
+            elif not fallback_warned:
+                warnings.append("主搜索渠道仍在冷却，本轮后续主题可能只能由备用渠道返回候选。")
+                fallback_warned = True
         query = f"{topic} after:{since} before:{(date.fromisoformat(day)+timedelta(days=1)).isoformat()}"
         progress("status", f"正在检索大厂资讯 {index+1}/{len(topics)}：{topic}。")
         try:
             payload = phase(progress, "tool", "news_search", lambda: search(query))
+            if payload.get("provider") == "bing-rss" and not fallback_warned:
+                warnings.append(f"主题 {index+1} 使用了备用 Bing 渠道，候选可能跑题。")
+                fallback_warned = True
             for row in payload.get("results", []):
                 url = primary_url(row.get("link", ""))
                 url, repo_title = repository_source(url) if url else ("", "")
@@ -299,8 +322,8 @@ def collect(day, cfg, progress, *, max_sources=32, published=()):
                     seen.add(key)
                     candidates.append({"id": digest(url), "title": repo_title or str(row["title"])[:200], "url": url,
                                        "snippet": str(row.get("snippet", ""))[:600], "published": str(row.get("published_date", ""))[:40]})
-        except Exception:
-            warnings.append(f"主题 {index+1} 搜索未成功。")
+        except Exception as exc:
+            warnings.append(f"主题 {index+1} 搜索未成功：{_search_reason(exc)}")
     verified = []
     # 企业官方页面与官方仓库优先，避免泛学术搜索占满核实预算。
     candidates.sort(key=lambda row: not bool(company_for(row["url"])))
@@ -464,6 +487,26 @@ def markdown_report(run):
     return "\n\n".join(lines)
 
 
+def _failure_text(exc, message):
+    """保留可核对的失败原因；模型接口错误按状态码说明，不转发原始响应与凭证。"""
+    if isinstance(exc, (ReportValidationError, json.JSONDecodeError)):
+        return message
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        if status == 402:
+            return "模型接口余额或额度不足（HTTP 402），请充值或切换可用模型后继续。"
+        if status in {401, 403}:
+            return f"模型接口鉴权失败（HTTP {status}），请检查模型密钥与权限。"
+        if status == 429:
+            return "模型接口调用达到限额（HTTP 429），请稍后继续或切换模型。"
+        return f"模型接口返回 HTTP {status}，请检查模型配置与服务状态。"
+    if type(exc).__name__ in {"APITimeoutError", "APIConnectionError"}:
+        return "模型接口连接超时或中断，请稍后继续。"
+    if message.startswith(("可核实", "摘要", "日报", "飞书", "文档", "上次", "资讯表", "知识库", "数据表", "来源")):
+        return message
+    return "资讯任务未完成，请查看时间线、来源缺口和飞书位置检查结果。"
+
+
 def execute(request, emit):
     """由受硬超时监督的 task_worker 调用，不允许模型自行操作飞书。"""
     cfg, day = request["news_settings"], request["news_day"]
@@ -498,11 +541,13 @@ def execute(request, emit):
             save(status="draft", error="")
         emit("result", markdown_report(run) + ("\n\n每日文档：" + run["doc_url"] if run.get("doc_url") else "\n\n已生成预览，尚未推送飞书。"))
     except Exception as exc:
-        # 不转发 CLI 原始错误及凭证；可恢复阶段保留已保存的回执。
+        # 不转发 CLI 原始错误及凭证；模型接口失败按状态码保留真实原因。
         message = str(exc)
         retryable = getattr(exc, "retryable", None)
+        status = getattr(exc, "status_code", None)
+        if retryable is None and isinstance(status, int):
+            retryable = status in {408, 429} or status >= 500
         if retryable is None:
             retryable = isinstance(exc, (ReportValidationError, json.JSONDecodeError)) or not any(s in message.lower() for s in ("permission", "unauthorized", "invalid_client", "scope", "certificate", "未提供", "未知", "标识", "缺少", "授权", "权限", "预检", "尚未确认", "未核实完整"))
-        public = message if isinstance(exc, ReportValidationError) or message.startswith(("可核实", "摘要", "日报", "飞书", "文档", "上次", "资讯表", "知识库", "数据表", "来源")) else "资讯任务未完成，请查看时间线、来源缺口和飞书位置检查结果。"
-        save(status="failed", error=public[:300], retryable=retryable)
+        save(status="failed", error=_failure_text(exc, message)[:300], retryable=retryable)
         emit("failure", run["error"])

@@ -26,6 +26,29 @@ def usage_origin(ident,path=None):
     return rows[0]if rows else None
 
 
+def legacy_runs(limit=20):
+    """原有资讯计划不写入工作流库，这里把资讯运行回执映射成统一运行记录，供首页运行记录展示。"""
+    from datetime import datetime
+    from desk_companion.content.news import service as news
+    rows = []
+    for run in news.list_runs()[:limit]:
+        status = str(run.get('status') or '')
+        state = ('completed' if status in {'published', 'archived', 'draft'}
+                 else 'failed' if status == 'failed' else 'running')
+        try:
+            stamp = int(datetime.fromisoformat(str(run.get('updated') or '')).timestamp())
+        except ValueError:
+            stamp = 0
+        # 进程中断留下的进行中记录不应一直显示为运行中。
+        if state == 'running' and stamp and time.time() - stamp > 600:
+            state = 'interrupted'
+        rows.append(dict(id=str(run.get('id') or ''), name=f"AI/Agent 资讯日报 · {run.get('day', '')}",
+                         workflow='ai_news', version='', state=state, mode='full', attempt=0, task_id='',
+                         error=str(run.get('error') or ''), created=stamp, updated=stamp,
+                         source='ai_news', day=str(run.get('day') or ''), doc_url=str(run.get('doc_url') or '')))
+    return rows
+
+
 class WorkflowStore:
     def __init__(self, path=None):
         self.path = Path(path or data_root() / 'memory' / 'workflows.sqlite3')
@@ -261,7 +284,8 @@ class WorkflowService:
             from desk_companion.automation.workflow_templates import templates
             return dict(templates=templates())
         if operation == 'list':
-            return dict(definitions=self.store.definitions(), runs=self.store.runs(payload.get('id', '')))
+            return dict(definitions=self.store.definitions(), runs=self.store.runs(payload.get('id', '')),
+                        legacy_runs=legacy_runs())
         if operation == 'load':
             return dict(definition=self.store.definition(payload['id'],payload.get('version','')))
         if operation == 'validate':

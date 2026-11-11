@@ -68,6 +68,11 @@ def _cooldown(provider, seconds=None):
         return max(0, float(values.get(provider, 0)) - time.time())
 
 
+def cooldown_seconds(provider=None):
+    """主搜索渠道剩余冷却秒数；供整批检索前等待恢复，避免连续退化成备用渠道。"""
+    return _cooldown(provider or settings()['provider'])
+
+
 def _retry_after(raw):
     try:
         return max(1, min(900, int(raw)))
