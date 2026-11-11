@@ -1,0 +1,41 @@
+.sw-sync{position:relative;display:inline-flex;align-items:center;min-width:0}
+.sw-sync-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--wb-surface);color:var(--wb-muted);font-size:12px;line-height:1.6;white-space:nowrap;cursor:pointer}
+.sw-sync-pill:hover{background:color-mix(in srgb,var(--wb-surface) 97%,var(--wb-text))}
+.sw-sync-pill[aria-expanded=true]{background:var(--wb-soft);color:var(--wb-text)}
+.sw-sync-dot{width:6px;height:6px;border-radius:50%;background:hsl(var(--ui-status-success));flex:none}
+.sw-sync-warn{color:hsl(var(--ui-status-warning))}
+.sw-sync-warn .sw-sync-dot{background:hsl(var(--ui-status-warning))}
+.sw-sync-panel{position:absolute;right:0;top:calc(100% + 10px);z-index:60;display:flex;flex-direction:column;gap:12px;width:392px;max-width:calc(100vw - 40px);max-height:min(560px,calc(100dvh - 140px));overflow:auto;padding:16px;border-radius:12px;background:var(--wb-surface);color:var(--wb-text);box-shadow:0 16px 40px color-mix(in srgb,var(--wb-text) 18%,transparent);outline:none}
+.sw-sync-panel header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.sw-sync-panel h2{font-size:14px;font-weight:var(--ui-weight-500);margin:0}
+.sw-sync-panel header p{font-size:12px;color:var(--wb-muted);margin:4px 0 0}
+.sw-sync-close{flex:none;padding:2px 7px!important;font-size:16px!important;line-height:1.2!important;color:var(--wb-muted)}
+.sw-sync-policy{font-size:12px;color:var(--wb-muted);margin:0}
+.sw-sync-group{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sw-sync-group-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sw-sync-group-head h3{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--ui-weight-500);margin:0}
+.sw-sync-group-head h3 span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);color:var(--wb-muted);font-size:11px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.sw-sync-group-head>button{padding:4px 8px!important;font-size:12px!important}
+.sw-sync-items{display:flex;flex-direction:column;gap:7px;min-width:0}
+.sw-sync-item{min-width:0;padding:10px 11px;border-radius:9px;background:var(--wb-bg);font-size:12px;overflow-wrap:anywhere}
+.sw-sync-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sw-sync-item-row .sw-sync-item-main{min-width:0}
+.sw-sync-item-row .sw-sync-item-main p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw-sync-item strong{font-size:12px;font-weight:var(--ui-weight-500)}
+.sw-sync-item p{margin:5px 0 0;color:var(--wb-muted);line-height:1.7}
+.sw-sync-item .sw-sync-hint{color:hsl(var(--ui-status-warning))}
+.sw-sync-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px}
+.sw-sync-item-row .sw-sync-actions{margin-top:0;flex:none}
+.sw-sync-actions button{font-size:12px;white-space:nowrap}
+.sw-sync-input{display:grid;gap:5px;margin-top:9px;color:var(--wb-muted);font-size:12px}
+.sw-sync-input input,.sw-sync-input select{min-width:0;width:100%;padding:6px 8px;border:0;border-radius:7px;background:var(--wb-surface);color:var(--wb-text);font-size:12px}
+.sw-sync-empty{font-size:12px;color:var(--wb-muted);margin:0}
+.sw-sync-collapsed>summary{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--wb-muted)}
+.sw-sync-collapsed>summary span{min-width:18px;padding:0 5px;border-radius:999px;background:var(--wb-bg);font-size:11px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.sw-sync-collapsed .sw-sync-items{margin-top:8px}
+.sw-sync-collapsed .sw-sync-item{display:flex;align-items:center;gap:7px}
+.sw-sync-collapsed .sw-sync-item::before{content:"✓";flex:none;color:hsl(var(--ui-status-success))}
+.sw-sync-panel footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--wb-text) 8%,transparent);font-size:12px;color:var(--wb-muted)}
+@media(max-width:680px){.sw-sync-panel{position:fixed;left:12px;right:12px;top:auto;bottom:12px;width:auto;max-width:none;max-height:70dvh}}
+@media(prefers-reduced-motion:reduce){.sw-sync *{transition:none!important;animation:none!important}}
+@media(forced-colors:active){.sw-sync-panel{outline:1px solid CanvasText}.sw-sync-item{outline:1px solid CanvasText}}

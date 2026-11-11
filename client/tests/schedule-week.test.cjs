@@ -165,6 +165,7 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
     './workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:props=>{drag=props;return React.createElement('div',{},props.children);},CalendarDragContent:({children})=>children},
     './calendar-item-source':{CalendarItemSource:props=>{source=props;return React.createElement('aside',{'data-items':true});}},
+    './calendar-sync-status':{CalendarSyncStatus:()=>null},
     '@fullcalendar/react':{default:Calendar},'@fullcalendar/timegrid':{},'@fullcalendar/daygrid':{},'@fullcalendar/interaction':{},'@fullcalendar/luxon3':{},'@fullcalendar/core/locales/zh-cn':{},
     'framer-motion':{useReducedMotion:()=>true},'./datetime-field':{DateTimeField:()=>null}}).ScheduleWeekPane;
   const transport=async(method,args)=>{
@@ -212,6 +213,7 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
     './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:({children})=>React.createElement('div',{},children),CalendarDragContent:({children})=>React.createElement('div',{},children)},
     './calendar-item-source':{CalendarItemSource:props=>React.createElement('aside',{'data-items':true,source:props})},
+    './calendar-sync-status':{CalendarSyncStatus:()=>null},
     '@fullcalendar/react':{default:Calendar},'@fullcalendar/timegrid':{},'@fullcalendar/daygrid':{},'@fullcalendar/interaction':{},'@fullcalendar/luxon3':{},'@fullcalendar/core/locales/zh-cn':{},
     'framer-motion':{useReducedMotion:()=>true},'./datetime-field':{DateTimeField:props=>React.createElement('input',{'aria-label':props.marker,value:props.value,onChange:e=>props.onChange(e.target.value)})}}).ScheduleWeekPane;
   const current=event();let view;
