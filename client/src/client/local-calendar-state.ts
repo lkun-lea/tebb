@@ -4,13 +4,15 @@ import type { WeekTransport } from './schedule-week-state';
 export type LocalOperation={id:string;local_id:string;type:string;state:string;stage:string;error:string;event?:CalendarEvent;calendar_id?:string};
 export type SyncEntry={local_id:string;version:number;request_id:string;state:'queued'|'synced'|'failed'|'unconfirmed';stage?:string;error?:string};
 export type SyncBatch={id:string;created_at:string;entries:SyncEntry[]};
-export type LocalCalendarPage={ok:boolean;events:CalendarEvent[];operations:LocalOperation[];batches:SyncBatch[];operation?:LocalOperation;error?:string};
+export type LocalCalendarPage={ok:boolean;feishu_connected?:boolean;events:CalendarEvent[];operations:LocalOperation[];batches:SyncBatch[];operation?:LocalOperation;error?:string};
 export type LocalResult={ok:boolean;event?:CalendarEvent;operation?:LocalOperation;batch?:SyncBatch;change_state?:string;stage?:string;error?:string};
 type Marker={request_id:string;local_id?:string;type:string};
 type StorageLike=Pick<Storage,'getItem'|'setItem'|'removeItem'>;
 export class LocalCalendarController{
   page:LocalCalendarPage={ok:true,events:[],operations:[],batches:[]};busy=false;loading=false;error='';notice='';unknown:Marker|null=null;batch:SyncBatch|null=null;
-  private key='tebb.calendar.pending.v1';private serial=0;private listeners=new Set<()=>void>();private damaged=false;
+  private key='tebb.calendar.pending.v1';private connectionKey='tebb.calendar.feishu-connected.v1';
+  private serial=0;private listeners=new Set<()=>void>();private damaged=false;
+  private lastConnected?:boolean;private justConnected=false;
   constructor(private transport:WeekTransport,private storage?:StorageLike,private id=()=>crypto.randomUUID()){
     try{const value=JSON.parse(storage?.getItem(this.key)||'null');if(value){if(typeof value.request_id!=='string'||typeof value.type!=='string')throw Error();this.unknown=value;}}
     catch{this.damaged=true;this.error='本机日程核对记录读取失败，请保留记录并核对后台回执，暂停新写入。';}
@@ -21,11 +23,25 @@ export class LocalCalendarController{
   async read(){const serial=++this.serial;this.loading=true;this.emit();try{
     const page=await this.transport('load_local_calendar',{request_id:this.unknown?.request_id||''}) as LocalCalendarPage;
     if(serial!==this.serial)return false;if(!page.ok)throw Error(page.error||'本地日程读取失败。');this.page=page;
+    if(typeof page.feishu_connected==='boolean')this.rememberConnection(page.feishu_connected);
     if(page.operation&&['saved','synced','resolved_absent','retimed','observed','deleted'].includes(page.operation.state)){this.clear();this.error='';this.notice='已读取原操作回执。';}
     if(this.unknown?.type==='sync'&&page.events.some(e=>e.local_id===this.unknown?.local_id&&e.sync_state==='synced')){this.clear();this.error='';this.notice='已读取现有飞书绑定，不会重复创建。';}
     if(this.batch)this.batch=page.batches.find(b=>b.id===this.batch!.id)||this.batch;
     return true;
   }catch(error){if(serial===this.serial)this.error=String(error);return false;}finally{if(serial===this.serial)this.loading=false;this.emit();}}
+  private rememberConnection(next:boolean){
+    const stored=this.storage?.getItem(this.connectionKey);
+    const previous=stored===null||stored===undefined?(this.lastConnected===undefined?null:String(this.lastConnected)):stored;
+    this.justConnected=next&&previous!=='true';this.lastConnected=next;
+    try{this.storage?.setItem(this.connectionKey,next?'true':'false');}catch{/* 该标记只用于登录提示去重，内存状态继续生效。 */}
+  }
+  // 连接由断开变为连接时只提示一次，避免重复检查飞书和反复出现提示。
+  syncNotice(){
+    if(!this.justConnected)return '';
+    this.justConnected=false;
+    const pending=this.page.events.filter(event=>event.sync_state==='local');
+    return pending.length?`检测到 ${pending.length} 条本地日程，可以同步到飞书。`:'';
+  }
   async change(input:Record<string,unknown>,requestId?:string):Promise<LocalResult>{
     if(this.busy||this.damaged||this.unknown&&!['resolve_sync','resolve_save'].includes(String(input.type))){this.error='有执行中或结果待核对的操作，请先读取原编号。';this.emit();return {ok:false,error:this.error};}
     const action:Record<string,unknown>&{request_id:string}={...input,request_id:requestId||this.id()};

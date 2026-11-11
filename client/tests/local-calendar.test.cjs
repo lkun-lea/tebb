@@ -28,11 +28,13 @@ test('bulk uses a fixed version manifest, reports partial results and does not r
  await c.runBatch(events);assert.deepEqual(c.batch.entries.map(e=>e.state),['synced','unconfirmed']);
  await c.continueBatch(c.batch);assert.equal(calls.filter(([method])=>method==='calendar_sync_step').length,2);
 });
-test('visible permission preparation includes the unselected second event and preserves readonly reasons',async()=>{
+test('permission inspection is explicit and preserves readonly reasons',async()=>{
  const inspected=[];const c=new week.ScheduleWeekController(async(method,args)=>{assert.equal(method,'inspect_schedule_event');inspected.push(args.event_id);return {ok:true,event:event(args.event_id,{sync_state:'synced',editable:args.event_id!=='meeting',edit_reason:args.event_id==='meeting'?'其他参与人':'',edit_checked_at:new Date().toISOString()})};},day,storage());
  c.page={...c.page,events:[event('first',{sync_state:'synced',editable:false}),event('second',{sync_state:'synced',editable:false}),event('meeting',{sync_state:'synced',editable:false})]};
- await c.prepareVisible();assert.deepEqual(inspected,['first','second','meeting']);assert(week.timeEditable(c.event('tebb-local/second')));assert.equal(c.event('tebb-local/meeting').edit_reason,'其他参与人');
- await c.prepareVisible();assert.equal(inspected.length,3);assert(week.timeEditable(event('offline')));
+ assert.deepEqual(inspected,[]);
+ await c.inspect(c.page.events[0]);assert.deepEqual(inspected,['first']);assert(week.timeEditable(c.event('tebb-local/first')));
+ await c.inspect(c.page.events[2]);assert.equal(c.event('tebb-local/meeting').edit_reason,'其他参与人');assert.equal(week.timeEditable(c.event('tebb-local/meeting')),false);
+ assert(week.timeEditable(event('offline')));
 });
 test('editor is nonmodal, updates its draft and cannot remove an established Feishu binding',async()=>{
  let draft={id:'draft',summary:'',start:day+'T09:00',end:day+'T10:00',item_id:'',sync:false},changed,closed=0,view;
@@ -44,12 +46,12 @@ test('editor is nonmodal, updates its draft and cannot remove an established Fei
  assert.equal(view.root.findByProps({type:'checkbox'}).props.disabled,true);assert.equal(view.root.findByProps({'aria-label':'日程标题'}).props.readOnly,undefined);await act(async()=>view.unmount());
 });
 
-test('a refreshed local title and version replace an old inspection without unnecessary local permission calls',async()=>{
+test('a refreshed local title and version replace an old inspection',async()=>{
  let current=event('local'),calls=0;
  const c=new week.ScheduleWeekController(async(method)=>{calls++;assert.equal(method,'load_schedule_week');return {...c.page,events:[current]};},day,storage());
  c.page={...c.page,events:[current]};c.inspections.set('tebb-local/local',current);
- await c.prepareVisible();assert.equal(calls,0);
  current={...current,summary:'改过的标题',local_version:2};await c.read();
+ assert.equal(c.loading,false);assert.equal(calls,1);
  assert.equal(c.event('tebb-local/local').summary,'改过的标题');assert.equal(c.event('tebb-local/local').local_version,2);
 });
 

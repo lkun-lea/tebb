@@ -8,7 +8,8 @@ export type Graph = {nodes:GraphNode[];edges:{source:string;target:string;branch
 export type Definition = {id:string;name:string;revision:number;version:string;graph:Graph};
 export type GraphPreview = {nodes:{id:string;kind:NodeKind;position:{x:number;y:number};label:string}[];edges:Graph['edges']};
 export type WorkflowSummary = Omit<Definition,'graph'> & {updated:number;preview:GraphPreview;latest_run:RunSummary|null};
-export type RunSummary = Pick<WorkflowRun,'id'|'workflow'|'version'|'name'|'state'|'mode'|'attempt'|'task_id'|'error'> & {created:number;updated:number};
+// 资讯原有计划的运行回执不在工作流库中，source 标记其来源，便于前端区分可否打开。
+export type RunSummary = Pick<WorkflowRun,'id'|'workflow'|'version'|'name'|'state'|'mode'|'attempt'|'task_id'|'error'> & {created:number;updated:number;source?:'workflow'|'ai_news';day?:string;doc_url?:string};
 export type Receipt = {node:string;kind:NodeKind;state:string;input:NodeConfig;output:Record<string,unknown>;error:string;receipt_key:string};
 export type WorkflowRun = {id:string;workflow:string;version:string;name:string;state:string;mode:'step'|'full';attempt:number;task_id:string;error:string;approved:string[];graph:Graph;receipts:Record<string,Receipt>;task_budget?:TaskBudget};
 export type CatalogNode = {kind:NodeKind;label:string;defaults:NodeConfig;outputs:string[];writes:boolean};

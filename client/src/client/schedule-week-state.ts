@@ -49,7 +49,7 @@ const markerValid=(v:unknown):v is TimeMarker=>{const m=v as TimeMarker;return !
   &&typeof m.original_start==='string'&&typeof m.original_end==='string';};
 
 export class ScheduleWeekController {
-  page:ScheduleWeekPage;loading=false;error='';notice='';
+  page:ScheduleWeekPage;loading=false;error='';notice='';remoteAttempt=false;
   readonly pending=new Map<string,TimeMarker>();readonly unknown=new Map<string,TimeMarker>();
   readonly inspections=new Map<string,CalendarEvent>();readonly checking=new Set<string>();
   readonly missing=new Set<string>();
@@ -91,7 +91,7 @@ export class ScheduleWeekController {
   blocked(key:string){return this.storageDamaged||this.pending.has(key)||this.unknown.has(key);}
   async read(day=this.page.day,refresh=false){
     if(this.interacting)return false;
-    const serial=++this.serial;this.loading=true;if(!this.storageDamaged)this.error='';this.emit();
+    const serial=++this.serial;this.loading=true;this.remoteAttempt=refresh;if(!this.storageDamaged)this.error='';this.emit();
     try{
       const page=await this.transport(this.period==='month'?'load_schedule_month':'load_schedule_week',{day,refresh}) as ScheduleWeekPage;
       if(serial!==this.serial)return false;
@@ -124,14 +124,6 @@ export class ScheduleWeekController {
       return true;
     }catch(error){if(version===this.eventSerial.get(key)){this.error=String(error);const old=this.event(key);if(old)this.inspections.set(key,{...old,editable:false,edit_reason:'读取失败，请重新核对',verification:'read_failed'});}return false;}
     finally{if(version===this.eventSerial.get(key)){this.checking.delete(key);this.emit();}}
-  }
-  async prepareVisible(){
-    const candidates=this.page.events.filter(e=>{const current=this.event(calendarKey(e));return e.eligible&&e.sync_state!=='local'&&
-      !this.blocked(calendarKey(e))&&!this.checking.has(calendarKey(e))&&Date.parse(e.end)>Date.now()&&
-      (!current?.edit_checked_at||Date.now()-Date.parse(current.edit_checked_at)>=240000);});
-    let index=0;await Promise.all(Array.from({length:Math.min(2,candidates.length)},async()=>{
-      while(index<candidates.length){const event=candidates[index++];await this.inspect(event);}
-    }));
   }
   async retime(event:CalendarEvent,draft:TimeDraft){
     const key=calendarKey(event);

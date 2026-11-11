@@ -31,6 +31,7 @@
         "url": "client.html",
         "width": 1180,
         "height": 760,
+        "decorations": false,
         "resizable": true
       }
     ],

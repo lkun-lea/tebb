@@ -186,6 +186,7 @@ export function NoteMode(props: {
       />
       <motion.div
         className="flex min-w-0 flex-1 flex-col"
+        data-note-thread-column=""
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, delay: 0.05, ease: columnEase }}

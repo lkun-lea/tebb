@@ -189,7 +189,7 @@ class AutomationService:
                         action = job['action']
                         if job['id'] in self._active or (action == 'ai_news' and action in occupied):
                             continue
-                        job['last_run_slot'] = a._slot_key(a._latest_slot(now, job) or now, job)
+                        job['last_run_slot'] = a._slot_key(now, job)
                         dirty = True
                         if action in occupied:
                             job.update(last_result='missed', last_error='同类作业正在排队、执行或收尾，本时段未执行。', alert_seen=False)
@@ -381,7 +381,7 @@ class AutomationService:
             return dict(self.snapshot(),message='已连接原执行记录；不会重做目标。')
         return self._call(check,job_id)
 
-    def _finish(self, job_id, result, *, phase='completed', status=None, reset_slot=False, task_id=''):
+    def _finish(self, job_id, result, *, phase='completed', status=None, task_id=''):
         with self._lock:
             execution = deepcopy(self._active.get(job_id, {}))
             execution.update(phase=phase, result=deepcopy(result))
@@ -389,8 +389,6 @@ class AutomationService:
                           last_error=result.get('error', ''), alert_seen=bool(result.get('ok')))
             if task_id:
                 record['last_task_id'] = task_id
-            if reset_slot:
-                record['last_run_slot'] = ''
             self._pending_results[job_id] = record
             self._flush_results()
 
@@ -429,10 +427,10 @@ class AutomationService:
                 self._active.get(job_id, {})['observation_error'] = str(exc)
             return dict(task_id=exc.task_id, run_id=exc.run_id)
 
-    def _news_result(self, job_id, result, task_id, error='', reset_slot=False):
+    def _news_result(self, job_id, result, task_id, error=''):
         if result != 'running':
             self._finish(job_id, dict(ok=result=='ok', stage='news', task_id=task_id, error=error),
-                status=result, reset_slot=reset_slot, task_id=task_id)
+                status=result, task_id=task_id)
             return
         with self._lock, a.transaction():
             try:
@@ -476,8 +474,8 @@ class AutomationService:
                 seconds = int((deadline or time.monotonic()) - time.monotonic())
                 if attempt or self._stopping.is_set() or task['state']=='cancelled' or not run.get('retryable') or seconds<20:
                     self._news_result(job_id, 'missed' if self._stopping.is_set() else 'fail', task_id,
-                        '退出时资讯尚未确认完成，将按既有阶段和发布回执恢复最新一次。' if self._stopping.is_set()
-                        else task['error'] or '资讯任务中断，已保留阶段回执。', reset_slot=self._stopping.is_set())
+                        '退出时资讯尚未确认完成，已保留阶段与发布回执。' if self._stopping.is_set()
+                        else task['error'] or '资讯任务中断，已保留阶段回执。')
                     finished = True
                     return
                 self.tasks().event(task_id, 'status', '资讯任务遇到临时失败，将在剩余时间内重试一次，复用已完成阶段。')
@@ -493,7 +491,7 @@ class AutomationService:
             finished = True
         finally:
             if not finished and self._stopping.is_set():
-                self._news_result(job_id, 'missed', task_id, '退出时资讯未完成，需核实发布回执。', reset_slot=True)
+                self._news_result(job_id, 'missed', task_id, '退出时资讯未完成，已保留阶段与发布回执。')
             with self._lock:
                 self._news_active.pop(job_id, None)
                 self._monitors.discard(threading.current_thread())
