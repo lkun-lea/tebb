@@ -1,0 +1,255 @@
+<section id="tebb-project-timeline" aria-label="tebb 项目时间线界面草图">
+  <div class="tp-shell">
+    <aside class="tp-rail" aria-label="工作台导航">
+      <div class="tp-brand"><span class="tp-mark"><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <span><i data-lucide="layout-grid" aria-hidden="true"></i>工作台</span>
+      <span class="tp-rail-current" aria-current="page"><i data-lucide="folder" aria-hidden="true"></i>项目</span>
+      <span><i data-lucide="messages-square" aria-hidden="true"></i>聊天</span>
+      <span><i data-lucide="wrench" aria-hidden="true"></i>工具</span>
+    </aside>
+    <div class="tp-app">
+      <header class="tp-top">
+        <div class="tp-breadcrumb">项目 <span aria-hidden="true">/</span> <b>tebb</b></div>
+        <span class="tp-caption">界面草图 · 示例数据</span>
+      </header>
+      <nav class="tp-project-nav" aria-label="项目页面">
+        <button type="button" class="tp-project-tab" data-page="timeline" aria-current="page">时间线</button>
+        <button type="button" class="tp-project-tab" data-page="requirements">需求</button>
+        <button type="button" class="tp-project-tab" data-page="specs">规格</button>
+        <button type="button" class="tp-project-tab" data-page="resources">资料</button>
+        <button type="button" class="tp-project-tab" data-page="build">构建与发布</button>
+      </nav>
+      <div class="tp-content" data-view></div>
+      <p class="tp-sr" data-announcement role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<style>
+  #tebb-project-timeline {
+    --tp-shell: light-dark(#fcfcfb,#151515);
+    --tp-base: light-dark(#f5f5f3,#0b0b0a);
+    --tp-panel: light-dark(#f7f7f5,#1a1a19);
+    --tp-line: light-dark(#e9e9e3,#2b2b29);
+    --tp-ink: light-dark(#202420,#edeee9);
+    --tp-soft: light-dark(#5e665f,#a6ada3);
+    --tp-green: light-dark(#235e49,#a6dac3);
+    --tp-green-bg: light-dark(#e7f0e8,#233c32);
+    --tp-blue: light-dark(#32577c,#b3cff0);
+    --tp-blue-bg: light-dark(#eaf0f7,#26364c);
+    --tp-amber: light-dark(#7a531d,#f0ce8e);
+    --tp-amber-bg: light-dark(#f7eedc,#3c3020);
+    color-scheme: light dark;
+    color:var(--tp-ink); font:14px/1.55 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums; max-width:100%;
+  }
+  #tebb-project-timeline *,#tebb-project-timeline *::before,#tebb-project-timeline *::after {box-sizing:border-box}
+  #tebb-project-timeline h1,#tebb-project-timeline h2,#tebb-project-timeline h3,#tebb-project-timeline p {margin:0; text-wrap:pretty}
+  #tebb-project-timeline h1 {font-size:24px;line-height:1.3;font-weight:650;letter-spacing:-.035em}
+  #tebb-project-timeline h2 {font-size:16px;font-weight:630}
+  #tebb-project-timeline h3 {font-size:14px;font-weight:620}
+  #tebb-project-timeline button {font:inherit;color:inherit;text-align:left;background:transparent;border:0;border-radius:8px;max-width:100%;cursor:pointer}
+  #tebb-project-timeline button:focus-visible,#tebb-project-timeline summary:focus-visible {outline:2px solid var(--tp-green);outline-offset:2px}
+  #tebb-project-timeline button:hover {background:var(--tp-base)}
+  #tebb-project-timeline [data-lucide],#tebb-project-timeline svg.lucide {width:16px;height:16px;flex:0 0 16px;vertical-align:-.125em}
+  #tebb-project-timeline .tp-shell {background:var(--tp-shell);display:grid;grid-template-columns:102px minmax(0,1fr);border-radius:14px;overflow:hidden}
+  #tebb-project-timeline .tp-rail {background:var(--tp-base);display:flex;flex-direction:column;gap:5px;padding:15px 8px;min-width:0}
+  #tebb-project-timeline .tp-rail>span,#tebb-project-timeline .tp-brand {display:flex;gap:7px;align-items:center;padding:8px;white-space:nowrap;font-size:12px;color:var(--tp-soft)}
+  #tebb-project-timeline .tp-brand {font-size:16px;font-weight:650;color:var(--tp-ink);margin-bottom:10px}
+  #tebb-project-timeline .tp-mark {display:grid;place-items:center;width:24px;height:24px;border-radius:7px;background:var(--tp-green-bg);color:var(--tp-green)}
+  #tebb-project-timeline .tp-rail-current {background:var(--tp-green-bg);border-radius:8px;color:var(--tp-green)!important}
+  #tebb-project-timeline .tp-app {min-width:0}
+  #tebb-project-timeline .tp-top {padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  #tebb-project-timeline .tp-breadcrumb {display:flex;gap:8px;align-items:center;color:var(--tp-soft)}
+  #tebb-project-timeline .tp-breadcrumb b {color:var(--tp-ink);font-weight:620}
+  #tebb-project-timeline .tp-caption,#tebb-project-timeline .tp-muted {font-size:12px;color:var(--tp-soft)}
+  #tebb-project-timeline .tp-project-nav {display:flex;gap:4px;flex-wrap:wrap;padding:4px 14px 0;border-bottom:1px solid var(--tp-line)}
+  #tebb-project-timeline .tp-project-tab {position:relative;padding:8px 9px;color:var(--tp-soft);white-space:nowrap}
+  #tebb-project-timeline .tp-project-tab[aria-current] {color:var(--tp-green);font-weight:620}
+  #tebb-project-timeline .tp-project-tab[aria-current]::after {content:"";position:absolute;height:2px;bottom:0;left:9px;right:9px;background:var(--tp-green);border-radius:2px}
+  #tebb-project-timeline .tp-content {padding:20px;min-width:0}
+  #tebb-project-timeline .tp-heading {display:grid;gap:4px;margin-bottom:19px}
+  #tebb-project-timeline .tp-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.51fr);gap:22px;align-items:start}
+  #tebb-project-timeline .tp-columns>* {min-width:0}
+  #tebb-project-timeline .tp-side {background:var(--tp-panel);border-radius:11px;padding:13px;display:grid;gap:8px;min-width:0}
+  #tebb-project-timeline .tp-date {display:flex;align-items:baseline;gap:8px;margin:0 0 6px}
+  #tebb-project-timeline .tp-day+.tp-day {margin-top:16px}
+  #tebb-project-timeline .tp-events {position:relative;display:grid;gap:3px}
+  #tebb-project-timeline .tp-events::before {content:"";position:absolute;left:47px;top:14px;bottom:18px;width:1px;background:var(--tp-line);pointer-events:none}
+  #tebb-project-timeline .tp-event {display:grid;grid-template-columns:33px 13px minmax(0,1fr) auto;align-items:start;gap:8px;padding:8px 5px;width:100%}
+  #tebb-project-timeline .tp-event-main {display:grid;gap:2px;min-width:0;overflow-wrap:anywhere}
+  #tebb-project-timeline .tp-event-main strong {font-weight:610}
+  #tebb-project-timeline .tp-dot {width:8px;height:8px;background:var(--tp-green);border-radius:50%;margin-top:7px;position:relative;box-shadow:0 0 0 3px var(--tp-shell)}
+  #tebb-project-timeline .tp-dot[data-tone="blue"] {background:var(--tp-blue)}
+  #tebb-project-timeline .tp-dot[data-tone="amber"] {background:var(--tp-amber)}
+  #tebb-project-timeline .tp-chip {width:max-content;max-width:100%;background:var(--tp-green-bg);color:var(--tp-green);padding:1px 7px;border-radius:5px;font-size:12px;line-height:1.6}
+  #tebb-project-timeline .tp-chip[data-tone="blue"] {background:var(--tp-blue-bg);color:var(--tp-blue)}
+  #tebb-project-timeline .tp-chip[data-tone="amber"] {background:var(--tp-amber-bg);color:var(--tp-amber)}
+  #tebb-project-timeline .tp-side-link,#tebb-project-timeline .tp-list-button {display:grid;gap:2px;width:100%;padding:8px;overflow-wrap:anywhere}
+  #tebb-project-timeline .tp-side-link+.tp-side-link {border-top:1px solid var(--tp-line);border-top-left-radius:0;border-top-right-radius:0}
+  #tebb-project-timeline .tp-back {padding:5px 7px;margin:0 0 9px -7px;color:var(--tp-green);display:inline-flex;align-items:center;gap:5px}
+  #tebb-project-timeline .tp-flow {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:8px 0 16px}
+  #tebb-project-timeline .tp-stage {display:grid;align-content:start;gap:3px;padding:9px 8px;background:var(--tp-panel);overflow-wrap:anywhere}
+  #tebb-project-timeline .tp-stage[aria-pressed="true"] {background:var(--tp-green-bg);color:var(--tp-green)}
+  #tebb-project-timeline .tp-stage>span:first-child {font-weight:620}
+  #tebb-project-timeline .tp-detail {padding:13px;background:var(--tp-panel);border-radius:11px;min-width:0}
+  #tebb-project-timeline .tp-detail-head {display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap}
+  #tebb-project-timeline .tp-tabs {display:flex;gap:3px;flex-wrap:wrap;margin:8px 0;border-bottom:1px solid var(--tp-line)}
+  #tebb-project-timeline .tp-tab {padding:6px 8px;color:var(--tp-soft)}
+  #tebb-project-timeline .tp-tab[aria-pressed="true"] {background:var(--tp-green-bg);color:var(--tp-green)}
+  #tebb-project-timeline .tp-files {display:grid;gap:6px}
+  #tebb-project-timeline .tp-files details {padding:7px 0;border-bottom:1px solid var(--tp-line);min-width:0}
+  #tebb-project-timeline .tp-files details:last-child {border-bottom:0}
+  #tebb-project-timeline summary {cursor:pointer;overflow-wrap:anywhere;font-weight:550}
+  #tebb-project-timeline .tp-files details p {margin-top:4px;overflow-wrap:anywhere}
+  #tebb-project-timeline .tp-context {display:grid;gap:9px;margin-top:1px;min-width:0}
+  #tebb-project-timeline .tp-context ul {margin:4px 0 0;padding-inline-start:17px}
+  #tebb-project-timeline .tp-context details {border-top:1px solid var(--tp-line);padding-top:7px}
+  #tebb-project-timeline .tp-context details p {margin-top:4px}
+  #tebb-project-timeline .tp-sr {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  @media(max-width:760px) {
+    #tebb-project-timeline .tp-columns {grid-template-columns:1fr;gap:16px}
+    #tebb-project-timeline .tp-content {padding:15px}
+  }
+  @media(max-width:540px) {
+    #tebb-project-timeline .tp-shell {display:block}
+    #tebb-project-timeline .tp-rail {flex-direction:row;align-items:center;flex-wrap:wrap;gap:2px;padding:6px}
+    #tebb-project-timeline .tp-brand {margin:0 4px 0 0}
+    #tebb-project-timeline .tp-rail>span,#tebb-project-timeline .tp-brand {padding:5px}
+    #tebb-project-timeline .tp-rail>span>svg,#tebb-project-timeline .tp-rail>span>i {display:none}
+    #tebb-project-timeline .tp-top {padding:11px 13px 6px}
+    #tebb-project-timeline .tp-project-nav {padding:3px 7px 0}
+    #tebb-project-timeline .tp-project-tab {padding-inline:7px;font-size:12px}
+    #tebb-project-timeline .tp-content {padding:13px}
+    #tebb-project-timeline .tp-flow {grid-template-columns:repeat(2,minmax(0,1fr))}
+    #tebb-project-timeline .tp-event {grid-template-columns:33px 13px minmax(0,1fr)}
+    #tebb-project-timeline .tp-event>.tp-chip {grid-column:3}
+  }
+  @media(pointer:coarse) {#tebb-project-timeline button {min-height:44px}}
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-project-timeline');
+  const view = root.querySelector('[data-view]');
+  const announcement = root.querySelector('[data-announcement]');
+  const states = ['需求确认', '实现与自测', '独立验收', '质量复核'];
+  const tabs = ['摘要', '文档', '产物', '验收证据'];
+  const data = {
+    reconnect: {
+      title:'断线后接续原任务', version:'需求 v3', current:2,
+      stages:[
+        {status:'已确认',owner:'产品',summary:'重连使用原运行。重复提交只保留一条任务。',docs:[['需求 v3','适用场景：服务端已经接收提交，手机侧未收到回执。']],outputs:[['验收条件','断网恢复、同请求重试和过期游标三个场景。']],evidence:[['产品确认','已确认重试沿用原请求编号。']]},
+        {status:'已交接',owner:'研发',summary:'按原请求编号核对提交结果，重连时按事件序号补读。',docs:[['OpenSpec 变更规格','当前候选采用已确认的重试和恢复规则。']],outputs:[['候选 r2','包含请求去重和断线补读的代码差异。']],evidence:[['研发自测','同编号重复提交返回同一运行。']]},
+        {status:'进行中',owner:'测试',summary:'正在候选 r2 上重跑弱网场景，核对原运行和任务条数。',docs:[['需求 v3 · 必过条件','同一请求重试只保留一条运行。重连按事件序号补读。'],['独立验收计划 v2','固定请求数据和断点，覆盖回执丢失、过期游标和重复事件。']],outputs:[['候选 r2','当前待验收版本，包含请求去重和事件恢复。'],['弱网验收报告','已记录两项检查结果，过期游标场景待运行。']],evidence:[['通过 · 重试不重复入队','模拟首次回执丢失，重试后查到同一个运行，任务记录为一条。'],['通过 · 重连补读','恢复后从原序号补读，界面无重复事件。'],['待验收 · 过期游标','待核对快照水位和补读序号。']]},
+        {status:'待开始',owner:'质量负责人',summary:'等待独立验收出具当前版本的完整报告。',docs:[['交付条件','所有必过条件均需有当前候选版本的有效证据。']],outputs:[],evidence:[]}
+      ]
+    },
+    handoff: {
+      title:'需求群人工接手', version:'需求 v2', current:0,
+      stages:[
+        {status:'待产品确认',owner:'产品',summary:'待确认：人工接手后，原执行者的未完成操作怎样交回。',docs:[['需求 v2 · 草案','已列出接手、交还和权限变更的场景。']],outputs:[['待决策清单','确认接手后的负责人及可继续执行的步骤。']],evidence:[]},
+        {status:'待开始',owner:'研发',summary:'待需求确认后形成候选。',docs:[],outputs:[],evidence:[]},
+        {status:'待开始',owner:'测试',summary:'准备验证接手冲突、越权拒绝和同阶段恢复。',docs:[],outputs:[],evidence:[]},
+        {status:'待开始',owner:'质量负责人',summary:'待候选交付和独立验收完成。',docs:[],outputs:[],evidence:[]}
+      ]
+    }
+  };
+  const days = [
+    {day:'今天',date:'11 月 13 日',events:[
+      ['15:10','断线后接续原任务进入独立验收','测试 · 候选 r2 · 已记录首轮结果','验收','blue','reconnect',2],
+      ['11:30','需求群人工接手等待产品决定','产品 · 待确认接手后的操作边界','待确认','amber','handoff',0],
+      ['09:20','Windows 候选包已生成','研发 · ZIP 与校验摘要已归档','产物','green','build',0]
+    ]},
+    {day:'昨天',date:'11 月 12 日',events:[
+      ['16:40','产品确认离线发送规则','断线后接续原任务 · 需求 v3','决策','green','reconnect',0],
+      ['14:15','研发交付重试与补读的候选','断线后接续原任务 · 实现与自测','交接','blue','reconnect',1],
+      ['10:00','需求群人工接手立项','产品 · 确认需求负责人','立项','green','handoff',0]
+    ]}
+  ];
+  const state = {page:'timeline',key:'reconnect',stage:2,tab:0};
+  const icon = name => '<i data-lucide="' + name + '" aria-hidden="true"></i>';
+  const chip = (value,tone) => '<span class="tp-chip" data-tone="' + tone + '">' + value + '</span>';
+  const toneFor = status => status.includes('待') ? 'amber' : status === '进行中' ? 'blue' : 'green';
+  const heading = (title,detail) => '<div class="tp-heading"><h1>' + title + '</h1><p class="tp-muted">' + detail + '</p></div>';
+  const requirementButton = key => '<button class="tp-side-link" type="button" data-requirement="' + key + '"><strong>' + data[key].title + '</strong><span class="tp-muted">' + states[data[key].current] + ' · ' + data[key].stages[data[key].current].status + '</span></button>';
+  function timeline() {
+    return heading('项目时间线','tebb 项目的需求、决策、验收与交付记录') +
+      '<div class="tp-columns"><div>' + days.map(day =>
+        '<section class="tp-day"><div class="tp-date"><h2>' + day.day + '</h2><span class="tp-caption">' + day.date + '</span></div><div class="tp-events">' +
+        day.events.map(event => '<button class="tp-event" type="button" ' +
+          (event[5] === 'build' ? 'data-page="build"' : 'data-requirement="' + event[5] + '" data-event-stage="' + event[6] + '"') +
+          '><time class="tp-caption">' + event[0] + '</time><span class="tp-dot" data-tone="' + event[4] + '" aria-hidden="true"></span><span class="tp-event-main"><strong>' +
+          event[1] + '</strong><span class="tp-muted">' + event[2] + '</span></span>' + chip(event[3],event[4]) + '</button>').join('') + '</div></section>').join('') +
+      '</div><aside class="tp-side"><h2>进行中的需求</h2>' + requirementButton('reconnect') + requirementButton('handoff') + '</aside></div>';
+  }
+  function records(items, empty) {
+    return items.length ? '<div class="tp-files">' + items.map((item,index) =>
+      '<details' + (index === 0 ? ' open' : '') + '><summary>' + item[0] + '</summary><p>' + item[1] + '</p></details>').join('') + '</div>' :
+      '<p class="tp-muted">' + empty + '</p>';
+  }
+  function requirement() {
+    const req = data[state.key], stage = req.stages[state.stage];
+    const summaries = '<p>' + stage.summary + '</p>';
+    const bodies = [summaries,records(stage.docs,'本阶段暂无文档。'),records(stage.outputs,'本阶段暂无产物。'),records(stage.evidence,'本阶段尚无验收证据。')];
+    return '<button class="tp-back" type="button" data-page="timeline">' + icon('arrow-left') + '项目时间线</button>' +
+      heading(req.title,req.version + ' · 当前阶段：' + states[req.current]) +
+      '<div class="tp-columns"><div><h2>需求流程</h2><div class="tp-flow" aria-label="需求阶段">' +
+      req.stages.map((item,index) => '<button class="tp-stage" type="button" data-stage="' + index + '" aria-pressed="' +
+        (state.stage === index) + '"><span>' + states[index] + '</span><span class="tp-muted">' + item.status + '</span></button>').join('') +
+      '</div><section class="tp-detail" aria-label="阶段详情"><div class="tp-detail-head"><div><h2>' + states[state.stage] + '</h2><p class="tp-muted">负责人：' +
+      stage.owner + '</p></div>' + chip(stage.status,toneFor(stage.status)) + '</div><div class="tp-tabs" aria-label="阶段资料分类">' +
+      tabs.map((tab,index) => '<button class="tp-tab" type="button" data-tab="' + index + '" aria-pressed="' +
+        (state.tab === index) + '">' + tab + '</button>').join('') +
+      '</div><div data-stage-body>' + bodies[state.tab] + '</div></section></div>' +
+      '<aside class="tp-side tp-context"><h2>Agent 上下文</h2><div><h3>当前阶段带入</h3><ul><li>' +
+      req.title + ' · ' + req.version + '</li><li>当前验收条件</li><li>阶段职责 · ' + stage.owner +
+      '</li></ul></div><details><summary>按需读取的资料</summary><p class="tp-muted">项目说明 · 历史决策 · 相关日志片段</p><p class="tp-muted">从当前项目获准资料中查询，引用可回到原记录。</p></details></aside></div>';
+  }
+  function other() {
+    if (state.page === 'requirements') return heading('项目需求','按需求查看完整流程') + requirementButton('reconnect') + requirementButton('handoff');
+    if (state.page === 'specs') return heading('项目规格','tebb · OpenSpec') +
+      records([['断线后接续原任务 · 活动变更','提案、设计、行为规格和实现清单关联需求 v3。当前候选的规格校验已通过。'],['需求群人工接手 · 待确认','待产品确认接手后的操作边界。']],'暂无规格。') +
+      '<button class="tp-list-button" type="button" data-requirement="reconnect">打开关联需求 →</button>';
+    if (state.page === 'resources') return heading('项目资料','开发约定与原始决策') +
+      records([['项目说明','包含业务背景、仓库入口、开发约定和验证环境。'],['离线发送规则','产品在需求 v3 中确认。可从项目时间线定位到原决定。']],'暂无资料。');
+    return heading('构建与发布','Windows · 候选包') +
+      records([['Windows ZIP 候选','构建完成。包内版本、构建回执与校验摘要已登记。'],['交付状态','等待质量负责人核对候选的有效验收结果。']],'暂无构建。');
+  }
+  function render() {
+    const selectedPage = state.page === 'detail' ? 'timeline' : state.page;
+    root.querySelectorAll('.tp-project-tab').forEach(button => {
+      if (button.dataset.page === selectedPage) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+    view.innerHTML = state.page === 'timeline' ? timeline() : state.page === 'detail' ? requirement() : other();
+    globalThis.lucide?.createIcons({attrs:{width:16,height:16}});
+  }
+  root.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || !root.contains(button)) return;
+    let focusSelector;
+    if (button.dataset.requirement) {
+      state.key = button.dataset.requirement;
+      state.stage = button.dataset.eventStage === undefined ? data[state.key].current : Number(button.dataset.eventStage);
+      state.tab = 0;
+      state.page = 'detail';
+      focusSelector = '[data-stage="' + state.stage + '"]';
+    } else if (button.dataset.stage !== undefined) {
+      state.stage = Number(button.dataset.stage);
+      state.tab = 0;
+      focusSelector = '[data-stage="' + state.stage + '"]';
+    } else if (button.dataset.tab !== undefined) {
+      state.tab = Number(button.dataset.tab);
+      focusSelector = '[data-tab="' + state.tab + '"]';
+    } else if (button.dataset.page) {
+      state.page = button.dataset.page;
+      focusSelector = '.tp-project-tab[data-page="' + state.page + '"]';
+    } else return;
+    render();
+    root.querySelector(focusSelector)?.focus({preventScroll:true});
+    announcement.textContent = state.page === 'detail' ? data[state.key].title + '，' + states[state.stage] + '，' + tabs[state.tab] : view.querySelector('h1').textContent;
+  });
+  render();
+})();
+</script>

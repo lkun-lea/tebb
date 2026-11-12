@@ -1,0 +1,289 @@
+<section id="tebb-workbench" aria-label="tebb 工作台">
+  <div class="tw-shell">
+    <aside class="tw-rail" aria-label="工作台导航">
+      <div class="tw-brand"><span class="tw-brand-icon"><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <div class="tw-rail-link" aria-current="page"><i data-lucide="layout-grid" aria-hidden="true"></i>工作台</div>
+      <button type="button" class="tw-rail-link cursor-interaction" data-agenda-view><i data-lucide="calendar-days" aria-hidden="true"></i>日程</button>
+      <nav class="tw-projects" aria-label="项目筛选">
+        <h2>项目</h2>
+        <button type="button" data-project="all" aria-pressed="true" class="cursor-interaction"><i data-lucide="layers" aria-hidden="true"></i>全部项目</button>
+        <button type="button" data-project="tebb" aria-pressed="false" class="cursor-interaction"><span class="tw-project-dot"></span>tebb</button>
+        <button type="button" data-project="skills" aria-pressed="false" class="cursor-interaction"><span class="tw-project-dot"></span>tebb-skills</button>
+        <button type="button" data-project="mobile" aria-pressed="false" class="cursor-interaction"><span class="tw-project-dot"></span>移动端验证</button>
+      </nav>
+    </aside>
+    <main class="tw-main">
+      <header class="tw-header">
+        <div><h1>工作台</h1><p class="tw-muted">11 月 13 日，星期五</p></div>
+        <span class="tw-preview">设计预览</span>
+      </header>
+      <div class="tw-grid">
+        <section class="tw-items" aria-labelledby="tw-items-title">
+          <header class="tw-panel-head">
+            <div><h2 id="tw-items-title">我的事项</h2><p class="tw-muted" data-project-name>全部项目</p></div>
+            <button type="button" data-open-project class="tw-button cursor-interaction" hidden>打开项目 <span aria-hidden="true">↗</span></button>
+          </header>
+          <div data-items></div>
+        </section>
+        <aside class="tw-today" aria-labelledby="tw-today-title">
+          <header class="tw-panel-head">
+            <div><h2 id="tw-today-title">今日安排</h2><p class="tw-muted">11 月 13 日</p></div>
+            <button type="button" data-agenda-view class="tw-text-button cursor-interaction">打开日程 <span aria-hidden="true">↗</span></button>
+          </header>
+          <div data-today></div>
+        </aside>
+      </div>
+      <p class="tw-feedback" data-feedback role="status"></p>
+    </main>
+  </div>
+  <dialog class="tw-dialog" aria-labelledby="tw-dialog-title">
+    <header class="tw-panel-head">
+      <div><h2 id="tw-dialog-title"></h2><p class="tw-muted" data-dialog-subtitle></p></div>
+      <button type="button" class="tw-text-button cursor-interaction" data-close>关闭</button>
+    </header>
+    <div data-dialog-content></div>
+  </dialog>
+</section>
+
+<style>
+  #tebb-workbench {
+    --tw-bg:light-dark(#fbfcfa,#151715);
+    --tw-rail:light-dark(#eff2ee,#191d19);
+    --tw-fill:light-dark(#f1f4f0,#20251f);
+    --tw-surface:light-dark(#fff,#20241f);
+    --tw-ink:light-dark(#202a23,#edf2ed);
+    --tw-muted:light-dark(#526157,#a8b4aa);
+    --tw-line:light-dark(#e0e7df,#353f36);
+    --tw-accent:light-dark(#235d48,#a9d6be);
+    --tw-accent-bg:light-dark(#dcece1,#2a4132);
+    --tw-solid:light-dark(#275c48,#b2dac2);
+    --tw-solid-ink:light-dark(#fff,#15291e);
+    --tw-wait:light-dark(#785021,#e9c28c);
+    --tw-wait-bg:light-dark(#f7eddb,#382d1e);
+    color-scheme:light dark;color:var(--tw-ink);
+    font:14px/1.45 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  #tebb-workbench *,#tebb-workbench *::before,#tebb-workbench *::after {box-sizing:border-box}
+  #tebb-workbench [hidden] {display:none}
+  #tebb-workbench :is(h1,h2,h3,p) {margin:0;overflow-wrap:anywhere}
+  #tebb-workbench h1 {font-size:27px;font-weight:650;line-height:1.2;letter-spacing:-.04em}
+  #tebb-workbench h2 {font-size:16px;font-weight:640}
+  #tebb-workbench h3 {font-size:12px;font-weight:610;color:var(--tw-muted)}
+  #tebb-workbench button,#tebb-workbench input {font:inherit}
+  #tebb-workbench button {border:0;color:inherit;background:transparent;border-radius:7px;text-align:left}
+  #tebb-workbench button:focus-visible,#tebb-workbench input:focus-visible {outline:2px solid var(--tw-accent);outline-offset:2px}
+  #tebb-workbench [data-lucide],#tebb-workbench svg.lucide {width:16px;height:16px;flex:0 0 16px;vertical-align:-.125em}
+  #tebb-workbench .tw-shell {display:grid;grid-template-columns:154px minmax(0,1fr);background:var(--tw-bg);border-radius:15px;overflow:hidden}
+  #tebb-workbench .tw-rail {background:var(--tw-rail);padding:19px 12px}
+  #tebb-workbench .tw-brand,#tebb-workbench .tw-rail-link {display:flex;align-items:center;gap:9px}
+  #tebb-workbench .tw-brand {font-size:18px;font-weight:660;margin:0 0 22px;padding-left:5px}
+  #tebb-workbench .tw-brand-icon {width:27px;height:27px;display:grid;place-items:center;border-radius:8px;color:var(--tw-accent);background:var(--tw-accent-bg)}
+  #tebb-workbench .tw-rail-link {width:100%;padding:8px;color:var(--tw-muted);border-radius:7px;margin-bottom:3px}
+  #tebb-workbench .tw-rail-link[aria-current] {color:var(--tw-accent);background:var(--tw-accent-bg);font-weight:620}
+  #tebb-workbench .tw-projects {margin-top:26px;display:grid;gap:2px}
+  #tebb-workbench .tw-projects h2 {padding:0 8px 5px;font-size:12px;color:var(--tw-muted)}
+  #tebb-workbench .tw-projects button {display:flex;align-items:center;gap:8px;min-width:0;padding:7px 8px}
+  #tebb-workbench .tw-projects button[aria-pressed=true] {background:var(--tw-surface);color:var(--tw-accent);font-weight:620}
+  #tebb-workbench .tw-project-dot {width:7px;height:7px;flex:0 0 7px;margin-inline:4px 5px;border-radius:50%;background:var(--tw-accent)}
+  #tebb-workbench .tw-main {padding:23px 24px 16px;min-width:0}
+  #tebb-workbench .tw-header,#tebb-workbench .tw-panel-head {display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap}
+  #tebb-workbench .tw-header {margin-bottom:26px}
+  #tebb-workbench .tw-header p {margin-top:5px}
+  #tebb-workbench .tw-muted,#tebb-workbench .tw-preview {font-size:12px;color:var(--tw-muted)}
+  #tebb-workbench .tw-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,.59fr);gap:21px;align-items:start}
+  #tebb-workbench .tw-panel-head p {margin-top:3px}
+  #tebb-workbench .tw-panel-head {margin-bottom:10px}
+  #tebb-workbench .tw-items {min-width:0}
+  #tebb-workbench .tw-group + .tw-group {margin-top:15px}
+  #tebb-workbench .tw-group h3 {padding:5px 0}
+  #tebb-workbench .tw-item {border-top:1px solid var(--tw-line);display:flex;align-items:center;gap:7px 10px;flex-wrap:wrap;padding:8px 0}
+  #tebb-workbench .tw-item-main {flex:1 1 143px;min-width:0;padding:4px;display:grid;gap:3px;overflow-wrap:anywhere}
+  #tebb-workbench .tw-item-main strong {font-weight:620}
+  #tebb-workbench .tw-button,#tebb-workbench .tw-text-button {width:max-content;max-width:100%;font-size:12px;padding:6px 8px;text-align:center}
+  #tebb-workbench .tw-button {color:var(--tw-accent);background:var(--tw-accent-bg)}
+  #tebb-workbench .tw-text-button {color:var(--tw-accent)}
+  #tebb-workbench button:not([aria-pressed=true]):hover {background:var(--tw-fill)}
+  #tebb-workbench .tw-today {min-width:0;background:var(--tw-fill);border-radius:12px;padding:14px}
+  #tebb-workbench .tw-event {width:100%;padding:9px 0;border-top:1px solid var(--tw-line);border-radius:0;display:grid;grid-template-columns:46px minmax(0,1fr);gap:8px}
+  #tebb-workbench .tw-event strong {font-weight:610;overflow-wrap:anywhere}
+  #tebb-workbench .tw-event-label {display:grid;gap:3px}
+  #tebb-workbench .tw-empty {color:var(--tw-muted);padding:10px 0}
+  #tebb-workbench .tw-feedback:not(:empty) {color:var(--tw-accent);margin-top:12px;padding:7px 0}
+  #tebb-workbench .tw-dialog {width:min(440px,calc(100% - 24px));max-height:none;border:1px solid var(--tw-line);border-radius:12px;color:var(--tw-ink);background:var(--tw-surface);padding:18px}
+  #tebb-workbench .tw-dialog::backdrop {background:rgb(15 22 17 / .36)}
+  #tebb-workbench .tw-dialog form,#tebb-workbench .tw-fields {display:grid;gap:9px}
+  #tebb-workbench .tw-fields {grid-template-columns:repeat(2,minmax(0,1fr))}
+  #tebb-workbench .tw-fields label {display:grid;gap:4px;min-width:0;font-size:12px;color:var(--tw-muted)}
+  #tebb-workbench .tw-fields input {width:100%;min-width:0;border:1px solid var(--tw-line);border-radius:7px;padding:6px;background:var(--tw-bg);color:var(--tw-ink)}
+  #tebb-workbench .tw-actions {display:flex;justify-content:flex-end;gap:7px;margin-top:10px;flex-wrap:wrap}
+  #tebb-workbench .tw-primary {background:var(--tw-solid);color:var(--tw-solid-ink);padding:7px 12px}
+  #tebb-workbench .tw-primary:hover {background:var(--tw-solid);opacity:.9}
+  #tebb-workbench .tw-date-field {grid-column:1/-1}
+  #tebb-workbench .tw-error:not(:empty) {color:var(--tw-wait);background:var(--tw-wait-bg);padding:6px 8px;border-radius:6px}
+  @media(max-width:780px) {
+    #tebb-workbench .tw-shell {grid-template-columns:126px minmax(0,1fr)}
+    #tebb-workbench .tw-main {padding:17px}
+    #tebb-workbench .tw-grid {gap:13px}
+  }
+  @media(max-width:640px) {
+    #tebb-workbench .tw-shell,#tebb-workbench .tw-grid {grid-template-columns:minmax(0,1fr)}
+    #tebb-workbench .tw-rail {display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px}
+    #tebb-workbench .tw-brand {margin:0;padding:0 4px 0 0}
+    #tebb-workbench .tw-rail-link {width:auto;margin:0}
+    #tebb-workbench .tw-projects {flex:1 0 100%;display:flex;flex-wrap:wrap;margin-top:2px;align-items:center}
+    #tebb-workbench .tw-projects h2 {padding:0 5px 0 0}
+    #tebb-workbench .tw-projects button {font-size:12px}
+    #tebb-workbench .tw-main {padding:14px}
+    #tebb-workbench .tw-header {margin-bottom:18px}
+  }
+  @media(pointer:coarse) {
+    #tebb-workbench button {min-height:44px}
+    #tebb-workbench .tw-fields input {font-size:16px}
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-workbench');
+  const projects = {all:'全部项目',tebb:'tebb',skills:'tebb-skills',mobile:'移动端验证'};
+  const items = [
+    {id:'handoff',project:'tebb',group:0,title:'确认需求群人工接手规则',meta:'需求确认 · 等待你的产品决策',detail:'明确接手后的负责人，以及未完成操作如何交还。'},
+    {id:'reconnect',project:'mobile',group:0,title:'补验重连后的过期游标',meta:'独立验收 · 候选 r2',detail:'在弱网环境核对快照水位和事件补读序号。'},
+    {id:'tests',project:'skills',group:1,title:'整理独立验收用例模板',meta:'进行中 · 补充边界案例',detail:'补上验收编号、预期、实际结果和原始证据字段。'},
+    {id:'build',project:'tebb',group:1,title:'核对 Windows 候选包',meta:'质量复核 · 等待验收报告',detail:'检查构建产物、校验摘要和同一候选的验收证据。'}
+  ];
+  const today = '2026-11-13';
+  const appointments = [
+    {id:'standup',date:today,start:'09:30',end:'09:45',title:'项目同步',source:'tebb'},
+    {id:'review',date:today,start:'14:00',end:'14:30',title:'弱网场景验收',source:'移动端验证',item:'reconnect'}
+  ];
+  const dialog = root.querySelector('dialog');
+  const content = root.querySelector('[data-dialog-content]');
+  const feedback = root.querySelector('[data-feedback]');
+  let project = 'all';
+  let previousFocus = null;
+  let agendaDate = today;
+
+  function renderItems() {
+    const visible = items.filter(item => project === 'all' || item.project === project);
+    root.querySelector('[data-project-name]').textContent = projects[project];
+    root.querySelector('[data-open-project]').hidden = project === 'all';
+    root.querySelectorAll('[data-project]').forEach(button => {
+      button.setAttribute('aria-pressed', button.dataset.project === project);
+    });
+    root.querySelector('[data-items]').innerHTML = ['等我处理','正在推进'].map((group,index) => {
+      const members = visible.filter(item => item.group === index);
+      if (!members.length) return '';
+      return '<section class="tw-group"><h3>' + group + '</h3>' +
+        members.map(item => '<div class="tw-item"><button type="button" class="tw-item-main cursor-interaction" data-item="' + item.id +
+        '"><strong>' + item.title + '</strong><span class="tw-muted">' + projects[item.project] + ' · ' + item.meta +
+        '</span></button><button type="button" class="tw-button cursor-interaction" data-schedule="' + item.id +
+        '" aria-label="安排时间：' + item.title + '">安排时间</button></div>').join('') + '</section>';
+    }).join('');
+  }
+
+  function agendaMarkup(date) {
+    const events = appointments.filter(event => event.date === date).sort((a,b) => a.start.localeCompare(b.start));
+    return events.length ? events.map(event => '<button type="button" class="tw-event cursor-interaction" data-event="' +
+      event.id + '"><time>' + event.start + '</time><span class="tw-event-label"><strong>' + event.title +
+      '</strong><span class="tw-muted">' + event.source + ' · 至 ' + event.end + '</span></span></button>').join('') :
+      '<p class="tw-empty">这一天暂无安排。</p>';
+  }
+
+  function openDialog(title, subtitle, markup) {
+    root.querySelector('#tw-dialog-title').textContent = title;
+    root.querySelector('[data-dialog-subtitle]').textContent = subtitle;
+    content.innerHTML = markup;
+    if (!dialog.open) {
+      previousFocus = document.activeElement;
+      dialog.showModal();
+    }
+  }
+
+  function showItem(item) {
+    openDialog(item.title, projects[item.project] + ' · ' + item.meta, '<p>' + item.detail +
+      '</p><div class="tw-actions"><button type="button" class="tw-button cursor-interaction" data-schedule="' +
+      item.id + '">安排时间</button></div>');
+  }
+
+  function showAgenda(date) {
+    agendaDate = date;
+    openDialog('日程', '示例日历', '<label class="tw-date-field">日期 <input type="date" data-agenda-date value="' + date +
+      '"></label><div>' + agendaMarkup(date) + '</div>');
+  }
+
+  function showSchedule(item) {
+    openDialog('安排时间', item.title, '<form data-schedule-form="' + item.id + '"><div class="tw-fields">' +
+      '<label class="tw-date-field">日期<input type="date" name="date" value="' + today + '" required></label>' +
+      '<label>开始<input type="time" name="start" value="15:00" required></label>' +
+      '<label>结束<input type="time" name="end" value="16:00" required></label></div><p class="tw-error" data-form-error role="alert"></p>' +
+      '<div class="tw-actions"><button type="button" class="tw-text-button cursor-interaction" data-close>取消</button>' +
+      '<button type="button" data-save class="tw-primary cursor-interaction">保存安排</button></div></form>');
+  }
+
+  function showProject() {
+    const projectItems = items.filter(item => item.project === project);
+    openDialog(projects[project] + ' · 项目时间线', '', '<div>' + projectItems.map(item =>
+      '<button type="button" class="tw-event cursor-interaction" data-item="' + item.id + '"><span class="tw-muted">今天</span>' +
+      '<span class="tw-event-label"><strong>' + item.title + '</strong><span class="tw-muted">' + item.meta + '</span></span></button>').join('') + '</div>');
+  }
+
+  dialog.addEventListener('close', () => {
+    if (previousFocus?.isConnected) previousFocus.focus();
+  });
+  root.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || !root.contains(button)) return;
+    if (button.hasAttribute('data-close')) {
+      dialog.close();
+    } else if (button.dataset.project) {
+      project = button.dataset.project;
+      renderItems();
+    } else if (button.hasAttribute('data-open-project')) {
+      showProject();
+    } else if (button.hasAttribute('data-agenda-view')) {
+      showAgenda(agendaDate);
+    } else if (button.dataset.item) {
+      showItem(items.find(item => item.id === button.dataset.item));
+    } else if (button.dataset.schedule) {
+      showSchedule(items.find(item => item.id === button.dataset.schedule));
+    } else if (button.hasAttribute('data-save')) {
+      saveSchedule(button.form);
+    } else if (button.dataset.event) {
+      const appointment = appointments.find(item => item.id === button.dataset.event);
+      openDialog(appointment.title, appointment.date + ' · ' + appointment.start + '–' + appointment.end,
+        '<p>' + appointment.source + '</p>' + (appointment.item ?
+        '<div class="tw-actions"><button type="button" class="tw-button cursor-interaction" data-item="' +
+        appointment.item + '">查看原事项</button></div>' : ''));
+    }
+  });
+  root.addEventListener('change', event => {
+    if (event.target.hasAttribute('data-agenda-date') && event.target.value) showAgenda(event.target.value);
+  });
+  root.addEventListener('keydown', event => {
+    const form = event.target.closest('[data-schedule-form]');
+    if (!form || event.target.tagName !== 'INPUT' || event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    saveSchedule(form);
+  });
+  function saveSchedule(form) {
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const date = data.get('date'), start = data.get('start'), end = data.get('end');
+    if (end <= start) {
+      form.querySelector('[data-form-error]').textContent = '结束时间需要晚于开始时间。';
+      return;
+    }
+    const item = items.find(entry => entry.id === form.dataset.scheduleForm);
+    appointments.push({id:'event-' + appointments.length,date,start,end,title:item.title,source:projects[item.project],item:item.id});
+    root.querySelector('[data-today]').innerHTML = agendaMarkup(today);
+    agendaDate = date;
+    feedback.textContent = '已安排在 ' + date + ' ' + start + '，可在日程中查看。';
+    dialog.close();
+  }
+
+  renderItems();
+  root.querySelector('[data-today]').innerHTML = agendaMarkup(today);
+})();
+</script>
