@@ -11,7 +11,7 @@
 | 记忆检查 | [调用检查台预览](memory/inspector.html) | 已评审参考稿，实际实现见 [记忆设计](../MEMORY_REDESIGN.md) |
 | 终端 | [项目控制台预览](terminal/console.html) | 已评审参考稿，实际实现见 [终端](../TERMINAL.md) |
 | 工作台与需求群 | [产品需求、界面与验收](workbench/README.md) | 项目页、项目统筹与 Issues 草图已确认 · #314 |
-| 账号与个人 Agent | [登录、账号空间与 Agent 绑定](workbench/ACCOUNT_DESIGN.md) | 待评审 |
+| 账号与个人 Agent | [登录、账号空间与 Agent 绑定](workbench/ACCOUNT_DESIGN.md) | 「我的 Agent」已评审，Skill 目录与工具授权补充方案已记录 · #314 |
 
 聊天动效与反馈的参数、合成样例和检查记录见 [第二批验收](ui-chat-motion/VERIFICATION.md)。
 

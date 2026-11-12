@@ -1968,11 +1968,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   const accounts = [
     {id:&#x27;lin&#x27;,email:&#x27;lin@example.test&#x27;,agent:&#x27;林青的 Agent&#x27;,agentId:&#x27;agent-lin&#x27;,preferences:&#x27;代码修改前先给出复现路径&#x27;,roles:{
       desktop:{name:&#x27;研发&#x27;,skills:&#x27;OpenSpec · 定向自测&#x27;,tools:[&#x27;读取需求与仓库&#x27;,&#x27;写入指定开发目录&#x27;,&#x27;运行沙箱自测&#x27;],decision:&#x27;林青确认实现方案取舍或申请新增权限。&#x27;},
-      mobile:{name:&#x27;测试&#x27;,skills:&#x27;独立验收 · 弱网用例&#x27;,tools:[&#x27;读取候选与验收计划&#x27;,&#x27;运行固定用例&#x27;,&#x27;提交原始验收证据&#x27;],decision:&#x27;林青确认阻塞是否解除，再由 Agent 继续复跑。&#x27;}
+      mobile:{name:&#x27;研发&#x27;,skills:&#x27;OpenSpec · 弱网复现&#x27;,tools:[&#x27;读取移动端需求与仓库&#x27;,&#x27;写入授权的移动端目录&#x27;,&#x27;运行接续场景自测&#x27;],decision:&#x27;林青确认重连行为的实现取舍。&#x27;}
     }},
     {id:&#x27;zhou&#x27;,email:&#x27;zhou@example.test&#x27;,agent:&#x27;周宁的 Agent&#x27;,agentId:&#x27;agent-zhou&#x27;,preferences:&#x27;输出按验收编号组织&#x27;,roles:{
       desktop:{name:&#x27;测试&#x27;,skills:&#x27;用例设计 · 独立验收&#x27;,tools:[&#x27;读取需求与候选&#x27;,&#x27;运行独立验收&#x27;,&#x27;提交测试证据&#x27;],decision:&#x27;周宁确认存在偏差时是否退回研发。&#x27;},
-      mobile:{name:&#x27;产品&#x27;,skills:&#x27;需求分析 · grill-with-docs&#x27;,tools:[&#x27;读取项目背景与历史决策&#x27;,&#x27;起草规格和验收条件&#x27;],decision:&#x27;周宁确认需求范围与最终验收条件。&#x27;}
+      mobile:{name:&#x27;测试&#x27;,skills:&#x27;真机用例 · 独立验收&#x27;,tools:[&#x27;读取固定候选&#x27;,&#x27;在验收目录准备真机用例&#x27;,&#x27;提交独立验收证据&#x27;],decision:&#x27;周宁确认当前候选的真机验收结论。&#x27;}
     }}
   ];
   const state = {space:&#x27;lin&#x27;,sessions:new Set([&#x27;lin&#x27;]),saved:new Set([&#x27;lin&#x27;]),view:&#x27;overview&#x27;,project:&#x27;desktop&#x27;,target:&#x27;&#x27;,email:&#x27;&#x27;,challenge:false};

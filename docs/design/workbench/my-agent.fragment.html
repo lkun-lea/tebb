@@ -1,0 +1,314 @@
+<section id="tebb-my-agent-config" aria-label="tebb 个人 Agent 配置草图">
+  <div class="ma-shell">
+    <aside class="ma-rail" aria-label="演示页面">
+      <div class="ma-brand"><span><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <button type="button" class="ma-nav cursor-interaction" data-view="personal" aria-current="page"><i data-lucide="bot" aria-hidden="true"></i>我的 Agent</button>
+      <button type="button" class="ma-nav cursor-interaction" data-view="admin"><i data-lucide="users-round" aria-hidden="true"></i>项目成员</button>
+      <button type="button" class="ma-nav cursor-interaction" data-view="decision"><i data-lucide="inbox" aria-hidden="true"></i>待我决策 <span data-pending-count class="ma-count">1</span></button>
+    </aside>
+    <main class="ma-main">
+      <div data-page></div>
+      <p class="ma-sr" role="status" data-live></p>
+    </main>
+  </div>
+</section>
+
+<style>
+  #tebb-my-agent-config {
+    --ma-base:light-dark(#f7f9fc,#11161e);
+    --ma-rail:light-dark(#edf2f9,#1a2029);
+    --ma-panel:light-dark(#fff,#1c2430);
+    --ma-fill:light-dark(#eef3fa,#252f3e);
+    --ma-ink:light-dark(#19263b,#eaf0fb);
+    --ma-muted:light-dark(#526178,#aab8ce);
+    --ma-line:light-dark(#dce5f0,#364356);
+    --ma-blue:light-dark(#2356ad,#a9c6ff);
+    --ma-blue-bg:light-dark(#e4edff,#293e66);
+    --ma-action:light-dark(#2356ad,#b2cdff);
+    --ma-on-action:light-dark(#fff,#132744);
+    --ma-green:light-dark(#14664c,#95ddc5);
+    --ma-green-bg:light-dark(#e1f1e9,#234039);
+    --ma-warn:light-dark(#78501b,#f0c389);
+    --ma-warn-bg:light-dark(#f8eedb,#413422);
+    color-scheme:light dark;
+    color:var(--ma-ink);
+    font:14px/1.5 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+  }
+  #tebb-my-agent-config *,#tebb-my-agent-config *::before,#tebb-my-agent-config *::after {box-sizing:border-box}
+  #tebb-my-agent-config :is(h1,h2,h3,p,ul,fieldset) {margin:0;overflow-wrap:anywhere}
+  #tebb-my-agent-config h1 {font-size:25px;font-weight:650;letter-spacing:-.025em;line-height:1.24;margin-top:4px}
+  #tebb-my-agent-config h2 {font-size:16px;font-weight:640}
+  #tebb-my-agent-config h3 {font-size:14px;font-weight:620}
+  #tebb-my-agent-config :is(button,select) {font:inherit;color:inherit;min-width:0}
+  #tebb-my-agent-config button {border:0;border-radius:8px;background:transparent;text-align:left}
+  #tebb-my-agent-config :is(button,select,input,summary):focus-visible {outline:2px solid var(--ma-blue);outline-offset:2px}
+  #tebb-my-agent-config :is([data-lucide],svg.lucide) {width:16px;height:16px;flex:0 0 16px;vertical-align:-.12em}
+  #tebb-my-agent-config .ma-shell {display:grid;grid-template-columns:147px minmax(0,1fr);background:var(--ma-rail);border-radius:15px;overflow:hidden}
+  #tebb-my-agent-config .ma-rail {padding:18px 9px}
+  #tebb-my-agent-config :is(.ma-brand,.ma-nav) {display:flex;align-items:center;gap:7px}
+  #tebb-my-agent-config .ma-brand {font-size:18px;font-weight:660;margin:0 5px 19px}
+  #tebb-my-agent-config :is(.ma-brand span,.ma-icon) {display:grid;place-items:center;width:29px;height:29px;border-radius:8px;background:var(--ma-blue-bg);color:var(--ma-blue);flex:none}
+  #tebb-my-agent-config .ma-nav {width:100%;padding:8px 7px;color:var(--ma-muted);font-size:13px}
+  #tebb-my-agent-config .ma-nav[aria-current] {background:var(--ma-panel);color:var(--ma-blue);font-weight:620}
+  #tebb-my-agent-config .ma-count {padding:1px 5px;background:var(--ma-warn-bg);color:var(--ma-warn);border-radius:10px;font-size:11px}
+  #tebb-my-agent-config .ma-count[hidden] {display:none}
+  #tebb-my-agent-config .ma-main {min-width:0;padding:21px;background:var(--ma-base)}
+  #tebb-my-agent-config :is(.ma-top,.ma-row) {display:flex;align-items:flex-start;justify-content:space-between;gap:7px 12px;flex-wrap:wrap}
+  #tebb-my-agent-config .ma-top {margin-bottom:14px}
+  #tebb-my-agent-config .ma-muted {font-size:12px;color:var(--ma-muted)}
+  #tebb-my-agent-config .ma-layout {display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10px;align-items:start}
+  #tebb-my-agent-config .ma-layout>* {min-width:0}
+  #tebb-my-agent-config .ma-panel {padding:13px;border-radius:11px;background:var(--ma-panel);min-width:0}
+  #tebb-my-agent-config .ma-panel+.ma-panel {margin-top:9px}
+  #tebb-my-agent-config .ma-panel h2 {margin-bottom:8px}
+  #tebb-my-agent-config .ma-identity {display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  #tebb-my-agent-config .ma-identity p {margin-top:2px}
+  #tebb-my-agent-config .ma-badge {display:inline-block;padding:2px 6px;width:max-content;max-width:100%;border-radius:5px;background:var(--ma-blue-bg);color:var(--ma-blue);font-size:12px}
+  #tebb-my-agent-config .ma-badge[data-tone="green"] {background:var(--ma-green-bg);color:var(--ma-green)}
+  #tebb-my-agent-config .ma-badge[data-tone="warn"] {background:var(--ma-warn-bg);color:var(--ma-warn)}
+  #tebb-my-agent-config .ma-actions {display:flex;align-items:center;flex-wrap:wrap;gap:4px 7px;margin-top:9px}
+  #tebb-my-agent-config .ma-button {padding:7px 8px;max-width:100%;color:var(--ma-blue);font-size:13px}
+  #tebb-my-agent-config .ma-button:hover {background:var(--ma-fill)}
+  #tebb-my-agent-config .ma-primary {background:var(--ma-action);color:var(--ma-on-action)}
+  #tebb-my-agent-config .ma-primary:hover {background:var(--ma-action);opacity:.9}
+  #tebb-my-agent-config .ma-primary:disabled {opacity:.55}
+  #tebb-my-agent-config .ma-picker {display:grid;gap:4px;color:var(--ma-muted);font-size:12px}
+  #tebb-my-agent-config select {border:1px solid var(--ma-line);background:var(--ma-base);padding:6px 7px;border-radius:7px;max-width:100%;color:var(--ma-ink)}
+  #tebb-my-agent-config fieldset {min-width:0;border:0;padding:0}
+  #tebb-my-agent-config legend {padding:0;margin-bottom:5px;font-size:13px;font-weight:620}
+  #tebb-my-agent-config .ma-options {margin-top:10px}
+  #tebb-my-agent-config .ma-choice {display:grid;grid-template-columns:16px minmax(0,1fr);align-items:start;gap:6px;padding:6px 0;border-top:1px solid var(--ma-line);min-width:0}
+  #tebb-my-agent-config .ma-choice input {margin:3px 0 0;accent-color:var(--ma-blue)}
+  #tebb-my-agent-config .ma-choice strong,#tebb-my-agent-config .ma-choice small {display:block;overflow-wrap:anywhere}
+  #tebb-my-agent-config .ma-choice small {font-size:12px;color:var(--ma-muted);margin-top:2px}
+  #tebb-my-agent-config .ma-tools {padding-left:17px;margin-top:5px}
+  #tebb-my-agent-config .ma-callout {background:var(--ma-fill);border-radius:8px;padding:8px;margin-top:8px}
+  #tebb-my-agent-config .ma-callout p+p {margin-top:4px}
+  #tebb-my-agent-config .ma-member {width:100%;padding:6px;border-top:1px solid var(--ma-line);border-radius:0}
+  #tebb-my-agent-config .ma-member[aria-pressed=true] {background:var(--ma-fill);color:var(--ma-blue)}
+  #tebb-my-agent-config .ma-note {font-size:12px;color:var(--ma-muted);margin-top:6px}
+  #tebb-my-agent-config .ma-evidence {margin-top:7px;padding:8px;background:var(--ma-fill);border-radius:8px}
+  #tebb-my-agent-config .ma-evidence p {margin-top:5px}
+  #tebb-my-agent-config .ma-skill-add {margin-top:9px;padding-top:8px;border-top:1px solid var(--ma-line)}
+  #tebb-my-agent-config .ma-skill-add summary {width:max-content;max-width:100%;color:var(--ma-blue);font-size:13px}
+  #tebb-my-agent-config .ma-sr {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  @media(max-width:765px) {
+    #tebb-my-agent-config .ma-shell {grid-template-columns:126px minmax(0,1fr)}
+    #tebb-my-agent-config .ma-main {padding:15px}
+  }
+  @media(max-width:640px) {
+    #tebb-my-agent-config :is(.ma-shell,.ma-layout) {grid-template-columns:minmax(0,1fr)}
+    #tebb-my-agent-config .ma-rail {display:flex;gap:3px 6px;align-items:center;flex-wrap:wrap;padding:7px 10px}
+    #tebb-my-agent-config .ma-brand {margin:0 4px 0 0}
+    #tebb-my-agent-config .ma-nav {width:auto;padding:5px;font-size:12px}
+    #tebb-my-agent-config .ma-nav :is(i,svg) {display:none}
+    #tebb-my-agent-config .ma-main {padding:11px}
+  }
+  @media(pointer:coarse) {
+    #tebb-my-agent-config :is(button,.ma-choice) {min-height:44px}
+    #tebb-my-agent-config select {font-size:16px}
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-my-agent-config');
+  const page = root.querySelector('[data-page]');
+  const live = root.querySelector('[data-live]');
+  const roles = {none:'待分配',dev:'研发',qa:'测试',product:'产品'};
+  const tools = [
+    {id:'context',name:'读取项目资料',scope:'桌面工作台 · 授权资料'},
+    {id:'repo',name:'读取代码与候选',scope:'tebb 仓库 · 只读'},
+    {id:'write',name:'写入研发目录',scope:'tebb / client/src'},
+    {id:'fixtures',name:'写入验收目录',scope:'独立验收工作区 · fixtures/'},
+    {id:'sandbox',name:'运行沙箱用例',scope:'项目允许的自测或验收命令'},
+    {id:'evidence',name:'登记验收证据',scope:'当前分派的阶段 · 按职责提交'}
+  ];
+  const members = {
+    lin:{name:'林青',agent:'林青的 Agent',role:'dev',grants:['context','repo','write','sandbox']},
+    zhou:{name:'周宁',agent:'周宁的 Agent',role:'qa',grants:['context','repo','fixtures','sandbox','evidence']},
+    chen:{name:'陈宇',agent:'陈宇的 Agent',role:'none',grants:[]}
+  };
+  const models = {general:'团队通用模型',reasoning:'团队推理模型'};
+  const skills = [
+    {id:'spec',name:'OpenSpec',detail:'按已确认的规格组织实现'},
+    {id:'repro',name:'缺陷复现',detail:'记录复现步骤与实际结果'},
+    {id:'tests',name:'定向自测',detail:'对改动范围补充回归用例'}
+  ];
+  const skillExamples = {
+    import:{id:'terminal-summary',name:'终端输出整理',detail:'把命令、退出码和关键日志整理为证据',source:'示例目录 · terminal-summary/SKILL.md'},
+    design:{id:'api-failure',name:'API 失败复盘',detail:'从失败回执生成复现步骤和预期输出',source:'我的 Agent · 私人草稿'}
+  };
+  const plans = {
+    auto:{title:'自动查回原任务',detail:'Agent 建议。重连时自动查询原运行，需处理查询中状态。'},
+    manual:{title:'提示手动恢复',detail:'保留请求编号，用户点击后查询原运行。实现较小，恢复多一步。'}
+  };
+  const personal = {model:'general',skills:['spec','repro']};
+  const state = {view:'personal',member:'lin',decision:'',profileSaved:false,accessSaved:false,skillDraft:'',skillTested:false};
+  const icon = name => '<i data-lucide="' + name + '" aria-hidden="true"></i>';
+  const badge = (text,tone='') => '<span class="ma-badge" data-tone="' + tone + '">' + text + '</span>';
+  const button = (action,label,primary=false,disabled=false) => '<button type="button" class="ma-button' + (primary ? ' ma-primary' : '') +
+    ' cursor-interaction" data-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
+  function top(title,crumb,perspective) {
+    return '<header class="ma-top"><div><p class="ma-muted">' + crumb + '</p><h1>' + title +
+      '</h1></div><span class="ma-muted">设计演示 · ' + perspective + '</span></header>';
+  }
+  function choice({name,detail,attrs}) {
+    return '<label class="ma-choice cursor-interaction"><input ' + attrs +
+      '><span><strong>' + name + '</strong><small>' + detail + '</small></span></label>';
+  }
+  function select(items,current,attribute) {
+    return '<select ' + attribute + '>' + Object.entries(items).map(([id,name]) =>
+      '<option value="' + id + '"' + (current === id ? ' selected' : '') + '>' + name + '</option>').join('') + '</select>';
+  }
+  function skillOptions(selected) {
+    return skills.map(skill => choice({
+      name:skill.name,detail:skill.detail,attrs:'type="checkbox" data-skill="' + skill.id + '"' +
+      (selected.includes(skill.id) ? ' checked' : '')
+    })).join('');
+  }
+  function skillDraft() {
+    const skill = skillExamples[state.skillDraft];
+    if (!skill) return '';
+    if (skills.some(item => item.id === skill.id)) {
+      return '<p class="ma-note">已添加到个人 Skill 目录。可在上方选择启用。</p>';
+    }
+    return '<div class="ma-callout"><h3>' + skill.name + '</h3><p class="ma-muted">' + skill.source +
+      '</p><p>' + skill.detail + '</p><div class="ma-actions">' +
+      (state.skillTested ? badge('示例试跑通过','green') : button('skill-test','隔离试跑')) +
+      button('skill-add','添加到个人目录',true,state.skillDraft === 'design' && !state.skillTested) + '</div></div>';
+  }
+  function personalView() {
+    const member = members.lin;
+    return top('我的 Agent','设置 / 账号与空间 / 我的 Agent','林青本人') +
+      '<div class="ma-layout"><section class="ma-panel"><div class="ma-identity"><span class="ma-icon">' + icon('bot') +
+      '</span><div><h2>林青的 Agent</h2><p class="ma-muted">林青 · agent-lin</p></div></div>' +
+      '<label class="ma-picker">默认模型' + select(models,personal.model,'data-model') + '</label>' +
+      '<fieldset class="ma-options"><legend>我的 Skill</legend><div data-skills>' + skillOptions(personal.skills) +
+      '</div></fieldset><details class="ma-skill-add"' + (state.skillDraft ? ' open' : '') +
+      '><summary class="cursor-interaction">添加 Skill</summary><div class="ma-actions">' +
+      button('skill-import','导入示例目录') + button('skill-design','请我的 Agent 起草') +
+      '</div><div data-skill-draft>' + skillDraft() + '</div></details><div class="ma-actions">' + button('save-profile','保存个人配置',true) +
+      '<span class="ma-muted" data-profile-note>' + (state.profileSaved ? '已保存 · 新运行使用这份配置' : '保存后对新运行生效') +
+      '</span></div></section><aside class="ma-panel"><div class="ma-row"><h2>项目授权</h2>' + badge(roles[member.role]) +
+      '</div><p class="ma-muted">桌面工作台 · 项目管理员授予</p>' +
+      (member.grants.length ? '<ul class="ma-tools">' + tools.filter(tool => member.grants.includes(tool.id)).map(tool =>
+        '<li>' + tool.name + ' <span class="ma-muted">· ' + tool.scope + '</span></li>').join('') + '</ul>' :
+        '<p class="ma-note">暂无可用的项目工具。</p>') +
+      '<div class="ma-callout"><p class="ma-note">工具目录共用。执行时按目标仓库、目录和动作核验授权。</p></div>' +
+      (state.decision ? '' : '<div class="ma-actions">' + button('open-decision','查看待我决策 →') + '</div>') + '</aside></div>';
+  }
+  function grantList(grants) {
+    return tools.map(tool => choice({
+      name:tool.name,detail:tool.scope,attrs:'type="checkbox" data-grant="' + tool.id + '"' +
+      (grants.includes(tool.id) ? ' checked' : '')
+    })).join('');
+  }
+  function adminView() {
+    const member = members[state.member];
+    return top('项目成员','项目 / 桌面工作台 / 设置 / 成员','项目管理员') +
+      '<div class="ma-layout"><section class="ma-panel"><h2>岗位与资源权限</h2><div class="ma-identity"><span class="ma-icon">' +
+      icon('user-round') + '</span><div><h3>' + member.name + '</h3><p class="ma-muted">' + member.agent + '</p></div></div>' +
+      '<label class="ma-picker">项目岗位' + select(roles,member.role,'data-role') +
+      '</label><fieldset class="ma-options"><legend>授权资源与动作</legend><div data-grants>' + grantList(member.grants) +
+      '</div></fieldset><div class="ma-actions">' + button('save-access','保存岗位与权限',true) +
+      '<span class="ma-muted" data-access-note>' + (state.accessSaved ? '已保存 · 项目授权已更新' : '按资源范围授权') + '</span></div></section>' +
+      '<aside class="ma-panel"><h2>项目成员</h2>' + Object.entries(members).map(([id,item]) =>
+        '<button type="button" class="ma-member ma-row cursor-interaction" data-member="' + id + '" aria-pressed="' + (id === state.member) +
+        '"><span><strong>' + item.name + '</strong><br><span class="ma-muted">' + item.agent + '</span></span>' +
+        badge(roles[item.role]) + '</button>').join('') +
+      '<p class="ma-note">研发与独立验收分别分派给不同成员。验收在固定候选上执行。</p></aside></div>';
+  }
+  const canContinue = () => ['write','sandbox'].every(tool => members.lin.grants.includes(tool));
+  function decisionView() {
+    const chosen = plans[state.decision];
+    const blocked = chosen && !canContinue();
+    const status = !chosen ? badge('等待林青决定','warn') : blocked ?
+      badge('已确认 · 等待项目授权','warn') : badge('已确认 · Agent 继续实现','green');
+    return top('待我决策','通知 / 待我决策','林青本人') +
+      '<div class="ma-layout"><section class="ma-panel"><div class="ma-row"><h2>重连后怎么恢复原任务？</h2>' + status + '</div>' +
+      '<p class="ma-muted">桌面工作台 · 断线后接续原任务 · 实现与自测</p>' +
+      '<div class="ma-callout"><p><strong>林青的 Agent</strong> 已复现首次回执丢失。原任务仍在运行，重连时需要确定怎么让用户找回它。</p></div>' +
+      '<details class="ma-evidence"><summary class="cursor-interaction">查看复现与验收依据</summary>' +
+      '<p>复现：提交后断开网络，服务端已有原运行，客户端未收到回执。</p><p>验收：同一请求不重复创建任务，重连可接续原进度。</p></details>' +
+      (chosen ? '<div class="ma-callout"><h3>林青已确认「' + chosen.title + '」</h3><p>' +
+      (blocked ? '实现等待研发目录写入或沙箱执行授权。' : 'Agent 从原检查点继续实现，决定已记入需求群。') + '</p></div>' :
+      '<fieldset class="ma-options"><legend>选择实现方案</legend>' + Object.entries(plans).map(([id,plan]) =>
+        choice({name:plan.title,detail:plan.detail,attrs:'type="radio" name="ma-plan" value="' + id + '" data-plan'})
+      ).join('') + '</fieldset><div class="ma-actions">' + button('confirm-decision','确认方案，交回 Agent',true,true) + '</div>') +
+      '</section><aside class="ma-panel"><h2>当前运行</h2><p><strong>实现与自测</strong></p><p class="ma-muted">run-demo-042 · 检查点：复现完成</p>' +
+      '<div class="ma-callout"><p>' + (!chosen ? '等待方案确认后继续。' : blocked ?
+      '保持原检查点，直到所需操作重新获得授权。' : '同一运行继续，下一步是修改并自测。') + '</p></div></aside></div>';
+  }
+  function render(focus) {
+    page.innerHTML = {personal:personalView,admin:adminView,decision:decisionView}[state.view]();
+    root.querySelectorAll('[data-view]').forEach(nav => {
+      if (nav.dataset.view === state.view) nav.setAttribute('aria-current','page');
+      else nav.removeAttribute('aria-current');
+    });
+    root.querySelector('[data-pending-count]').hidden = Boolean(state.decision);
+    globalThis.lucide?.createIcons({attrs:{width:16,height:16}});
+    if (focus) page.querySelector(focus)?.focus({preventScroll:true});
+  }
+  const checked = attribute => [...page.querySelectorAll('[' + attribute + ']:checked:not(:disabled)')].map(input => input.getAttribute(attribute));
+  root.addEventListener('click',event => {
+    const target = event.target.closest('button');
+    if (!target || !root.contains(target)) return;
+    const {view,member,action} = target.dataset;
+    if (view || action === 'open-decision') {
+      state.view = view || 'decision';
+      render(action === 'open-decision' ? '[data-plan]' : undefined);
+    } else if (member) {
+      state.member = member;
+      state.accessSaved = false;
+      render('[data-member="' + member + '"]');
+    } else if (action === 'save-profile') {
+      personal.model = page.querySelector('[data-model]').value;
+      personal.skills = checked('data-skill');
+      state.profileSaved = true;
+      live.textContent = '个人配置已保存，新运行使用这份配置';
+      render('[data-action="save-profile"]');
+    } else if (action === 'skill-import' || action === 'skill-design' || action === 'skill-test' || action === 'skill-add') {
+      const selected = checked('data-skill');
+      if (action === 'skill-add') {
+        const skill = skillExamples[state.skillDraft];
+        if (!skills.some(item => item.id === skill.id)) skills.push(skill);
+        page.querySelector('[data-skills]').innerHTML = skillOptions(selected);
+        live.textContent = 'Skill 已添加到个人目录，可选择启用';
+      } else if (action === 'skill-test') {
+        state.skillTested = true;
+        live.textContent = '示例隔离试跑通过';
+      } else {
+        state.skillDraft = action === 'skill-import' ? 'import' : 'design';
+        state.skillTested = false;
+      }
+      page.querySelector('[data-skill-draft]').innerHTML = skillDraft();
+      if (action === 'skill-add') page.querySelector('[data-skill="' + skillExamples[state.skillDraft].id + '"]').focus();
+      else page.querySelector(action === 'skill-test' ? '[data-action="skill-add"]' : '[data-action="skill-test"]')?.focus();
+    } else if (action === 'save-access') {
+      const selected = members[state.member];
+      selected.role = page.querySelector('[data-role]').value;
+      selected.grants = checked('data-grant');
+      state.accessSaved = true;
+      live.textContent = '项目岗位和权限已保存';
+      render('[data-action="save-access"]');
+    } else if (action === 'confirm-decision') {
+      state.decision = page.querySelector('[data-plan]:checked').value;
+      live.textContent = canContinue() ? '决定已记录，Agent 从原检查点继续' : '决定已记录，正在等待项目授权';
+      render();
+      root.querySelector('[data-view="decision"]').focus({preventScroll:true});
+    }
+  });
+  root.addEventListener('change',event => {
+    const target = event.target;
+    if (target.matches('[data-role],[data-grant]')) {
+      page.querySelector('[data-access-note]').textContent = '有未保存的授权变更';
+    } else if (target.matches('[data-model],[data-skill]')) {
+      page.querySelector('[data-profile-note]').textContent = '有未保存的个人配置';
+    } else if (target.hasAttribute('data-plan')) {
+      page.querySelector('[data-action="confirm-decision"]').disabled = false;
+    }
+  });
+  render();
+})();
+</script>

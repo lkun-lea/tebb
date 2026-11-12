@@ -123,11 +123,11 @@
   const accounts = [
     {id:'lin',email:'lin@example.test',agent:'林青的 Agent',agentId:'agent-lin',preferences:'代码修改前先给出复现路径',roles:{
       desktop:{name:'研发',skills:'OpenSpec · 定向自测',tools:['读取需求与仓库','写入指定开发目录','运行沙箱自测'],decision:'林青确认实现方案取舍或申请新增权限。'},
-      mobile:{name:'测试',skills:'独立验收 · 弱网用例',tools:['读取候选与验收计划','运行固定用例','提交原始验收证据'],decision:'林青确认阻塞是否解除，再由 Agent 继续复跑。'}
+      mobile:{name:'研发',skills:'OpenSpec · 弱网复现',tools:['读取移动端需求与仓库','写入授权的移动端目录','运行接续场景自测'],decision:'林青确认重连行为的实现取舍。'}
     }},
     {id:'zhou',email:'zhou@example.test',agent:'周宁的 Agent',agentId:'agent-zhou',preferences:'输出按验收编号组织',roles:{
       desktop:{name:'测试',skills:'用例设计 · 独立验收',tools:['读取需求与候选','运行独立验收','提交测试证据'],decision:'周宁确认存在偏差时是否退回研发。'},
-      mobile:{name:'产品',skills:'需求分析 · grill-with-docs',tools:['读取项目背景与历史决策','起草规格和验收条件'],decision:'周宁确认需求范围与最终验收条件。'}
+      mobile:{name:'测试',skills:'真机用例 · 独立验收',tools:['读取固定候选','在验收目录准备真机用例','提交独立验收证据'],decision:'周宁确认当前候选的真机验收结论。'}
     }}
   ];
   const state = {space:'lin',sessions:new Set(['lin']),saved:new Set(['lin']),view:'overview',project:'desktop',target:'',email:'',challenge:false};
