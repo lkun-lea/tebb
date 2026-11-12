@@ -1,0 +1,287 @@
+<section id="tebb-account-agent" aria-label="tebb 登录与个人 Agent 草图">
+  <div class="aa-shell">
+    <aside class="aa-rail" aria-label="设置导航">
+      <div class="aa-brand"><span><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <p class="aa-muted">设置</p>
+      <button type="button" data-action="home" class="aa-nav cursor-interaction" aria-current="page"><i data-lucide="user-round" aria-hidden="true"></i>账号与空间</button>
+    </aside>
+    <main class="aa-main">
+      <header class="aa-top">
+        <div><p class="aa-muted">设置 / 账号与空间</p><h1>账号与空间</h1></div>
+        <span class="aa-muted">设计预览</span>
+      </header>
+      <div data-content></div>
+      <p class="aa-sr" role="status" data-live></p>
+    </main>
+  </div>
+  <dialog aria-labelledby="aa-dialog-title">
+    <header class="aa-row"><h2 id="aa-dialog-title">退出云端</h2><button type="button" class="aa-button cursor-interaction" data-action="cancel-logout">取消</button></header>
+    <p>当前设备将退出云端会话。本机资料继续保存在这个账号的本机空间，云端任务仍归原账号。</p>
+    <div class="aa-actions"><button type="button" class="aa-button aa-primary cursor-interaction" data-action="confirm-logout">退出此设备</button></div>
+  </dialog>
+</section>
+
+<style>
+  #tebb-account-agent {
+    --aa-rail:light-dark(#edf2f9,#1a2029);
+    --aa-base:light-dark(#f7f9fc,#11161e);
+    --aa-panel:light-dark(#fff,#1c2430);
+    --aa-fill:light-dark(#eef3fa,#252f3e);
+    --aa-ink:light-dark(#19263b,#eaf0fb);
+    --aa-muted:light-dark(#526178,#aab8ce);
+    --aa-line:light-dark(#dce5f0,#37455a);
+    --aa-blue:light-dark(#2356ad,#a9c6ff);
+    --aa-blue-bg:light-dark(#e4edff,#293e66);
+    --aa-action:light-dark(#2356ad,#b2cdff);
+    --aa-on-action:light-dark(#fff,#132744);
+    --aa-green:light-dark(#14664c,#95ddc5);
+    --aa-green-bg:light-dark(#e1f1e9,#234039);
+    --aa-warn:light-dark(#78501b,#f0c389);
+    --aa-warn-bg:light-dark(#f8eedb,#413422);
+    --aa-error:light-dark(#a23430,#ffb6b2);
+    color-scheme:light dark;
+    color:var(--aa-ink);
+    font:14px/1.5 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+  }
+  #tebb-account-agent *,#tebb-account-agent *::before,#tebb-account-agent *::after {box-sizing:border-box}
+  #tebb-account-agent :is(h1,h2,h3,p,dl,dd,ul) {margin:0;overflow-wrap:anywhere}
+  #tebb-account-agent h1 {font-size:25px;font-weight:650;letter-spacing:-.025em;line-height:1.25;margin-top:4px}
+  #tebb-account-agent h2 {font-size:16px;font-weight:640}
+  #tebb-account-agent h3 {font-size:14px;font-weight:620}
+  #tebb-account-agent :is(button,select,input) {font:inherit;color:inherit;min-width:0}
+  #tebb-account-agent button {border:0;border-radius:8px;background:transparent;text-align:left}
+  #tebb-account-agent :is(button,select,input):focus-visible {outline:2px solid var(--aa-blue);outline-offset:2px}
+  #tebb-account-agent :is([data-lucide],svg.lucide) {width:16px;height:16px;flex:0 0 16px;vertical-align:-.12em}
+  #tebb-account-agent .aa-shell {display:grid;grid-template-columns:143px minmax(0,1fr);background:var(--aa-rail);border-radius:15px;overflow:hidden}
+  #tebb-account-agent .aa-rail {padding:18px 9px}
+  #tebb-account-agent :is(.aa-brand,.aa-nav) {display:flex;align-items:center;gap:8px}
+  #tebb-account-agent .aa-brand {font-size:18px;font-weight:660;margin:0 5px 19px}
+  #tebb-account-agent :is(.aa-brand span,.aa-icon) {display:grid;place-items:center;width:29px;height:29px;border-radius:8px;background:var(--aa-blue-bg);color:var(--aa-blue);flex:none}
+  #tebb-account-agent .aa-rail p {margin:0 0 4px 7px}
+  #tebb-account-agent .aa-nav {width:100%;padding:8px;background:var(--aa-panel);color:var(--aa-blue);font-size:13px;font-weight:620}
+  #tebb-account-agent .aa-main {min-width:0;padding:23px;background:var(--aa-base)}
+  #tebb-account-agent :is(.aa-top,.aa-row) {display:flex;align-items:flex-start;justify-content:space-between;gap:7px 12px;flex-wrap:wrap}
+  #tebb-account-agent .aa-top {margin-bottom:16px}
+  #tebb-account-agent .aa-muted {font-size:12px;color:var(--aa-muted)}
+  #tebb-account-agent .aa-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.18fr);gap:11px;align-items:start}
+  #tebb-account-agent .aa-layout>* {min-width:0}
+  #tebb-account-agent .aa-panel {padding:13px;border-radius:11px;background:var(--aa-panel);min-width:0}
+  #tebb-account-agent .aa-panel+.aa-panel {margin-top:9px}
+  #tebb-account-agent .aa-panel h2 {margin-bottom:8px}
+  #tebb-account-agent .aa-person {display:flex;align-items:center;gap:8px;min-width:0}
+  #tebb-account-agent .aa-person p {margin-top:2px}
+  #tebb-account-agent .aa-badge {display:inline-block;padding:2px 6px;width:max-content;max-width:100%;border-radius:5px;background:var(--aa-blue-bg);color:var(--aa-blue);font-size:12px}
+  #tebb-account-agent .aa-badge[data-tone="green"] {background:var(--aa-green-bg);color:var(--aa-green)}
+  #tebb-account-agent .aa-badge[data-tone="warn"] {background:var(--aa-warn-bg);color:var(--aa-warn)}
+  #tebb-account-agent .aa-actions {display:flex;align-items:center;flex-wrap:wrap;gap:4px 7px;margin-top:9px}
+  #tebb-account-agent .aa-button {padding:7px 8px;max-width:100%;color:var(--aa-blue);font-size:13px}
+  #tebb-account-agent .aa-button:hover {background:var(--aa-fill)}
+  #tebb-account-agent .aa-primary {background:var(--aa-action);color:var(--aa-on-action)}
+  #tebb-account-agent .aa-primary:hover {background:var(--aa-action);opacity:.9}
+  #tebb-account-agent .aa-list {display:grid;gap:7px}
+  #tebb-account-agent .aa-account {padding:7px 0;border-top:1px solid var(--aa-line)}
+  #tebb-account-agent .aa-account .aa-button {padding:2px 5px}
+  #tebb-account-agent .aa-context {display:grid;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid var(--aa-line)}
+  #tebb-account-agent .aa-picker {display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  #tebb-account-agent :is(input,select) {border:1px solid var(--aa-line);background:var(--aa-base);padding:7px 8px;border-radius:7px;max-width:100%}
+  #tebb-account-agent .aa-tools {padding-left:18px}
+  #tebb-account-agent .aa-callout {background:var(--aa-fill);border-radius:8px;padding:8px;margin-top:8px}
+  #tebb-account-agent .aa-callout p {margin-top:3px}
+  #tebb-account-agent .aa-form {display:grid;gap:9px;width:min(100%,480px)}
+  #tebb-account-agent .aa-form label {display:grid;gap:4px;font-size:12px;color:var(--aa-muted)}
+  #tebb-account-agent .aa-form input {font-size:14px}
+  #tebb-account-agent .aa-error {font-size:12px;color:var(--aa-error)}
+  #tebb-account-agent dialog {width:min(440px,calc(100% - 24px));max-height:calc(100% - 16px);background:var(--aa-panel);color:var(--aa-ink);border:1px solid var(--aa-line);border-radius:11px;padding:15px}
+  #tebb-account-agent dialog::backdrop {background:rgb(8 17 30 / .42)}
+  #tebb-account-agent dialog .aa-row {margin-bottom:6px}
+  #tebb-account-agent .aa-sr {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  @media(max-width:750px) {
+    #tebb-account-agent .aa-shell {grid-template-columns:119px minmax(0,1fr)}
+    #tebb-account-agent .aa-main {padding:16px}
+  }
+  @media(max-width:620px) {
+    #tebb-account-agent :is(.aa-shell,.aa-layout) {grid-template-columns:minmax(0,1fr)}
+    #tebb-account-agent .aa-rail {display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:7px 10px}
+    #tebb-account-agent .aa-brand {margin:0 4px 0 0}
+    #tebb-account-agent .aa-rail p {margin:0}
+    #tebb-account-agent .aa-nav {width:auto}
+    #tebb-account-agent .aa-main {padding:12px}
+  }
+  @media(pointer:coarse) {
+    #tebb-account-agent button {min-height:44px}
+    #tebb-account-agent :is(input,select) {font-size:16px}
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-account-agent');
+  const content = root.querySelector('[data-content]');
+  const live = root.querySelector('[data-live]');
+  const dialog = root.querySelector('dialog');
+  const projects = [{id:'desktop',name:'桌面工作台'},{id:'mobile',name:'移动端接入'}];
+  const accounts = [
+    {id:'lin',email:'lin@example.test',agent:'林青的 Agent',agentId:'agent-lin',preferences:'代码修改前先给出复现路径',roles:{
+      desktop:{name:'研发',skills:'OpenSpec · 定向自测',tools:['读取需求与仓库','写入指定开发目录','运行沙箱自测'],decision:'林青确认实现方案取舍或申请新增权限。'},
+      mobile:{name:'测试',skills:'独立验收 · 弱网用例',tools:['读取候选与验收计划','运行固定用例','提交原始验收证据'],decision:'林青确认阻塞是否解除，再由 Agent 继续复跑。'}
+    }},
+    {id:'zhou',email:'zhou@example.test',agent:'周宁的 Agent',agentId:'agent-zhou',preferences:'输出按验收编号组织',roles:{
+      desktop:{name:'测试',skills:'用例设计 · 独立验收',tools:['读取需求与候选','运行独立验收','提交测试证据'],decision:'周宁确认存在偏差时是否退回研发。'},
+      mobile:{name:'产品',skills:'需求分析 · grill-with-docs',tools:['读取项目背景与历史决策','起草规格和验收条件'],decision:'周宁确认需求范围与最终验收条件。'}
+    }}
+  ];
+  const state = {space:'lin',sessions:new Set(['lin']),saved:new Set(['lin']),view:'overview',project:'desktop',target:'',email:'',challenge:false};
+  const find = id => accounts.find(account => account.id === id);
+  const icon = name => '<i data-lucide="' + name + '" aria-hidden="true"></i>';
+  const tag = (value,tone='') => '<span class="aa-badge" data-tone="' + tone + '">' + value + '</span>';
+  const button = (action,label,primary=false) => '<button type="button" data-action="' + action + '" class="aa-button' +
+    (primary ? ' aa-primary' : '') + ' cursor-interaction">' + label + '</button>';
+  function savedAccounts() {
+    return accounts.filter(account => state.saved.has(account.id)).map(account => {
+      const current = state.space === account.id;
+      const connected = state.sessions.has(account.id);
+      const action = current && connected ? button('logout','退出云端') :
+        connected ? button('switch-' + account.id,'切换账号') : button('login-' + account.id,'重新登录');
+      return '<div class="aa-row aa-account"><div><strong>' + account.email + '</strong><p class="aa-muted">' +
+        (current ? '当前空间 · ' : '') + (connected ? '登录有效' : '需要重新登录') + '</p></div>' + action + '</div>';
+    }).join('') || '<p class="aa-muted">此设备尚无已保存的账号。</p>';
+  }
+  function overview() {
+    const account = find(state.space);
+    const connected = account && state.sessions.has(account.id);
+    const current = account ? account.email : '本机空间';
+    const label = account ? '按账号独立保存的本机空间' : '聊天与设置保存在此设备';
+    return '<div class="aa-layout"><div><section class="aa-panel"><h2>当前空间</h2><div class="aa-row">' +
+      '<div class="aa-person"><span class="aa-icon">' + icon(account ? 'user-round' : 'hard-drive') +
+      '</span><div><h3>' + current + '</h3><p class="aa-muted">' + label + '</p></div></div>' +
+      (connected ? tag('云端已连接','green') : tag(account ? '已退出云端' : '仅本机',account ? 'warn' : '')) + '</div>' +
+      (account ? '<div class="aa-actions">' + button('switch-local','返回本机空间') + '</div>' : '') + '</section>' +
+      '<section class="aa-panel"><div class="aa-row"><h2>此设备上的账号</h2>' + button('add','添加账号') +
+      '</div><div class="aa-list">' + savedAccounts() + '</div></section></div><div data-agent-panel>' +
+      agentPanel(connected ? account : null) + '</div></div>';
+  }
+  function agentPanel(account) {
+    if (!account) return '<section class="aa-panel"><h2>我的 Agent</h2><p class="aa-muted">登录 tebb 账号后可查看个人 Agent 与项目授权。</p></section>';
+    const role = account.roles[state.project];
+    return '<section class="aa-panel"><div class="aa-row"><h2>我的 Agent</h2>' + tag('已绑定','green') + '</div>' +
+      '<div class="aa-person"><span class="aa-icon">' + icon('bot') + '</span><div><h3>' + account.agent +
+      '</h3><p class="aa-muted">' + account.agentId + ' · 个人偏好：' + account.preferences + '</p></div></div>' +
+      '<div class="aa-context"><div class="aa-row"><label class="aa-picker aa-muted">项目 <select data-project>' +
+      projects.map(project => '<option value="' + project.id + '"' + (state.project === project.id ? ' selected' : '') + '>' + project.name + '</option>').join('') +
+      '</select></label>' + tag(role.name) + '</div><p class="aa-muted">Skill · ' + role.skills + '</p>' +
+      '<ul class="aa-tools">' + role.tools.map(tool => '<li>' + tool + '</li>').join('') + '</ul></div>' +
+      '<div class="aa-callout"><h3>需要本人决策时</h3><p>' + role.decision + '</p></div></section>';
+  }
+  function login() {
+    return '<section class="aa-panel aa-form"><h2>邮箱验证码登录</h2><label>邮箱<input type="email" autocomplete="email" required data-email></label>' +
+      (state.challenge ? '<p class="aa-muted">已模拟申请验证码。预览用 246810。</p>' +
+      '<label>六位验证码<input inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-code></label>' : '') +
+      '<p class="aa-error" role="alert" data-error></p><div class="aa-actions">' +
+      button('home','返回账号与空间') + (state.challenge ? button('verify','验证并登录',true) : button('send','获取验证码',true)) + '</div></section>';
+  }
+  function pending() {
+    const target = find(state.target);
+    const current = find(state.space);
+    return '<section class="aa-panel aa-form"><h2>待重启切换</h2><dl><dt class="aa-muted">当前空间</dt><dd>' +
+      (current ? current.email : '本机空间') + '</dd><dt class="aa-muted">目标空间</dt><dd>' +
+      (target ? target.email : '本机空间') + '</dd></dl><div class="aa-callout"><p>重启会结束当前本机任务并收尾，云端任务继续归原账号。</p></div>' +
+      '<div class="aa-actions">' + button('cancel-switch','保留当前空间') + button('restart','重启并切换',true) + '</div></section>';
+  }
+  function render(focus) {
+    content.innerHTML = {overview,login,pending}[state.view]();
+    if (state.view === 'login') content.querySelector('[data-email]').value = state.email;
+    globalThis.lucide?.createIcons({attrs:{width:16,height:16}});
+    if (focus) content.querySelector(focus)?.focus({preventScroll:true});
+  }
+  function startLogin(account) {
+    state.email = account.email;
+    state.challenge = false;
+    state.view = 'login';
+    render('[data-email]');
+  }
+  function moveTo(id) {
+    state.target = id;
+    state.view = 'pending';
+    render('[data-action="restart"]');
+  }
+  function verify() {
+    const code = content.querySelector('[data-code]');
+    if (code.value !== '246810') {
+      code.setAttribute('aria-invalid','true');
+      content.querySelector('[data-error]').textContent = '验证码不匹配，请检查后再试。';
+      code.focus();
+      return;
+    }
+    const account = accounts.find(item => item.email === state.email);
+    state.saved.add(account.id);
+    state.sessions.add(account.id);
+    if (account.id === state.space) {
+      state.view = 'overview';
+      render('[data-action="add"]');
+    } else moveTo(account.id);
+  }
+  root.addEventListener('click',event => {
+    const clicked = event.target.closest('button[data-action]');
+    if (!clicked || !root.contains(clicked)) return;
+    const action = clicked.dataset.action;
+    if (action === 'home' || action === 'cancel-switch') {
+      state.view = 'overview';
+      state.target = '';
+      render('[data-action="add"]');
+    } else if (action === 'add' || action.startsWith('login-')) {
+      startLogin(action === 'add' ? accounts.find(account => account.id !== state.space) : find(action.slice(6)));
+    } else if (action === 'send') {
+      const input = content.querySelector('[data-email]');
+      const email = input.value.trim().toLowerCase();
+      if (!input.reportValidity()) return;
+      if (!accounts.some(account => account.email === email)) {
+        content.querySelector('[data-error]').textContent = '请使用示例邮箱 lin@example.test 或 zhou@example.test。';
+        return;
+      }
+      state.email = email;
+      state.challenge = true;
+      render('[data-code]');
+    } else if (action === 'verify') {
+      verify();
+    } else if (action.startsWith('switch-')) {
+      moveTo(action.slice(7));
+    } else if (action === 'restart') {
+      state.space = state.target;
+      state.target = '';
+      state.project = 'desktop';
+      state.view = 'overview';
+      live.textContent = '已模拟重启并切换空间';
+      render('[data-action="add"]');
+    } else if (action === 'logout') {
+      dialog.showModal();
+    } else if (action === 'cancel-logout') {
+      dialog.close();
+    } else if (action === 'confirm-logout') {
+      state.sessions.delete(state.space);
+      dialog.close();
+      live.textContent = '此设备已退出云端';
+      render('[data-action="login-' + state.space + '"]');
+    }
+  });
+  root.addEventListener('change',event => {
+    if (!event.target.hasAttribute('data-project')) return;
+    state.project = event.target.value;
+    content.querySelector('[data-agent-panel]').innerHTML = agentPanel(find(state.space));
+    globalThis.lucide?.createIcons({attrs:{width:16,height:16}});
+    content.querySelector('[data-project]').focus();
+  });
+  root.addEventListener('input',event => {
+    if (!event.target.hasAttribute('data-email') || !state.challenge) return;
+    state.email = event.target.value;
+    state.challenge = false;
+    render('[data-email]');
+  });
+  root.addEventListener('keydown',event => {
+    if (event.key !== 'Enter' || event.isComposing || state.view !== 'login') return;
+    if (!event.target.matches('[data-email],[data-code]')) return;
+    event.preventDefault();
+    content.querySelector('[data-action="' + (state.challenge ? 'verify' : 'send') + '"]').click();
+  });
+  render();
+})();
+</script>

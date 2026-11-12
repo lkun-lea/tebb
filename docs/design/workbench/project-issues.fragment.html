@@ -1,0 +1,267 @@
+<section id="tebb-project-issues" aria-label="tebb 项目 Issues 看板">
+  <div class="pi-shell">
+    <aside class="pi-rail" aria-label="全局导航">
+      <div class="pi-brand"><span><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <div class="pi-nav"><i data-lucide="messages-square" aria-hidden="true"></i>聊天</div>
+      <div class="pi-nav" aria-current="location"><i data-lucide="folders" aria-hidden="true"></i>项目</div>
+      <div class="pi-nav"><i data-lucide="calendar-days" aria-hidden="true"></i>日程</div>
+      <div class="pi-nav"><i data-lucide="list-checks" aria-hidden="true"></i>事项</div>
+      <div class="pi-nav"><i data-lucide="layout-grid" aria-hidden="true"></i>工作台</div>
+    </aside>
+    <main class="pi-main">
+      <header class="pi-project"><span>项目 <span aria-hidden="true">/</span> <strong>tebb</strong></span></header>
+      <nav class="pi-tabs" aria-label="项目子页面">
+        <span>时间线</span><span>需求</span><span aria-current="page">Issues</span><span>规格</span><span>资料</span><span>构建与发布</span>
+      </nav>
+      <div class="pi-content">
+        <header class="pi-top">
+          <div><h1>Issues 看板</h1><p class="pi-muted"><i data-lucide="github" aria-hidden="true"></i> lkun-lea/tebb · 演示数据</p></div>
+          <a class="pi-link cursor-interaction" href="https://github.com/lkun-lea/tebb/issues?q=is%3Aissue" target="_blank" rel="noopener noreferrer">仓库 Issues <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+        </header>
+        <div class="pi-toolbar">
+          <div class="pi-segment" aria-label="Issue 状态筛选">
+            <button type="button" data-state="all" aria-pressed="true" class="cursor-interaction">全部 <span data-count="all"></span></button>
+            <button type="button" data-state="open" aria-pressed="false" class="cursor-interaction">开放 <span data-count="open"></span></button>
+            <button type="button" data-state="closed" aria-pressed="false" class="cursor-interaction">已关闭 <span data-count="closed"></span></button>
+          </div>
+          <div class="pi-filters">
+            <label class="pi-search"><i data-lucide="search" aria-hidden="true"></i><span class="pi-sr">搜索 Issue</span><input type="search" data-query placeholder="搜索标题或 #编号"></label>
+            <label class="pi-group"><span>分组</span><select data-group aria-label="看板分组"><option value="project">GitHub Projects 状态</option><option value="issue">Issue 状态</option></select></label>
+          </div>
+        </div>
+        <p class="pi-muted pi-results" role="status" data-results></p>
+        <div data-board></div>
+      </div>
+    </main>
+  </div>
+  <dialog class="pi-dialog" aria-labelledby="pi-title">
+    <header class="pi-dialog-head"><span class="pi-muted" data-number></span><button class="pi-link cursor-interaction" type="button" data-close>关闭</button></header>
+    <h2 id="pi-title"></h2>
+    <div data-detail></div>
+  </dialog>
+</section>
+
+<style>
+  #tebb-project-issues {
+    --pi-rail:light-dark(#edf2f9,#1a2029);
+    --pi-base:light-dark(#f7f9fc,#11161e);
+    --pi-lane:light-dark(#eef2f8,#181f2a);
+    --pi-card:light-dark(#fff,#222c39);
+    --pi-hover:light-dark(#f3f7fd,#28364b);
+    --pi-ink:light-dark(#19263b,#eaf0fb);
+    --pi-muted:light-dark(#526178,#aab8ce);
+    --pi-line:light-dark(#dce5f0,#37455a);
+    --pi-blue:light-dark(#2356ad,#a9c6ff);
+    --pi-blue-bg:light-dark(#e4edff,#293e66);
+    --pi-green:light-dark(#14664c,#95ddc5);
+    --pi-green-bg:light-dark(#e1f1e9,#234039);
+    --pi-purple:light-dark(#6946a1,#d9c4fd);
+    --pi-purple-bg:light-dark(#eee6fa,#3d3056);
+    --pi-amber:light-dark(#84531a,#ffd39c);
+    --pi-amber-bg:light-dark(#f8ecda,#473725);
+    color-scheme:light dark;
+    color:var(--pi-ink);
+    font:14px/1.5 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  #tebb-project-issues *,#tebb-project-issues *::before,#tebb-project-issues *::after {box-sizing:border-box}
+  #tebb-project-issues :is(h1,h2,p,dl,dd) {margin:0;overflow-wrap:anywhere}
+  #tebb-project-issues h1 {font-size:25px;font-weight:650;line-height:1.24;letter-spacing:-.025em}
+  #tebb-project-issues h2 {font-size:15px;font-weight:640}
+  #tebb-project-issues :is(button,input,select) {font:inherit;color:inherit;min-width:0}
+  #tebb-project-issues button {border:0;background:transparent;border-radius:7px;text-align:left}
+  #tebb-project-issues :is(button,a,input,select):focus-visible {outline:2px solid var(--pi-blue);outline-offset:2px}
+  #tebb-project-issues :is([data-lucide],svg.lucide) {width:16px;height:16px;flex:0 0 16px;vertical-align:-.16em}
+  #tebb-project-issues .pi-shell {display:grid;grid-template-columns:109px minmax(0,1fr);background:var(--pi-rail);border-radius:15px;overflow:hidden}
+  #tebb-project-issues .pi-rail {padding:18px 9px}
+  #tebb-project-issues :is(.pi-brand,.pi-nav) {display:flex;align-items:center;gap:8px}
+  #tebb-project-issues .pi-brand {font-size:18px;font-weight:660;margin:0 5px 19px}
+  #tebb-project-issues .pi-brand span {width:27px;height:27px;display:grid;place-items:center;border-radius:8px;color:var(--pi-blue);background:var(--pi-blue-bg)}
+  #tebb-project-issues .pi-nav {padding:7px 8px;margin:2px 0;border-radius:8px;font-size:13px;color:var(--pi-muted)}
+  #tebb-project-issues .pi-nav[aria-current] {color:var(--pi-blue);background:var(--pi-card);font-weight:630}
+  #tebb-project-issues .pi-main {background:var(--pi-base);min-width:0}
+  #tebb-project-issues .pi-project {padding:15px 20px 6px;font-size:13px;color:var(--pi-muted)}
+  #tebb-project-issues .pi-project strong {color:var(--pi-ink)}
+  #tebb-project-issues .pi-tabs {display:flex;flex-wrap:wrap;gap:0 14px;padding:0 20px;border-bottom:1px solid var(--pi-line);color:var(--pi-muted);font-size:13px}
+  #tebb-project-issues .pi-tabs span {padding:7px 1px;border-bottom:2px solid transparent}
+  #tebb-project-issues .pi-tabs [aria-current] {color:var(--pi-blue);border-bottom-color:currentColor;font-weight:630}
+  #tebb-project-issues .pi-content {padding:18px 18px 20px}
+  #tebb-project-issues .pi-top {display:flex;justify-content:space-between;align-items:flex-start;gap:6px 12px;flex-wrap:wrap;margin-bottom:15px}
+  #tebb-project-issues .pi-top p {margin-top:6px}
+  #tebb-project-issues .pi-muted {color:var(--pi-muted);font-size:12px}
+  #tebb-project-issues .pi-link {display:inline-flex;align-items:center;gap:4px;padding:6px 8px;color:var(--pi-blue);text-decoration:none;border-radius:7px;font-size:13px}
+  #tebb-project-issues .pi-link:hover {background:var(--pi-hover)}
+  #tebb-project-issues :is(.pi-toolbar,.pi-filters,.pi-group) {display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  #tebb-project-issues .pi-toolbar {justify-content:space-between}
+  #tebb-project-issues .pi-segment {display:flex;gap:2px;background:var(--pi-lane);border-radius:8px;padding:3px;flex-wrap:wrap}
+  #tebb-project-issues .pi-segment button {padding:4px 7px;color:var(--pi-muted);font-size:12px}
+  #tebb-project-issues .pi-segment button[aria-pressed="true"] {background:var(--pi-card);color:var(--pi-blue);font-weight:630}
+  #tebb-project-issues .pi-segment button span {margin-left:2px}
+  #tebb-project-issues .pi-search {display:flex;align-items:center;gap:5px;min-width:0;padding:5px 7px;border:1px solid var(--pi-line);border-radius:7px;background:var(--pi-card);color:var(--pi-muted)}
+  #tebb-project-issues .pi-search input {border:0;background:transparent;width:134px;max-width:100%;font-size:12px;color:var(--pi-ink)}
+  #tebb-project-issues .pi-group {font-size:12px;color:var(--pi-muted)}
+  #tebb-project-issues .pi-group select {border:1px solid var(--pi-line);border-radius:7px;padding:5px 6px;background:var(--pi-card);color:var(--pi-ink)}
+  #tebb-project-issues .pi-results {margin:10px 0 8px}
+  #tebb-project-issues .pi-board {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:8px}
+  #tebb-project-issues .pi-board[data-columns="3"] {grid-template-columns:repeat(3,minmax(0,1fr))}
+  #tebb-project-issues .pi-board[data-columns="2"] {grid-template-columns:repeat(2,minmax(0,1fr))}
+  #tebb-project-issues .pi-board[data-columns="1"] {grid-template-columns:minmax(0,1fr)}
+  #tebb-project-issues .pi-lane {min-width:0;background:var(--pi-lane);border-radius:10px;padding:8px}
+  #tebb-project-issues .pi-lane-head {display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:2px 1px 8px}
+  #tebb-project-issues .pi-lane-head h2 {font-size:13px}
+  #tebb-project-issues .pi-count {padding:0 5px;border-radius:10px;background:var(--pi-card);color:var(--pi-muted);font-size:12px}
+  #tebb-project-issues .pi-dot {width:8px;height:8px;border:2px solid var(--pi-muted);border-radius:50%;flex:0 0 8px}
+  #tebb-project-issues [data-tone="blue"] .pi-dot {border-color:var(--pi-blue)}
+  #tebb-project-issues [data-tone="green"] .pi-dot {border-color:var(--pi-green)}
+  #tebb-project-issues [data-tone="purple"] .pi-dot {border-color:var(--pi-purple)}
+  #tebb-project-issues .pi-cards {display:grid;gap:6px}
+  #tebb-project-issues .pi-issue {display:grid;gap:5px;width:100%;min-width:0;background:var(--pi-card);padding:9px 8px;overflow-wrap:anywhere}
+  #tebb-project-issues .pi-issue:hover {background:var(--pi-hover)}
+  #tebb-project-issues .pi-issue strong {font-size:13px;font-weight:620;line-height:1.4}
+  #tebb-project-issues .pi-meta {display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px}
+  #tebb-project-issues .pi-tag {padding:1px 5px;border-radius:5px;font-size:11px;color:var(--pi-blue);background:var(--pi-blue-bg);overflow-wrap:anywhere}
+  #tebb-project-issues .pi-tag[data-tone="purple"] {color:var(--pi-purple);background:var(--pi-purple-bg)}
+  #tebb-project-issues .pi-tag[data-tone="green"] {color:var(--pi-green);background:var(--pi-green-bg)}
+  #tebb-project-issues .pi-tag[data-tone="amber"] {color:var(--pi-amber);background:var(--pi-amber-bg)}
+  #tebb-project-issues .pi-empty {padding:8px 1px;color:var(--pi-muted);font-size:12px}
+  #tebb-project-issues .pi-dialog {width:min(470px,calc(100% - 24px));max-height:calc(100% - 16px);padding:16px;background:var(--pi-card);color:var(--pi-ink);border:1px solid var(--pi-line);border-radius:12px}
+  #tebb-project-issues .pi-dialog::backdrop {background:rgb(8 17 30 / .45)}
+  #tebb-project-issues .pi-dialog-head {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  #tebb-project-issues .pi-dialog h2 {font-size:18px;line-height:1.4;margin-bottom:10px}
+  #tebb-project-issues .pi-details {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:12px 0;margin:11px 0;border-top:1px solid var(--pi-line);border-bottom:1px solid var(--pi-line)}
+  #tebb-project-issues .pi-details dt {font-size:12px;color:var(--pi-muted)}
+  #tebb-project-issues .pi-details dd {margin-top:2px}
+  #tebb-project-issues .pi-sr {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  @media(max-width:765px) {
+    #tebb-project-issues .pi-board:not([data-columns="1"]) {grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media(max-width:525px) {
+    #tebb-project-issues .pi-shell {grid-template-columns:minmax(0,1fr)}
+    #tebb-project-issues .pi-rail {display:flex;align-items:center;flex-wrap:wrap;gap:2px 5px;padding:6px 10px}
+    #tebb-project-issues .pi-brand {margin:0 3px 0 0}
+    #tebb-project-issues .pi-nav {padding:6px 5px;font-size:12px}
+    #tebb-project-issues .pi-nav :is(i,svg) {display:none}
+    #tebb-project-issues :is(.pi-project,.pi-tabs,.pi-content) {padding-inline:11px}
+    #tebb-project-issues .pi-tabs {column-gap:8px}
+    #tebb-project-issues .pi-board {gap:6px}
+    #tebb-project-issues .pi-lane {padding:6px}
+  }
+  @media(pointer:coarse) {
+    #tebb-project-issues :is(button,.pi-link) {min-height:44px}
+    #tebb-project-issues .pi-search input {font-size:16px}
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-project-issues');
+  const board = root.querySelector('[data-board]');
+  const summary = root.querySelector('[data-results]');
+  const group = root.querySelector('[data-group]');
+  const search = root.querySelector('[data-query]');
+  const dialog = root.querySelector('dialog');
+  const repo = 'https://github.com/lkun-lea/tebb/issues/';
+  const issues = [
+    {id:314,title:'工作台重构：将开发团队与聊天合并为需求群',state:'open',project:'active',tag:'工作台',owner:'示例 · 产品负责人',brief:'将开发阶段、讨论、产物与验收证据关联到同一条正式需求。'},
+    {id:313,title:'移动端接入：手机 Web/PWA 与 Windows 云任务接续',state:'open',project:'todo',tag:'多端',brief:'让手机按原运行编号接续云端任务，并验证断线后补读。'},
+    {id:312,title:'云端上线：常驻任务、账号隔离与 Windows 云工作区',state:'open',project:'todo',tag:'云端',brief:'打通云端常驻、账号隔离、权限校验与跨端工作区。'},
+    {id:311,title:'客户端退出时阻塞事件循环，Windows 判定未响应',state:'open',project:null,tag:'客户端',brief:'检查关闭客户端时的后端收尾流程和 Windows 响应状态。'},
+    {id:308,title:'事项页更多菜单：快捷键说明点击无反应',state:'open',project:null,tag:'事项',brief:'通过事项页更多菜单复现快捷键说明入口问题。'},
+    {id:296,title:'设置页重构：独立窗口 + 左侧分组导航外壳',state:'closed',reason:'completed',project:null,tag:'设置',brief:'将设置放在独立窗口中，以左侧导航分组。'},
+    {id:293,title:'本机后端迁移：FastAPI HTTP/SSE 与 Pi Agent SDK，分阶段退出 Atlas',state:'open',project:'active',tag:'后端',owner:'示例 · 研发负责人',brief:'分阶段迁移本机接口和 Agent 运行时，验证现有调用及打包。'},
+    {id:292,title:'修复日历拖放后的滚动位置跳动',state:'closed',reason:'completed',project:null,tag:'日程',brief:'核对日历拖放提交后，时间轴能否保持原滚动位置。'},
+    {id:272,title:'个人画像可视化与三种可切换角色',state:'closed',reason:'not_planned',project:null,tag:'个人画像',brief:'记录历史角色画像提案和关闭原因。'}
+  ];
+  const projectColumns = [
+    {id:'none',title:'未分组',tone:'neutral'},
+    {id:'todo',title:'待处理',tone:'green'},
+    {id:'active',title:'进行中',tone:'blue'},
+    {id:'closed',title:'已关闭',tone:'purple'}
+  ];
+  const issueColumns = [{id:'open',title:'开放',tone:'green'},projectColumns[3]];
+  let stateFilter = 'all';
+  let returnFocus = null;
+  const tag = (label,tone='blue') => '<span class="pi-tag" data-tone="' + tone + '">' + label + '</span>';
+  const closedReason = issue => issue.reason === 'completed' ? ['已完成','purple'] :
+    issue.reason === 'not_planned' ? ['不计划处理','amber'] : ['已关闭','purple'];
+  const visibleIssues = () => {
+    const query = search.value.trim().toLowerCase();
+    return issues.filter(issue => {
+      const matchesState = stateFilter === 'all' || issue.state === stateFilter;
+      const matchesQuery = !query || String(issue.id).includes(query.replace(/^#/,'') || '#') || issue.title.toLowerCase().includes(query);
+      return matchesState && matchesQuery;
+    });
+  };
+  function issueCard(issue) {
+    const detail = issue.state === 'closed' ? tag(...closedReason(issue)) : '<span class="pi-muted">' + (issue.owner || '未分派') + '</span>';
+    return '<button class="pi-issue cursor-interaction" type="button" data-issue="' + issue.id +
+      '"><span class="pi-muted">#' + issue.id + '</span><strong>' + issue.title +
+      '</strong><span class="pi-meta">' + tag(issue.tag) + detail + '</span></button>';
+  }
+  function render() {
+    const byProject = group.value === 'project';
+    const visible = visibleIssues();
+    const columns = (byProject ? projectColumns : issueColumns).filter(column =>
+      stateFilter === 'all' || (stateFilter === 'closed' ? column.id === 'closed' : column.id !== 'closed'));
+    const columnFor = issue => byProject && issue.state === 'open' ? issue.project || 'none' : issue.state;
+    board.innerHTML = '<div class="pi-board" data-columns="' + columns.length + '">' + columns.map(column => {
+      const members = visible.filter(issue => columnFor(issue) === column.id);
+      return '<section class="pi-lane" aria-label="' + column.title + '"><header class="pi-lane-head" data-tone="' +
+        column.tone + '"><span class="pi-dot" aria-hidden="true"></span><h2>' + column.title +
+        '</h2><span class="pi-count">' + members.length + '</span></header><div class="pi-cards">' +
+        (members.length ? members.map(issueCard).join('') : '<p class="pi-empty">暂无匹配的 Issue</p>') + '</div></section>';
+    }).join('') + '</div>';
+    const source = byProject ? '开放 Issue 按示例 Projects 状态分列' : '按 GitHub Issue 的开放与关闭状态分列';
+    summary.textContent = '显示 ' + visible.length + ' / ' + issues.length + ' 条 · ' + source;
+    root.querySelectorAll('[data-state]').forEach(button => {
+      button.setAttribute('aria-pressed',button.dataset.state === stateFilter);
+    });
+  }
+  function showIssue(issue,trigger) {
+    returnFocus = trigger;
+    root.querySelector('[data-number]').textContent = 'lkun-lea/tebb #' + issue.id;
+    root.querySelector('#pi-title').textContent = issue.title;
+    const status = issue.state === 'open' ? tag('开放','green') : tag('已关闭','purple') + ' ' + tag(...closedReason(issue));
+    const lane = projectColumns.find(column => column.id === (issue.project || 'none'));
+    root.querySelector('[data-detail]').innerHTML = '<p>' + issue.brief + '</p><dl class="pi-details">' +
+      '<div><dt>Issue 状态</dt><dd>' + status + '</dd></div><div><dt>Projects 状态（示例）</dt><dd>' + lane.title +
+      '</dd></div><div><dt>负责人（示例）</dt><dd>' + (issue.owner || '未分派') +
+      '</dd></div><div><dt>分类（示例）</dt><dd>' + tag(issue.tag) +
+      '</dd></div></dl><a class="pi-link cursor-interaction" href="' + repo + issue.id +
+      '" target="_blank" rel="noopener noreferrer">在 GitHub 查看原文 ↗</a>';
+    dialog.showModal();
+  }
+  function restoreGrouping(value) {
+    group.value = value === 'issue' ? 'issue' : 'project';
+    render();
+  }
+  root.addEventListener('click',event => {
+    const button = event.target.closest('button');
+    if (!button || !root.contains(button)) return;
+    if (button.dataset.state) {
+      stateFilter = button.dataset.state;
+      render();
+    } else if (button.dataset.issue) {
+      showIssue(issues.find(issue => issue.id === Number(button.dataset.issue)),button);
+    } else if (button.hasAttribute('data-close')) {
+      dialog.close();
+    }
+  });
+  search.addEventListener('input',render);
+  group.addEventListener('change',() => {
+    render();
+    window.openai?.setWidgetState?.({privateContent:{group:group.value}})?.catch(() => {});
+  });
+  window.addEventListener('openai:set_globals',event => {
+    const saved = event.detail?.globals?.widgetState?.privateContent?.group;
+    if (saved) restoreGrouping(saved);
+  });
+  dialog.addEventListener('close',() => {
+    if (returnFocus?.isConnected) returnFocus.focus();
+  });
+  root.querySelectorAll('[data-count]').forEach(span => {
+    span.textContent = issues.filter(issue => span.dataset.count === 'all' || span.dataset.count === issue.state).length;
+  });
+  restoreGrouping(window.openai?.widgetState?.privateContent?.group);
+})();
+</script>

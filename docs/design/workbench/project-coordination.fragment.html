@@ -1,0 +1,362 @@
+<section id="tebb-project-coordination" aria-label="tebb 项目统筹界面草图">
+  <div class="pc-shell">
+    <aside class="pc-rail" aria-label="项目统筹导航">
+      <div class="pc-brand"><span><i data-lucide="bot" aria-hidden="true"></i></span>tebb.</div>
+      <button type="button" data-view="overview" class="pc-nav cursor-interaction" aria-current="page"><i data-lucide="milestone" aria-hidden="true"></i>里程碑总览</button>
+      <button type="button" data-view="blocker" class="pc-nav cursor-interaction"><i data-lucide="flag" aria-hidden="true"></i>阻塞跟进</button>
+    </aside>
+    <main class="pc-main">
+      <div data-content></div>
+      <p class="pc-sr" role="status" data-announcement></p>
+    </main>
+  </div>
+  <dialog aria-labelledby="pc-dialog-title">
+    <header class="pc-dialog-head">
+      <h2 id="pc-dialog-title"></h2>
+      <button type="button" class="pc-secondary cursor-interaction" data-cancel>取消</button>
+    </header>
+    <div data-dialog-content></div>
+  </dialog>
+</section>
+
+<style>
+  #tebb-project-coordination {
+    --pc-page:light-dark(#f7f9fc,#11161e);
+    --pc-rail:light-dark(#edf2f9,#1a2029);
+    --pc-panel:light-dark(#fff,#1c2430);
+    --pc-fill:light-dark(#f1f5fb,#232e3e);
+    --pc-ink:light-dark(#19263b,#eaf0fb);
+    --pc-muted:light-dark(#526178,#aab8ce);
+    --pc-line:light-dark(#dce5f0,#364356);
+    --pc-blue:light-dark(#2356ad,#a9c6ff);
+    --pc-blue-bg:light-dark(#e4edff,#293e66);
+    --pc-action:light-dark(#2356ad,#b2cdff);
+    --pc-on-action:light-dark(#fff,#132744);
+    --pc-warn:light-dark(#78501b,#f0c389);
+    --pc-warn-bg:light-dark(#f8eedb,#413422);
+    --pc-alert:light-dark(#a23430,#ffb6b2);
+    --pc-alert-bg:light-dark(#faeae7,#492a2d);
+    --pc-good:light-dark(#14664c,#95ddc5);
+    --pc-good-bg:light-dark(#e1f1e9,#234039);
+    color-scheme:light dark;
+    color:var(--pc-ink);
+    font:14px/1.48 Inter,"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  #tebb-project-coordination *,#tebb-project-coordination *::before,#tebb-project-coordination *::after {box-sizing:border-box}
+  #tebb-project-coordination :is(h1,h2,h3,p,dl,dd,ol) {margin:0;overflow-wrap:anywhere}
+  #tebb-project-coordination h1 {font-size:26px;font-weight:650;line-height:1.24;letter-spacing:-.025em}
+  #tebb-project-coordination h2 {font-size:16px;font-weight:640}
+  #tebb-project-coordination h3 {font-size:14px;font-weight:620}
+  #tebb-project-coordination :is(button,select,textarea) {font:inherit;color:inherit}
+  #tebb-project-coordination button {background:transparent;border:0;border-radius:8px;text-align:left}
+  #tebb-project-coordination :is(button,select,textarea,summary):focus-visible {outline:2px solid var(--pc-blue);outline-offset:2px}
+  #tebb-project-coordination :is([data-lucide],svg.lucide) {width:16px;height:16px;flex:0 0 16px;vertical-align:-.125em}
+  #tebb-project-coordination .pc-shell {display:grid;grid-template-columns:139px minmax(0,1fr);background:var(--pc-rail);border-radius:16px;overflow:hidden}
+  #tebb-project-coordination .pc-rail {padding:19px 9px}
+  #tebb-project-coordination :is(.pc-brand,.pc-nav) {display:flex;align-items:center;gap:8px}
+  #tebb-project-coordination .pc-brand {font-size:18px;font-weight:660;margin:0 6px 20px}
+  #tebb-project-coordination .pc-brand span {display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--pc-blue-bg);color:var(--pc-blue)}
+  #tebb-project-coordination .pc-nav {width:100%;padding:8px 9px;margin:2px 0;color:var(--pc-muted);font-size:13px}
+  #tebb-project-coordination .pc-nav[aria-current] {color:var(--pc-blue);background:var(--pc-panel);font-weight:620}
+  #tebb-project-coordination .pc-main {padding:24px;background:var(--pc-page);min-width:0}
+  #tebb-project-coordination :is(.pc-caption,.pc-label) {font-size:12px;color:var(--pc-muted)}
+  #tebb-project-coordination .pc-top {margin-bottom:19px;display:flex;align-items:start;justify-content:space-between;gap:8px 14px;flex-wrap:wrap}
+  #tebb-project-coordination .pc-top h1+.pc-caption {margin-top:5px}
+  #tebb-project-coordination .pc-breadcrumb {margin-bottom:5px;color:var(--pc-muted);font-size:12px}
+  #tebb-project-coordination .pc-layout {display:grid;grid-template-columns:minmax(0,1.72fr) minmax(0,1fr);align-items:start;gap:13px}
+  #tebb-project-coordination .pc-layout>* {min-width:0}
+  #tebb-project-coordination .pc-panel {background:var(--pc-panel);padding:14px;border-radius:11px;min-width:0}
+  #tebb-project-coordination .pc-panel+.pc-panel {margin-top:10px}
+  #tebb-project-coordination .pc-panel h2 {margin-bottom:9px}
+  #tebb-project-coordination .pc-list {list-style:none;padding:0}
+  #tebb-project-coordination .pc-list li {min-width:0;border-top:1px solid var(--pc-line)}
+  #tebb-project-coordination .pc-milestone {width:100%;display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:start;gap:9px;padding:10px 4px}
+  #tebb-project-coordination .pc-date {padding-top:1px;color:var(--pc-muted);font-size:12px;white-space:nowrap}
+  #tebb-project-coordination .pc-milestone strong,#tebb-project-coordination .pc-risk-row strong {display:block;font-weight:620;overflow-wrap:anywhere}
+  #tebb-project-coordination .pc-milestone .pc-caption {display:block;margin-top:3px;overflow-wrap:anywhere}
+  #tebb-project-coordination .pc-badge {display:inline-block;width:max-content;max-width:100%;padding:2px 6px;border-radius:5px;font-size:12px;color:var(--pc-blue);background:var(--pc-blue-bg)}
+  #tebb-project-coordination .pc-badge[data-tone="warn"] {color:var(--pc-warn);background:var(--pc-warn-bg)}
+  #tebb-project-coordination .pc-badge[data-tone="alert"] {color:var(--pc-alert);background:var(--pc-alert-bg)}
+  #tebb-project-coordination .pc-badge[data-tone="good"] {color:var(--pc-good);background:var(--pc-good-bg)}
+  #tebb-project-coordination .pc-risk-row {display:grid;gap:5px;width:100%;padding:9px 7px;background:var(--pc-fill)}
+  #tebb-project-coordination .pc-note {color:var(--pc-muted);font-size:12px}
+  #tebb-project-coordination .pc-note+.pc-note {margin-top:6px}
+  #tebb-project-coordination :is(.pc-secondary,.pc-primary) {max-width:100%;padding:7px 9px;text-align:center;font-size:13px}
+  #tebb-project-coordination .pc-secondary {color:var(--pc-blue)}
+  #tebb-project-coordination .pc-primary {color:var(--pc-on-action);background:var(--pc-action)}
+  #tebb-project-coordination .pc-primary:disabled {opacity:.62}
+  #tebb-project-coordination :is(.pc-nav,.pc-secondary,.pc-risk-row,.pc-milestone):hover {background:var(--pc-fill)}
+  #tebb-project-coordination .pc-inline {display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px}
+  #tebb-project-coordination .pc-section-head {margin-bottom:9px}
+  #tebb-project-coordination .pc-section-head h2 {margin-bottom:0}
+  #tebb-project-coordination .pc-actions {display:flex;align-items:center;flex-wrap:wrap;gap:5px 8px;margin-top:10px}
+  #tebb-project-coordination .pc-details {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 13px}
+  #tebb-project-coordination .pc-details dt {font-size:12px;color:var(--pc-muted)}
+  #tebb-project-coordination .pc-details dd {margin-top:3px}
+  #tebb-project-coordination .pc-step {margin-top:11px;padding:9px;background:var(--pc-fill);border-radius:8px}
+  #tebb-project-coordination .pc-step p {margin-top:4px}
+  #tebb-project-coordination .pc-log {display:grid;gap:9px;list-style:none;padding:0}
+  #tebb-project-coordination .pc-log li {padding-left:8px;border-left:2px solid var(--pc-line)}
+  #tebb-project-coordination .pc-log time {display:block;color:var(--pc-muted);font-size:12px}
+  #tebb-project-coordination .pc-flow {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;list-style:none;padding:0;margin-bottom:11px}
+  #tebb-project-coordination .pc-flow li {min-width:0;padding:7px;background:var(--pc-fill);border-radius:7px;font-size:12px}
+  #tebb-project-coordination .pc-flow li[aria-current] {background:var(--pc-blue-bg);color:var(--pc-blue);font-weight:620}
+  #tebb-project-coordination .pc-demo {margin-top:13px;padding-top:9px;border-top:1px solid var(--pc-line)}
+  #tebb-project-coordination .pc-demo summary {width:max-content;max-width:100%;color:var(--pc-muted);font-size:12px}
+  #tebb-project-coordination .pc-demo .pc-actions {margin-top:4px}
+  #tebb-project-coordination details p {margin-top:5px}
+  #tebb-project-coordination dialog {width:min(435px,calc(100% - 24px));max-height:calc(100% - 16px);background:var(--pc-panel);color:var(--pc-ink);border:1px solid var(--pc-line);border-radius:11px;padding:15px}
+  #tebb-project-coordination dialog::backdrop {background:rgb(8 17 30 / .42)}
+  #tebb-project-coordination .pc-dialog-head {display:flex;justify-content:space-between;align-items:center;gap:7px;margin-bottom:9px}
+  #tebb-project-coordination .pc-fields {display:grid;gap:9px}
+  #tebb-project-coordination .pc-fields label {display:grid;gap:4px;color:var(--pc-muted);font-size:12px}
+  #tebb-project-coordination :is(select,textarea) {background:var(--pc-panel);border:1px solid var(--pc-line);padding:6px 8px;border-radius:7px;max-width:100%}
+  #tebb-project-coordination textarea {width:100%;resize:vertical}
+  #tebb-project-coordination .pc-error {font-size:12px;color:var(--pc-alert)}
+  #tebb-project-coordination .pc-sr {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  @media(max-width:735px) {
+    #tebb-project-coordination .pc-shell {grid-template-columns:115px minmax(0,1fr)}
+    #tebb-project-coordination .pc-main {padding:16px}
+    #tebb-project-coordination .pc-layout {gap:8px}
+    #tebb-project-coordination .pc-panel {padding:10px}
+    #tebb-project-coordination .pc-milestone {grid-template-columns:62px minmax(0,1fr);gap:3px 6px}
+    #tebb-project-coordination .pc-milestone .pc-badge {grid-column:2}
+  }
+  @media(max-width:550px) {
+    #tebb-project-coordination :is(.pc-shell,.pc-layout) {grid-template-columns:minmax(0,1fr)}
+    #tebb-project-coordination .pc-rail {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:6px 10px}
+    #tebb-project-coordination .pc-brand {margin:0 5px 0 0}
+    #tebb-project-coordination .pc-nav {width:auto;padding:6px}
+    #tebb-project-coordination .pc-main {padding:12px}
+    #tebb-project-coordination .pc-flow {grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media(pointer:coarse) {
+    #tebb-project-coordination button {min-height:44px}
+    #tebb-project-coordination :is(select,textarea) {font-size:16px}
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('tebb-project-coordination');
+  const content = root.querySelector('[data-content]');
+  const live = root.querySelector('[data-announcement]');
+  const dialog = root.querySelector('dialog');
+  const body = root.querySelector('[data-dialog-content]');
+  const projectNames = {all:'全部授权项目',lab:'测试平台',desktop:'桌面工作台',mobile:'移动端接入'};
+  const milestones = [
+    {project:'lab',date:'11 月 18 日',title:'弱网验收环境就绪',impact:'被桌面候选交付依赖'},
+    {project:'desktop',date:'11 月 20 日',title:'桌面候选交付',impact:'依赖测试平台 · 弱网验收环境'},
+    {project:'mobile',date:'11 月 27 日',title:'移动端真机接续验证',impact:'已就绪 · 云端候选可用'}
+  ];
+  const statusNames = {
+    open:['待跟进','warn'],waiting:['等待回应','warn'],late:['回应逾期','alert'],
+    escalated:['已升级','alert'],received:['待测试确认','blue'],done:['已解除','good']
+  };
+  const state = {
+    view:'overview',project:'all',follow:'open',clock:'11 月 16 日 09:30',deadline:'12:00',
+    demoOpen:false, resume:false, dialogAction:'', draft:'',
+    log:[['11 月 16 日 09:10','测试 · 周宁登记阻塞','候选 r2 的弱网复跑缺少可用环境。']]
+  };
+  let returnFocus = null;
+  const badge = (text,tone) => '<span class="pc-badge" data-tone="' + tone + '">' + text + '</span>';
+  const button = (action,label,kind='secondary') => '<button type="button" class="pc-' + kind +
+    ' cursor-interaction" data-action="' + action + '">' + label + '</button>';
+  const blockBadge = () => badge(...statusNames[state.follow]);
+  const escape = value => value.replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  function title(name,detail,crumb='') {
+    return '<header class="pc-top"><div>' + (crumb ? '<p class="pc-breadcrumb">' + crumb + '</p>' : '') +
+      '<h1>' + name + '</h1><p class="pc-caption">' + detail + '</p></div><span class="pc-caption">' + state.clock + ' · 演示</span></header>';
+  }
+  function milestoneRows() {
+    return milestones.filter(item => state.project === 'all' || state.project === item.project).map(item => {
+      let indicator = badge('按计划','good');
+      let impact = item.impact;
+      if (item.project === 'lab') {
+        indicator = state.follow === 'done' ? badge('已就绪','good') : badge('环境阻塞','alert');
+      } else if (item.project === 'desktop') {
+        indicator = state.follow === 'done' ? badge(state.resume ? '验收进行中' : '待独立验收','blue') : badge('交付有风险','warn');
+        if (state.follow === 'done') impact = '弱网环境已就绪 · ' + (state.resume ? '验收进行中' : '等待测试恢复');
+      }
+      const inner = '<span class="pc-date">' + item.date + '</span><span><strong>' + item.title +
+        '</strong><span class="pc-caption">' + projectNames[item.project] + ' · ' + impact + '</span></span>' + indicator;
+      return '<li>' + (item.project === 'mobile' ? '<div class="pc-milestone">' + inner + '</div>' :
+        '<button type="button" class="pc-milestone cursor-interaction" data-action="open-blocker">' + inner + '</button>') + '</li>';
+    }).join('');
+  }
+  function overview() {
+    const showRisk = state.project !== 'mobile';
+    const options = Object.entries(projectNames).map(([key,name]) => '<option value="' + key + '"' +
+      (state.project === key ? ' selected' : '') + '>' + name + '</option>').join('');
+    return title('项目统筹','跨项目查看交付计划、依赖和阻塞') +
+      '<div class="pc-layout"><section class="pc-panel"><div class="pc-inline pc-section-head"><h2>里程碑</h2>' +
+      '<label class="pc-label">项目 <select data-project>' + options + '</select></label></div>' +
+      '<ol class="pc-list" aria-label="按目标日期排序">' + milestoneRows() + '</ol></section>' +
+      '<aside class="pc-panel"><h2>' + (state.follow === 'done' ? '最近处理' : '待协调阻塞') + '</h2>' +
+      (showRisk ? '<button type="button" class="pc-risk-row cursor-interaction" data-action="open-blocker">' + blockBadge() +
+        '<strong>弱网验收缺少可复跑环境</strong><span class="pc-caption">测试平台 → 桌面候选交付</span><span class="pc-caption">研发 · 林青　查看阻塞 →</span></button>' :
+        '<p class="pc-note">当前项目没有待协调阻塞。</p>') + '</aside></div>';
+  }
+  function logPanel() {
+    return '<aside class="pc-panel"><h2>处理记录</h2><ol class="pc-log">' + [...state.log].reverse().map(([time,action,detail]) =>
+      '<li><time>' + time + '</time><strong>' + action + '</strong><p class="pc-caption">' + escape(detail) + '</p></li>').join('') +
+      '</ol></aside>';
+  }
+  function receipt() {
+    return '<details class="pc-step" data-receipt><summary class="cursor-interaction">打开环境回执 · ENV-42</summary>' +
+      '<p>研发 · 林青提供弱网测试环境、复跑脚本与就绪检查。适用候选 r2，待测试复跑过期游标场景。</p></details>';
+  }
+  function actionsForBlocker() {
+    const follow = state.follow;
+    if (follow === 'open') return button('reminder','提醒责任人','primary');
+    if (follow === 'late') return button('escalation','升级跟进','primary');
+    if (follow === 'received' || follow === 'done') return button('open-phase','回到原需求阶段','primary');
+    return '';
+  }
+  function blockerView() {
+    const follow = state.follow;
+    const next = {
+      open:'请研发提供弱网环境与复跑入口，约定回应时间。',
+      waiting:'等待林青在 11 月 16 日 ' + state.deadline + ' 前回应。',
+      late:'已超过约定回应时间。可升级给测试平台负责人赵敏协调。',
+      escalated:'测试平台负责人赵敏已收到升级，研发林青继续负责提供环境。',
+      received:'研发已提交环境回执。请测试负责人在原阶段核对并确认解除。',
+      done:state.resume ? '测试已在原候选 r2 上继续独立验收。' : '环境阻塞已解除，测试负责人可在原阶段继续验收。'
+    };
+    return title('弱网验收缺少可复跑环境','桌面工作台 · 断线后接续原任务','项目统筹 / 阻塞跟进') +
+      '<div class="pc-layout"><div><section class="pc-panel"><div class="pc-inline pc-section-head"><h2>阻塞详情</h2>' + blockBadge() +
+      '</div><dl class="pc-details"><div><dt>当前需求阶段</dt><dd>独立验收 · 候选 r2</dd></div>' +
+      '<div><dt>阶段负责人</dt><dd>测试 · 周宁</dd></div><div><dt>前置依赖</dt><dd>测试平台 · 弱网环境（11 月 18 日）</dd></div>' +
+      '<div><dt>受影响里程碑</dt><dd>桌面候选交付（11 月 20 日）</dd></div></dl>' +
+      '<div class="pc-step"><h3>当前动作</h3><p>' + next[follow] + '</p></div>' +
+      (follow === 'received' || follow === 'done' ? receipt() : '') +
+      '<div class="pc-actions">' + actionsForBlocker() +
+      (follow === 'received' || follow === 'done' ? '' : button('open-phase','查看原需求阶段 →')) +
+      '</div></section></div>' + logPanel() + '</div>';
+  }
+  function phaseView() {
+    const follow = state.follow;
+    const hasReceipt = follow === 'received' || follow === 'done';
+    const status = state.resume ? badge('进行中','blue') :
+      follow === 'done' ? badge('待测试继续','blue') : hasReceipt ? badge('待确认解除','warn') : badge('阻塞','alert');
+    const next = state.resume ? '继续执行弱网验收计划，复跑过期游标用例并记录结果。' :
+      follow === 'done' ? '周宁可在同一候选 r2 上继续独立验收。' :
+      hasReceipt ? '周宁核对研发回执后，确认环境可用于复跑。' : '等待测试平台提供可复跑环境。';
+    return title('断线后接续原任务','需求 v3 · 当前阶段：独立验收','桌面工作台 / 需求群') +
+      '<div class="pc-layout"><section class="pc-panel"><h2>需求流程</h2><ol class="pc-flow">' +
+      '<li>需求确认</li><li>实现与自测</li><li aria-current="step">独立验收</li><li>质量复核</li></ol>' +
+      '<div class="pc-inline"><h3>独立验收</h3>' + status + '</div>' +
+      '<p class="pc-caption">测试 · 周宁　候选 r2　独立验收计划 v2</p>' +
+      (hasReceipt ? receipt() : '') + '<div class="pc-step"><h3>下一步</h3><p>' + next + '</p></div>' +
+      '<div class="pc-actions">' + button('open-blocker','返回统筹记录') + button('overview','回到里程碑总览') +
+      '</div></section>' + logPanel() + '</div>';
+  }
+  function demoControls() {
+    const actions = [];
+    if (state.follow === 'waiting') actions.push(button('demo-late','模拟超过回应时间'));
+    if (['waiting','late','escalated'].includes(state.follow)) actions.push(button('demo-reply','模拟研发提交回执'));
+    if (state.view === 'phase' && state.follow === 'received') actions.push(button('demo-verify','模拟测试确认解除'));
+    if (state.view === 'phase' && state.follow === 'done' && !state.resume) actions.push(button('demo-resume','模拟测试继续独立验收'));
+    return actions.length ? '<details class="pc-demo" data-demo' + (state.demoOpen ? ' open' : '') +
+      '><summary class="cursor-interaction">演示操作</summary><div class="pc-actions">' + actions.join('') + '</div></details>' : '';
+  }
+  function render(focus) {
+    const views = {overview,blocker:blockerView,phase:phaseView};
+    content.innerHTML = views[state.view]() + demoControls();
+    root.querySelectorAll('[data-view]').forEach(nav => {
+      if (nav.dataset.view === state.view) nav.setAttribute('aria-current','page');
+      else nav.removeAttribute('aria-current');
+    });
+    if (focus) content.querySelector(focus)?.focus({preventScroll:true});
+  }
+  function showDialog(action) {
+    const reminder = action === 'reminder';
+    state.dialogAction = action;
+    returnFocus = document.activeElement;
+    root.querySelector('#pc-dialog-title').textContent = reminder ? '提醒责任人' : '升级跟进';
+    body.innerHTML = '<div class="pc-fields"><dl><dt class="pc-label">接收人</dt><dd>' +
+      (reminder ? '研发 · 林青' : '测试平台负责人 · 赵敏（抄送研发 · 林青）') + '</dd></dl>' +
+      '<dl><dt class="pc-label">关联需求</dt><dd>断线后接续原任务 · 独立验收</dd></dl>' +
+      (reminder ? '<label>期望回应时间（11 月 16 日）<select data-deadline><option value="12:00">12:00</option><option value="17:00">17:00</option></select></label>' :
+        '<p class="pc-note">约定于 11 月 16 日 ' + state.deadline + ' 前回应，现已逾期。</p>') +
+      '<label>' + (reminder ? '待处理动作' : '升级原因与请求') + '<textarea rows="3" data-message></textarea></label>' +
+      '<p class="pc-error" role="alert" data-error></p></div><div class="pc-actions">' +
+      button('confirm',reminder ? '发送站内提醒' : '确认升级','primary') + '</div>';
+    body.querySelector('[data-message]').value = reminder ? '请提供弱网验收环境与复跑入口，并回复预计可用时间。' :
+      '原提醒已逾期，请协调测试平台提供弱网环境，避免影响 11 月 20 日桌面候选交付。';
+    dialog.showModal();
+  }
+  function record(action,detail) {
+    state.log.push([state.clock,action,detail]);
+    live.textContent = action;
+  }
+  function confirm() {
+    const message = body.querySelector('[data-message]').value.trim();
+    if (!message) {
+      body.querySelector('[data-error]').textContent = '请填写待处理动作或升级原因。';
+      body.querySelector('[data-message]').focus();
+      return;
+    }
+    if (state.dialogAction === 'reminder' && state.follow === 'open') {
+      state.deadline = body.querySelector('[data-deadline]').value;
+      state.follow = 'waiting';
+      record('已提醒研发 · 林青',message + ' 期望 ' + state.deadline + ' 前回应。');
+    } else if (state.dialogAction === 'escalation' && state.follow === 'late') {
+      state.follow = 'escalated';
+      record('已升级给测试平台负责人 · 赵敏',message);
+    }
+    state.demoOpen = true;
+    dialog.close();
+    render('[data-demo] summary');
+  }
+  function simulate(action) {
+    if (action === 'demo-late' && state.follow === 'waiting') {
+      state.clock = '11 月 16 日 ' + (state.deadline === '12:00' ? '14:00' : '19:00');
+      state.follow = 'late';
+      record('回应时间已过','尚未收到环境就绪回执。');
+    } else if (action === 'demo-reply' && ['waiting','late','escalated'].includes(state.follow)) {
+      state.clock = state.follow === 'waiting' ? '11 月 16 日 ' +
+        (state.deadline === '12:00' ? '11:00' : '16:00') : '11 月 17 日 10:20';
+      state.follow = 'received';
+      record('研发 · 林青提交环境回执','ENV-42：环境与复跑入口已就绪，待测试核对。');
+    } else if (action === 'demo-verify' && state.view === 'phase' && state.follow === 'received') {
+      state.clock = '11 月 17 日 10:30';
+      state.follow = 'done';
+      record('测试 · 周宁确认解除阻塞','已核对环境回执 ENV-42；原验收条件和候选 r2 继续生效。');
+    } else if (action === 'demo-resume' && state.view === 'phase' && state.follow === 'done' && !state.resume) {
+      state.clock = '11 月 17 日 10:35';
+      state.resume = true;
+      record('测试 · 周宁继续独立验收','候选 r2 · 继续复跑过期游标用例。');
+    }
+    state.demoOpen = true;
+    render(state.follow === 'late' ? '[data-action="escalation"]' :
+      state.view === 'phase' ? '[data-demo] button, [data-action="overview"]' : '[data-action="open-phase"]');
+  }
+  root.addEventListener('click', event => {
+    const clicked = event.target.closest('button');
+    if (!clicked || !root.contains(clicked)) return;
+    const {action,view} = clicked.dataset;
+    if (clicked.hasAttribute('data-cancel')) dialog.close();
+    else if (view || ['open-blocker','open-phase','overview'].includes(action)) {
+      state.view = view || {'open-blocker':'blocker','open-phase':'phase',overview:'overview'}[action];
+      render(state.view === 'overview' ? '[data-project]' : state.view === 'phase' ?
+        '[data-receipt] summary, [data-action="open-blocker"]' : '[data-action="reminder"], [data-action="escalation"], [data-action="open-phase"]');
+    } else if (action === 'reminder' || action === 'escalation') showDialog(action);
+    else if (action === 'confirm') confirm();
+    else if (action?.startsWith('demo-')) simulate(action);
+  });
+  root.addEventListener('change', event => {
+    if (!event.target.hasAttribute('data-project')) return;
+    state.project = event.target.value;
+    render('[data-project]');
+  });
+  content.addEventListener('toggle', event => {
+    if (event.target.hasAttribute('data-demo') && event.target.isConnected) state.demoOpen = event.target.open;
+  }, true);
+  dialog.addEventListener('close', () => {
+    if (returnFocus?.isConnected) returnFocus.focus();
+  });
+  render();
+})();
+</script>
