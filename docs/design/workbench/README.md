@@ -1,6 +1,6 @@
 # 工作台、项目时间线与需求群
 
-关联 [#314](https://github.com/lkun-lea/tebb/issues/314)。工作台采用岗位工具目录，日程沿用现有页面。项目页、项目统筹及 GitHub Issues 看板草图已确认。账号与登录方案见[待评审设计](ACCOUNT_DESIGN.md)。
+本页保留 [#314](https://github.com/lkun-lea/tebb/issues/314) 的原始设计。需求群、跨成员验收、项目统筹等协作能力由独立的 [MyAgentDesk](https://github.com/lkun-lea/myagentdesk) 实施。最新的项目页见 [MyAgentDesk 设计](https://github.com/lkun-lea/myagentdesk/tree/main/docs/design/project-pages)，两端关系见 [tebb 产品边界](../../PRODUCT_SCOPE.md)。
 
 | 界面 | 可打开的预览 | 可编辑源稿 |
 | --- | --- | --- |
