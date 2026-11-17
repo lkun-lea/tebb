@@ -19,7 +19,7 @@ class Queue:
     def __init__(self):
         self.settings = {}; self.items = {}; self.requests = {}
 
-    def submit(self, text, session, channel, submission_key="", **request):
+    def submit(self, text, session, channel, submission_key="", persisted_callback=None, **request):
         if submission_key not in self.items:
             self.items[submission_key] = dict(id=submission_key, state="queued", answer="", error="", events=[])
             self.requests[submission_key] = dict(text=text, session_id=session, **request)
@@ -1258,6 +1258,44 @@ class PreviewAccessTests(unittest.TestCase):
 
 
 class PreviewRpcTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stream_checks_preview_revocation_before_delivering_more_text(self):
+        import asyncio
+        from types import SimpleNamespace
+        from websockets.asyncio.client import connect
+        from websockets.asyncio.server import serve
+        from websockets.exceptions import ConnectionClosed
+        from desk_companion.local_api import server
+
+        subscribed = asyncio.Event()
+        disconnected = asyncio.Event()
+        published = None
+        allowed = True
+
+        def subscribe(publish):
+            nonlocal published
+            published = publish
+            subscribed.set()
+            return disconnected.set
+
+        host = SimpleNamespace(collaboration=SimpleNamespace(subscribe_stream=subscribe))
+        with patch.object(server, "HOST", host), patch.object(server, "TOKEN", "desktop"), patch(
+            "desk_companion.collaboration.collaboration_access.preview_allowed",
+            side_effect=lambda token, origin: allowed and token == "preview" and origin == "http://localhost:5180",
+        ):
+            async with serve(server._handler, "127.0.0.1", 0) as listener:
+                port = listener.sockets[0].getsockname()[1]
+                async with connect(f"ws://127.0.0.1:{port}/stream?token=preview", origin="http://localhost:5180", proxy=None) as ws:
+                    await asyncio.wait_for(subscribed.wait(), 2)
+                    await asyncio.to_thread(published, "run", "第一段", 1, 4)
+                    frame = json.loads(await asyncio.wait_for(ws.recv(), 2))
+                    self.assertEqual(frame["data"], dict(run="run", text="第一段", version=[1, 4]))
+                    allowed = False
+                    await asyncio.to_thread(published, "run", "不能继续发送", 1, 5)
+                    with self.assertRaises(ConnectionClosed) as closed:
+                        await asyncio.wait_for(ws.recv(), 2)
+                    self.assertEqual(closed.exception.rcvd.code, 4401)
+                await asyncio.wait_for(disconnected.wait(), 2)
+
     async def test_browser_capability_cannot_access_general_rpc_or_chat(self):
         from desk_companion.local_api import server
         class Socket:

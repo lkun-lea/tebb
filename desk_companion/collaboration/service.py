@@ -299,9 +299,45 @@ class Collaboration:
         # A separate single-slot chat queue remains available during two long jobs.
         self.managers["work"].settings["parallel"] = 2
         self.managers["chat"].settings["parallel"] = 1
+        # 正文增量订阅：任务回调在读取线程触发，由订阅方自行转回事件循环。
+        self._stream_lock = threading.Lock()
+        self._stream_subscribers = []
         self.thread = threading.Thread(target=self._loop, daemon=True, name="collaboration")
         if start:
             self.thread.start()
+
+    def subscribe_stream(self, fn):
+        """订阅任务正文的累计增量，返回取消订阅函数。"""
+        with self._stream_lock:
+            self._stream_subscribers.append(fn)
+        def unsubscribe():
+            with self._stream_lock:
+                if fn in self._stream_subscribers: self._stream_subscribers.remove(fn)
+        return unsubscribe
+
+    def _stream_callback(self, run_id, attempt):
+        text = ''
+        reset = False
+
+        def on_event(seq, kind, data):
+            nonlocal text, reset
+            if kind == 'answer_reset':
+                reset = True
+                return
+            if kind != 'token' or not data:
+                return
+            piece = str(data)
+            text = piece if reset else text + piece
+            reset = False
+            with self._stream_lock:
+                subscribers = list(self._stream_subscribers)
+            for publish in subscribers:
+                try:
+                    publish(run_id, text, attempt, seq)
+                except Exception:
+                    continue
+
+        return on_event
 
     def snapshot(self, since=""):
         from desk_companion.models.model_catalog import public_catalog
@@ -320,6 +356,7 @@ class Collaboration:
             if run.get('options_generation'):run['options_generation']={k:v for k,v in run['options_generation'].items() if k in {'state','error','calls'}}
             if not run.get('parent'):
                 run['chain'] = chain_view(run, result['runs'])
+            run['text_version'] = [run.get('attempt', 0), run.get('cursor', 0)]
             for key in ("input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs", "memory_snapshot"):
                 run.pop(key, None)
         catalog = public_catalog()
@@ -917,7 +954,10 @@ class Collaboration:
                         request.update(development_task=True, implementers=run.get('implementers', []))
                         if run.get('integration_verification'):
                             request.update(integration_verification=True, required_rechecks=run.get('required_rechecks',[]))
+                    # 路由 worker 只通过 token 事件发布可见正文。
+                    stream_event = self._stream_callback(run['id'], run['attempt']) if run['kind'] in {'chat', 'task', 'route'} else None
                     run["task"] = manager.submit(run["input"], "collab-"+run["id"], "collaboration", submission_key=f"collab:{run['id']}:{run['attempt']}",
+                        persisted_callback=stream_event,
                         _budget_root=run['budget_id'],_budget_root_member=not run.get('parent'),
                         task_limits=execution_limits(run['agent'],run.get('agent_config',{}).get('tools',())), **({**request, **({"sampling":run["sampling"]} if run.get("sampling") else {})}))
                     run["state"] = "queued"

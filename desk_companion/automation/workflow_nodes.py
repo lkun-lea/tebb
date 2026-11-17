@@ -131,7 +131,8 @@ def execute(kind, config, receipt_key, emit, request):
     if kind == 'search':
         from desk_companion.integrations.web.search_service import search
         rows = search(config['query'], on_status=lambda text: emit('status', text))['results'][:config['limit']]
-        return dict(text=json.dumps(rows, ensure_ascii=False), urls=[r['url'] for r in rows], first_url=rows[0]['url'] if rows else '')
+        # 搜索服务的结果行以 link 表示链接；节点输出统一为 urls 与 first_url。
+        return dict(text=json.dumps(rows, ensure_ascii=False), urls=[r['link'] for r in rows], first_url=rows[0]['link'] if rows else '')
     if kind == 'read':
         from desk_companion.integrations.web.web_sources import fetch_page
         data = fetch_page(config['url'])

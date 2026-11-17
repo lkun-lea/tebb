@@ -26,7 +26,7 @@ const empty=(day:string,item_id:string):SchedulePage=>({ok:true,day,item_id,even
 
 // An explicit user action is the sole source of mutations; reads never replay a create.
 export class ScheduleController {
-  page:SchedulePage;loading=false;pending=false;error='';notice='';unknown:Pending|null=null;missingReceipt=false;
+  page:SchedulePage;loading=false;pending=false;error='';notice='';unknown:Pending|null=null;missingReceipt=false;remoteAttempt=false;
   private readSerial=0;private listeners=new Set<()=>void>();
   constructor(private transport:ScheduleTransport,readonly itemId:string,day:string,private storage?:StorageLike,private id=()=>crypto.randomUUID()){
     this.page=empty(day,itemId);
@@ -38,7 +38,7 @@ export class ScheduleController {
   private clearUnknown(){this.unknown=null;this.missingReceipt=false;try{this.storage?.removeItem(this.storageKey);}catch{/* Server receipt remains authoritative. */}}
   async read(day=this.page.day,refresh=false){
     if(this.pending)return false;
-    const serial=++this.readSerial;this.loading=true;this.error='';this.emit();
+    const serial=++this.readSerial;this.loading=true;this.remoteAttempt=refresh;this.error='';this.emit();
     try{
       const page=await this.transport('load_schedule',{day,item_id:this.itemId,refresh,request_id:this.unknown?.request_id||''});
       if(serial!==this.readSerial)return false;

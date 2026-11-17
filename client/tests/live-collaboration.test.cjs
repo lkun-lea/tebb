@@ -29,6 +29,32 @@ function env() {
 }
 const strings = node => typeof node === 'string' ? node : (node.children || []).map(strings).join('');
 
+test('stream text uses the persisted event cursor across resets, polling and delivery', () => {
+  const { CollaborationSync } = load('collaboration-sync');
+  const sync = new CollaborationSync();
+  const root = {id:'root',state:'running',answer:'旧草稿较长',text_version:[1,4],
+    chain:{answer:'已交付的正文',answer_run:'delivery',children:['delivery','worker']}};
+  const worker = {id:'worker',state:'running',answer:'',text_version:[1,0]};
+  const messages = [{id:'m',run:'root',sender:'tebb',text:root.answer}];
+  const base = {revision:1,runs:[root,worker],messages};
+  sync.snapshot(base,'initial');
+
+  const revised = sync.stream('root','短稿',[1,6]);
+  assert.equal(revised.messages[0].text,'短稿');
+  assert.equal(revised.runs[0].chain.answer,'已交付的正文');
+  assert.equal(sync.snapshot(base,'same-cursor').messages[0].text,'短稿');
+  assert.equal(sync.stream('worker','旁支草稿',[1,10]).runs[0].chain.answer,'已交付的正文');
+  assert.equal(sync.stream('root','迟到旧稿',[1,5]),null);
+
+  const finalRun = {...root,state:'succeeded',answer:'最终正文',text_version:[1,9]};
+  const finalMessage = {...messages[0],text:finalRun.answer};
+  const final = sync.update({sync:'final',patch:{base:'same-cursor',values:{revision:2},collections:{
+    runs:{upsert:[finalRun],order:['root','worker']},messages:{upsert:[finalMessage],order:['m']},
+  }}});
+  assert.equal(final.messages[0].text,'最终正文');
+  assert.equal(sync.stream('root','迟到旧稿',[1,7]).messages[0].text,'最终正文');
+});
+
 test('pending replacement is labelled as a retained draft in both chat surfaces', async () => {
   env();
   const {RunProgress,DraftNotice}=load('run-progress');
@@ -69,7 +95,7 @@ test('real collaboration only submits explicit actions; polling does not create 
   const { timers } = env(); const calls=[]; let props;
   let state = {version:1,next:20,revision:1,selected:'group',agents:[],conversations:[],messages:[],runs:[],requests:[],notice:''};
   const rpc = async (_info,method,args) => { calls.push({method,args}); if(method==='collaboration_action') state={...state,revision:state.revision+1};return {ok:true,state}; };
-  const { LiveCollaboration } = load('live-collaboration', { './api':{rpc}, './startup':{startupReady(){}}, './chat-prototype':{ChatPrototype: p=>{props=p;return React.createElement('div');}} });
+  const { LiveCollaboration } = load('live-collaboration', { './api':{rpc,watchCollaboration:()=>()=>{}}, './startup':{startupReady(){}}, './chat-prototype':{ChatPrototype: p=>{props=p;return React.createElement('div');}} });
   let view; await act(async()=>{view=create(React.createElement(LiveCollaboration,{info:{port:1,token:'test'}}));});
   assert.equal(calls.filter(c=>c.method==='collaboration_action').length,0);
   await act(async()=>{await props.live.act({type:'send',text:'真实消息',mode:'message',target:''});});
@@ -85,7 +111,7 @@ test('an uncertain request retries with the same id; polling cannot erase its er
   const base={version:1,next:20,revision:2,selected:'group',agents:[],conversations:[],messages:[],runs:[],requests:[],notice:''};
   const rpc=async(_i,method,args)=>{if(method==='load_collaboration')return {ok:true,state:{...base,revision:1}};
     ids.push(args.action.request_id);if(++attempts===1)throw new Error('连接断开，结果未明');return {ok:true,state:base};};
-  const { LiveCollaboration }=load('live-collaboration',{'./api':{rpc},'./startup':{startupReady(){}},'./chat-prototype':{ChatPrototype:p=>{props=p;return React.createElement('div');}}});
+  const { LiveCollaboration }=load('live-collaboration',{'./api':{rpc,watchCollaboration:()=>()=>{}},'./startup':{startupReady(){}},'./chat-prototype':{ChatPrototype:p=>{props=p;return React.createElement('div');}}});
   let view;await act(async()=>{view=create(React.createElement(LiveCollaboration,{info:{port:1,token:'test'}}));});
   const action={type:'send',text:'不能重复的消息',mode:'task',target:''};
   await act(async()=>{assert.equal(await props.live.act(action),false);});
@@ -103,7 +129,7 @@ test('first-send identity survives a lost reply and an intervening selected-conv
    if(args.action.type==='send')throw Error('reply lost');
    return {state:{...base,revision:2,selected:'other'}};
  };
- const {LiveCollaboration}=load('live-collaboration',{'./api':{rpc},'./startup':{startupReady(){}},'./chat-prototype':{ChatPrototype:p=>{props=p;return React.createElement('div');}}});
+ const {LiveCollaboration}=load('live-collaboration',{'./api':{rpc,watchCollaboration:()=>()=>{}},'./startup':{startupReady(){}},'./chat-prototype':{ChatPrototype:p=>{props=p;return React.createElement('div');}}});
  let view;await act(async()=>{view=create(React.createElement(LiveCollaboration,{info:{port:1,token:'test'}}));});
  const id='dm-'+'a'.repeat(32),first={type:'send',conversation:id,new_chat:{agent_id:'tebb',project_id:''},text:'first',target:'',mode:'auto'};
  await act(async()=>{assert.equal(await props.live.act(first),false);});

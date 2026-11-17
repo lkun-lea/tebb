@@ -42,10 +42,10 @@ export class WorkBoardController {
   get items(){return this.page.items.map(item=>this.intents.has(item.id)?{...item,state:this.intents.get(item.id)!.state}:item);}
   private accept(page:WorkPage){this.page=mergeWorkPage(this.page,page);this.loaded=true;}
   async load(reconcile=false) {
-    const read=++this.readSequence;this.loading=true;this.error='';this.emit();
+    const read=++this.readSequence;this.loading=true;this.emit();
     try {
       const page=await this.transport('load_work_board');if(!page.ok)throw Error(page.error||'事项读取失败。');
-      this.accept(page);
+      this.accept(page);this.error='';
       if(reconcile) for(const [key,record] of [...this.uncertain]) {
         const checked=await this.transport('load_work_board',{request_id:record.action.request_id});
         if(!checked.ok)throw Error(checked.error||'操作回执读取失败。');

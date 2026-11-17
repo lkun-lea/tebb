@@ -107,7 +107,7 @@ class TaskManager:
             self.cv.notify_all()
         return {"ok": True, "settings": self.settings}
 
-    def submit(self, text, session, channel="desktop", source=None, callback=None, task_limits=None, submission_key="", _budget_root=None, _budget_root_member=False, _prior_budget_unknown=False, **request):
+    def submit(self, text, session, channel="desktop", source=None, callback=None, task_limits=None, submission_key="", _budget_root=None, _budget_root_member=False, _prior_budget_unknown=False, *, persisted_callback=None, **request):
         if not isinstance(text, str) or not text.strip() or len(text) > 200000:
             raise ValueError("请填写有效问题。")
         if not isinstance(session, str) or not session:
@@ -158,14 +158,17 @@ class TaskManager:
                 db.execute("INSERT INTO tasks(id,session,channel,text,request,state,created,source) VALUES(?,?,?,?,?,'queued',?,?)",
                            (task_id, session, channel, text, json.dumps(request), time.time(), json.dumps(source or {})))
                 db.commit()
-            if callback:
-                self.listeners[task_id] = callback
+            if callback or persisted_callback:
+                self.listeners[task_id] = callback, persisted_callback
             self.event(task_id, "status", "任务已登记，正在等待执行。")
             self.cv.notify_all()
         return task_id
 
     def get(self, task_id, events=True):
         with self.db() as db:
+            if events:
+                # A collaboration snapshot must acknowledge only events reflected in its task row.
+                db.execute("BEGIN")
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if not row:
                 raise ValueError("任务不存在。")
@@ -229,19 +232,22 @@ class TaskManager:
 
     def event(self, task_id, kind, data, *, replace_answer=False):
         # 思考仅流到当前窗口，不保存进监控台，不转发到飞书。
+        seq = None
         if kind != "think":
             with self.db() as db:
-                db.execute("INSERT INTO events(task,kind,data,ts) VALUES(?,?,?,?)", (task_id, kind, json.dumps(data), time.time()))
+                seq = db.execute("INSERT INTO events(task,kind,data,ts) VALUES(?,?,?,?)", (task_id, kind, json.dumps(data), time.time())).lastrowid
                 if kind == "token":
                     query = "UPDATE tasks SET answer=? WHERE id=?" if replace_answer else "UPDATE tasks SET answer=answer||? WHERE id=?"
                     db.execute(query, (str(data), task_id))
                 db.commit()
-        callback = self.listeners.get(task_id)
-        if callback:
-            try:
+        callback, persisted_callback = self.listeners.get(task_id, (None, None))
+        try:
+            if callback:
                 callback(kind, data)
-            except Exception:
-                pass  # 窗口关闭不会取消后台任务。
+            if persisted_callback and seq is not None:
+                persisted_callback(seq, kind, data)
+        except Exception:
+            pass  # 窗口关闭不会取消后台任务。
         with self.cv:
             self.cv.notify_all()
 

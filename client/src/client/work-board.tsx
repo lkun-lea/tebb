@@ -37,7 +37,7 @@ const keyboardCoordinates:KeyboardCoordinateGetter=(event,{context})=>{
   if(rect)return {x:rect.left+(rect.width-(context.collisionRect?.width||0))/2,y:rect.top+(rect.height-(context.collisionRect?.height||0))/2};
 };
 
-function ItemCard({item,controller,onSelect,onMove,onSchedule,overlay=false}:{item:WorkItem;controller:WorkBoardController;onSelect:()=>void;onMove:(id:string,state:WorkState)=>void;onSchedule:(item:WorkItem)=>void;overlay?:boolean}) {
+function ItemCard({item,controller,onSelect,onSchedule,overlay=false}:{item:WorkItem;controller:WorkBoardController;onSelect:()=>void;onSchedule:(item:WorkItem)=>void;overlay?:boolean}) {
   const drag=useDraggable({id:overlay?'overlay:'+item.id:item.id,data:{state:item.state},disabled:overlay||item.archived||controller.uncertain.has(item.id)});
   const reduce=useUiReducedMotion();
   const linked=item.links.map(link=>controller.page.runs.find(run=>run.id===link.id)).filter(Boolean) as WorkRun[];
@@ -47,6 +47,7 @@ function ItemCard({item,controller,onSelect,onMove,onSchedule,overlay=false}:{it
     transition={reduce?{duration:0}:DRAG_SPRING} className={`wb-card${drag.isDragging?' wb-lifted':''}${overlay?' wb-ghost':''}`}
     data-work-card={item.id} data-state={item.state} aria-label={`${item.title}，${workStateLabel(item.state)}`}>
     <div className="wb-card-top"><span className="wb-project">▱ {item.project_name||'未归属'}</span>
+      {!overlay&&<span className="wb-card-state" role="status">{uncertain?'结果未确认':busy?'保存中…':controller.intents.has(item.id)?'待保存':''}</span>}
       {!overlay&&<button type="button" className="wb-grip" ref={drag.setActivatorNodeRef} {...drag.listeners} {...drag.attributes}
         aria-label={`拖动 ${item.title}`} disabled={item.archived||uncertain}>⠿</button>}</div>
     <button type="button" className="wb-card-title" onClick={onSelect}>{item.title}</button>
@@ -56,9 +57,6 @@ function ItemCard({item,controller,onSelect,onMove,onSchedule,overlay=false}:{it
     {!overlay&&!!item.schedules?.events.length&&<button type="button" className="wb-schedule-summary" onClick={()=>onSchedule(item)}>{arrangement?`◷ ${arrangement.start.includes('T')?beijingStamp(arrangement.start).slice(5).replace('T',' '):arrangement.start}${item.schedules.unchecked?' · 未核对':''}`:`◷ 历史安排 · ${item.schedules.events.length} 场`}</button>}
     <div className="wb-ai">负责人：{controller.page.agents?.find(a=>a.id===(item.agent_id||'tebb'))?.name||'tebb · 通用助手'}</div>
     {!!item.links.length&&<div className="wb-ai"><span className="wb-avatar">{linked[0]?.agent.slice(0,1)||'AI'}</span><span>{linked[0]?`${linked[0].agent} · ${runStateLabel(linked[0])}`:'关联记录已失效'}{item.links.length>1?` · 共 ${item.links.length} 条`:''}</span></div>}
-    {!overlay&&<div className="wb-card-bottom"><span role="status">{uncertain?'结果未确认':busy?'保存中…':controller.intents.has(item.id)?'待保存':''}</span>
-      <label><span className="sr-only">移动 {item.title}</span><select value={item.state} aria-label={`移动 ${item.title}`} disabled={item.archived||uncertain}
-        onChange={e=>onMove(item.id,e.target.value as WorkState)}>{WORK_STATES.map(([id,label])=><option value={id} key={id}>移至 · {label}</option>)}</select></label></div>}
     {controller.rowErrors.get(item.id)&&<p className="wb-row-error" role="alert">{controller.rowErrors.get(item.id)}</p>}
   </motion.article>;
 }
@@ -89,11 +87,15 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   const formRequest=useRef('');const formRoot=useRef<HTMLElement|null>(null);
   const moveFocus=useRef('');
   const keyboardDragging=useRef(false);
-  useEffect(()=>{if(!moveFocus.current)return;const label=moveFocus.current;moveFocus.current='';[...document.querySelectorAll<HTMLElement>('.work-board select,.work-board .wb-grip')].find(node=>node.getAttribute('aria-label')===label)?.focus();});
-  function move(id:string,state:WorkState){const label=document.activeElement?.getAttribute('aria-label')||'';if(label.startsWith('移动 ')||label.startsWith('拖动 '))moveFocus.current=label;void controller.move(id,state);}
+  useEffect(()=>{if(!moveFocus.current)return;const label=moveFocus.current;moveFocus.current='';[...document.querySelectorAll<HTMLElement>('.work-board .wb-grip')].find(node=>node.getAttribute('aria-label')===label)?.focus();});
+  function move(id:string,state:WorkState){const label=document.activeElement?.getAttribute('aria-label')||'';if(label.startsWith('拖动 '))moveFocus.current=label;void controller.move(id,state);}
   const dragSensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}),useSensor(KeyboardSensor,{coordinateGetter:keyboardCoordinates,scrollBehavior:reduce?'auto':'smooth'}));
   useEffect(()=>controller.subscribe(redraw),[controller]);
-  useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();const timer=window.setInterval(()=>{if(!controller.loading)void controller.load();},5000);return()=>window.clearInterval(timer);},[active,controller,info,debug]);
+  useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();
+    // 进入页面核对一次；之后只在窗口重新聚焦时按需核对，避免定时轮询反复刷新提示。
+    const reload=()=>{if(!controller.loading)void controller.load();};
+    window.addEventListener('focus',reload);return()=>window.removeEventListener('focus',reload);
+  },[active,controller,info,debug]);
   const item=controller.items.find(i=>i.id===selected);
   const drawer=!weekTarget&&!scheduleTarget&&(!!draft||!!item);
   useEffect(()=>{if(!drawer)return;const previous=document.activeElement as HTMLElement|null;formRoot.current?.querySelector<HTMLElement>('button,input')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[drawer,!!draft,selected]);
@@ -141,12 +143,12 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
       <button type="button" aria-pressed={archived} onClick={()=>setArchived(value=>!value)}>{archived?'查看日常事项':'已归档'}</button>
       <button type="button" onClick={()=>openWeek()}>日程安排</button>
       <UiButton busy={controller.loading} busyLabel="读取中…" onClick={()=>void refresh()}>刷新核对</UiButton><span className="wb-sort">优先级 · 截止日期</span></div>
-    {controller.error&&controller.error!==formError&&<UiFeedback state="error" title={controller.error} className="wb-error"/>}
+    <div className="wb-alert-slot" aria-live="polite">{controller.error&&controller.error!==formError&&<UiFeedback state="error" title={controller.error} className="wb-error"/>}</div>
     {[...controller.uncertain].map(([key,record])=><UiFeedback state="unconfirmed" title="保存结果未确认" className="wb-uncertain" key={key}><div><p>{record.message}</p><small>操作编号：{record.action.request_id}</small></div><div><UiButton onClick={()=>void refresh()} busy={controller.loading} busyLabel="核对中…">重新读取核对</UiButton><UiButton onClick={()=>void retry(key)} busy={controller.pending.has(key)} busyLabel="原操作处理中…">手动重试原操作</UiButton></div></UiFeedback>)}
     {!controller.loaded&&controller.loading&&<UiFeedback state="loading" title="正在读取事项…"/>}
     {controller.loaded&&!visible.length&&<UiFeedback state={query||project!=='all'||archived?'no_results':'empty'} title={query||project!=='all'||archived?'当前筛选没有匹配事项':'还没有事项'}>可调整筛选，或用「新增事项」开始。</UiFeedback>}
     <DndContext sensors={dragSensors} collisionDetection={collision}
-      accessibility={{screenReaderInstructions:{draggable:'按空格抓起，左右方向键移动一列，空格放下，Escape 取消。也可使用卡片底部的移至菜单。'},announcements:{
+      accessibility={{screenReaderInstructions:{draggable:'按空格抓起，左右方向键移动一列，空格放下，Escape 取消。'},announcements:{
         onDragStart:()=> '已抓起事项。',onDragOver:({over})=>over?`目标：${workStateLabel(String(over.id))}`:'请选择目标列。',
         onDragEnd:({over})=>over?`已放入${workStateLabel(String(over.id))}，正在保存。`:'移动已取消。',onDragCancel:()=> '移动已取消。'}}}
       onDragStart={event=>{keyboardDragging.current=event.activatorEvent.type==='keydown';setDragging(String(event.active.id));}} onDragCancel={()=>setDragging(null)}
@@ -156,8 +158,8 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
       }}}
       onDragEnd={event=>{setDragging(null);if(event.over)move(String(event.active.id),String(event.over.id) as WorkState);}}>
       <div className="wb-columns">{WORK_STATES.map(([state,label])=><Column key={state} state={state} label={label} settled={controller.loaded} count={visible.filter(item=>item.state===state).length}>
-        {visible.filter(item=>item.state===state).map(item=><ItemCard key={item.id} item={item} controller={controller} onMove={move} onSchedule={openSchedule} onSelect={()=>guardDraft(()=>{setSelected(item.id);setDraft(null);setFormError('');})}/>)}</Column>)}</div>
-      <DragOverlay modifiers={keyboardDragging.current?[keepKeyboardOverlayVisible]:undefined} dropAnimation={reduce?null:DRAG_DROP}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onMove={move} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
+        {visible.filter(item=>item.state===state).map(item=><ItemCard key={item.id} item={item} controller={controller} onSchedule={openSchedule} onSelect={()=>guardDraft(()=>{setSelected(item.id);setDraft(null);setFormError('');})}/>)}</Column>)}</div>
+      <DragOverlay modifiers={keyboardDragging.current?[keepKeyboardOverlayVisible]:undefined} dropAnimation={reduce?null:DRAG_DROP}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
     </DndContext>
     <footer className="wb-footer"><span>{visible.length} 件{archived?'已归档':''}事项 · 四阶段工作流</span><span role="status" aria-live="polite">{controller.notice}</span></footer>
     {drawer&&<><div className="wb-shade" onClick={close}/><aside className="wb-detail" role="dialog" aria-modal="true" aria-label={draft?'编辑事项':'事项详情'} ref={formRoot}

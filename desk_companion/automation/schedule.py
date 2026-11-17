@@ -504,12 +504,10 @@ def _abandon_queued(store: dict) -> bool:
                 job['execution'] = dict(execution, phase='not_started' if not_started else 'unconfirmed')
             job["alert_seen"] = False
             dirty = True
-            if job["action"] == "ai_news":
-                job["last_run_slot"] = ""  # 最新一次补跑使用发布回执恢复，不从头重复写入。
-            else:
-                now = _now()
-                if _slot_dt(now, job) <= now:
-                    job['last_run_slot'] = _slot_key(now, job)
+            # 中断只标记未确认，不重置时段：否则每次启动都会在非计划时间重新触发一次。
+            now = _now()
+            if _slot_dt(now, job) <= now:
+                job['last_run_slot'] = _slot_key(now, job)
     return dirty
 
 
@@ -522,8 +520,6 @@ def _mark_missed(store: dict, now: datetime, *, active=()) -> bool:
         return False
     dirty = False
     for job in store["jobs"]:
-        if job["action"] == "ai_news":
-            continue
         if not job["enabled"] or job["id"] in active:
             continue
         created = _parse_iso(job["created_at"], "created_at")
@@ -553,11 +549,6 @@ def _due_jobs(store: dict, now: datetime) -> list[dict]:
         if not job["enabled"]:
             continue
         if job["action"]=="tebb_task" and job.get("execution",{}).get("phase") in {'unconfirmed','needs_input'}:continue
-        if job["action"] == "ai_news":
-            latest = _latest_slot(now, job)
-            if latest and job["last_run_slot"] != _slot_key(latest, job):
-                due.append(job)
-            continue
         if not _runs_on(job, now):
             continue
         slot = _slot_dt(now, job)
@@ -572,18 +563,6 @@ def _due_jobs(store: dict, now: datetime) -> list[dict]:
         due.append(job)
     due.sort(key=lambda item: ACTION_ORDER.index(item["action"]))
     return due
-
-
-def _latest_slot(now, job):
-    if job["action"] != "ai_news":
-        return None
-    created = _parse_iso(job["created_at"], "created_at")
-    for ago in range(8):
-        day = now - timedelta(days=ago)
-        slot = _slot_dt(day, job)
-        if _runs_on(job, day) and created < slot <= now:
-            return slot
-    return None
 
 
 def _heartbeat(store: dict, now: datetime) -> bool:
