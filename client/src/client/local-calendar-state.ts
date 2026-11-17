@@ -42,7 +42,10 @@ export class LocalCalendarController{
       this.syncHint=`检测到 ${pending.length} 条本地日程，可以同步到飞书。`;
     }
     this.syncSeen={connection,pending};
-    try{this.storage?.setItem(this.syncHintKey,JSON.stringify(this.syncSeen));}catch{/* 内存继续去重。 */}
+    try{
+      if(connection)this.storage?.setItem(this.syncHintKey,JSON.stringify(this.syncSeen));
+      else if(previous.connection)this.storage?.removeItem(this.syncHintKey);
+    }catch{/* 内存继续去重。 */}
   }
   syncNotice(){
     const hint=this.syncHint;
