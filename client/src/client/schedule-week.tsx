@@ -108,7 +108,12 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   useEffect(()=>local.subscribe(redraw),[local]);
   // 点击菜单外部时收起「更多」；菜单内按钮由点击代理统一关闭。
   useEffect(()=>{const close=(event:PointerEvent)=>{if(moreOpen&&!moreMenu.current?.contains(event.target as Node)){setMoreOpen(false);setKeyboardHelpOpen(false);}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[moreOpen]);
-  useEffect(()=>{if(!active)return;void(async()=>{if(await local.read()){const hint=local.syncNotice();if(hint)setSyncHint(hint);}})();},[active,local,revision]);
+  useEffect(()=>{
+    if(!active){setSyncHint('');return;}
+    let current=true;
+    void local.read().then(ok=>{if(current&&ok){const hint=local.syncNotice();if(hint)setSyncHint(hint);}});
+    return ()=>{current=false;};
+  },[active,local,revision]);
   useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
   useEffect(()=>{if(!target.proposal)return;try{
     const proposal=calendarProposal(target.proposal);if(draft?.proposal?.id===proposal.id)return;

@@ -7,6 +7,29 @@ const storage=()=>{const data=new Map();return {data,getItem:k=>data.get(k)||nul
 const page=extra=>({ok:true,events:[],operations:[],batches:[],...extra});
 const day=state.addCalendarDays(state.beijingDay(),1);
 const event=(id,extra={})=>({calendar_id:'tebb-local',event_id:id,local_id:id,local_version:1,summary:id,start:day+'T09:00:00+08:00',end:day+'T10:00:00+08:00',eligible:true,editable:true,verification:'confirmed',status:'confirmed',checked_at:'2000-01-01',sync_state:'local',...extra});
+test('the connected calendar prompts once per login or newly pending local item',async()=>{
+ const memory=storage();
+ let connection='login-1',events=[event('local')];
+ const transport=async(method,args)=>{
+  assert.equal(method,'load_local_calendar');
+  assert.deepEqual(args,{request_id:''});
+  return page({feishu_connection_id:connection,events});
+ };
+ let controller=new LocalCalendarController(transport,memory);
+ await controller.read();
+ assert.match(controller.syncNotice(),/检测到 1 条/);
+ controller=new LocalCalendarController(transport,memory);
+ await controller.read();
+ assert.equal(controller.syncNotice(),'');
+ connection='login-2';
+ await controller.read();
+ assert.match(controller.syncNotice(),/检测到 1 条/);
+ events=[...events,event('new'),event('remote',{sync_state:'synced'})];
+ await controller.read();
+ assert.match(controller.syncNotice(),/检测到 2 条/);
+ await controller.read();
+ assert.equal(controller.syncNotice(),'');
+});
 test('local storage failure prevents submission and a lost ack keeps the same identity across restart',async()=>{
  let writes=0,saved;const memory=storage(),transport=async(method,args)=>{if(method==='load_local_calendar')return page(saved?{events:[event(saved.local_id)],operation:{id:saved.request_id,type:'save',state:'saved'}}:{});writes++;saved=args.action;throw Error('closed');};
  let c=new LocalCalendarController(transport,memory,()=> 'fixed-request');
