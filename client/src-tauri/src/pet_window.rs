@@ -69,7 +69,17 @@ pub struct Tracker(Mutex<Option<State>>);
 #[derive(Clone, Copy, Debug)]
 struct State {
     frame: Frame,
-    area: Area,
+    target: Target,
+    desired_center: (i64, i64),
+}
+
+impl State {
+    fn shifted_center(&self, dx: f64, dy: f64) -> (i64, i64) {
+        (
+            self.desired_center.0.saturating_add((dx * self.frame.scale).round() as i64),
+            self.desired_center.1.saturating_add((dy * self.frame.scale).round() as i64),
+        )
+    }
 }
 
 impl Tracker {
@@ -144,8 +154,9 @@ fn project(frame: &Frame, scale: f64) -> Frame {
 }
 
 /// 选择离桌宠锚点最近的工作区，跨显示器和拼接缝隙时都收敛到最近的一块。
-fn target_at(window: &WebviewWindow, point: (i64, i64)) -> Result<Target, String> {
+fn locate(window: &WebviewWindow, point: (i64, i64)) -> Result<(Target, (i64, i64)), String> {
     let mut nearest: Option<(i64, Target)> = None;
+    let (mut left, mut top, mut right, mut bottom) = (i64::MAX, i64::MAX, i64::MIN, i64::MIN);
     for monitor in window.available_monitors().map_err(|err| err.to_string())? {
         let work = monitor.work_area();
         let area = Area {
@@ -154,21 +165,25 @@ fn target_at(window: &WebviewWindow, point: (i64, i64)) -> Result<Target, String
             w: work.size.width as i32,
             h: work.size.height as i32,
         };
+        left = left.min(i64::from(area.x));
+        top = top.min(i64::from(area.y));
+        right = right.max(i64::from(area.x) + i64::from(area.w));
+        bottom = bottom.max(i64::from(area.y) + i64::from(area.h));
         let distance = distance_squared(area, point);
         if nearest.map_or(true, |(best, _)| distance < best) {
             nearest = Some((distance, Target { area, scale: monitor.scale_factor() }));
         }
     }
     nearest
-        .map(|(_, target)| target)
+        .map(|(_, target)| (target, (point.0.clamp(left, right), point.1.clamp(top, bottom))))
         .ok_or_else(|| "找不到可用的显示器，暂时无法定位桌宠。".to_string())
 }
 
 /// 读取窗口实际几何，并按当前锚点确定工作区。
 fn read_state(window: &WebviewWindow) -> Result<State, String> {
     let frame = Frame::read(window)?;
-    let target = target_at(window, frame.anchor_center())?;
-    Ok(State { frame, area: target.area })
+    let (target, desired_center) = locate(window, frame.anchor_center())?;
+    Ok(State { frame, target, desired_center })
 }
 
 /// 按目标缩放投影窗口，并让锚点中心落在期望位置；返回校正后的窗口几何。
@@ -194,22 +209,19 @@ pub fn move_by(window: &WebviewWindow, tracker: &Tracker, dx: f64, dy: f64) -> R
         *guard = Some(read_state(window)?);
     }
     let state = guard.as_mut().ok_or("桌宠位置状态初始化失败。")?;
-    let anchor = state.frame.anchor_center();
-    let center = (
-        anchor.0 + (dx * state.frame.scale).round() as i64,
-        anchor.1 + (dy * state.frame.scale).round() as i64,
-    );
+    // 累计未约束的位置。实际窗口被边距夹住时，小步移动也要能越过屏幕接缝。
+    let center = state.shifted_center(dx, dy);
     // 目标锚点仍在当前工作区时直接复用缓存，避免每帧枚举显示器。
-    let target = if state.area.contains(center) {
-        Target { area: state.area, scale: state.frame.scale }
+    let (target, desired_center) = if state.target.area.contains(center) {
+        (state.target, center)
     } else {
-        target_at(window, center)?
+        locate(window, center)?
     };
-    let next = positioned_frame(&state.frame, center, target);
+    let next = positioned_frame(&state.frame, desired_center, target);
     if (next.x, next.y) != (state.frame.x, state.frame.y) {
         window.set_position(PhysicalPosition::new(next.x, next.y)).map_err(|err| err.to_string())?;
     }
-    *state = State { frame: next, area: target.area };
+    *state = State { frame: next, target, desired_center };
     Ok(())
 }
 
@@ -217,19 +229,19 @@ pub fn move_by(window: &WebviewWindow, tracker: &Tracker, dx: f64, dy: f64) -> R
 pub fn ensure_visible(window: &WebviewWindow, tracker: &Tracker) -> Result<(), String> {
     let frame = Frame::read(window)?;
     let center = frame.anchor_center();
-    let target = target_at(window, center)?;
+    let (target, _) = locate(window, center)?;
     let next = positioned_frame(&frame, center, target);
     if (next.x, next.y) != (frame.x, frame.y) {
         window.set_position(PhysicalPosition::new(next.x, next.y)).map_err(|err| err.to_string())?;
     }
-    *tracker.lock()? = Some(State { frame: next, area: target.area });
+    *tracker.lock()? = Some(State { frame: next, target, desired_center: next.anchor_center() });
     Ok(())
 }
 
 /// 把桌宠移回当前显示器右下角，作为屏幕外时的找回入口。
 pub fn recover(window: &WebviewWindow, tracker: &Tracker) -> Result<(), String> {
     let frame = Frame::read(window)?;
-    let target = target_at(window, frame.anchor_center())?;
+    let (target, _) = locate(window, frame.anchor_center())?;
     let projected = project(&frame, target.scale);
     let margin = px(RECOVER_MARGIN, projected.scale).max(1);
     let desired = (
@@ -239,7 +251,7 @@ pub fn recover(window: &WebviewWindow, tracker: &Tracker) -> Result<(), String> 
     let (x, y) = constrain(&projected, desired, target.area);
     window.set_position(PhysicalPosition::new(x, y)).map_err(|err| err.to_string())?;
     let next = Frame { x, y, w: projected.w, h: projected.h, scale: projected.scale };
-    *tracker.lock()? = Some(State { frame: next, area: target.area });
+    *tracker.lock()? = Some(State { frame: next, target, desired_center: next.anchor_center() });
     Ok(())
 }
 
@@ -247,7 +259,7 @@ pub fn recover(window: &WebviewWindow, tracker: &Tracker) -> Result<(), String> 
 mod tests {
     use super::{
         anchor_center_offset, constrain, distance_squared, positioned_frame, project, Area, Frame,
-        Target,
+        State, Target,
     };
 
     fn frame(scale: f64) -> Frame {
@@ -310,5 +322,18 @@ mod tests {
         let (offset_x, offset_y) = anchor_center_offset(&next);
         assert_eq!((next.x + offset_x, next.y + offset_y), (230, 828));
         assert_eq!((next.w, next.h), (390, 570));
+    }
+
+    #[test]
+    fn small_drag_steps_accumulate_past_the_monitor_margin() {
+        let target = Target { area: Area { x: 0, y: 0, w: 1920, h: 1080 }, scale: 1.0 };
+        let mut state = State { frame: frame(1.0), target, desired_center: (1911, 700) };
+        for _ in 0..10 {
+            state.desired_center = state.shifted_center(1.0, 0.0);
+            state.frame = positioned_frame(&state.frame, state.desired_center, state.target);
+        }
+        assert_eq!(state.frame.anchor_center(), (1912, 700));
+        assert_eq!(state.desired_center, (1921, 700));
+        assert!(!target.area.contains(state.desired_center));
     }
 }
