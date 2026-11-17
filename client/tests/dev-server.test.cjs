@@ -1,5 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const {setTimeout:delay}=require('node:timers/promises');
 
 test('standard Vite config serves, invalidates changed frontend modules and excludes native outputs',async()=>{
   const {createServer}=await import('vite');
@@ -14,6 +15,14 @@ test('standard Vite config serves, invalidates changed frontend modules and excl
     const get=async url=>{const r=await fetch(base+url,{signal:AbortSignal.timeout(15000)});assert.equal(r.status,200);return r.text();};
     assert.match(await get('/client.html'),/root/);
     const url='/'+path.relative(root,file).replaceAll('\\','/');assert.match(await get(url),/before/);
+    // HTTP is ready before Chokidar completes its initial directory scan.
+    const watchDeadline=Date.now()+15000;
+    for(;;){
+      const watched=Object.entries(server.watcher.getWatched());
+      if(watched.some(([directory,children])=>path.resolve(directory)===probe&&children.includes(path.basename(file))))break;
+      assert(Date.now()<watchDeadline,'Vite did not register the probe module');
+      await delay(25);
+    }
     const changed=new Promise((resolve,reject)=>{
       const timer=setTimeout(()=>{server.watcher.off('change',listener);reject(Error('frontend change not observed'));},15000);
       const listener=name=>{if(path.resolve(name)!==file)return;clearTimeout(timer);server.watcher.off('change',listener);resolve();};
