@@ -434,7 +434,7 @@ test('streaming output renders Markdown immediately, reveals new text and keeps 
   assert.equal(view.root.findAllByType('table').length, 1);
   assert(view.root.findAllByType('code').some(n => text(n).includes('const a = 1;')));
   assert(view.root.findAllByType('span').filter(n => n.props.className?.includes('tebb-stream-new')).every(n => !text(n).includes('研究结论') && !text(n).includes('重点')));
-  assert(view.root.findAllByType('span').filter(n => n.props.className?.includes('tebb-stream-new')).length <= 8);
+  assert(view.root.findAllByType('span').filter(n => n.props.className?.includes('tebb-stream-new')).length > 8);
   assert.equal(view.root.findAllByType('script').length, 0);
   assert(!view.root.findAllByType('a').some(n => /^javascript:/i.test(n.props.href || '')));
   assert.equal(view.root.findAllByProps({ 'aria-label': '正在输出' }).length, 1);

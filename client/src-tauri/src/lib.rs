@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager, PhysicalPosition};
 pub mod main_window;
 use main_window::{show_main, open_today};
+mod pet_window;
 mod video_login;
 mod pet_chat;
 mod settings_window;
@@ -34,6 +35,8 @@ struct Rect {
 
 struct BackendProcess(Mutex<Option<Child>>);
 struct BackendFailure(Mutex<Option<String>>);
+// 退出收尾只在后台线程执行一次，期间持续拦截退出请求。
+static EXIT_CLEANUP_RUNNING: AtomicBool = AtomicBool::new(false);
 struct HitRegions(std::sync::Arc<Mutex<Vec<Rect>>>);
 struct DragLock(std::sync::Arc<AtomicBool>);
 struct MenuRegion(std::sync::Arc<Mutex<Option<Rect>>>);
@@ -75,11 +78,17 @@ async fn backend_info(app: tauri::AppHandle, info: tauri::State<'_, BackendInfo>
 
 // 隐藏只是把宠物窗收起，主窗还在，可再唤出。不要关整个进程。
 #[tauri::command]
-fn set_pet_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+fn set_pet_visible(
+    app: tauri::AppHandle,
+    tracker: tauri::State<pet_window::Tracker>,
+    visible: bool,
+) -> Result<(), String> {
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
     if visible {
+        // 显示器拔插或分辨率变化后，旧位置可能已在工作区外，先校正再显示。
+        pet_window::ensure_visible(&window, &tracker)?;
         window.show().map_err(|err| err.to_string())?;
         window.set_focus().map_err(|err| err.to_string())?;
     } else {
@@ -88,24 +97,47 @@ fn set_pet_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
     Ok(())
 }
 
-// 拖动中禁止穿透，否则窗口一动，松手事件会丢。
+// 找回入口：把桌宠移回当前显示器右下角并显示，避免用户只能重启客户端。
 #[tauri::command]
-fn set_drag_lock(lock: tauri::State<DragLock>, locked: bool) {
-    lock.0.store(locked, Ordering::Relaxed);
-}
-
-#[tauri::command]
-fn nudge_pet(app: tauri::AppHandle, dx: f64, dy: f64) -> Result<(), String> {
+fn recover_pet(app: tauri::AppHandle, tracker: tauri::State<pet_window::Tracker>) -> Result<(), String> {
     let window = app
         .get_webview_window("pet")
         .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
-    let scale = window.scale_factor().map_err(|err| err.to_string())?;
-    let pos = window.outer_position().map_err(|err| err.to_string())?;
-    let nx = pos.x + (dx * scale).round() as i32;
-    let ny = pos.y + (dy * scale).round() as i32;
-    window
-        .set_position(tauri::PhysicalPosition::new(nx, ny))
-        .map_err(|err| err.to_string())
+    pet_window::recover(&window, &tracker)?;
+    window.show().map_err(|err| err.to_string())?;
+    window.set_focus().map_err(|err| err.to_string())
+}
+
+// 拖动中禁止穿透，否则窗口一动，松手事件会丢。
+#[tauri::command]
+fn set_drag_lock(
+    app: tauri::AppHandle,
+    lock: tauri::State<DragLock>,
+    tracker: tauri::State<pet_window::Tracker>,
+    locked: bool,
+) -> Result<(), String> {
+    lock.0.store(locked, Ordering::Relaxed);
+    if !locked {
+        return Ok(());
+    }
+    // 每次按下重新读取实际位置，作为本次拖动和后续惯性滑行的基准。
+    let window = app
+        .get_webview_window("pet")
+        .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
+    pet_window::refresh(&window, &tracker)
+}
+
+#[tauri::command]
+fn nudge_pet(
+    app: tauri::AppHandle,
+    tracker: tauri::State<pet_window::Tracker>,
+    dx: f64,
+    dy: f64,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window("pet")
+        .ok_or("找不到桌宠窗口。恢复：重启客户端。")?;
+    pet_window::move_by(&window, &tracker, dx, dy)
 }
 
 #[tauri::command]
@@ -326,6 +358,7 @@ pub fn run() {
         .manage(DragLock(drag_lock_for_state))
         .manage(MenuRegion(menu_region.clone()))
         .manage(PendingSettingsTarget(std::sync::Mutex::new(None)))
+        .manage(pet_window::Tracker::default())
         .setup(move |app| {
             if let Some(main) = app.get_webview_window("main") {
                 main_window::retain_on_close(&main);
@@ -366,6 +399,7 @@ pub fn run() {
             set_pet_menu_region,
             backend_info,
             set_pet_visible,
+            recover_pet,
             set_pet_chat_visible,
             toggle_pet_chat,
             get_pet_chat_state,
@@ -386,15 +420,29 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败")
         .run(|app, event| {
-            if let tauri::RunEvent::ExitRequested { .. } = event {
-                if let Some(state) = app.try_state::<BackendProcess>() {
-                    if let Ok(mut guard) = state.0.lock() {
-                        if let Some(mut child) = guard.take() {
-                            let backend = app.state::<BackendInfo>();
-                            if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
-                        }
-                    }
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let Some(state) = app.try_state::<BackendProcess>() else { return; };
+                // 后端已停（账号切换已收尾）且没有进行中的收尾时放行退出。
+                let running = state.0.lock().map(|guard| guard.is_some()).unwrap_or(false);
+                if !running && !EXIT_CLEANUP_RUNNING.load(Ordering::SeqCst) { return; }
+                // 后端收尾要等同步线程、定时扫描和进程退出，最长上百秒，不能占住事件循环：
+                // 先拦下退出并隐藏窗口，收尾移到后台线程，完成后再真正退出。
+                api.prevent_exit();
+                if EXIT_CLEANUP_RUNNING.swap(true, Ordering::SeqCst) { return; }
+                for (_, window) in app.webview_windows() {
+                    let _ = window.hide();
                 }
+                let handle = app.clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<BackendProcess>();
+                    let child = state.0.lock().ok().and_then(|mut guard| guard.take());
+                    if let Some(mut child) = child {
+                        let backend = handle.state::<BackendInfo>();
+                        if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
+                    }
+                    EXIT_CLEANUP_RUNNING.store(false, Ordering::SeqCst);
+                    handle.exit(0);
+                });
             }
         });
 }
@@ -509,6 +557,22 @@ server.server_close()
     }
 }
 
+/// 去掉 Windows 扩展长度前缀。Python 的 Path.as_uri() 会把前缀里的 ? 编码成 %3F，
+/// 生成的 file URI 会被 SQLite 判为非法 authority，只读连接全部失败。
+fn backend_data_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let text = path.to_string_lossy();
+        if let Some(rest) = text.strip_prefix("\\\\?\\") {
+            // UNC 路径去掉前缀会丢失服务器/共享语义，保留原样。
+            if !rest.starts_with("UNC\\") {
+                return std::path::PathBuf::from(rest);
+            }
+        }
+    }
+    path
+}
+
 fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child, String> {
     let (python, working_dir) = backend_location()?;
     let data_dir = if let Some(value) = std::env::var_os("DESK_COMPANION_DATA_DIR") {
@@ -518,6 +582,7 @@ fn start_backend(app: &tauri::AppHandle, port: u16, token: &str) -> Result<Child
     } else {
         app.path().local_data_dir().map_err(|err| err.to_string())?.join("DeskCompanion")
     };
+    let data_dir = backend_data_path(data_dir);
     std::fs::create_dir_all(&data_dir).map_err(|err| format!("无法创建用户数据目录：{err}"))?;
     let assets_dir = if cfg!(debug_assertions) { working_dir.join("client/public") } else { data_dir.join("assets") };
     std::fs::create_dir_all(&assets_dir).map_err(|err| err.to_string())?;

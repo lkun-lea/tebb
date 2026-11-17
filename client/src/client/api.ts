@@ -157,6 +157,19 @@ export function streamChat(
   ws.onerror = () => handlers.onError("连不上本地后端。恢复：看 tebb 日志后重启客户端");
 }
 
+/** 订阅协作任务的正文增量；只读推送，断线后由界面轮询继续兜住结构状态。 */
+export function watchCollaboration(info: BackendInfo, onText: (run: string, text: string) => void): () => void {
+  const ws = new WebSocket(`ws://127.0.0.1:${info.port}/stream?token=${encodeURIComponent(info.token)}`);
+  ws.onmessage = (ev) => {
+    let msg: { type?: string; data?: { run?: string; text?: string } };
+    try { msg = JSON.parse(String(ev.data)); } catch { return; }
+    if (msg.type === 'run_text' && typeof msg.data?.run === 'string' && typeof msg.data.text === 'string') {
+      onText(msg.data.run, msg.data.text);
+    }
+  };
+  return () => ws.close();
+}
+
 export function rpc<T>(
   info: BackendInfo,
   method: string,

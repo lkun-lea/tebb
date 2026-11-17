@@ -19,7 +19,7 @@ class Queue:
     def __init__(self):
         self.settings = {}; self.items = {}; self.requests = {}
 
-    def submit(self, text, session, channel, submission_key="", **request):
+    def submit(self, text, session, channel, submission_key="", callback=None, **request):
         if submission_key not in self.items:
             self.items[submission_key] = dict(id=submission_key, state="queued", answer="", error="", events=[])
             self.requests[submission_key] = dict(text=text, session_id=session, **request)

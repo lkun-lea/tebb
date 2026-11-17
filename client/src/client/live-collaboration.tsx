@@ -5,7 +5,7 @@ import { ChatPrototype } from "./chat-prototype";
 import { ReportAssetProvider } from './report-charts';
 import type { DemoAction, DemoState } from "./chat-prototype-state";
 import { startupReady } from "./startup";
-import { CollaborationSync, loadCollaboration } from './collaboration-sync';
+import { CollaborationSync, loadCollaboration, useCollaborationStream } from './collaboration-sync';
 
 const ACCESS_KEY = "tebb.collaboration.preview-access";
 
@@ -64,6 +64,7 @@ export function LiveCollaboration({ info: provided, standalone = false, composeR
     void refresh(); const timer = window.setInterval(() => void refresh(), 400);
     return () => { live = false; window.clearInterval(timer); };
   }, [info, retry, accept]);
+  useCollaborationStream(info, sync.current, setState);
   const act = async (action: DemoAction): Promise<boolean> => {
     if (!info || !state || busy) return false;
     setBusy(true); setActionError("");

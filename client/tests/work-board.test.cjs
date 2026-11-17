@@ -85,7 +85,7 @@ test('plan execution success does not disguise unfinished delivery',()=>{
 });
 
 test('real component creates, moves, archives, restores and preserves its edit form',async()=>{
-  global.crypto=require('node:crypto').webcrypto;global.window={setInterval:()=>1,clearInterval(){}};global.document={activeElement:null};
+  global.crypto=require('node:crypto').webcrypto;global.window=new EventTarget();global.document={activeElement:null};
   let dragProps,scheduleProps,weekProps,keyboardOptions;
   const wrapper=tag=>React.forwardRef((props,ref)=>React.createElement(tag,{...props,ref},props.children));
   const dnd={DndContext:props=>{dragProps=props;return React.createElement('div',{},props.children);},DragOverlay:()=>null,

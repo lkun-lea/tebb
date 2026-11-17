@@ -26,8 +26,7 @@ export function SchedulePane({info,debug=false,transport,target,onClose,onReturn
   }),target.item_id||'',target.day||beijingDay(),typeof window!=='undefined'?accountStorage(window.localStorage):undefined),[transport,info?.port,info?.token,target.item_id]);
   const [,redraw]=useReducer(value=>value+1,0);
   useEffect(()=>controller.subscribe(redraw),[controller]);
-  useEffect(()=>{if(!active)return;let live=true;void(async()=>{await controller.read(day);if(live){const checked=await controller.read(day,true);if(live){changes.current();if(checked&&initialLocate.current){initialLocate.current=false;const event=controller.page.links.find(link=>key(link.event)===`${target.calendar_id}/${target.event_id}`)?.event;if(event?.verification==='confirmed'&&event.start.includes('T')){setDay(beijingDay(event.start));setSelection(key(event));}}}}})();
-    const timer=window.setInterval(()=>{if(!controller.loading&&!controller.pending)void controller.read(day);},5000);return()=>{live=false;window.clearInterval(timer);};},[active,controller,day]);
+  useEffect(()=>{if(!active)return;void controller.read(day);},[active,controller,day]);
   useEffect(()=>{const previous=document.activeElement as HTMLElement|null;root.current?.querySelector<HTMLElement>('button')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[]);
   useEffect(()=>{if(leave)leaveRoot.current?.querySelector<HTMLElement>('button')?.focus();},[!!leave]);
   useEffect(()=>{if(selection)root.current?.querySelector('[data-calendar-selected=true]')?.scrollIntoView?.({block:'nearest',behavior:'instant'});},[selection,controller.page.events]);
@@ -37,7 +36,14 @@ export function SchedulePane({info,debug=false,transport,target,onClose,onReturn
   const blocked=controller.pending||!!controller.unknown;
   const selected=controller.page.events.find(e=>key(e)===selection)||links.find(l=>key(l.event)===selection)?.event;
   function guard(next:()=>void){if(draft&&JSON.stringify(draft)!==draftBase.current){setLeave(()=>next);setPicker(null);}else next();}
-  async function refresh(){await controller.read(day,true);changes.current();}
+  async function refresh(){
+    const ok=await controller.read(day,true);changes.current();
+    if(ok&&initialLocate.current){
+      initialLocate.current=false;
+      const event=controller.page.links.find(link=>key(link.event)===`${target.calendar_id}/${target.event_id}`)?.event;
+      if(event?.verification==='confirmed'&&event.start.includes('T')){setDay(beijingDay(event.start));setSelection(key(event));}
+    }
+  }
   async function apply(action:Omit<ScheduleAction,'request_id'|'item_id'|'version'|'day'>){
     if(!item)return false;
     const ok=await controller.change({...action,item_id:item.id,version:item.version,day});changes.current();return ok;
@@ -92,7 +98,7 @@ export function SchedulePane({info,debug=false,transport,target,onClose,onReturn
       {formError&&<p role="alert" className="sc-error">{formError}</p>}
       <div className="sc-actions"><button type="submit" className="wb-primary" disabled={blocked||!!operations.length||item?.archived}>{controller.pending?'提交中…':'确认新建并关联'}</button><button type="button" disabled={controller.pending} onClick={()=>guard(()=>{setDraft(null);setPicker(null);})}>收起表单</button></div>
     </form>}
-    <section className="sc-section"><h3>所选日期</h3>{!controller.page.events_valid&&<p className="sc-warning">{controller.page.events_error||'尚未完成远端核对。'}{controller.page.events.length?' 下方为上次读取的信息。':''}</p>}
+    <section className="sc-section"><h3>所选日期</h3>{!controller.page.events_valid&&<p className="sc-warning">{controller.remoteAttempt?(controller.page.events_error||'尚未完成远端核对。'):'上次读取的日程尚未核对。'}{controller.page.events.length?' 下方为上次读取的信息。':''}</p>}
       {controller.page.events_valid&&!controller.page.events.length&&<p className="sc-caption">这一天没有读到日程。</p>}
       {(controller.page.day===day?controller.page.events:[]).map(event=>{const owner=controller.page.links.find(link=>key(link.event)===key(event));const source=controller.page.items.find(i=>i.id===owner?.item_id);
         return <article className={`sc-event${selection===key(event)?' sc-selected':''}`} data-calendar-selected={selection===key(event)} key={key(event)}><button className="sc-event-title" type="button" onClick={()=>guard(()=>{initialLocate.current=false;setSelection(key(event));setDraft(null);})}>{event.summary}</button><p>{eventTime(event)}</p><small>{eventHealth(controller.page.events_valid?event:{...event,verification:'read_failed'})}{!event.eligible?' · '+event.reason:''}</small>

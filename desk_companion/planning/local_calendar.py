@@ -11,6 +11,7 @@ from desk_companion.planning import work_items
 from desk_companion.planning.board_data import calendar_operation
 from desk_companion.planning.calendar_adapter import CalendarError, creation_fields, identifier
 from desk_companion.planning.calendar_time import TZ, day_range
+from desk_companion.integrations.feishu.feishu_access import connected
 
 LOCAL = 'tebb-local'
 ACTIVE = {'prepared', 'calling', 'remote_created', 'unconfirmed'}
@@ -152,7 +153,7 @@ class LocalCalendarService:
                 operation = ops.get(request_id)
                 if not operation and request_id in state.get('calendar_sync_batches', {}):
                     operation = dict(id=request_id, type='prepare_sync', state='saved', stage='committed', error='')
-                return dict(ok=True, events=[self.view(state, r) for r in self.records(state).values()],
+                return dict(ok=True, feishu_connected=connected(), events=[self.view(state, r) for r in self.records(state).values()],
                     operations=[self.public(o) for o in ops.values() if o['state'] in ACTIVE],
                     operation=self.public(operation),
                     batches=[self.public_batch(b) for b in state.get('calendar_sync_batches', {}).values()])

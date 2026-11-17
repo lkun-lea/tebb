@@ -26,8 +26,8 @@ export function CalendarWorkspace(props:Props){
     if(result.summary)setReviewText(result.summary);if(!result.ok)throw Error(result.error||'复盘未完整完成，请核对。');if(result.url)setReviewError('飞书文档已创建：'+result.url);props.onRefresh();
   }catch(e){setReviewError(String(e));}finally{setReviewBusy(false);}}
   const tasks=props.data?boardModel(props.data,new Date()):null;
-  const tabs=<nav className="workspace-tabs" aria-label="日程视图">{([['month','月视图'],['week','周视图'],['day','单日']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={view===id} onClick={()=>navigate(()=>setView(id))}>{label}</button>)}</nav>;
-  const more=<details className="calendar-more"><summary>更多 ···</summary><div><button type="button" onClick={()=>navigate(()=>{setPanel('tasks');props.onRefresh();})}>飞书待办</button><button type="button" onClick={()=>navigate(()=>{setReviewText(props.data?.summary||'');setPanel('review');})}>本周复盘</button></div></details>;
+  const tabs=<nav className="workspace-tabs" aria-label="日程视图">{([['month','月'],['week','周'],['day','日']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={view===id} onClick={()=>navigate(()=>setView(id))}>{label}</button>)}</nav>;
+  const more=<><button type="button" onClick={()=>navigate(()=>{setPanel('tasks');props.onRefresh();})}>飞书待办</button><button type="button" onClick={()=>navigate(()=>{setReviewText(props.data?.summary||'');setPanel('review');})}>本周复盘</button></>;
   return <div className="calendar-workspace work-board" data-calendar-workspace>
     <Suspense fallback={<p role="status">正在打开时间轴…</p>}><ScheduleWeekPane key={`${target.proposal?.id||''}/${target.calendar_id||''}/${target.event_id||''}/${target.day||''}`} info={props.info} debug={props.debug} transport={demo?.schedule} target={target} revision={revision} view={view} onViewDay={date=>{setTarget({day:date,item_id:target.item_id});setView('day');}}
       onNavigationGuard={next=>{guard.current=next;}} closeLabel="" onClose={()=>{}} onReturn={props.onItem} onDay={setDaily} onChange={changed} viewTabs={tabs} extraActions={more}/></Suspense>

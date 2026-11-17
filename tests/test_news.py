@@ -243,23 +243,25 @@ class NewsTests(unittest.TestCase):
             with patch.object(news.urllib.request, "build_opener", return_value=opener):
                 self.assertEqual(news.fetch_source(url)["published"], expected)
 
-    def test_latest_missed_slot_runs_once_without_replaying_days(self):
+    def test_news_job_only_runs_inside_scheduled_slot(self):
         base = dict(name="日报", action="ai_news", enabled=True, cadence="daily", weekdays=[], hour=9, minute=0)
         automation.upsert_job(base)
         store = automation.load_store()
         job = store["jobs"][0]
-        now = datetime(2026, 10, 8, 14, 0, tzinfo=TZ)
-        job["created_at"] = (now - timedelta(days=10)).isoformat()
-        store["last_alive_at"] = (now - timedelta(days=5)).isoformat()
-        self.assertFalse(automation._mark_missed(store, now))
+        job["created_at"] = datetime(2026, 10, 1, 9, 0, tzinfo=TZ).isoformat()
+        slot = datetime(2026, 10, 8, 9, 0, tzinfo=TZ)
+        now = slot.replace(second=30)
+        # 计划时段内正常触发，且记录的是当天时段。
         self.assertEqual(automation._due_jobs(store, now), [job])
-        latest = automation._latest_slot(now, job)
-        self.assertEqual(latest, now.replace(hour=9))
-        job["last_run_slot"] = automation._slot_key(latest, job)
+        job["last_run_slot"] = automation._slot_key(now, job)
         self.assertEqual(automation._due_jobs(store, now), [])
+        # 启动发生在计划时间之后时不再补跑，只标记错过。
+        self.assertEqual(automation._due_jobs(store, now.replace(hour=14, minute=0)), [])
+        # 中断不重置时段，重启后不会立即再触发一次。
         job["last_result"] = "running"
-        self.assertTrue(automation._abandon_queued(store))
-        self.assertEqual(automation._due_jobs(store, now), [job])
+        with patch.object(automation, "_now", return_value=now):
+            self.assertTrue(automation._abandon_queued(store))
+        self.assertEqual(automation._due_jobs(store, now), [])
 
     def test_disabled_new_jobs_and_legacy_actions_do_not_catch_up(self):
         now = datetime(2026, 10, 8, 14, tzinfo=TZ)

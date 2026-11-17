@@ -68,7 +68,7 @@ test('floating chat shares real conversation, scopes drafts, handles IME and clo
   const state={revision:1,selected:'a',agents:[{id:'tebb',name:'小光'}],conversations:[{id:'a',title:'会话A'},{id:'b',title:'会话B'}],messages:[],runs:[],models:[]};
   const {PetChat}=load('pet-chat',{
     './composer-picker':load('composer-picker'),
-    './api':{rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}: {state};}},
+    './api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}: {state};}},
     './chat-prototype-state':{runActive:r=>r.state==='running',RUN_LABELS:{running:'执行中'}},
     './stream-text':{StreamText:({text})=>React.createElement('p',null,text)},'./companion-ui':{AppIcon:()=>null},
     '@tauri-apps/api/core':{isTauri:()=>true,invoke:async(name,args)=>invoked.push({name,args})},
@@ -96,7 +96,7 @@ test('floating @ and / select authorized members and skills, and pin changes ref
     conversations:[{id:'a',title:'会话A',members:['tebb']}],messages:[],runs:[],models:[],skills:[{id:'github-summary',description:'整理项目近况'}]};
   const {PetChat}=load('pet-chat',{
     './composer-picker':load('composer-picker'),
-    './api':{rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}:{state};}},
+    './api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}:{state};}},
     './chat-prototype-state':{runActive:()=>false,RUN_LABELS:{}},'./stream-text':{StreamText:()=>null},'./companion-ui':{AppIcon:()=>null},
     '@tauri-apps/api/core':{isTauri:()=>true,invoke:async(name,args)=>{
       if(name==='get_pet_chat_state')return {visible:true,pinned:false};
@@ -128,7 +128,7 @@ test('floating toolbar creates a new conversation without cancelling work, prese
   const calls=[];let failed=true;
   let state={revision:1,selected:'old',agents:[{id:'tebb',name:'小缇'}],conversations:[{id:'old',title:'旧对话',coordinator:'tebb'}],messages:[],runs:[],models:[]};
   const {PetChat}=load('pet-chat',{
-    './composer-picker':load('composer-picker'),'./api':{rpc:async(_i,method,args)=>{
+    './composer-picker':load('composer-picker'),'./api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{
       if(method==='load_task_progress')return {enabled:true};
       if(method==='collaboration_action'){
         calls.push(args.action);
@@ -153,7 +153,7 @@ test('floating toolbar creates a new conversation without cancelling work, prese
 test('floating clarification resumes the original root instead of creating another task',async()=>{
   const bus=new EventTarget();bus.setInterval=()=>1;bus.clearInterval=()=>{};global.window=bus;const calls=[];
   const state={revision:1,selected:'dm',agents:[{id:'tebb',name:'tebb'}],conversations:[{id:'dm',title:'对话',coordinator:'tebb'}],messages:[{id:'question',conversation:'dm',sender:'tebb',run:'root',text:'请说明目标'}],runs:[{id:'root',conversation:'dm',agent:'tebb',kind:'route',state:'needs_input',answer:'请说明目标',events:[],updates:[],calls:1}],models:[]};
-  const {PetChat}=load('pet-chat',{'./stream-text':{StreamText:({text})=>React.createElement('p',null,text)},'./api':{rpc:async(_i,method,args)=>{if(method==='load_task_progress')return {enabled:true};if(method==='collaboration_action')calls.push(args.action);return {state};}},'@tauri-apps/api/core':{isTauri:()=>false,invoke:async()=>false},'@tauri-apps/api/event':{listen:async()=>()=>{}}});let view;
+  const {PetChat}=load('pet-chat',{'./stream-text':{StreamText:({text})=>React.createElement('p',null,text)},'./api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{if(method==='load_task_progress')return {enabled:true};if(method==='collaboration_action')calls.push(args.action);return {state};}},'@tauri-apps/api/core':{isTauri:()=>false,invoke:async()=>false},'@tauri-apps/api/event':{listen:async()=>()=>{}}});let view;
   await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1,token:'test'}}));});
   const supplement=view.root.findAllByType('button').find(node=>text(node)==='改用文字补充');assert(supplement);
   await act(async()=>supplement.props.onClick());await act(async()=>view.root.findByProps({'aria-label':'浮动聊天消息'}).props.onChange({target:{value:'把Hello改小写',selectionStart:10}}));

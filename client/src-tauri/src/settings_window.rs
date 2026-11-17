@@ -30,6 +30,7 @@ pub async fn open_settings_window(app: AppHandle, section: Option<String>, profi
     let dev_url = app.config().build.dev_url.clone();
     let window = WebviewWindowBuilder::new(&app, LABEL, WebviewUrl::App("settings.html".into()))
         .title("tebb 设置").inner_size(960., 680.).min_inner_size(720., 540.)
+        .decorations(false)
         .visible(true)
         .on_navigation(move |url| url.path() == "/settings.html" && (
             (url.scheme() == "tauri" && url.host_str() == Some("localhost")) ||

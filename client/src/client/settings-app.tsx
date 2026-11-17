@@ -27,6 +27,7 @@ import { VideoLogin, VideoSettings } from "./video";
 import { StatusGrid, loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusView } from "./status";
 import { AgentDebugDialog } from "./agent-debug";
 import { readDeveloperMode } from "./companion-ui";
+import { WindowCloseButton } from "./window-chrome";
 import "./settings-window.css";
 
 const PersonalizationPane = lazy(() => import("./personalization").then(module => ({ default: module.PersonalizationPane })));
@@ -286,7 +287,7 @@ export function SettingsApp() {
 
   return (
     <div className="settings-window" data-settings-shell="1" data-settings-section={section}>
-      <aside aria-label="设置导航">
+      <aside aria-label="设置导航" data-tauri-drag-region>
         <div className="settings-search" data-settings-search>
           <input
             type="search"
@@ -296,7 +297,7 @@ export function SettingsApp() {
             onChange={(ev) => setQuery(ev.target.value)}
           />
         </div>
-        <nav aria-label="设置分类" data-settings-filtered={filtered ? nav.length : ""}>
+        <nav aria-label="设置分类" data-tauri-drag-region data-settings-filtered={filtered ? nav.length : ""}>
           {nav.map((group) => (
             <div key={group.id} className="settings-nav-group">
               <p className="settings-nav-group-label">{group.label}</p>
@@ -321,9 +322,9 @@ export function SettingsApp() {
       </aside>
       <main>
         <div className="settings-main-inner">
-          <header className="settings-section-header">
-            <h1>{meta.title}</h1>
-            <p>{meta.blurb}</p>
+          <header className="settings-section-header" data-tauri-drag-region>
+            <h1 data-tauri-drag-region>{meta.title}</h1>
+            <p data-tauri-drag-region>{meta.blurb}</p>
           </header>
           {bootError ? <p role="alert" className="text-sm text-destructive">连不上本地助手：{bootError}。恢复：重启客户端后重试。</p> : null}
 
@@ -431,6 +432,7 @@ export function SettingsApp() {
           </div>
         </div>
       ) : null}
+      <WindowCloseButton />
     </div>
   );
 }

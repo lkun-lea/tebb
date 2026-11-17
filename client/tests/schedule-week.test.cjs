@@ -165,6 +165,7 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
     './workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:props=>{drag=props;return React.createElement('div',{},props.children);},CalendarDragContent:({children})=>children},
     './calendar-item-source':{CalendarItemSource:props=>{source=props;return React.createElement('aside',{'data-items':true});}},
+    './calendar-sync-status':{CalendarSyncStatus:()=>null},
     '@fullcalendar/react':{default:Calendar},'@fullcalendar/timegrid':{},'@fullcalendar/daygrid':{},'@fullcalendar/interaction':{},'@fullcalendar/luxon3':{},'@fullcalendar/core/locales/zh-cn':{},
     'framer-motion':{useReducedMotion:()=>true},'./datetime-field':{DateTimeField:()=>null}}).ScheduleWeekPane;
   const transport=async(method,args)=>{
@@ -212,6 +213,7 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
     './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:({children})=>React.createElement('div',{},children),CalendarDragContent:({children})=>React.createElement('div',{},children)},
     './calendar-item-source':{CalendarItemSource:props=>React.createElement('aside',{'data-items':true,source:props})},
+    './calendar-sync-status':{CalendarSyncStatus:()=>null},
     '@fullcalendar/react':{default:Calendar},'@fullcalendar/timegrid':{},'@fullcalendar/daygrid':{},'@fullcalendar/interaction':{},'@fullcalendar/luxon3':{},'@fullcalendar/core/locales/zh-cn':{},
     'framer-motion':{useReducedMotion:()=>true},'./datetime-field':{DateTimeField:props=>React.createElement('input',{'aria-label':props.marker,value:props.value,onChange:e=>props.onChange(e.target.value)})}}).ScheduleWeekPane;
   const current=event();let view;
@@ -222,7 +224,10 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   act(()=>calendarProps.eventClick({jsEvent:{preventDefault(){}},event:{id:'cal/event_0'}}));
   act(()=>button('修改时间').props.onClick());
   act(()=>view.root.findByProps({'aria-label':'start'}).props.onChange({target:{value:day+'T10:30'}}));
+  // 「更多」改为按钮 + 受控菜单，菜单内容展开后才进入文档
+  act(()=>view.root.findByProps({className:'sw-more-trigger'}).props.onClick());
   act(()=>button('返回工作看板').props.onClick());assert.equal(closed,false);assert(view.root.findByProps({role:'alertdialog'}));
+  act(()=>view.root.findByProps({className:'sw-more-trigger'}).props.onClick());
   act(()=>button('继续编辑').props.onClick());
   // Invalid candidate is rejected before either drag or resize can write.
   assert.equal(calendarProps.eventAllow({allDay:false,start:new Date(time('23:30')),end:new Date(shared.addCalendarDays(day,1)+'T00:30:00+08:00')},{extendedProps:{source:current}}),false);

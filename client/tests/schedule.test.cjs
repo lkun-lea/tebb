@@ -93,19 +93,26 @@ test('real component keeps a failed creation draft and reconciles without anothe
   act(()=>view.unmount());
 });
 
-test('a failed date refresh preserves old times with an explicit unverified label',async()=>{
+test('automatic cached load hides the Feishu failure until an explicit refresh',async()=>{
   const work=workState.workBoardFixture(),server=state.createScheduleDemo(()=>work),SchedulePane=component();let view;
   const transport=async(method,args)=>({...await server(method,args),events_valid:false,events_error:'offline'});
   await act(async()=>{view=create(React.createElement(SchedulePane,{info:null,transport,target:{},onClose(){},onReturn(){},onChange(){}}));});
-  const rendered=JSON.stringify(view.toJSON());assert(rendered.includes('offline'));assert(rendered.includes('读取失败 · 未核对'));assert(rendered.includes('阅读与笔记'));
+  let rendered=JSON.stringify(view.toJSON());
+  assert(!rendered.includes('offline'));assert(rendered.includes('上次读取的日程尚未核对'));assert(rendered.includes('读取失败 · 未核对'));assert(rendered.includes('阅读与笔记'));
+  const refresh=view.root.findAllByType('button').find(button=>button.children[0]==='读取核对');
+  await act(async()=>{refresh.props.onClick();await new Promise(resolve=>setTimeout(resolve,0));});
+  rendered=JSON.stringify(view.toJSON());assert(rendered.includes('offline'));
   act(()=>view.unmount());
 });
 
-test('opening a card follows the verified event date if Feishu moved it since the cached card',async()=>{
+test('an explicit refresh follows the verified event date if Feishu moved it since the cached card',async()=>{
   const SchedulePane=component(),newDay='2026-11-04',oldDay='2026-11-03';let view;
   const event={calendar_id:'cal',event_id:'moved_0',summary:'moved remotely',start:newDay+'T09:00:00+08:00',end:newDay+'T10:00:00+08:00',eligible:true,reason:'',status:'confirmed',verification:'confirmed',error:'',checked_at:new Date().toISOString()};
   const transport=async(_method,args)=>({...page(args.day),links:[{item_id:'item',event}],events:args.day===newDay?[event]:[]});
   await act(async()=>{view=create(React.createElement(SchedulePane,{info:null,transport,target:{item_id:'item',day:oldDay,calendar_id:'cal',event_id:'moved_0'},onClose(){},onReturn(){},onChange(){}}));});
+  assert.equal(view.root.findByProps({'aria-label':'查看日程日期'}).props.value,oldDay);
+  const refresh=view.root.findAllByType('button').find(button=>button.children[0]==='读取核对');
+  await act(async()=>{refresh.props.onClick();await new Promise(resolve=>setTimeout(resolve,0));});
   assert.equal(view.root.findByProps({'aria-label':'查看日程日期'}).props.value,newDay);
   assert(view.root.findAllByType('article').some(a=>a.props['data-calendar-selected']===true));
   act(()=>view.unmount());

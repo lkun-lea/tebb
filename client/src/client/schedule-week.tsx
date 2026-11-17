@@ -10,7 +10,7 @@ import type { EventDropArg, EventInput } from '@fullcalendar/core';
 import { useUiReducedMotion } from './use-ui-reduced-motion';
 import { DRAG_EASING, DRAG_SETTLE_MS } from './drag-motion';
 import { rpc, type BackendInfo } from './api';
-import { UiButton, UiFeedback, UiStableText } from './ui-controls';
+import { UiFeedback, UiStableText } from './ui-controls';
 import { DateTimeField } from './datetime-field';
 import { usePageActive } from './page-stack';
 import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, calendarWeekStart, eventHealth, eventTime,
@@ -22,6 +22,7 @@ import { LocalCalendarController, type SyncBatch } from './local-calendar-state'
 import { CalendarEventEditor, type CalendarDraft } from './calendar-event-editor';
 import { CalendarDragSurface, CalendarDragContent, type CalendarDragSource, type CalendarItem } from './calendar-drag';
 import { CalendarItemSource } from './calendar-item-source';
+import { CalendarSyncStatus, type SyncAction, type SyncGroup, type SyncItem } from './calendar-sync-status';
 import { WorkspaceDialog } from './workspace-dialog';
 import{calendarProposal}from'./calendar-proposal-state';
 import type { DragStartEvent } from '@dnd-kit/core';
@@ -33,7 +34,18 @@ type Props={info:BackendInfo|null;debug?:boolean;transport?:WeekTransport;target
 type Form={key:string;start:string;end:string;summary:string};
 type KeyboardDraft={event:CalendarEvent;draft:TimeDraft};
 const calendarHelp='双击空白新建日程，单击日程查看详情；普通个人日程可长按拖动改期。';
+const keyboardHelp='聚焦时间块后：空格抓取，方向键移动；Shift + 上下调整结束，Alt + 上下调整开始；Enter 保存，Escape 取消。';
 const sameDraft=(event:CalendarEvent,draft:TimeDraft)=>Date.parse(event.start)===Date.parse(draft.start)&&Date.parse(event.end)===Date.parse(draft.end)&&(draft.summary===undefined||draft.summary===event.summary);
+// ISO 周序号用于周期标题，不依赖服务端返回值。
+function isoWeek(day:string){
+  const date=new Date(day+'T00:00:00Z');
+  const target=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate()));
+  const weekday=(target.getUTCDay()+6)%7;
+  target.setUTCDate(target.getUTCDate()-weekday+3);
+  const first=new Date(Date.UTC(target.getUTCFullYear(),0,4));
+  first.setUTCDate(first.getUTCDate()-((first.getUTCDay()+6)%7)+3);
+  return 1+Math.round((target.getTime()-first.getTime())/604800000);
+}
 const safeDay=(event:CalendarEvent,fallback:string)=>{try{return event.start.includes('T')?beijingDay(event.start):event.start||fallback;}catch{return fallback;}};
 function scrollHost(node:HTMLElement):HTMLElement{
   for(let parent:HTMLElement|null=node;parent;parent=parent.parentElement){
@@ -57,10 +69,17 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const [selected,setSelected]=useState(target.event_id&&target.calendar_id?calendarKey(target as {calendar_id:string;event_id:string}):'');
   const [form,setForm]=useState<Form|null>(null),[picker,setPicker]=useState<'start'|'end'|null>(null),[formError,setFormError]=useState('');
   const [leave,setLeave]=useState<null|(()=>void)>(null),[keyboard,setKeyboard]=useState<KeyboardDraft|null>(null),[announcement,setAnnouncement]=useState('');
+  // 快捷键说明在「更多」菜单内就地展开/收起，复用现有菜单，不另开弹出层
+  const [keyboardHelpOpen,setKeyboardHelpOpen]=useState(false);
+  // 「更多」改为按钮 + 受控菜单，沿用原有外部点击、菜单项点击与 Escape 关闭逻辑
+  const [moreOpen,setMoreOpen]=useState(false);
   const [pointerCancelled,setPointerCancelled]=useState(false),[locateCount,setLocateCount]=useState(0);
   const [detailsOpen,setDetailsOpen]=useState(!!target.event_id),[draft,setDraft]=useState<CalendarDraft|null>(null),[draftError,setDraftError]=useState('');
   const [bulk,setBulk]=useState(false),[batchChoice,setBatchChoice]=useState<SyncBatch|null>(null),[resolveId,setResolveId]=useState('');
   const [bulkPreview,setBulkPreview]=useState<CalendarEvent[]>([]);
+  const [syncHint,setSyncHint]=useState('');
+  const [syncOpen,setSyncOpen]=useState(false),[periodOpen,setPeriodOpen]=useState(false);
+  const moreMenu=useRef<HTMLDivElement|null>(null),moreTrigger=useRef<HTMLButtonElement|null>(null);
   const [popover,setPopover]=useState<{left:number;top:number;maxHeight?:number}>({left:12,top:150});
   const dragElement=useRef<HTMLElement|null>(null);
   const dragPointer=useRef<{x:number;y:number}|null>(null),grabOffset=useRef(0);
@@ -87,18 +106,18 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   useEffect(()=>{if(!active)return;const before=(event:Event)=>{if(dirty||local.unknown&&draft){event.preventDefault();guard((event as CustomEvent<{navigate:()=>void}>).detail.navigate);}};window.addEventListener?.('tebb-before-navigate',before);return()=>window.removeEventListener?.('tebb-before-navigate',before);},[active,dirty,form,selected,draft,local.unknown,local.busy]);
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>local.subscribe(redraw),[local]);
-  useEffect(()=>{if(active)void local.read();},[active,local,revision]);
+  // 点击菜单外部时收起「更多」；菜单内按钮由点击代理统一关闭。
+  useEffect(()=>{const close=(event:PointerEvent)=>{if(moreOpen&&!moreMenu.current?.contains(event.target as Node)){setMoreOpen(false);setKeyboardHelpOpen(false);}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[moreOpen]);
+  useEffect(()=>{if(!active)return;void(async()=>{if(await local.read()){const hint=local.syncNotice();if(hint)setSyncHint(hint);}})();},[active,local,revision]);
   useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
   useEffect(()=>{if(!target.proposal)return;try{
     const proposal=calendarProposal(target.proposal);if(draft?.proposal?.id===proposal.id)return;
     guard(()=>{setDetailsOpen(false);setForm(null);setDraftError('');setDay(beijingDay(proposal.start));setDraft(createCalendarDraft(proposal.start,proposal.end,{id:proposal.id,summary:proposal.summary,item_id:proposal.item_id,proposal}));});
   }catch(error){setDraftError(String(error));}},[target]);
-  useEffect(()=>{if(!active)return;controller.setPeriod(view==='month'?'month':'week');let live=true;void(async()=>{await controller.read(day);if(live)await controller.read(day,true);})();
-    const timer=window.setInterval(()=>{if(!controller.loading)void controller.read(day);},5000);return()=>{live=false;window.clearInterval(timer);};},[active,controller,monday,view,day.slice(0,7)]);
+  useEffect(()=>{if(!active)return;controller.setPeriod(view==='month'?'month':'week');void controller.read(day);},[active,controller,monday,view,day.slice(0,7)]);
   useEffect(()=>{if(active&&revision!==undefined)void controller.read(day);},[active,controller,revision]);
   useEffect(()=>{if(!root.current||typeof ResizeObserver==='undefined')return;const observer=new ResizeObserver(entries=>setPaneWidth(entries[0].contentRect.width));observer.observe(root.current);return()=>observer.disconnect();},[]);
   useEffect(()=>{calendar.current?.getApi().changeView(view==='month'?'dayGridMonth':view==='day'?'timeGridDay':'timeGridWeek',viewStart);},[viewStart,view]);
-  useEffect(()=>{if(active)void controller.prepareVisible();},[active,controller,controller.page.checked_at,controller.page.events]);
   useEffect(()=>{root.current?.querySelectorAll<HTMLElement>('[data-week-event]').forEach(element=>{
     const key=element.dataset.weekEvent||'',source=controller.event(key),pending=controller.pending.get(key);
     if(source)annotateEvent(element,pending?.start&&pending.end?{...source,start:pending.start,end:pending.end}:source,
@@ -106,14 +125,14 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     element.setAttribute('aria-busy',String(!!pending));
   });},[controller,version,day,narrow]);
   useEffect(()=>{if(!active)return;calendar.current?.getApi().updateSize();},[active,narrow]);
-  useEffect(()=>{if(!selected&&controller.page.events.length){const first=target.event_id?controller.page.events.find(e=>e.event_id===target.event_id):controller.page.events.find(e=>e.eligible)||controller.page.events[0];if(first)setSelected(calendarKey(first));}},[selected,controller.page.events,target.event_id]);
+  useEffect(()=>{if(!selected&&target.event_id&&controller.page.events.length){const first=controller.page.events.find(e=>e.event_id===target.event_id);if(first)setSelected(calendarKey(first));}},[selected,controller.page.events,target.event_id]);
   useEffect(()=>{
     if(!active||!selected)return;
     const source=controller.event(selected)||((target.calendar_id&&target.event_id)?{calendar_id:target.calendar_id,event_id:target.event_id}:null);
     if(!source)return;let live=true;
     void controller.inspect(source).then(()=>{const current=controller.event(selected);if(live&&current&&locateInitial.current){locateInitial.current=false;setDay(safeDay(current,day));setLocateCount(n=>n+1);}});
     return()=>{live=false;};
-  },[active,controller,selected,controller.page.checked_at]);
+  },[active,controller,selected]);
   // One explicit locate request gets one scroll. Saving a drag must not replay an old request.
   useEffect(()=>{if(!locateCount)return;const id=window.requestAnimationFrame?.(()=>{const element=[...(root.current?.querySelectorAll<HTMLElement>('[data-week-event]')||[])].find(node=>node.dataset.weekEvent===selected);element?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});element?.focus({preventScroll:true});});return()=>{if(id!==undefined)window.cancelAnimationFrame?.(id);};},[locateCount]);
   useEffect(()=>{if(!draft)return;const previous=document.activeElement as HTMLElement|null;
@@ -137,6 +156,9 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   function choose(key:string){if(key!==selected)guard(()=>{setSelected(key);setFormError('');});}
   function focusDetails(){details.current?.scrollIntoView?.({block:'nearest',behavior:reduce?'instant':'smooth'});details.current?.querySelector<HTMLElement>('button,input')?.focus();}
   function locate(source:CalendarEvent){guard(()=>{setSelected(calendarKey(source));setDay(safeDay(source,day));setLocateCount(n=>n+1);});}
+  // 从同步浮层跳转时同时展开详情，保持与原「定位日程」一致的落点。
+  function openEvent(source:CalendarEvent){setSyncOpen(false);guard(()=>{setSelected(calendarKey(source));setDetailsOpen(true);setDay(safeDay(source,day));setLocateCount(n=>n+1);});}
+  function openBulk(){setSyncOpen(false);guard(()=>{setSyncHint('');void local.read().then(ok=>{if(ok){local.batch=null;setBatchChoice(null);setBulkPreview(local.page.events.filter(event=>event.sync_state==='local'));setBulk(true);}});});}
   async function apply(source:CalendarEvent,draft:TimeDraft){
     const invalid=validTimeDraft(source,draft);if(invalid){setAnnouncement(invalid+' 未保存。');return false;}
     if(sameDraft(source,draft)){setAnnouncement('时间未变化，未发送修改。');return true;}
@@ -160,6 +182,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   function stopPointer(){const generation=pointerGeneration.current;controller.endInteraction();draggedRange.current=null;window.setTimeout(()=>{if(generation!==pointerGeneration.current)return;pointerActive.current=false;cancelPointer.current=false;setPointerCancelled(false);},0);}
   function keyboardMove(e:KeyboardEvent<HTMLElement>){
     if(e.key==='Escape'){
+      // 「更多」菜单在最上层，Escape 先收起它并把焦点交还触发按钮
+      if(moreOpen){setMoreOpen(false);setKeyboardHelpOpen(false);moreTrigger.current?.focus();e.preventDefault();e.stopPropagation();return;}
       if(pointerActive.current){cancelPointer.current=true;setPointerCancelled(true);setAnnouncement('已取消拖动，未发送修改。');e.preventDefault();
         // Custom dnd-kit gestures must receive Escape at their document listener.
         if(!draggedRange.current)e.stopPropagation();return;}
@@ -336,46 +360,129 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
         const source=arg.event.extendedProps.source as CalendarEvent;if(!source)return null;
         const content=<div className="sw-event-content"><b>{arg.event.extendedProps.pending?'保存中 · ':arg.event.extendedProps.unknown?'未核对 · ':arg.event.extendedProps.linked?'↗ ':''}{arg.event.title}</b><span className="sw-event-time">{preview?`${beijingStamp(preview.start).slice(11)} – ${beijingStamp(preview.end).slice(11)}`:view==='month'&&source.start.includes('T')?`${beijingStamp(source.start).slice(11)} – ${beijingStamp(source.end).slice(11)}`:arg.timeText}</span></div>;
         return arg.isMirror||view==='month'?content:<CalendarDragContent event={source} enabled={(source.calendar_id==='tebb-draft'||timeEditable(source))&&!controller.blocked(calendarKey(source))&&!controller.checking.has(calendarKey(source))&&(!dirty||source.calendar_id==='tebb-draft')}>{content}</CalendarDragContent>;}}/>,[events,day,view,dirty,keyboard,pointerCancelled,controller,reduce,onViewDay]);
+  const periodText=view==='month'?`${day.slice(0,4)} 年 ${Number(day.slice(5,7))} 月`
+    :view==='day'?`${day.slice(0,4)} 年 ${Number(day.slice(5,7))} 月 ${Number(day.slice(8,10))} 日`
+    :`${monday.slice(0,4)} 年 ${Number(monday.slice(5,7))} 月 ${Number(monday.slice(8,10))} 日 — ${Number(addCalendarDays(monday,6).slice(8,10))} 日`;
+  // 同步与核对条目按操作编号聚合，同一编号只渲染一次。
+  const localPending=local.page.events.filter(row=>row.sync_state==='local');
+  const remoteCount=visible.filter(row=>row.sync_state!=='local').length;
+  const localWeekCount=visible.filter(row=>row.sync_state==='local').length;
+  const checkedAt=controller.page.checked_at&&Number.isFinite(Date.parse(controller.page.checked_at))?beijingStamp(controller.page.checked_at).slice(11,16):'';
+  // 底部状态条固定文案；实时播报仍通过 aria-live 覆盖这一段。
+  const statusSummary=controller.page.events_valid
+    ?`已读取本周日程 · 飞书 ${remoteCount} 条 / 本地 ${localWeekCount} 条${checkedAt?` · 上次核对 ${checkedAt}`:''}`
+    :'上次读取的日程尚未核对';
+  const confirmItems:SyncItem[]=[];
+  if(controller.error)confirmItems.push({id:'error:schedule',title:'日程读取未完成',detail:controller.error,hint:'保留上次已读内容；不会用旧数据判断没有安排。',
+    actions:[{label:'重新读取',primary:true,run:()=>void controller.read(day,true)}]});
+  if(!draft&&!bulk&&local.error)confirmItems.push({id:'error:local',title:'本地日程结果未确认',detail:local.error,
+    actions:[{label:'读取核对',primary:true,run:()=>void local.read()}]});
+  if(target.event_id&&controller.page.events_valid&&!controller.loading&&!controller.page.events.some(row=>row.event_id===target.event_id))
+    confirmItems.push({id:'target-missing',title:'当前区间未找到目标日程',detail:'请核对日期、访问权限或远端是否已删除；不会用另一场日程替代。'});
+  if(!controller.page.events_valid)confirmItems.push({id:'remote-unverified',title:controller.remoteAttempt?'本周远端核对未完成':'上次读取的日程尚未核对',
+    detail:controller.page.events_error||'尚未完成本周远端核对。',hint:visible.length?'下方保留上次信息，不能据此判断没有安排。':undefined,
+    actions:[{label:'读取核对',primary:true,run:()=>void controller.read(day,true)}]});
+  for(const row of unknownDate)confirmItems.push({id:'date:'+calendarKey(row),title:row.summary+' · 时间未核实',
+    detail:'读取到的开始时间无法解析，暂不放入时间轴。',actions:[{label:'查看日程',run:()=>openEvent(row)}]});
+  for(const [key,record] of controller.unknown){
+    if(controller.pending.has(key))continue;
+    confirmItems.push({id:'retime:'+record.request_id,title:controller.event(key)?.summary||record.event_id,
+      detail:`原时间 ${record.original_start} → ${record.original_end}${record.start?`；拟调整 ${record.start} → ${record.end}`:''}`,
+      hint:controller.missing.has(key)?'尚未查到原回执，不能据此认为没有执行。请先读取当前日程，再明确结束等待。':undefined,
+      actions:[{label:'读取此日程及原回执',run:()=>{setSelected(key);void controller.inspect(record);void controller.read(day);}},
+        {label:'结束本轮等待',disabled:!['confirmed','missing','deleted'].includes(controller.event(key)?.verification||'')||controller.checking.has(key),
+          run:()=>void controller.reconcile(key).then(()=>{changes.current();void controller.inspect(record);})}]});
+  }
+  if(local.unknown){
+    const marker=local.unknown,syncMarker=marker.type==='sync'&&!local.page.operations.some(operation=>operation.id===marker.request_id);
+    const actions:SyncAction[]=[{label:'读取原编号',run:()=>void local.read()}];
+    if(['create','update'].includes(marker.type))actions.push({label:'核对本地记录并结束等待',disabled:local.busy,
+      run:()=>{if(window.confirm('已核对当前本地日程，登记当前状态并结束原请求等待？'))void local.change({type:'resolve_save',local_id:marker.local_id!,operation_id:marker.request_id,confirmed:true});}});
+    if(syncMarker&&marker.local_id)actions.push(
+      {label:'核对并关联已创建日程',disabled:!resolveId||local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'link')},
+      {label:'确认未创建并封存原编号',disabled:local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'absent')});
+    confirmItems.push({id:'save:'+marker.request_id,title:'本地日程保存结果未确认',
+      detail:`原请求编号 ${marker.request_id}。请读取核对，不要重新创建。`,
+      input:syncMarker?{label:'已创建的飞书事件 ID',value:resolveId,onChange:setResolveId}:undefined,actions});
+  }
+  for(const operation of local.page.operations.filter(row=>row.type==='delete'))confirmItems.push({id:'delete:'+operation.id,
+    title:'删除结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}`,actions:[
+      {label:'核对删除结果',disabled:local.busy,run:()=>void local.change({type:'resolve_delete',operation_id:operation.id}).then(()=>{changes.current();void controller.read(day,true);})},
+      {label:'保留当前记录并结束等待',disabled:local.busy,run:()=>{if(window.confirm('读取当前记录；若仍存在，明确保留它并结束原等待？不会重发删除。'))void local.change({type:'resolve_delete',operation_id:operation.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);});}}]});
+  for(const operation of local.page.operations.filter(row=>row.type==='sync'))confirmItems.push({id:'sync:'+operation.id,
+    title:'飞书同步结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}${operation.error?' · '+operation.error:''}`,
+    input:{label:'已创建的飞书事件 ID',value:resolveId,onChange:setResolveId,
+      options:controller.page.events.filter(row=>row.calendar_id!=='tebb-local'&&row.eligible).map(row=>({value:row.event_id,label:`${row.summary} · ${eventTime(row)}`}))},
+    actions:[{label:'核对并关联已创建日程',disabled:local.busy||!resolveId,run:()=>void resolveSync(operation.id,operation.local_id,'link')},
+      {label:'确认没有创建，结束等待',disabled:local.busy,run:()=>void resolveSync(operation.id,operation.local_id,'absent')}]});
+  const localItems:SyncItem[]=localPending.map(row=>({id:'local:'+calendarKey(row),title:row.summary,detail:eventTime(row),compact:true,
+    actions:[{label:'查看',run:()=>openEvent(row)}]}));
+  const recoveredItems:SyncItem[]=local.page.batches.flatMap(batch=>batch.entries.filter(entry=>entry.state==='synced').map(entry=>({
+    id:batch.id+'/'+entry.local_id,title:local.page.events.find(row=>row.local_id===entry.local_id)?.summary||entry.local_id,
+    detail:`清单 ${batch.id} · ${batch.created_at&&Number.isFinite(Date.parse(batch.created_at))?beijingStamp(batch.created_at).slice(5,16).replace('T',' '):''}`,compact:true})));
+  // 面板只读控制器已有状态，不新增轮询或自动重试。
+  const syncGroups:SyncGroup[]=[
+    {id:'confirm',label:'需要确认',items:confirmItems,empty:'当前没有待确认的同步结果。'},
+    {id:'local',label:'本地未同步',items:localItems,empty:'没有待同步的本地日程。',
+      action:localItems.length?{label:`同步全部 ${localItems.length} 条`,run:openBulk}:undefined},
+    {id:'recovered',label:'最近已恢复',items:recoveredItems,empty:'处理完成的条目会归入这里。',collapsed:true}];
   return <section className={`schedule-week${pointerCancelled?' sw-cancelled':''}${narrow?' sw-compact':''}`} ref={root} aria-label="周日程安排" onKeyDownCapture={keyboardMove} onDoubleClickCapture={doubleBlank} data-week-view data-week-version={version}>
-    <header className="sw-heading"><div><span className="wb-eyebrow">工作区 / 日程</span><h1>日程</h1><p>本地与飞书主日历 · 北京时间 UTC+8{debug?' · 演示数据':''}</p></div><div className="sw-primary-actions">
-      <button type="button" onClick={()=>guard(()=>{void local.read().then(ok=>{if(ok){local.batch=null;setBatchChoice(null);setBulkPreview(local.page.events.filter(e=>e.sync_state==='local'));setBulk(true);}});})}>整体同步到飞书</button>
-      <button type="button" className="wb-primary" onClick={()=>beginDraft(day+'T09:00:00+08:00')}>＋ 新建日程</button></div></header>
-    {viewTabs}<div className="sw-toolbar"><button type="button" aria-label={view==='month'?'上一月':view==='day'?'上一天':'上一周'} onClick={()=>guard(()=>setDay(view==='month'?new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7))-2,1)).toISOString().slice(0,10):addCalendarDays(day,view==='day'?-1:-7)))}>‹</button><button type="button" aria-label={view==='month'?'下一月':view==='day'?'下一天':'下一周'} onClick={()=>guard(()=>setDay(view==='month'?new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7)),1)).toISOString().slice(0,10):addCalendarDays(day,view==='day'?1:7)))}>›</button>
-      <strong>{view==='month'?day.slice(0,7).replace('-','年')+'月':view==='day'?day.replaceAll('-','.'):`${monday.replaceAll('-','.')} — ${addCalendarDays(monday,6).slice(5).replace('-','.')}`}</strong><button type="button" onClick={()=>guard(()=>setDay(beijingDay()))}>今天</button>
-      <label>定位日期<input type="date" aria-label="周日程定位日期" value={day} onChange={e=>{if(e.target.value)guard(()=>setDay(e.target.value));}}/></label>
-      <UiButton busy={controller.loading} busyLabel="读取中…" onClick={()=>{void controller.read(day,true);void local.read();}}>读取核对</UiButton>
-      <button type="button" onClick={()=>guard(()=>onDay({day,item_id:item?.id||target.item_id,...(event?{calendar_id:event.calendar_id,event_id:event.event_id}:{})}))}>关联事项</button>
-      {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
-    </div>
-    {paneWidth<982&&view==='week'&&<p className="sc-caption">七天周视图 · 在日历内左右滑动，或聚焦时间轴后用左右键查看</p>}
-    {(controller.error||local.error&&!draft&&!bulk)&&<UiFeedback state="error" title={[controller.error,!draft&&!bulk&&local.error].filter(Boolean).join(' · ')} className="sc-error"/>}
-    {controller.loading&&!controller.page.events_valid&&<UiFeedback state="loading" title="正在读取日程…"/>}
+    <header className="sw-heading"><div className="sw-heading-main"><span className="wb-eyebrow">工作区 / 日程</span>
+      <div className="sw-title-row"><h1>日程</h1><CalendarSyncStatus groups={syncGroups} open={syncOpen} onOpenChange={setSyncOpen}
+        checking={controller.loading||local.loading} lastChecked={checkedAt} onRefresh={()=>{void controller.read(day,true);void local.read();}}/></div>
+      <p>本地与飞书主日历 · 北京时间 UTC+8{debug?' · 演示数据':''}</p></div>
+      <div className="sw-primary-actions">
+        <div className="sw-more" ref={moreMenu}>
+          <button type="button" className="sw-more-trigger" ref={moreTrigger} aria-haspopup="true" aria-expanded={moreOpen}
+            onClick={()=>{if(moreOpen){setMoreOpen(false);setKeyboardHelpOpen(false);}else setMoreOpen(true);}}>
+            <span>更多</span>
+            <span className="sw-more-dots" aria-hidden="true"><i/><i/><i/></span>
+          </button>
+          {moreOpen&&<div className="sw-more-menu" onClick={click=>{const el=click.target as HTMLElement;if(!el.closest('button')||el.closest('[data-menu-keep-open]'))return;setMoreOpen(false);setKeyboardHelpOpen(false);}}>
+            <button type="button" onClick={openBulk}>整体同步到飞书</button>
+            <button type="button" disabled={controller.loading} onClick={()=>{void controller.read(day,true);void local.read();}}>读取核对</button>
+            <button type="button" onClick={()=>guard(()=>onDay({day,item_id:item?.id||target.item_id,...(event?{calendar_id:event.calendar_id,event_id:event.event_id}:{})}))}>关联事项</button>
+            <button type="button" data-menu-keep-open aria-expanded={keyboardHelpOpen} onClick={()=>setKeyboardHelpOpen(open=>!open)}>快捷键说明</button>
+            {keyboardHelpOpen&&<p className="sw-more-help">{keyboardHelp}</p>}
+            {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
+          </div>}
+        </div>
+        <button type="button" className="wb-primary" onClick={()=>beginDraft(day+'T09:00:00+08:00')}>＋ 新建日程</button>
+      </div></header>
+    <div className="sw-datenav"><div className="sw-datenav-controls">
+      <button type="button" className="sw-step" aria-label={view==='month'?'上一月':view==='day'?'上一天':'上一周'} onClick={()=>guard(()=>setDay(view==='month'?new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7))-2,1)).toISOString().slice(0,10):addCalendarDays(day,view==='day'?-1:-7)))}>‹</button>
+      <button type="button" onClick={()=>guard(()=>setDay(beijingDay()))}>今天</button>
+      <button type="button" className="sw-step" aria-label={view==='month'?'下一月':view==='day'?'下一天':'下一周'} onClick={()=>guard(()=>setDay(view==='month'?new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7)),1)).toISOString().slice(0,10):addCalendarDays(day,view==='day'?1:7)))}>›</button>
+      <div className="sw-period">
+        <button type="button" className="sw-period-title" aria-expanded={periodOpen} onClick={()=>setPeriodOpen(open=>!open)}>{periodText}
+          {view==='week'&&<span className="sw-week-no">第 {isoWeek(day)} 周</span>}</button>
+        {periodOpen&&<div className="sw-period-pop" onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();setPeriodOpen(false);}}}>
+          <label>定位日期<input type="date" aria-label="周日程定位日期" value={day} autoFocus onChange={event=>{if(event.target.value){setPeriodOpen(false);guard(()=>setDay(event.target.value));}}}/></label>
+        </div>}
+      </div>
+    </div>{viewTabs}</div>
     {!controller.loading&&!local.loading&&!local.busy&&!local.unknown&&!controller.error&&!local.error&&controller.page.events_valid&&!visible.length&&<UiFeedback state="empty" title="当前区间没有已读日程">可切换日期，或新建日程草稿。</UiFeedback>}
-    {target.event_id&&controller.page.events_valid&&!controller.loading&&!controller.page.events.some(e=>e.event_id===target.event_id)&&<p className="sc-warning" role="status">当前区间未找到目标日程，请核对日期、访问权限或远端是否已删除；不会用另一场日程替代。</p>}
-    {!controller.page.events_valid&&<p className="sc-warning">{controller.page.events_error||'尚未完成本周远端核对。'}{visible.length?' 下方保留上次信息，不能据此判断没有安排。':''}</p>}
-    {!!unknownDate.length&&<div className="sw-outside">{unknownDate.map(row=><button type="button" key={calendarKey(row)} onClick={()=>choose(calendarKey(row))}>{row.summary} · 时间未核实</button>)}</div>}
-    {[...controller.unknown.keys()].some(key=>!controller.pending.has(key))&&<div className="sw-recovery" aria-label="待核对改期">{[...controller.unknown].filter(([key])=>!controller.pending.has(key)).map(([key,record])=><section key={key} className="sc-warning"><strong>{controller.pending.has(key)?'日程正在保存':'日程结果未确认'}</strong>
-      <p>{controller.event(key)?.summary||record.event_id} · 原时间 {record.original_start} → {record.original_end}</p>{record.start&&<p>拟调整 {record.start} → {record.end}</p>}<small>操作编号：{record.request_id}</small>
-      {controller.missing.has(key)&&<p>尚未查到原回执，不能据此认为没有执行。请先读取当前日程，再明确结束等待。</p>}
-      <div className="sc-actions"><button type="button" onClick={()=>{setSelected(key);void controller.inspect(record);void controller.read(day);}}>读取此日程及原回执</button>
-        {!controller.pending.has(key)&&<button type="button" disabled={!['confirmed','missing','deleted'].includes(controller.event(key)?.verification||'')||controller.checking.has(key)} onClick={()=>void controller.reconcile(key).then(()=>{changes.current();void controller.inspect(record);})}>以当前已核对状态结束等待</button>}</div>
-      {!controller.pending.has(key)&&<p>先读当前时间，再明确结束本轮等待；不会重发改期，也不表示原修改一定未执行。</p>}
-    </section>)}</div>}
-    <div className="sw-live" role="status" aria-live="polite"><UiStableText reserve={calendarHelp}>{announcement||controller.notice|| (checking?'正在核对组织者、权限和完整参与人…':calendarHelp)}</UiStableText></div>
     <CalendarDragSurface reduce={!!reduce} onPending={pending=>pending?controller.beginInteraction():controller.endInteraction()} onStart={dragStart} project={dragProjection} onCommit={dragCommit} onFinish={cancelled=>{stopPointer();if(cancelled)setAnnouncement('已取消拖动。');}}>
     <div className={`sw-calendar-layout${view!=='month'?' sw-with-items':''}`}>
       {view!=='month'&&<CalendarItemSource items={controller.page.items} disabled={itemDraftBlocked} loading={controller.loading} onArrange={arrangeItem}/>}
       <div className={`sw-calendar sw-${view}`} role="region" aria-label="日程时间轴" tabIndex={0}>{calendarView}</div>
     </div></CalendarDragSurface>
+    <footer className="sw-statusbar">
+      <div className="sw-live" role="status" aria-live="polite" title={announcement||controller.notice||syncHint||calendarHelp}><span className={`sw-status-dot${confirmItems.length?' sw-warn':''}`} aria-hidden="true"/><UiStableText reserve={statusSummary}>{announcement||controller.notice||syncHint||statusSummary}</UiStableText></div>
+      <button type="button" className="sw-status-help" title={keyboardHelp} onClick={()=>setAnnouncement(keyboardHelp)}>双击空白处新建 · 拖动改期 · 快捷键说明</button>
+    </footer>
     {detailsOpen&&event&&<section className="sw-details" ref={details} role="dialog" aria-modal="false" style={narrow?undefined:popover} aria-label="日程时间详情"><button type="button" className="sw-popover-close" aria-label="关闭日程详情" onClick={()=>guard(()=>setDetailsOpen(false))}>×</button>
       <div className="sw-detail-heading"><h2>{event?.summary||'选择一场日程'}</h2>{event&&<button type="button" onClick={()=>locate(event)}>定位日程</button>}{item&&<button type="button" onClick={()=>guard(()=>onReturn(item.id))}>↗ {item.title}{item.archived?' · 已归档':''}</button>}</div>
       {event&&<><p className="sc-caption">{eventTime(event)} · {eventHealth(event)}{checking?' · 编辑资格核对中':!timeEditable(event)?' · '+(event.edit_reason||'请重新核对编辑资格'):''}</p>
-        <div className="sc-actions"><button type="button" disabled={checking} onClick={()=>void controller.inspect(event)}>核对编辑资格</button>
-          <button type="button" disabled={!timeEditable(event)||blocked||checking} onClick={()=>{if(view==='month'){guard(()=>onViewDay?.(beijingDay(event.start)));return;}controller.endInteraction();setKeyboard(null);setForm(initialForm);setFormError('');setPicker(null);focusDetails();}}>修改时间</button>
-          {event.local_id&&<button type="button" disabled={blocked||local.busy} onClick={()=>editLocal(event)}>编辑日程 / 同步</button>}
-          <button type="button" onClick={()=>guard(()=>onDay({day:safeDay(event,day),calendar_id:event.calendar_id,event_id:event.event_id,item_id:item?.id||target.item_id}))}>关联事项</button>
-          {<details><summary>更多</summary><button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{if(window.confirm('删除这场日程？已同步日程会同时删除飞书记录，事项和AI历史保留。'))void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);});}}>删除日程</button>{local.error&&<p role="alert">{local.error}</p>}</details>}</div>
-        {timeEditable(event)&&!blocked&&<p className="sw-keyboard-help">聚焦时间块后：空格抓取，方向键移动；Shift + 上下调整结束，Alt + 上下调整开始；Enter保存，Escape取消。</p>}
+        <div className="sc-actions">
+          <button type="button" className="wb-primary" disabled={!timeEditable(event)||blocked||checking} onClick={()=>{if(view==='month'){guard(()=>onViewDay?.(beijingDay(event.start)));return;}controller.endInteraction();setKeyboard(null);setForm(initialForm);setFormError('');setPicker(null);focusDetails();}}>修改时间</button>
+          {event.local_id&&<button type="button" disabled={blocked||local.busy} onClick={()=>editLocal(event)}>编辑日程</button>}
+          <details className="sw-detail-more"><summary>更多</summary><div className="sw-detail-menu">
+            <button type="button" disabled={checking} onClick={()=>void controller.inspect(event)}>核对编辑资格</button>
+            <button type="button" onClick={()=>guard(()=>onDay({day:safeDay(event,day),calendar_id:event.calendar_id,event_id:event.event_id,item_id:item?.id||target.item_id}))}>关联事项</button>
+            <button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{if(window.confirm('删除这场日程？已同步日程会同时删除飞书记录，事项和AI历史保留。'))void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);});}}>删除日程</button>
+          </div></details>
+        </div>
       </>}
       {form&&event&&form.key===selected&&<form className="sw-time-form" onSubmit={e=>{e.preventDefault();void saveForm();}}>
         <label>标题<input aria-label="编辑日程标题" maxLength={120} required value={form.summary} disabled={blocked} onChange={e=>field('summary',e.target.value)}/></label><div className="sw-fields"><span>开始</span><DateTimeField portalRoot={root.current} marker="start" placeholder="开始时间" value={form.start} disabled={blocked} open={picker==='start'} onOpen={()=>setPicker('start')} onClose={()=>setPicker(null)} onChange={value=>field('start',value)}/>
@@ -386,15 +493,6 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     </section>}
     {draft&&<div className="sw-editor-anchor" ref={draftRoot} style={narrow?undefined:popover}><CalendarEventEditor value={draft} items={controller.page.items} busy={local.busy} blocked={!!local.unknown} error={draftError||local.error}
       onChange={setDraftFields} onSave={()=>void saveDraft()} onClose={()=>guard(()=>setDraft(null))}/></div>}
-    {local.unknown&&<section className="sc-warning" aria-label="日程保存待核对"><p>原请求结果未确认：{local.unknown.request_id}。请读取核对，不要重新创建。</p><button type="button" onClick={()=>void local.read()}>读取原编号</button>
-      {['create','update'].includes(local.unknown.type)&&<button type="button" disabled={local.busy} onClick={()=>{const marker=local.unknown!;if(window.confirm('已核对当前本地日程，登记当前状态并结束原请求等待？'))void local.change({type:'resolve_save',local_id:marker.local_id,operation_id:marker.request_id,confirmed:true});}}>核对当前本地记录并结束等待</button>}
-      {local.unknown.type==='sync'&&!local.page.operations.some(op=>op.id===local.unknown!.request_id)&&<><label>已创建的飞书事件 ID<input value={resolveId} onChange={e=>setResolveId(e.target.value)}/></label><button type="button" disabled={!resolveId||local.busy} onClick={()=>void resolveSync(local.unknown!.request_id,local.unknown!.local_id!,'link')}>核对并关联已创建日程</button><button type="button" disabled={local.busy} onClick={()=>void resolveSync(local.unknown!.request_id,local.unknown!.local_id!,'absent')}>确认未创建并封存原编号</button></>}
-    </section>}
-    {local.page.operations.filter(op=>op.type==='delete').map(op=><section className="sc-warning" key={op.id} aria-label="删除结果待核对"><p>删除结果待核对 · {op.id} · {op.stage}</p><button type="button" disabled={local.busy} onClick={()=>void local.change({type:'resolve_delete',operation_id:op.id}).then(()=>{changes.current();void controller.read(day,true);})}>核对删除结果</button><button type="button" disabled={local.busy} onClick={()=>{if(window.confirm('读取当前记录；若仍存在，明确保留它并结束原等待？不会重发删除。'))void local.change({type:'resolve_delete',operation_id:op.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);});}}>保留当前记录并结束等待</button></section>)}
-    {local.page.operations.filter(op=>op.type==='sync').map(op=><section className="sc-warning" key={op.id} aria-label="飞书同步待核对"><strong>同步结果待核对</strong><p>编号 {op.id} · 阶段 {op.stage}</p>{op.error&&<p>{op.error}</p>}
-      <label>已创建的飞书事件 ID<input aria-label={`核对日程 ${op.id}`} value={resolveId} onChange={e=>setResolveId(e.target.value)}/></label><select aria-label="选择已读取的飞书日程" value="" onChange={e=>setResolveId(e.target.value)}><option value="">从本周日程选择</option>{controller.page.events.filter(e=>e.calendar_id!=='tebb-local'&&e.eligible).map(e=><option key={calendarKey(e)} value={e.event_id}>{e.summary} · {eventTime(e)}</option>)}</select>
-      <div className="sc-actions"><button type="button" disabled={local.busy||!resolveId} onClick={()=>void resolveSync(op.id,op.local_id,'link')}>核对并关联已创建日程</button><button type="button" disabled={local.busy} onClick={()=>void resolveSync(op.id,op.local_id,'absent')}>确认没有创建，结束等待</button></div>
-    </section>)}
     {bulk&&<WorkspaceDialog title="整体同步到飞书" closeDisabled={local.busy} onClose={()=>{if(!local.busy)setBulk(false);}}><p>全部未同步本地日程 · {bulkPreview.length} 条 · 目标为当前飞书主日历</p>
       {bulkPreview.map(e=><div className="sw-sync-row" key={e.local_id}><strong>{e.summary}</strong><span>{eventTime(e)}</span></div>)}
       <p className="sc-caption">未保存草稿不在清单中；已同步日程跳过。每条分别保存结果，部分失败不回滚成功项。</p>

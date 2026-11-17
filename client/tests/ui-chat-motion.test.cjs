@@ -2,16 +2,17 @@ const {test,assert,React,create,act,loader,text,registerMarkdown}=require('./com
 test.before(registerMarkdown);
 const motion={motion:{span:({children,...props})=>React.createElement('span',props,children)},useReducedMotion:()=>true};
 
-test('stream arrivals preserve graphemes, finish on real events and bound a fast backlog',()=>{
+test('stream arrivals preserve graphemes and show new text at its real arrival time',()=>{
  const {initialStream,advanceStream}=loader({})('stream-arrival');
  let state=initialStream('已有历史',true);
  assert.deepEqual(state.arrivals,[]);
  state=advanceStream(state,state.text+'👨‍👩‍👧‍👦e\u0301中',true,100);
  assert.deepEqual(state.arrivals.map(item=>item.value),['👨‍👩‍👧‍👦','e\u0301','中']);
- assert.deepEqual(state.arrivals.map(item=>item.at),[100,130,160]);
+ assert.deepEqual(state.arrivals.map(item=>item.at),[100,100,100]);
  for(let i=0;i<100;i++){
   state=advanceStream(state,state.text+'新字',true,101+i);
-  assert(state.arrivals.length<=8);assert(state.arrivals.every(item=>item.at<=101+i+210));
+  // 不排队、不限速：新字落在真实到达时刻，旧淡入结束后自动退出
+  assert.deepEqual(state.arrivals.slice(-2).map(item=>item.at),[101+i,101+i]);assert(state.arrivals.length<=200);
  }
  const full=state.text;state=advanceStream(state,full,false,210);
  assert.deepEqual(state.arrivals,[]);assert.equal(state.text,full);
