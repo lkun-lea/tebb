@@ -420,11 +420,13 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败")
         .run(|app, event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+                // 账号切换完成后台收尾后才请求重启。
+                if code == Some(tauri::RESTART_EXIT_CODE) { return; }
                 let Some(state) = app.try_state::<BackendProcess>() else { return; };
-                // 后端已停（账号切换已收尾）且没有进行中的收尾时放行退出。
-                let running = state.0.lock().map(|guard| guard.is_some()).unwrap_or(false);
-                if !running && !EXIT_CLEANUP_RUNNING.load(Ordering::SeqCst) { return; }
+                // 账号切换可能正持锁等待后台退出。事件循环不能等待该锁。
+                if !EXIT_CLEANUP_RUNNING.load(Ordering::SeqCst)
+                    && state.0.try_lock().is_ok_and(|guard| guard.is_none()) { return; }
                 // 后端收尾要等同步线程、定时扫描和进程退出，最长上百秒，不能占住事件循环：
                 // 先拦下退出并隐藏窗口，收尾移到后台线程，完成后再真正退出。
                 api.prevent_exit();
@@ -435,7 +437,8 @@ pub fn run() {
                 let handle = app.clone();
                 std::thread::spawn(move || {
                     let state = handle.state::<BackendProcess>();
-                    let child = state.0.lock().ok().and_then(|mut guard| guard.take());
+                    let child = state.0.lock().unwrap_or_else(|error| error.into_inner()).take();
+                    state.0.clear_poison();
                     if let Some(mut child) = child {
                         let backend = handle.state::<BackendInfo>();
                         if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
