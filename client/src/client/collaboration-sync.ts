@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { runActive, type DemoState } from './chat-prototype-state';
-import { rpc, watchCollaboration, type BackendInfo } from './api';
+import { rpc, watchCollaboration, type BackendInfo, type CollaborationTextVersion } from './api';
 export type CollaborationUpdate = {state?:DemoState;sync?:string;patch?:{base:string;values:Partial<DemoState>;collections:Record<string,{upsert:{id:string}[];order:string[]}>}};
 const legacy = new Set<string>();
 export async function loadCollaboration(info:BackendInfo,since:string) {
@@ -16,27 +16,30 @@ export async function loadCollaboration(info:BackendInfo,since:string) {
 // 把推送的累计正文写到对应任务、其根任务的链式回答和消息气泡上。
 function applyText(state:DemoState,runId:string,text:string):DemoState {
   const runs=state.runs.map(run=>{
-    if(run.id===runId){
-      // 链式回答仍在展示本任务正文时才覆盖，避免抢掉交付阶段的最终正文。
-      const chain=run.chain&&run.chain.answer===(run.answer||'')?{...run.chain,answer:text}:run.chain;
-      return {...run,answer:text,chain};
-    }
-    // 根任务的链式回答等于子任务正文，同步覆盖，消息气泡才不会停在旧文本。
-    if(run.chain?.children.includes(runId))return {...run,chain:{...run.chain,answer:text}};
+    const chain = run.chain?.answer_run === runId ? {...run.chain, answer:text} : run.chain;
+    if (run.id === runId) return {...run, answer:text, chain};
+    if (chain !== run.chain) return {...run, chain};
     return run;
   });
   const messages=state.messages.map(message=>message.run===runId&&message.sender!=='user'?{...message,text}:message);
   return {...state,runs,messages};
 }
 
+function newer(version: CollaborationTextVersion, previous: CollaborationTextVersion) {
+  return version[0] > previous[0] || version[0] === previous[0] && version[1] > previous[1];
+}
+
 export class CollaborationSync {
+  // 只用服务端快照作为后续补丁的基线。
   state:DemoState | null = null;
   sync = '';
-  private streams = new Map<string,string>();
+  private streams = new Map<string,{text:string;version:CollaborationTextVersion}>();
   snapshot(state:DemoState, sync='') {
     if (this.state && (state.revision || 0) < (this.state.revision || 0)) return null;
-    const merged=this.mergeStreams(state);
-    this.state=merged;this.sync=sync;return merged;
+    for (const runId of this.streams.keys()) {
+      if (this.state?.runs.some(run=>run.id===runId) && !state.runs.some(run=>run.id===runId)) this.streams.delete(runId);
+    }
+    this.state=state;this.sync=sync;return this.mergeStreams(state);
   }
   update(reply:CollaborationUpdate) {
     if (reply.state) return this.snapshot(reply.state,reply.sync);
@@ -51,20 +54,25 @@ export class CollaborationSync {
     }
     return this.snapshot(next,reply.sync);
   }
-  /** 推送正文先落盘到本地状态；轮询快照随后到达时保留更长的正文。 */
-  stream(runId:string,text:string) {
-    this.streams.set(runId,text);
-    if(!this.state)return null;
-    this.state=applyText(this.state,runId,text);
-    return this.state;
+  stream(runId:string,text:string,version:CollaborationTextVersion) {
+    const previous = this.streams.get(runId);
+    if (previous && !newer(version,previous.version)) return null;
+    this.streams.set(runId,{text,version});
+    if (this.streams.size > 100) {
+      const oldest = this.streams.keys().next();
+      if (!oldest.done) this.streams.delete(oldest.value);
+    }
+    return this.state && this.mergeStreams(this.state);
   }
   private mergeStreams(state:DemoState) {
     let next=state;
-    for(const [runId,text] of [...this.streams]){
-      const run=next.runs.find(row=>row.id===runId),answer=run?.answer||'';
-      // 任务结束后以快照为准；快照已比推送更完整时也以快照为准。
-      if(!run||!runActive(run)||answer.length>text.length){this.streams.delete(runId);continue;}
-      if(answer===text){this.streams.delete(runId);continue;}
+    for(const [runId,{text,version}] of this.streams){
+      const run=state.runs.find(row=>row.id===runId);
+      if (!run) continue;
+      const snapshotVersion=run.text_version ?? [0,0];
+      // 新阶段开始前先显示快照，待对应的任务出现在快照中再应用推送。
+      if (version[0] > snapshotVersion[0]) continue;
+      if (!runActive(run) || !newer(version,snapshotVersion)) { this.streams.delete(runId);continue; }
       next=applyText(next,runId,text);
     }
     return next;
@@ -76,9 +84,9 @@ export function useCollaborationStream(info:BackendInfo|null,sync:CollaborationS
   const port=info?.port,token=info?.token;
   useEffect(()=>{
     if(port===undefined||token===undefined)return;
-    return watchCollaboration({port,token},(run,text)=>{
-      const next=sync.stream(run,text);
+    return watchCollaboration({port,token},(run,text,version)=>{
+      const next=sync.stream(run,text,version);
       if(next)onState(next);
     });
-  },[port,token]);
+  },[port,token,sync,onState]);
 }

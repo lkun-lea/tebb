@@ -229,17 +229,18 @@ async def _handler(ws):
     stream = parts.path == "/stream"
     token = parse_qs(parts.query).get("token", [""])[0]
     origin = ws.request.headers.get("Origin", "") if ws.request else ""
+    desktop_token = not TOKEN or hmac.compare_digest(token.encode(), TOKEN.encode())
     if preview:
         authorized = preview_allowed(token, origin)
     elif stream:
-        authorized = (not TOKEN or hmac.compare_digest(token.encode(), TOKEN.encode())) or preview_allowed(token, origin)
+        authorized = desktop_token or preview_allowed(token, origin)
     else:
-        authorized = parts.path == "/ws" and (not TOKEN or hmac.compare_digest(token.encode(), TOKEN.encode()))
+        authorized = parts.path == "/ws" and desktop_token
     if not authorized:
         await ws.close(code=4401, reason="bad token")
         return
     if stream:
-        await _handle_stream(ws)
+        await _handle_stream(ws, None if desktop_token else lambda: preview_allowed(token, origin))
         return
     async for raw in ws:
         try:
@@ -268,20 +269,23 @@ async def _handler(ws):
             await ws.send(json.dumps({"type": "error", "data": f"未知消息类型：{mtype}"}))
 
 
-async def _handle_stream(ws) -> None:
+async def _handle_stream(ws, preview_allowed=None) -> None:
     # 协作正文推送：任务回调在读取线程触发，转回事件循环后按 run 合并为最新累计文本。
     loop = asyncio.get_running_loop()
-    pending: dict[str, str] = {}
+    pending: dict[str, tuple[str, int, int]] = {}
     wake = asyncio.Event()
     closed = False
 
-    def queue_text(run_id, text):
-        pending[run_id] = text
+    def queue_text(run_id, text, attempt, seq):
+        previous = pending.get(run_id)
+        if previous and (attempt, seq) <= previous[1:]:
+            return
+        pending[run_id] = text, attempt, seq
         wake.set()
 
-    def publish(run_id, text):
+    def publish(run_id, text, attempt, seq):
         if closed: return
-        try: loop.call_soon_threadsafe(queue_text, run_id, text)
+        try: loop.call_soon_threadsafe(queue_text, run_id, text, attempt, seq)
         except RuntimeError:
             pass  # 事件循环已关闭，任务本身的写入不受影响。
 
@@ -303,8 +307,13 @@ async def _handle_stream(ws) -> None:
             wake.clear()
             frames = list(pending.items())
             pending.clear()
-            for run_id, text in frames:
-                await ws.send(json.dumps({"type": "run_text", "data": {"run": run_id, "text": text}}, ensure_ascii=False))
+            for run_id, (text, attempt, seq) in frames:
+                if preview_allowed is not None and not preview_allowed():
+                    await ws.close(code=4401, reason="preview token expired")
+                    return
+                await ws.send(json.dumps({"type": "run_text", "data": {
+                    "run": run_id, "text": text, "version": [attempt, seq],
+                }}, ensure_ascii=False))
     except ConnectionClosed:
         pass
     finally:

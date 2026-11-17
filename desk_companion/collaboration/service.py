@@ -302,8 +302,6 @@ class Collaboration:
         # 正文增量订阅：任务回调在读取线程触发，由订阅方自行转回事件循环。
         self._stream_lock = threading.Lock()
         self._stream_subscribers = []
-        self._stream_text = {}
-        self._stream_pending = set()
         self.thread = threading.Thread(target=self._loop, daemon=True, name="collaboration")
         if start:
             self.thread.start()
@@ -317,29 +315,29 @@ class Collaboration:
                 if fn in self._stream_subscribers: self._stream_subscribers.remove(fn)
         return unsubscribe
 
-    def _stream_task_event(self, run_id, owner, kind, data):
-        # 只转发任务正文分片；路由阶段已由 worker 过滤成可公开的说明文字。
-        task_id = owner.get('task')
-        if not task_id or kind not in {'token', 'answer_reset'}: return
-        with self._stream_lock:
-            if kind == 'answer_reset':
-                # 与任务库一致：保留上一段草稿，等下一个分片整体替换。
-                self._stream_pending.add(task_id)
-                return
-            piece = str(data or '')
-            if not piece: return
-            text = piece if task_id in self._stream_pending else self._stream_text.get(task_id, '') + piece
-            self._stream_pending.discard(task_id)
-            self._stream_text[task_id] = text
-            subscribers = list(self._stream_subscribers)
-        for fn in subscribers:
-            try: fn(run_id, text)
-            except Exception: pass
+    def _stream_callback(self, run_id, attempt):
+        text = ''
+        reset = False
 
-    def _drop_stream(self, task_id):
-        with self._stream_lock:
-            self._stream_text.pop(task_id, None)
-            self._stream_pending.discard(task_id)
+        def on_event(seq, kind, data):
+            nonlocal text, reset
+            if kind == 'answer_reset':
+                reset = True
+                return
+            if kind != 'token' or not data:
+                return
+            piece = str(data)
+            text = piece if reset else text + piece
+            reset = False
+            with self._stream_lock:
+                subscribers = list(self._stream_subscribers)
+            for publish in subscribers:
+                try:
+                    publish(run_id, text, attempt, seq)
+                except Exception:
+                    continue
+
+        return on_event
 
     def snapshot(self, since=""):
         from desk_companion.models.model_catalog import public_catalog
@@ -358,6 +356,7 @@ class Collaboration:
             if run.get('options_generation'):run['options_generation']={k:v for k,v in run['options_generation'].items() if k in {'state','error','calls'}}
             if not run.get('parent'):
                 run['chain'] = chain_view(run, result['runs'])
+            run['text_version'] = [run.get('attempt', 0), run.get('cursor', 0)]
             for key in ("input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs", "memory_snapshot"):
                 run.pop(key, None)
         catalog = public_catalog()
@@ -900,9 +899,7 @@ class Collaboration:
                         generation.update(state='failed',error='生成选项的登记或读取结果未确认，原问题保留，原任务未恢复。请核对后重试。')
                         run['events'].append('选项队列登记或读取未确认，未自动重试')
                     else:raise
-                if run["state"] not in ACTIVE:
-                    if run.get('task'): self._drop_stream(run['task'])
-                    continue
+                if run["state"] not in ACTIVE: continue
                 if run["state"] == "waiting":
                     preceding = [next(r for r in state['runs'] if r['id']==ident) for ident in dependencies(run)]
                     if any(dep['state'] not in ACTIVE | {'succeeded'} for dep in preceding):
@@ -957,15 +954,12 @@ class Collaboration:
                         request.update(development_task=True, implementers=run.get('implementers', []))
                         if run.get('integration_verification'):
                             request.update(integration_verification=True, required_rechecks=run.get('required_rechecks',[]))
-                    # 正文增量走订阅推送，界面不再等下一次快照；任务编号提交后才确定。route 的正文同样对外（控制 JSON 已在 worker 侧过滤）。
-                    stream_owner = {} if run['kind'] in {'chat', 'task', 'route'} else None
-                    def stream_event(kind, data, _run=run['id'], _owner=stream_owner):
-                        if _owner is not None: self._stream_task_event(_run, _owner, kind, data)
+                    # 路由 worker 只通过 token 事件发布可见正文。
+                    stream_event = self._stream_callback(run['id'], run['attempt']) if run['kind'] in {'chat', 'task', 'route'} else None
                     run["task"] = manager.submit(run["input"], "collab-"+run["id"], "collaboration", submission_key=f"collab:{run['id']}:{run['attempt']}",
-                        callback=stream_event if stream_owner is not None else None,
+                        persisted_callback=stream_event,
                         _budget_root=run['budget_id'],_budget_root_member=not run.get('parent'),
                         task_limits=execution_limits(run['agent'],run.get('agent_config',{}).get('tools',())), **({**request, **({"sampling":run["sampling"]} if run.get("sampling") else {})}))
-                    if stream_owner is not None: stream_owner['task'] = run["task"]
                     run["state"] = "queued"
                 task = manager.get(run["task"])
                 for event in task["events"]:

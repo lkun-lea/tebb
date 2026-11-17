@@ -158,16 +158,20 @@ export function streamChat(
 }
 
 /** 订阅协作任务的正文增量；只读推送，断线后由界面轮询继续兜住结构状态。 */
-export function watchCollaboration(info: BackendInfo, onText: (run: string, text: string) => void): () => void {
+export type CollaborationTextVersion = [attempt: number, event: number];
+
+export function watchCollaboration(info: BackendInfo, onText: (run: string, text: string, version: CollaborationTextVersion) => void): () => void {
   const ws = new WebSocket(`ws://127.0.0.1:${info.port}/stream?token=${encodeURIComponent(info.token)}`);
   ws.onmessage = (ev) => {
-    let msg: { type?: string; data?: { run?: string; text?: string } };
+    let msg: { type?: string; data?: { run?: string; text?: string; version?: CollaborationTextVersion } };
     try { msg = JSON.parse(String(ev.data)); } catch { return; }
-    if (msg.type === 'run_text' && typeof msg.data?.run === 'string' && typeof msg.data.text === 'string') {
-      onText(msg.data.run, msg.data.text);
+    const version = msg.data?.version;
+    if (msg.type === 'run_text' && typeof msg.data?.run === 'string' && typeof msg.data.text === 'string'
+      && Array.isArray(version) && version.length === 2 && version.every(Number.isSafeInteger)) {
+      onText(msg.data.run, msg.data.text, version);
     }
   };
-  return () => ws.close();
+  return () => { ws.onmessage = null; ws.close(); };
 }
 
 export function rpc<T>(

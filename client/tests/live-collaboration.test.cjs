@@ -29,6 +29,32 @@ function env() {
 }
 const strings = node => typeof node === 'string' ? node : (node.children || []).map(strings).join('');
 
+test('stream text uses the persisted event cursor across resets, polling and delivery', () => {
+  const { CollaborationSync } = load('collaboration-sync');
+  const sync = new CollaborationSync();
+  const root = {id:'root',state:'running',answer:'旧草稿较长',text_version:[1,4],
+    chain:{answer:'已交付的正文',answer_run:'delivery',children:['delivery','worker']}};
+  const worker = {id:'worker',state:'running',answer:'',text_version:[1,0]};
+  const messages = [{id:'m',run:'root',sender:'tebb',text:root.answer}];
+  const base = {revision:1,runs:[root,worker],messages};
+  sync.snapshot(base,'initial');
+
+  const revised = sync.stream('root','短稿',[1,6]);
+  assert.equal(revised.messages[0].text,'短稿');
+  assert.equal(revised.runs[0].chain.answer,'已交付的正文');
+  assert.equal(sync.snapshot(base,'same-cursor').messages[0].text,'短稿');
+  assert.equal(sync.stream('worker','旁支草稿',[1,10]).runs[0].chain.answer,'已交付的正文');
+  assert.equal(sync.stream('root','迟到旧稿',[1,5]),null);
+
+  const finalRun = {...root,state:'succeeded',answer:'最终正文',text_version:[1,9]};
+  const finalMessage = {...messages[0],text:finalRun.answer};
+  const final = sync.update({sync:'final',patch:{base:'same-cursor',values:{revision:2},collections:{
+    runs:{upsert:[finalRun],order:['root','worker']},messages:{upsert:[finalMessage],order:['m']},
+  }}});
+  assert.equal(final.messages[0].text,'最终正文');
+  assert.equal(sync.stream('root','迟到旧稿',[1,7]).messages[0].text,'最终正文');
+});
+
 test('pending replacement is labelled as a retained draft in both chat surfaces', async () => {
   env();
   const {RunProgress,DraftNotice}=load('run-progress');

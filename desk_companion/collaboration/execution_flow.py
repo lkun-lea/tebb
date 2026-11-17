@@ -66,4 +66,5 @@ def chain_view(run, runs):
                 tool_calls=sum(r.get('tool_calls', 0) for r in chain),
                 elapsed_ms=elapsed,
                 error=(failed or awaiting or run).get('error', ''),
-                answer=final.get('answer', ''), children=[r['id'] for r in chain if r['id'] != run['id']])
+                answer=final.get('answer', ''), answer_run=final['id'],
+                children=[r['id'] for r in chain if r['id'] != run['id']])
