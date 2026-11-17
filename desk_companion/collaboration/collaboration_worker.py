@@ -250,6 +250,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             '通用操作任务按实际回执简洁报告结果和失败阶段，无需写成长篇研究报告；不要重复执行前序已经完成的外部写入。'
             '技术结论优先依据实际取得的一手正文；未使用的搜索结果不必堆入来源清单。仓库可读取不代表获得开源许可，未核实许可时不要称其已开源。')
     if kind == 'route':
+        if role.get('id') == 'tebb':
+            messages[0]['content'] += '\n用户要查询或修改 tebb 事项的实际状态时，选择直接执行，由后台调用事项工具。缺少事项标识时可先按标题查找，重名或指向不明时再询问。'
         if request.get('requested_strategy')=='delegate':
             messages[0]['content']+='\n用户已明确选择协作；目标就绪后必须申请delegate分工，不能改为direct。仍须对真正缺失的目标/材料先request_clarification。'
         messages[0]['content']+='\n用户明确要求图表时，start_background_task设置requires_charts=true，交付需有真实构建的图表；普通技术报告按需要使用图表。'
@@ -433,7 +435,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             try: wait['phase_timeout'] = min(120, max(1, int(arguments.get('timeout',90)))) + 20
             except (ValueError, TypeError): pass
         from desk_companion.automation.workflow_tools import TOOLS as WORKFLOW_TOOLS
-        if name in {'calendar_change','automation_save','automation_manage'} or name in TOOL_OPERATIONS or name in WORKFLOW_TOOLS:
+        if name in {'calendar_change','automation_save','automation_manage','work_item_move'} or name in TOOL_OPERATIONS or name in WORKFLOW_TOOLS:
             arguments['_call_id']=call_id
         if name in {'workspace_search','workspace_read_symbol','workspace_patch'}:
             wait.update({key:arguments[key][:200] for key in ('symbol','revision') if isinstance(arguments.get(key),str)})
@@ -468,7 +470,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                 checkout=checkout_source(result) if name=='project_prepare' else None
                 if checkout:
                     sources.append(checkout);emit('evidence',dict(kind='repository_checkout',sources=[checkout]))
-            if isinstance(result,dict) and result.get('ok') is False and name not in {'calendar_change','automation_save','automation_manage','calendar_query'} and name not in TOOL_OPERATIONS: raise ValueError(result.get('error','工具操作未成功'))
+            if isinstance(result,dict) and result.get('ok') is False and name not in {'calendar_change','automation_save','automation_manage','calendar_query','work_item_move'} and name not in TOOL_OPERATIONS: raise ValueError(result.get('error','工具操作未成功'))
             discovered.update(url_key(url) for url in urls(json.dumps(result,ensure_ascii=False) if not isinstance(result,str) else result))
             if name == 'github_repository' and result.get('source'):
                 sources.append(result['source']); emit('evidence',dict(kind='github',sources=[result['source']]))

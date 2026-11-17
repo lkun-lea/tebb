@@ -4,7 +4,7 @@ import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, 
 import { motion } from 'framer-motion';
 import { DRAG_DROP, DRAG_SPRING } from './drag-motion';
 import { useUiReducedMotion } from './use-ui-reduced-motion';
-import { rpc, type BackendInfo } from './api';
+import { rpc, watchWorkBoard, type BackendInfo } from './api';
 import { usePageActive } from './page-stack';
 import { Markdown } from './Markdown';
 import { UiButton, UiContractSample, UiFeedback, UiField } from './ui-controls';
@@ -91,10 +91,14 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   function move(id:string,state:WorkState){const label=document.activeElement?.getAttribute('aria-label')||'';if(label.startsWith('拖动 '))moveFocus.current=label;void controller.move(id,state);}
   const dragSensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}),useSensor(KeyboardSensor,{coordinateGetter:keyboardCoordinates,scrollBehavior:reduce?'auto':'smooth'}));
   useEffect(()=>controller.subscribe(redraw),[controller]);
-  useEffect(()=>{if(!active||(!info&&!debug))return;void controller.load();
-    // 进入页面核对一次；之后只在窗口重新聚焦时按需核对，避免定时轮询反复刷新提示。
+  useEffect(()=>{
+    if(!active||(!info&&!debug))return;
     const reload=()=>{if(!controller.loading)void controller.load();};
-    window.addEventListener('focus',reload);return()=>window.removeEventListener('focus',reload);
+    // 后端订阅就绪及伙伴提交后读取；后到的读取也能覆盖正在返回的旧快照。
+    const stop=info&&!debug?watchWorkBoard(info,()=>void controller.load()):undefined;
+    if(debug)reload();
+    window.addEventListener('focus',reload);
+    return()=>{window.removeEventListener('focus',reload);stop?.();};
   },[active,controller,info,debug]);
   const item=controller.items.find(i=>i.id===selected);
   const drawer=!weekTarget&&!scheduleTarget&&(!!draft||!!item);

@@ -3,6 +3,7 @@ import hashlib
 import copy
 from desk_companion.collaboration.store import transaction
 from desk_companion.collaboration.service import ACTIVE
+from desk_companion.collaboration.tebb_tools import work_item_request_id
 
 def execute(host,run_id,tool,args):
     try:
@@ -10,9 +11,22 @@ def execute(host,run_id,tool,args):
             run=next((r for r in state['runs'] if r['id']==run_id),None)
             if not run or run['agent']!='tebb' or run['state'] not in ACTIVE or run['state']=='cancelling':
                 raise ValueError('tebb执行已结束或身份不匹配。')
+            if tool in {'work_item_query', 'work_item_move'} and (
+                run['kind'] != 'task' or not run.get('task') or run['task'] != args.get('_task_id')
+            ):
+                raise ValueError('原事项工具调用所属的任务已结束或阶段不匹配。')
             project_id=run.get('workspace',{}).get('project_id','')
         args=copy.deepcopy(args)
         call_id=str(args.pop('_call_id',''))
+        if tool=='work_item_query':
+            return host.work_board.query_status(project_id, query=args.get('query', ''),
+                                                item_id=args.get('item_id', ''), request_id=args.get('request_id', ''))
+        if tool=='work_item_move':
+            if not call_id:
+                raise ValueError('缺少本轮事项工具调用编号。')
+            return host.work_board.change(dict(type='move', id=args['item_id'], version=args['version'],
+                                               state=args['state'], request_id=work_item_request_id(run_id, call_id)),
+                                          project_id=project_id)
         if tool=='calendar_query':
             result=host.scheduling.load_month(args['day'],True,args.get('request_id','')) if args.get('month') else host.scheduling.load(args['day'],refresh=True,request_id=args.get('request_id',''))
             if args.get('query') and result.get('events'):
@@ -35,4 +49,8 @@ def execute(host,run_id,tool,args):
             if args['action']=='run':return host.automation.run_automation_job(args['job_id'],'tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50],_from_agent=True)
             if args['action']=='check':return host.automation.check_agent_execution(args['job_id'])
         raise ValueError('不支持的tebb能力。')
-    except Exception as exc:return dict(ok=False,error=str(exc),stage='tebb_operation')
+    except Exception as exc:
+        result = dict(ok=False,error=str(exc),stage='tebb_operation')
+        if tool == 'work_item_move':
+            result['change_state'] = 'not_changed'
+        return result

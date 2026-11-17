@@ -160,6 +160,39 @@ export function streamChat(
 /** 订阅协作任务的正文增量；只读推送，断线后由界面轮询继续兜住结构状态。 */
 export type CollaborationTextVersion = [attempt: number, event: number];
 
+export function watchWorkBoard(info: BackendInfo, refresh: () => void): () => void {
+  let socket: WebSocket;
+  let reconnect: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let checked = false;
+  function connect() {
+    socket = new WebSocket(wsUrl(info));
+    socket.onopen = () => socket.send('{"type":"work_board_subscribe"}');
+    socket.onmessage = event => {
+      if (disposed) return;
+      try {
+        if (JSON.parse(String(event.data)).type !== "work_board_changed") return;
+      } catch { return; }
+      checked = true;
+      refresh();
+    };
+    socket.onclose = () => {
+      if (disposed) return;
+      if (!checked) {
+        checked = true;
+        refresh();
+      }
+      reconnect = setTimeout(connect, 1000);
+    };
+  }
+  connect();
+  return () => {
+    disposed = true;
+    clearTimeout(reconnect);
+    socket.close();
+  };
+}
+
 export function watchCollaboration(info: BackendInfo, onText: (run: string, text: string, version: CollaborationTextVersion) => void): () => void {
   const ws = new WebSocket(`ws://127.0.0.1:${info.port}/stream?token=${encodeURIComponent(info.token)}`);
   ws.onmessage = (ev) => {

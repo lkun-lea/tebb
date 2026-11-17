@@ -1,5 +1,11 @@
 """Product, Skill and configured MCP adapters for the tebb execution loop."""
+import hashlib
+
 from desk_companion.local_api.worker_rpc import call
+
+
+def work_item_request_id(run_id, call_id):
+    return 'tebb-work-' + hashlib.sha256(f'{run_id}:{call_id}'.encode()).hexdigest()[:50]
 
 
 def local_calendar_spec(workspace_path):
@@ -20,8 +26,26 @@ def specs(request):
         return dict(type='function',function=dict(name=name,description=description,parameters=dict(type='object',properties=properties,required=required)),implementation=implementation,read_only=readonly)
     def product(name,args):
         return call('tebb_operation',dict(run_id=run_id,tool=name,args=args))
+
+    def work_item(name, args):
+        args = {**args, '_task_id': request['task_id']}
+        call_id = args.get('_call_id')
+        try:
+            return product(name, args)
+        except Exception:
+            if name != 'work_item_move' or not call_id:
+                raise
+            return dict(ok=False, change_state='unconfirmed', request_id=work_item_request_id(run_id, call_id),
+                        error='未收到事项操作回执。请用 work_item_query 按原操作编号核对。')
+
+    from desk_companion.planning.work_items import STATES
     string=dict(type='string')
     out=[
+        spec('work_item_query', '读取当前项目（未选项目时为未归属）的事项状态。可按标题、事项ID或原操作编号查，最多50项。重名先确认。回执为空表示结果仍待核对。',
+             dict(query=string,item_id=string,request_id=string),[],lambda args:work_item('work_item_query',args)),
+        spec('work_item_move', '用户明确要求时修改一件事项的状态。先用 work_item_query 获取唯一ID和当前版本。版本冲突先读最新状态，结果未知按原编号核对，勿重放。待办=todo、进行中=doing、待验收=review、已完成=done。',
+             dict(item_id=string,version=dict(type='integer',minimum=1),state=dict(type='string',enum=list(STATES))),
+             ['item_id','version','state'],lambda args:work_item('work_item_move',args),False),
         spec('calendar_query','查询指定北京时间日期或月份的本地及飞书日程。month=true读取该月；query可按标题过滤。先查再按准确身份修改，重名或意图不明先询问用户。',dict(day=string,month=dict(type='boolean'),query=string,request_id=string),['day'],lambda args:product('calendar_query',args)),
         spec('calendar_change','修改已保存日程，action.type=update/sync/retime/delete/resolve_delete。新建必须使用calendar_propose，由用户在界面明确保存。更新传local_id/version；改期传calendar_id/event_id/day/original_start/original_end/start/end，改标题同时传summary和original_summary（已同步必须用此入口）；删除传calendar_id/event_id与原时间（本地另传version）。操作编号由本轮call_id自动登记，失败先核对，不自动重做。',dict(action=dict(type='object')),['action'],lambda args:product('calendar_change',args),False),
         spec('automation_list','读取本地自动化规则、状态及上次执行。',{},[],lambda args:product('automation_list',args)),

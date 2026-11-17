@@ -265,8 +265,38 @@ async def _handler(ws):
             await _handle_chat(ws, msg)
         elif mtype == "notebook":
             await _handle_notebook(ws, msg)
+        elif mtype == "work_board_subscribe":
+            await _watch_work_board(ws)
+            return
         else:
             await ws.send(json.dumps({"type": "error", "data": f"未知消息类型：{mtype}"}))
+
+
+async def _watch_work_board(ws) -> None:
+    loop = asyncio.get_running_loop()
+    changed = asyncio.Event()
+
+    def notify():
+        try:
+            loop.call_soon_threadsafe(changed.set)
+        except RuntimeError:
+            pass  # The connection's loop has already closed.
+
+    async def send():
+        while True:
+            await changed.wait()
+            changed.clear()
+            await ws.send('{"type":"work_board_changed"}')
+
+    unsubscribe = HOST.work_board.subscribe_changes(notify)
+    changed.set()  # Subscribe before telling the page to read the initial snapshot.
+    sender = asyncio.create_task(send())
+    try:
+        await ws.wait_closed()
+    finally:
+        unsubscribe()
+        sender.cancel()
+        await asyncio.gather(sender, return_exceptions=True)
 
 
 async def _handle_stream(ws, preview_allowed=None) -> None:

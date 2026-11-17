@@ -335,6 +335,102 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(page['state']['runs']),1);self.assertEqual(page['state']['runs'][0]['id'],root['id'])
         self.assertEqual(page['state']['runs'][0]['kind'],'task')
 
+    async def test_tebb_work_item_move_notifies_active_board_after_commit(self):
+        from desk_companion.collaboration.collaboration_worker import execute
+        from desk_companion.collaboration.service import Collaboration, execution_limits
+        from desk_companion.collaboration.store import transaction
+        from tests.test_collaboration import Queue, MODEL
+        from websockets.exceptions import ConnectionClosed
+
+        patch('desk_companion.models.model_catalog.require_active',return_value=MODEL).start()
+        patch('desk_companion.models.model_catalog.require_item',return_value=MODEL).start()
+        patch.dict(os.environ,DESK_TERMINAL_PORT=str(self.port),DESK_TERMINAL_TOKEN='test-token').start()
+        service = Collaboration(self.host.work_board.path,managers=dict(work=Queue(),chat=Queue()),start=False)
+        self.host._collaboration = service
+        self.addCleanup(service.shutdown)
+        with service.lock, transaction(service.path) as (state, _):
+            state['projects'].append(dict(id='other',name='另一项目'))
+
+        async def item(title, project_id=''):
+            created = await self.notebook_rpc('change_work_item', action=dict(
+                type='create', request_id=f'create-test-{project_id or "local"}',
+                fields=dict(title=title, project_id=project_id, description='正文不应发给模型')))
+            return created['receipt']['item_id']
+
+        item_id = await item('隔离事项')
+        other_id = await item('另一项目事项', 'other')
+        accepted = service.submit_execution('tebb','把隔离事项改为进行中','',dict(kind='test',id='worker'),'status-test-operation')
+        run_id = accepted['run_id']
+        service.tick()
+        route = service.execution_status(run_id)
+        service.managers['chat'].complete(route['task'],json.dumps(dict(mode='task',instructions='修改事项状态',strategy='direct')))
+        service.tick()
+        service.tick()
+        run = service.execution_status(run_id)
+        task = run['task']
+
+        def tool_response(name, call_id, arguments):
+            return dict(message=dict(role='assistant',content='',tool_calls=[dict(
+                id=call_id,type='function',function=dict(name=name,arguments=json.dumps(arguments)))]),usage={})
+
+        class Model:
+            calls = 0
+
+            def chat(model, messages, tools, on_delta):
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    material = json.loads(messages[1]['content'])['materials']
+                    actual = [row for row in material if row['level']=='actual_receipt']
+                    evidence = actual[-1]['excerpts'][0]['id']
+                    return dict(message=dict(content=json.dumps(dict(requirements=[dict(requirement='事项进入进行中',
+                        dimension='task_acceptance',status='supported',reason='按保存回执核对',evidence=[evidence])]))),usage={})
+                model.calls += 1
+                if model.calls == 1:
+                    self.assertIn('work_item_query', [tool['function']['name'] for tool in tools])
+                    return tool_response('work_item_query', 'lookup-item', dict(query='隔离事项'))
+                result = json.loads(next(message['content'] for message in reversed(messages) if message['role']=='tool'))
+                self.assertTrue(result['ok'], result)
+                if model.calls == 2:
+                    self.assertEqual(result['items'], [dict(id=item_id,title='隔离事项',state='todo',version=1,archived=False)])
+                    return tool_response('work_item_move', 'move-item', dict(item_id=item_id,version=1,state='doing'))
+                self.assertEqual(result['item']['state'], 'doing')
+                return dict(message=dict(content='隔离事项已改为进行中。'),usage={})
+
+        async def move(ident, version, state, call_id, task_id=task):
+            return await self.notebook_rpc('tebb_operation', run_id=run_id, tool='work_item_move',
+                args=dict(_task_id=task_id,_call_id=call_id,item_id=ident,version=version,state=state))
+
+        request = dict(service.managers['work'].requests[task], task_id=task,
+                       limits=execution_limits(run['agent'],run['agent_config'].get('tools',())))
+        async with connect(self.url, proxy=None) as board:
+            await board.send('{"type":"work_board_subscribe"}')
+            self.assertEqual(json.loads(await asyncio.wait_for(board.recv(), 3)), dict(type='work_board_changed'))
+            events=[]
+            await asyncio.wait_for(asyncio.to_thread(execute,request,lambda k,d:events.append((k,d)),Model()),15)
+            self.assertTrue(any(k=='tool_end' and d.get('tool')=='work_item_move' and d.get('status')=='success' for k,d in events))
+            self.assertEqual(json.loads(await asyncio.wait_for(board.recv(), 3)), dict(type='work_board_changed'))
+            refreshed = (await self.notebook_rpc('load_work_board'))['items']
+            self.assertEqual(next(row['state'] for row in refreshed if row['id']==item_id), 'doing')
+            repeated = await move(item_id, 1, 'doing', 'move-item')
+            self.assertEqual(repeated['receipt']['version'], 2)
+            receipt = await self.notebook_rpc('tebb_operation', run_id=run_id, tool='work_item_query',
+                args=dict(_task_id=task,request_id=repeated['receipt']['request_id']))
+            self.assertEqual(receipt['receipt'], repeated['receipt'])
+            self.assertTrue((await move(item_id, 1, 'done', 'stale-item'))['conflict'])
+            self.assertFalse((await move(item_id, 2, 'unknown-state', 'bad-state'))['ok'])
+            self.assertFalse((await move(other_id, 1, 'done', 'outside-project'))['ok'])
+            self.assertFalse((await move(item_id, 2, 'done', 'old-task', task_id='old-task'))['ok'])
+            archived = await self.notebook_rpc('change_work_item', action=dict(
+                type='archive',request_id='archive-test-work',id=item_id,version=2,archived=True))
+            self.assertTrue(archived['ok'])
+            self.assertFalse((await move(item_id, 3, 'done', 'archived-item'))['ok'])
+            with self.assertRaises(TimeoutError):
+                await asyncio.wait_for(board.recv(), .15)
+
+        async with connect(self.url.replace('test-token','bad-token'), proxy=None) as unauthorized:
+            with self.assertRaises(ConnectionClosed) as closed:
+                await unauthorized.recv()
+            self.assertEqual(closed.exception.rcvd.code, 4401)
+
     async def test_tebb_worker_uses_authenticated_shared_calendar_and_automation_services(self):
         from desk_companion.collaboration.service import Collaboration
         from desk_companion.collaboration.collaboration_worker import execute

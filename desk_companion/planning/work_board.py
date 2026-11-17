@@ -2,6 +2,7 @@
 from contextlib import closing, contextmanager, nullcontext
 import hashlib
 import json
+import logging
 from pathlib import Path
 import re
 import sqlite3
@@ -18,6 +19,8 @@ class WorkBoardService:
         self.path = Path(path or workspace_path())
         self._ready = False
         self._init_lock = threading.Lock()
+        self._change_lock = threading.Lock()
+        self._change_listeners = set()
 
     def _ensure(self):
         with self._init_lock:
@@ -70,7 +73,52 @@ class WorkBoardService:
         except Exception as exc:
             return dict(ok=False, error=f'事项读取失败：{exc}。请重新读取核对。', stage='read')
 
-    def change(self, action):
+    def subscribe_changes(self, listener):
+        with self._change_lock:
+            self._change_listeners.add(listener)
+
+        def unsubscribe():
+            with self._change_lock:
+                self._change_listeners.discard(listener)
+
+        return unsubscribe
+
+    def _notify_change(self):
+        with self._change_lock:
+            listeners = tuple(self._change_listeners)
+        for listener in listeners:
+            try:
+                listener()
+            except Exception:
+                logging.getLogger(__name__).exception('事项已保存，通知订阅者失败。')
+
+    @staticmethod
+    def _status(item):
+        return {key: item[key] for key in ('id', 'title', 'state', 'version', 'archived')}
+
+    def query_status(self, project_id, *, query='', item_id='', request_id=''):
+        """Read only fields needed to resolve an item and confirm its status."""
+        if not all(isinstance(value, str) for value in (query, item_id, request_id)):
+            raise BoardRuleError('事项查询须使用文本参数。')
+        if request_id:
+            self.validate_request_id(request_id)
+        with self.workspace_transaction() as (state, db):
+            items = [item for item in state.get('work_items', []) if item['project_id'] == project_id]
+            if request_id:
+                row = db.execute('SELECT result FROM work_receipts WHERE id=?', (request_id,)).fetchone()
+                receipt = json.loads(row[0]) if row else None
+                if receipt:
+                    for item in items:
+                        if item['id'] == receipt['item_id']:
+                            return dict(ok=True, receipt=receipt, items=[self._status(item)], truncated=False)
+                return dict(ok=True, receipt=None, items=[], truncated=False)
+            query = query.strip().casefold()
+            matches = [item for item in items if (not item_id or item['id'] == item_id)
+                       and query in item['title'].casefold()]
+        return dict(ok=True, items=[self._status(item) for item in matches[:50]], truncated=len(matches) > 50)
+
+    def change(self, action, *, project_id=None):
+        """A project scope supplied by the parent restricts the partner to status moves."""
         request_id = action.get('request_id', '') if isinstance(action, dict) else ''
         attempted, receipt = False, None
         try:
@@ -81,6 +129,11 @@ class WorkBoardService:
             self._ensure()
             from desk_companion.collaboration.store import transaction
             with (self.hold_item(action.get('id')) if action.get('type') != 'create' else nullcontext()), transaction(self.path) as (state, db):
+                if project_id is not None:
+                    item = next((row for row in state.get('work_items', []) if row['id'] == action.get('id')
+                                 and row['project_id'] == project_id), None)
+                    if not item or action['type'] != 'move':
+                        raise BoardRuleError('当前会话范围内找不到可操作的事项。')
                 row = db.execute('SELECT fingerprint,result FROM work_receipts WHERE id=?', (request_id,)).fetchone()
                 if row:
                     if row[0] != fingerprint:
@@ -99,6 +152,10 @@ class WorkBoardService:
                         change_state='unconfirmed' if attempted else 'not_changed', stage='save' if attempted else 'read',
                         error=(f'事项保存结果未确认：{exc}。请重新读取并核对操作编号，不要自动重发。' if attempted
                                else f'事项操作失败：{exc}。请重新读取。'))
+        if project_id is not None:
+            if row is None:
+                self._notify_change()
+            return dict(ok=True, receipt=receipt, item=self._status(item))
         page = self.load(request_id)
         if not page['ok']:
             return dict(ok=False, request_id=request_id, receipt=receipt, change_state='committed', stage='refresh',
