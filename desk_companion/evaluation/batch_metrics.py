@@ -67,6 +67,8 @@ def metrics(rows, planned):
 
 def compare(baseline,candidate):
     if baseline.get('state','completed')!='completed'or candidate.get('state','completed')!='completed':raise ValueError('评测批次尚未完整结算，不能判定改善。')
+    if any(c.get('criteria')=='reference_rubric'for c in baseline.get('cases',[]))and baseline.get('review_effort','provider_default')!=candidate.get('review_effort','provider_default'):
+        raise ValueError('两批独立评分的审阅策略不同，不能作为同标准改善比较。')
     if not baseline.get('judge_contract')or baseline['judge_contract']!=candidate.get('judge_contract'):raise ValueError('两批判定代码或 Judge 配置不同，请建立同一判定合同下的新批次。')
     if baseline['case_manifest_hash']!=candidate['case_manifest_hash']:raise ValueError('两批用例、标准或样本计划不同，不能作为同集改善比较。')
     a={(r['case_id'],r['sample']):r for r in baseline.get('results',[])};b={(r['case_id'],r['sample']):r for r in candidate.get('results',[])}

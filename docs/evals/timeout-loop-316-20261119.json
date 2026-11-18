@@ -175,6 +175,11 @@
       "typecheck": true,
       "build": true
     },
+    "legacy_comparison_and_gate_guards": {
+      "tests": 32,
+      "failed": 0,
+      "errors": 0
+    },
     "browser": {
       "checks": [
         {
@@ -207,7 +212,7 @@
       "baselineEvidenceVisible": true
     },
     "gate_recheck_after_holdout_configuration_guard": {
-      "code_version": "13f9a00769b2bed3d4f46bb65e97b9b269048eb75aeb7a7f38b798420aa68562",
+      "code_version": "01c5d71ed1eb0362adf50b39d06e29946fefcfd2210788b98c5d1fe6133b1568",
       "checks": {
         "candidate_all_mandatory_checks": false,
         "no_regressions": false,
@@ -860,6 +865,7 @@
     "Local unittest logs retain a background task thread warning during temporary-profile unit tests (BrokenPipeError/SQLite unavailable/pipe-close Errno22); suspected teardown race, trigger not isolated. Unittest did not count it as an error. It is separate from the observed remote model timeout.",
     "Twelve installed-sandbox tests and one OS-disallowed symlink test were skipped locally; no native installer acceptance or release.",
     "Knowledge RAG, complete notebook generation, news/video/weekly review, and complete multi-stage DevCycle still lack independent end-to-end golden samples.",
+    "Business reference_rubric grading freezes reviewer effort; changed grading policy is rejected for both new and legacy comparison records. Calibration keeps fixed expected labels while reviewer effort is the candidate parameter.",
     "Known/unknown usage and costs remain separate; no p95 is inferred from these small live cohorts."
   ]
 }

@@ -105,7 +105,7 @@ class EvaluationCenter:
         from desk_companion.tasks.task_budgets import policy
         judge_limits=policy('simple')if judge_config or any(c['criteria']=='reference_judge_calibration'for c in cases)else None
         from desk_companion.evaluation.grading_contract import grading_contract
-        judge_contract=grading_contract(cases,judge_config)
+        judge_contract=grading_contract(cases,judge_config,review_effort=review_effort)
         case_hash=fingerprint(dict(cases=cases,planned=planned,mode=mode,timeout=timeout,judge_contract=judge_contract,judge_limits=judge_limits))
         manifest=dict(cases=cases,planned=planned,case_manifest_hash=case_hash,candidate=candidate,mode=mode,timeout=timeout,
                       tool_loading=tool_loading,review_effort=review_effort,code_version=code,model_config=model_config,judge_config=judge_config,judge_limits=judge_limits,judge_contract=judge_contract,framework=dict(name='promptfoo',version='0.125.1'),judge='product_contract_'+str(cases[0]['contract_version']))

@@ -34,6 +34,9 @@ class EvaluationCenterTests(unittest.TestCase):
         b=dict(id='b',case_manifest_hash='frozen',judge_contract='fixed',planned=planned,results=[{**r,'outcome':'success'}for r in rows])
         value=compare(a,b)
         self.assertEqual(value['changes'],dict(unchanged=2,improved=7))
+        legacy={**a,'cases':[dict(criteria='reference_rubric')]}
+        with self.assertRaises(ValueError):compare(legacy,{**b,'review_effort':'low'})
+        self.assertEqual(compare(legacy,{**b,'review_effort':'provider_default'})['changes'],dict(unchanged=2,improved=7))
         with self.assertRaises(ValueError):compare(a,{**b,'case_manifest_hash':'changed-judge'})
 
     def test_original_batch_is_immutable_after_terminal_and_request_cannot_rebind(self):
@@ -54,6 +57,11 @@ class EvaluationCenterTests(unittest.TestCase):
         self.assertEqual(evaluate(value['spec'],dict(state='succeeded',answer='anything',events=[]))[0],'incomplete')
         from desk_companion.evaluation.grading_contract import grading_contract
         self.assertNotEqual(grading_contract([value],{'id':'one'}),grading_contract([value],{'id':'two'}))
+        self.assertNotEqual(grading_contract([value],{'id':'one'},review_effort='provider_default'),
+                            grading_contract([value],{'id':'one'},review_effort='low'))
+        calibration=next(c for c in self.store.cases()if c['criteria']=='reference_judge_calibration')
+        self.assertEqual(grading_contract([calibration],review_effort='provider_default'),
+                         grading_contract([calibration],review_effort='low'))
         plan=[dict(case_id='open_answer',sample=1,goals=value['spec']['rubric'])]
         unknown=metrics([dict(case_id='open_answer',sample=1,outcome='incomplete',goal_checks=[dict(id='meaning',passed=None)])],plan)
         self.assertEqual(unknown['attainment']['achieved_weight'],0)
