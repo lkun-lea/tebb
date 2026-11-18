@@ -17,7 +17,7 @@ from desk_companion.local_api.host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
-    'account_session', 'account_action',
+    'account_session', 'account_action', 'myagentdesk_delivery',
     'personalization_status', 'personalization_action',
     "development_team",
     "execution_inspect", "agent_evaluation",
@@ -452,17 +452,23 @@ async def _handle_notebook(ws, msg: dict) -> None:
         connected.clear()
 
 
+async def periodic(action, shutdown):
+    while not shutdown.is_set():
+        try:
+            await asyncio.to_thread(action)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning('后台定时扫描未完成：%s', type(exc).__name__)
+        try:
+            await asyncio.wait_for(shutdown.wait(), 5)
+        except asyncio.TimeoutError:
+            pass
+
+
 async def scheduled_jobs(host, shutdown):
     """无头客户端也驱动本地定时器，不依赖旧宠物窗口 tick。"""
-    async def periodic(action):
-        while not shutdown.is_set():
-            try:await asyncio.to_thread(action)
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning('后台定时扫描未完成：%s',type(exc).__name__)
-            try:await asyncio.wait_for(shutdown.wait(),5)
-            except asyncio.TimeoutError:pass
-    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick),periodic(host.personalization.tick))
+    await asyncio.gather(periodic(host.automation.tick, shutdown), periodic(host.calendar_reminders.tick, shutdown),
+                         periodic(host.personalization.tick, shutdown))
 
 
 async def main() -> None:
@@ -483,6 +489,7 @@ async def main() -> None:
     SHUTDOWN = asyncio.Event()
     asyncio.create_task(asyncio.to_thread(HOST.feishu_agent.autostart))
     scheduler = asyncio.create_task(scheduled_jobs(HOST, SHUTDOWN))
+    delivery = asyncio.create_task(periodic(HOST.myagentdesk_delivery.sync_once, SHUTDOWN))
     project_cleanup=None
     try:
         from types import SimpleNamespace
@@ -504,7 +511,7 @@ async def main() -> None:
         HOST.automation.stop()
         from desk_companion.knowledge.local_sources import cancel_all
         cancel_all()
-        await scheduler
+        await asyncio.gather(scheduler, delivery)
         if HOST._tasks is not None:
             HOST._tasks.shutdown()
         if HOST._collaboration is not None:

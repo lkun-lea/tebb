@@ -7,6 +7,9 @@ from desk_companion.local_api import workbench_queries
 
 
 class Bridge:
+    def myagentdesk_delivery(self, **values):
+        return self._host.myagentdesk_delivery.operation(**values)
+
     def account_session(self, operation_id=''):
         return self._host.accounts.status(operation_id)
 
