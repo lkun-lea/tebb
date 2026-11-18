@@ -63,6 +63,8 @@ uv run --locked python scripts/verify_http_transport.py --node $env:TEBB_PI_NODE
 
 脱敏结果、原失败与修正后的整组复验见[证据记录](evals/http-sse-bridge-20261118.json)。本地完整1514项先发现旧WebSocket测试监听器的两处HTTP接入失败；改用正式监听器后，本地API整组58项通过，新增HTTP/Pi进程15项、评测与启动21项、前端315项、类型检查和构建通过。提交的最终全量结论以同一提交的CI记录为准，三项CI通过后才更新main。
 
+首个候选CI的HTTP/进程桥相关用例通过，但既有个性化批次验收因私有线程6秒等待未结束而失败。该用例单独关联#238，改用已有service.wait的25秒有界入口，补验首批处理25条、余1条及两批共写26次。生产同步规则未变，相关18项回归通过；原CI失败记录保留。
+
 | 验收 | 证据入口 |
 | --- | --- |
 | 健康、账号、认证退出与无 GUI 后台启动 | `test_backend_startup`、`test_headless_host` 和 HTTP 真实回环服务 |

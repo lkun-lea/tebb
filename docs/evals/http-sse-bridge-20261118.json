@@ -48,7 +48,8 @@
     "tests/test_agent_eval_projects.py": "1dd661e8c976cf6d26b23e253d7d0501e9dc0a476598ced9ca9c2c8e19a62ae8",
     "tests/test_http_api.py": "de53fd2e6231bf065b6677b8f8f30c23d3040d7913196f94e8cff04ee5936a9d",
     "tests/test_local_api.py": "cef12c2f316caf24a5b25f8165f08d96f1678b7559750a5c9b9bc771b5f9ce03",
-    "tests/test_pi_bridge.py": "5ae185087cfcd2b6d2e7e9b32dd6b6379cf2ceb596d25fc11854554fcb8d17bd"
+    "tests/test_pi_bridge.py": "5ae185087cfcd2b6d2e7e9b32dd6b6379cf2ceb596d25fc11854554fcb8d17bd",
+    "tests/test_personalization.py": "dadf359b3ed27742ce69487f8051172534a37bd0d56dbd23b351c28893caf5ce"
   },
   "initial_full_attempt": {
     "completed": false,
@@ -232,5 +233,20 @@
     "Real proxy/custom CA and nonempty live reasoning-history coverage remain as documented in the first batch.",
     "Native UI/candidate installer, bundled Node licensing/provenance and clean Windows upgrade/rollback acceptance remain in their planned batches.",
     "Temporary legacy WS routes and older release/installer verification scripts remain for compatibility until batch 6."
-  ]
+  ],
+  "ci_followup": {
+    "issue": "https://github.com/lkun-lea/tebb/issues/238",
+    "failed_candidate": "d69944ad7abf233fa656d9a412879473fc0e7458",
+    "url": "https://github.com/lkun-lea/tebb/actions/runs/44272443111",
+    "tests": 1514,
+    "failed_case": "test_personalization.RecordsTests.test_bounded_job_reports_pause_instead_of_false_completion",
+    "skipped": 12,
+    "reason": "The batch-size test joined a private thread for six seconds although the service promises a 25-record batch, not a six-second duration.",
+    "fix": "Use the existing service.wait(timeout=25) acceptance API and assert first batch processed=25, queued=1, apply_count=25; second batch completes at apply_count=26. No production service behavior changed.",
+    "fix_commit": "47c9ec8",
+    "focused_tests": 18,
+    "focused_passed": true,
+    "evidence_sha256": "217b22b7da8054b65b456932b0b123fe3223514bde48263ee4c0c57c3c07852f",
+    "focused_log_sha256": "992874117afdaaa98c9b84219a55360b6c34fe06e4655353dbb6df6ab3c9fcff"
+  }
 }
