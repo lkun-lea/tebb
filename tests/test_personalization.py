@@ -204,8 +204,9 @@ class RecordsTests(unittest.TestCase):
         self.addCleanup(service.shutdown)
         return service
     def wait(self,service):
-        service._thread.join(6); self.assertFalse(service._thread.is_alive())
-        return self.store.page()['job']
+        result=service.wait(timeout=25)
+        self.assertTrue(result['complete'],result)
+        return result['job']
 
     def test_service_lost_response_queries_receipt_without_a_second_write(self):
         self.act(); self.remote.failure=CloudError('connection_failed','断连')
@@ -227,7 +228,10 @@ class RecordsTests(unittest.TestCase):
 
     def test_bounded_job_reports_pause_instead_of_false_completion(self):
         for i in range(26): self.act(payload=payload('记录'+str(i)))
-        service=self.service(); service.start(uid()); self.assertEqual(self.wait(service)['state'],'paused')
+        service=self.service(); service.start(uid()); first=self.wait(service)
+        self.assertEqual(first['state'],'paused');self.assertEqual(first['processed'],25)
+        self.assertEqual(self.store.page()['counts']['queued'],1)
+        self.assertEqual(sum(c[0]=='apply' for c in self.remote.calls),25)
         service.start(uid()); self.assertEqual(self.wait(service)['state'],'complete')
         self.assertEqual(sum(c[0]=='apply' for c in self.remote.calls),26)
 
