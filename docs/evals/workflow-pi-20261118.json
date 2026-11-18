@@ -1,0 +1,63 @@
+{
+  "issue": 293,
+  "date": "2026-11-18",
+  "batch": "2: generic workflow AI nodes",
+  "baseline": "867f90f32e1170ddcefb7a61d2670bcf49fb3291",
+  "runtime": {"node": "24.22.3", "pi": "1.5.2", "undici": "8.12.4"},
+  "baseline_ci": [
+    {"url": "https://github.com/lkun-lea/tebb/actions/runs/44275513532", "conclusion": "success"},
+    {"url": "https://github.com/lkun-lea/tebb/actions/runs/44278192581", "conclusion": "success"}
+  ],
+  "local_regression": {
+    "modules": ["test_pi_inference", "test_pi_network", "test_pi_bridge", "test_workflows", "test_workflow_scenarios", "test_workflow_authoring", "test_execution_context", "test_budget_transport", "test_task_budgets", "test_usage_center", "test_agent_debug", "test_model_network"],
+    "tests": 130,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 62.040,
+    "log": "affected-final-3.log"
+  },
+  "authenticated_process_acceptance": {
+    "entry": "scripts/verify_workflow.py",
+    "workflow_id": "932f3c5fdf3542e9bbfc187a9f8d45e8",
+    "version": "c7f415def54a58959cf5b2d446eaff46222cdcafd5a8bbc300bede0f58787916",
+    "run_id": "0406430d47695baaab1af5f841f3204a",
+    "task_id": "83c1c518c36c58af89dd42dc31dbb369",
+    "call_id": "6916577027734dd49ed5b387d079e91f",
+    "usage_call_id": "afd0b644ecd94d93bdd751ee8a2dcd50",
+    "transport": "pi",
+    "state": "completed",
+    "model_calls": 1,
+    "exact_expected_text": "发布包对话正常。",
+    "confirmed_nodes": ["trigger", "ai", "check", "selected"],
+    "skipped_nodes": ["skipped"],
+    "same_request_reused_original_run_and_task": true,
+    "actual_payload_and_call_inspector_compared": true,
+    "real_python_worker_and_pinned_node": true,
+    "real_model": false,
+    "real_external_writes": false,
+    "evidence": "api-final/result.json"
+  },
+  "workflow_contracts": {
+    "scheduled_version": "After a definition update, the saved schedule executes its original graph and input through Pi.",
+    "step_approval": "Before explicit node confirmation, the simulated target has zero writes.",
+    "unknown_write": "A committed simulated write loses its receipt; advance is denied, read-only reconcile uses the original receipt_key, then the same run completes.",
+    "model_requests_in_recovery_case": 1,
+    "target_writes_in_recovery_case": 1,
+    "test_entry": "tests.test_pi_inference"
+  },
+  "network_acceptance": {
+    "entry": "tests.test_pi_network",
+    "local_simulated_services_only": true,
+    "passed": ["direct bypasses environment proxy", "environment HTTP proxy", "custom authenticated HTTP proxy", "authenticated SOCKS5", "authenticated SOCKS5H remote DNS", "untrusted TLS rejected", "SSL_CERT_FILE accepted", "SSL_CERT_DIR accepted", "HTTPS does not use HTTP-only proxy"],
+    "tls_verification_disabled": false
+  },
+  "development_failures_retained": [
+    {"log": "../tebb-293-evidence/workflow-affected-first.log", "tests": 119, "failures": 1, "errors": 0, "cause": "Pi SDK onResponse is not invoked for HTTP rejection; record status at actual fetch return instead."},
+    {"log": "inference-second.log", "tests": 10, "failures": 0, "errors": 2, "cause": "New tests indexed a string receipt key and tried to join a deliberately unstarted monitor; corrected test use of existing contracts."},
+    {"log": "inference-network-first.log", "tests": 13, "failures": 1, "errors": 3, "cause": "proxyTls enabled TLS toward a plain SOCKS proxy; HTTP test fixture incorrectly treated HTTPConnection as a context manager."}
+  ],
+  "evidence_root": "E:/Learn_Project/_work/tebb-293-workflow-evidence",
+  "merge_gate": "All three jobs of CI on the exact candidate commit must pass before updating main; GitHub Actions retains full regression results and logs.",
+  "pending": ["Real provider/proxy combinations", "HTTPS proxy server and Windows registry proxy matrix", "Streaming idle timeout matrix", "Native Tauri click acceptance", "Candidate packaging and clean Windows without global Node/Pi", "Remaining production Atlas callers and eventual dependency removal"]
+}

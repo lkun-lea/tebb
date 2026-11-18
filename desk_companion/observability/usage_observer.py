@@ -79,6 +79,11 @@ def http_sending(request):
         return current.sending()
 
 
+def current_model_attempt():
+    """Actual Node/provider adapters share the same attempt owner as HTTPX."""
+    return _MODEL.get()
+
+
 def http_returned(handle,status=None,error=None):
     if not handle:return
     attempt,index=handle

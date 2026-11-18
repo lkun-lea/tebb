@@ -14,7 +14,7 @@ from unittest.mock import patch
 from desk_companion.pi_runtime.bridge import PiBridge, PiCancelled, PiProcessError, PiTimeout
 
 
-class PiBridgeTests(unittest.TestCase):
+class PiProviderFixture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.node = os.environ.get('TEBB_PI_NODE') or shutil.which('node')
@@ -31,6 +31,12 @@ class PiBridgeTests(unittest.TestCase):
                 body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                 requests.append(body)
                 scenario = body['model']
+                if scenario == 'rejected':
+                    self.send_response(429)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(b'{"error":{"message":"isolated rate limit"}}')
+                    return
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream')
                 self.end_headers()
@@ -46,10 +52,10 @@ class PiBridgeTests(unittest.TestCase):
                             function=dict(name='probe_add', arguments='{"a":17,"b":23}'))]))
                         frame({}, 'tool_calls')
                     else:
-                        frame(dict(content='40'))
+                        if scenario != 'empty': frame(dict(content='40'))
                         if scenario == 'cancel':
                             time.sleep(3)
-                        frame({}, 'length' if scenario == 'length' else 'stop')
+                        if scenario != 'no-finish': frame({}, 'length' if scenario == 'length' else 'stop')
                     if scenario != 'missing-usage':
                         self.wfile.write(('data: '+json.dumps(dict(choices=[],usage=dict(prompt_tokens=13, completion_tokens=7,total_tokens=20)))+'\n\n').encode())
                     self.wfile.write(b'data: [DONE]\n\n')
@@ -69,6 +75,8 @@ class PiBridgeTests(unittest.TestCase):
             api_key='isolated-test-only', network=dict(mode='direct'), context=dict(messages=[dict(role='user',content='40',timestamp=1)]),
             options=dict(maxTokens=1024,reasoningEffort='low'), prompt='Use probe_add exactly once to add 17 and 23, then return 40.')
 
+
+class PiBridgeTests(PiProviderFixture):
     def test_complete_events_usage_and_pinned_process_handshake(self):
         events, admissions = [], []
         with patch.dict(os.environ, DESK_TERMINAL_TOKEN='parent-only-token', DESK_TERMINAL_PORT='12345'), PiBridge(self.node) as bridge:

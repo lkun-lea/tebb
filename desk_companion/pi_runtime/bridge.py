@@ -15,7 +15,10 @@ from desk_companion.tasks.task_process import ProcessTree
 
 
 class PiProcessError(RuntimeError):
-    pass
+    def __init__(self, message, *, partial=None, finish_reason=None):
+        super().__init__(message)
+        self.partial = partial
+        self.finish_reason = finish_reason
 
 
 class PiCancelled(PiProcessError):
@@ -84,7 +87,7 @@ class PiBridge:
             self.close()
             raise PiProcessError('Pi 启动失败，请核对 Node 24.22.3 和固定依赖。') from None
 
-    def call(self, kind, payload, *, before_model, tool=None, cancel=None, on_event=lambda kind, data: None, timeout=90):
+    def call(self, kind, payload, *, before_model, tool=None, cancel=None, should_cancel=None, on_event=lambda kind, data: None, timeout=90):
         if kind not in {'complete', 'agent'} or not 0 < timeout <= 300:
             raise ValueError('Pi 调用类型或时限无效。')
         if self.used:
@@ -96,9 +99,10 @@ class PiBridge:
         cancellation = False
         timed_out = False
         while True:
-            if not cancellation and ((cancel and cancel.is_set()) or time.monotonic() >= deadline):
+            requested = bool(cancel and cancel.is_set()) or bool(should_cancel and should_cancel())
+            if not cancellation and (requested or time.monotonic() >= deadline):
                 cancellation = True
-                timed_out = not (cancel and cancel.is_set())
+                timed_out = not requested
                 self._send(dict(id=ident, type='cancel'))
                 deadline = time.monotonic() + 2
             if cancellation and time.monotonic() >= deadline:
@@ -116,7 +120,7 @@ class PiBridge:
                 raise PiProcessError('Pi 返回了其他调用的事件。')
             event_type, data = event['type'], event.get('data')
             if event_type in {'before_model', 'tool_call'}:
-                if cancel and cancel.is_set():
+                if requested:
                     cancellation = True
                     self._send(dict(id=ident, type='cancel'))
                     deadline = time.monotonic() + 2
@@ -137,18 +141,19 @@ class PiBridge:
                     raise
                 self._send(dict(id=ident, type='reply', ticket=data['ticket'], data=result))
             elif event_type in {'result', 'error'}:
-                if cancellation or (cancel and cancel.is_set()) or data.get('cancelled'):
-                    if timed_out or (data.get('cancelled') and not (cancel and cancel.is_set()) and not cancellation):
-                        raise PiTimeout('Pi 调用超时，部分输出和原工具回执可核对。')
-                    raise PiCancelled('Pi 调用已取消，部分输出和原工具回执可核对。')
+                if cancellation or requested or data.get('cancelled'):
+                    if timed_out or (data.get('cancelled') and not requested and not cancellation):
+                        raise PiTimeout('Pi 调用超时，部分输出和原工具回执可核对。', partial=data)
+                    raise PiCancelled('Pi 调用已取消，部分输出和原工具回执可核对。', partial=data)
                 if event_type == 'error':
                     raise PiProcessError('Pi 调用未完成，请检查模型配置、网络和原任务回执。')
                 message = data.get('message') or {}
                 if message.get('stopReason') != 'stop':
-                    raise PiProcessError('Pi 返回不完整结果（' + str(message.get('stopReason')) + '），未接纳为完整交付。')
+                    raise PiProcessError('Pi 返回不完整结果（' + str(message.get('stopReason')) + '），未接纳为完整交付。',
+                                         partial=data, finish_reason=message.get('stopReason'))
                 return data
             else:
-                if not cancellation and not (cancel and cancel.is_set()):
+                if not cancellation and not requested:
                     on_event(event_type, data)
 
     def close(self):

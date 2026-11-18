@@ -57,6 +57,13 @@ async def verify(port, token, model_port):
     task=(await rpc('get_agent_task',dict(task_id=accepted['task_id'],focus=False)))['task']
     assert any(e['kind']=='tool_start' for e in task['events'])
     assert any(e['kind']=='llm_start' for e in task['events'])
+    calls = (await rpc('list_debug_calls',dict(task_id=accepted['task_id'])))['items']
+    assert len(calls)==1,calls
+    detail = await rpc('get_debug_call',dict(call_id=calls[0]['id']))
+    assert detail['meta']['transport']=='pi',detail['meta']
+    assert detail['request']==ModelServer.requests[0]
+    assert detail['response']['choices'][0]['message']['content']=='发布包对话正常。'
+    assert detail['call']['state']=='complete'
     # A genuine legacy job can still be saved; scheduling snapshots the workflow version.
     schedule=dict(name='隔离定时',action='workflow',enabled=False,cadence='daily',weekdays=[],hour=9,minute=0,doc='',workflow_id=definition['id'],workflow_version=definition['version'],workflow_write_version='')
     await rpc('save_automation_job',dict(payload=schedule))
@@ -65,6 +72,7 @@ async def verify(port, token, model_port):
     assert {j['action'] for j in jobs}=={'workflow','retro_gen'}
     return dict(ok=True,workflow_id=definition['id'],version=definition['version'],run_id=accepted['id'],task_id=accepted['task_id'],
                 state=run['state'],model_calls=len(ModelServer.requests),node_states={key:value['state'] for key,value in run['receipts'].items()},
+                transport='pi',call_id=calls[0]['id'],usage_call_id=detail['meta']['usage_call_id'],
                 real_model=False,feishu_writes=False)
 
 

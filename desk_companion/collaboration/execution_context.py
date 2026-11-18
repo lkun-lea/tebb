@@ -1,4 +1,4 @@
-"""Product input policy; Atlas owns model transport, streaming and compact primitives."""
+"""Shared product admission/accounting; each adapter owns its model transport."""
 import copy
 import hashlib
 import json
@@ -236,7 +236,7 @@ class ExecutionLLM(LLM):
                 source_messages=carry(source_messages,self.source_provider())
             selection = next((getattr(m,'selection',None) for m in source_messages if getattr(m,'selection',None) is not None),None)
             with ModelAttempt(self.model,self.context_model_id,endpoint,call_id)as observed, context(assembly=manifest(source_messages,selection)):
-                result=super().chat(prepared['messages'],tools,on_delta,options=options,callbacks=callbacks)
+                result=self._transport_chat(prepared['messages'],tools,on_delta,options=options,callbacks=callbacks)
                 observed.returned(result.get('usage'),result.get('finish_reason'))
         except BaseException as exc:
             partial=getattr(exc,'partial',None)
@@ -259,6 +259,10 @@ class ExecutionLLM(LLM):
                     raise BudgetExceeded(violation,result)
         self.last_context['provider_usage']=result.get('usage')
         return result
+
+    def _transport_chat(self,messages,tools,on_delta,*,options,callbacks):
+        """Transport seam; admission, accounting and settlement remain above it."""
+        return super().chat(messages,tools,on_delta,options=options,callbacks=callbacks)
 
     def _context_notice(self):
         if self.on_context:

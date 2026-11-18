@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createInterface } from 'node:readline';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Agent } from '@earendil-works/pi-agent-core';
 import { normalizeContext } from '@earendil-works/pi-ai';
 import { stream, streamSimple } from '@earendil-works/pi-ai/api/openai-completions';
@@ -28,13 +29,41 @@ function cancel() {
   for (const request of pending.values()) request.reject(new Error('cancelled'));
   pending.clear();
 }
-function transport(policy) {
-  if (policy?.mode === 'direct') return new HttpAgent();
-  if (!policy || policy.mode === 'system') return new EnvHttpProxyAgent();
+function proxyUrl(value) {
+  // Undici's SOCKS5 implementation sends hostnames to the proxy (remote DNS).
+  return value?.replace(/^socks5h:/i, 'socks5:');
+}
+async function transport(policy, baseUrl) {
+  const ca = [];
+  if (policy?.ca_file) ca.push(await readFile(policy.ca_file, 'utf8'));
+  if (policy?.ca_dir) {
+    for (const entry of await readdir(policy.ca_dir, { withFileTypes: true })) {
+      if (entry.isFile() || entry.isSymbolicLink()) {
+        const text = await readFile(join(policy.ca_dir, entry.name), 'utf8');
+        if (text.includes('-----BEGIN CERTIFICATE-----')) ca.push(text);
+      }
+    }
+  }
+  const tls = ca.length ? { ca } : {};
+  const options = { connect: tls, requestTls: tls, connectTimeout: 5000 };
+  if (policy?.mode === 'direct') return new HttpAgent(options);
+  if (!policy || policy.mode === 'system') {
+    const proxies = policy?.system_proxies;
+    const httpProxy = proxyUrl(proxies ? proxies.http ?? proxies.all : process.env.http_proxy ?? process.env.HTTP_PROXY ?? process.env.all_proxy ?? process.env.ALL_PROXY);
+    const httpsProxy = proxyUrl(proxies ? proxies.https ?? proxies.all : process.env.https_proxy ?? process.env.HTTPS_PROXY ?? process.env.all_proxy ?? process.env.ALL_PROXY);
+    const selected = new URL(baseUrl).protocol === 'https:' ? httpsProxy : httpProxy;
+    // SOCKS is plain TCP; passing even an empty proxyTls object enables TLS to it.
+    // Match HTTPX's scheme-specific selection; its HTTP proxy does not cover HTTPS.
+    return new EnvHttpProxyAgent({ ...options, httpProxy: selected || '', httpsProxy: selected || '', noProxy: proxies?.no,
+      ...(selected?.startsWith('https:') ? { proxyTls: tls } : {}),
+    });
+  }
   if (policy.mode === 'custom') {
-    const target = new URL(policy.proxy_url);
+    const target = new URL(proxyUrl(policy.proxy_url));
     if (policy.username || policy.password) { target.username = policy.username || ''; target.password = policy.password || ''; }
-    return new ProxyAgent(target.toString());
+    return new ProxyAgent({ ...options, uri: target.toString(),
+      ...(target.protocol === 'https:' ? { proxyTls: tls } : {}),
+    });
   }
   throw new Error('Unsupported network policy');
 }
@@ -46,24 +75,39 @@ async function execute(command) {
   let dispatcher;
   const deadline = setTimeout(cancel, data.timeout_ms);
   try {
-    dispatcher = transport(data.network);
+    dispatcher = await transport(data.network, data.model.baseUrl);
     const model = data.model;
     const usage = { reported: false };
     let modelCalls = 0;
     const common = {
       ...data.options, apiKey: data.api_key, maxRetries: 0,
       timeoutMs: data.timeout_ms, signal: abort.signal,
-      fetch: (url, init) => fetch(url, { ...init, dispatcher }),
+      fetch: async (url, init) => {
+        const response = await fetch(url, { ...init, dispatcher });
+        emit(id, 'http_status', { call_id: modelCalls, status: response.status });
+        if (!response.ok && data.observe_provider) {
+          emit(id, 'provider_error', { body: await response.clone().text() });
+        }
+        return response;
+      },
       onPayload: async body => {
         usage.reported = false;
+        delete usage.raw;
+        // The product owns verified generation bindings; Pi defaults cannot invent one.
+        if (data.wire_options) {
+          delete body.max_tokens; delete body.max_completion_tokens;
+          Object.assign(body, data.wire_options);
+        }
         // Apply verified transport bindings before admission/observation.
         if (data.tool_stream) body.tool_stream = true;
         const allowed = await ask(id, 'before_model', { model: model.id, payload: body, call_id: ++modelCalls });
         if (!allowed.ok || abort.signal.aborted) throw new Error('Model admission denied');
         return body;
       },
-      onResponse: response => emit(id, 'http_status', { call_id: modelCalls, status: response.status }),
-      onProviderStreamEvent: event => { if (event.usage) { usage.reported = true; emit(id, 'provider_usage', { call_id: modelCalls, usage: event.usage }); } },
+      onProviderStreamEvent: event => {
+        if (data.observe_provider) emit(id, 'provider_frame', event);
+        if (event.usage) { usage.reported = true; usage.raw = event.usage; emit(id, 'provider_usage', { call_id: modelCalls, usage: event.usage }); }
+      },
     };
     let message;
     if (type === 'complete') {
@@ -102,6 +146,7 @@ async function execute(command) {
     const clean = structuredClone(message);
     delete clean.errorMessage;
     emit(id, 'result', { message: clean, usage_reported: usage.reported,
+      provider_usage: usage.raw,
       cost_known: data.cost_known === true && usage.reported,
       model_calls: modelCalls, cancelled: abort.signal.aborted });
   } catch {

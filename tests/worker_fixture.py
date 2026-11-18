@@ -22,6 +22,7 @@ from desk_companion.models import model_catalog
 from desk_companion.content.video import sources as video
 from desk_companion.tasks.worker import main
 from desk_companion.infrastructure.paths import data_root
+from desk_companion.pi_runtime import inference
 
 original = assistant.build_agent
 fixture_roots=[]
@@ -96,6 +97,7 @@ with patch.dict(sys.modules, {"desk_companion.collaboration.collaboration_llm": 
      patch.object(assistant, "build_agent", build), patch.object(model_catalog, "bind_llm"), \
      patch.object(model_catalog, "require_active", return_value={"id":"fixture","model":"fake", "api_key":"test-only", "base_url":"http://example.invalid/v1"}), \
      patch("desk_companion.collaboration.execution_context.ExecutionLLM", side_effect=video_llm), \
+     patch.object(inference, "PiInference", side_effect=lambda *a, **kw: FakeLLM(['离线工作流结果'])), \
      patch.object(video, "extract", extract_video), \
      patch("desk_companion.integrations.feishu.feishu_auth.create_markdown_doc", create_note):
     try:main()

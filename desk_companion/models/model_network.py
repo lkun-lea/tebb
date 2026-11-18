@@ -38,6 +38,16 @@ def load():
     return validate({**DEFAULT, **json.loads(path().read_text('utf-8'))}) if path().exists() else DEFAULT.copy()
 
 
+def pi_policy():
+    """Private Node transport receives the same configured trust roots as HTTPX."""
+    import certifi
+    from urllib.request import getproxies
+    config = load()
+    return {**config, 'ca_file': os.getenv('SSL_CERT_FILE') or certifi.where(),
+            'ca_dir': os.getenv('SSL_CERT_DIR'),
+            'system_proxies': getproxies() if config['mode'] == 'system' else {}}
+
+
 def public(cfg=None):
     cfg = load() if cfg is None else cfg
     return {k:v for k,v in cfg.items() if k != 'password'} | dict(has_password=bool(cfg['password']))
