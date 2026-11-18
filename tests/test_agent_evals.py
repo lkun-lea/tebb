@@ -50,13 +50,17 @@ class EvalVerdictTests(unittest.TestCase):
         self.assertEqual(wait_task(Queue(),'task',0),(dict(state='succeeded'),False))
 
     def test_named_cases_have_explicit_conditions_and_separate_cancellation_scopes(self):
-        self.assertEqual(len(CASES),49)
+        self.assertEqual(len(CASES),54)
         self.assertEqual(len({c['id'] for c in CASES}),len(CASES))
         self.assertEqual({c['research_mode']for c in CASES if c.get('scenario')=='readonly'},{'serial','legacy_parallel','atlas_parallel'})
         self.assertTrue(all('expected_state' in c and 'prerequisite' in c for c in CASES))
         discovery=next(c for c in CASES if c['id']=='pi_tools_discovery')
         self.assertEqual(discovery['required_tools'],['web_fixture_sum','project_fixture_check'])
         self.assertEqual(discovery['executor'],'pi_tools')
+        calibration=[c for c in CASES if c.get('executor')=='judge_calibration']
+        self.assertEqual(len(calibration),5)
+        self.assertEqual(sorted(c['expected']['status']for c in calibration),['fail','fail','pass','pass','unknown'])
+        self.assertTrue(all(c['budget']==1 and c['candidate'] and c['criterion']for c in calibration))
 
     def test_queue_success_with_wrong_content_is_false_success(self):
         spec=CASES[0]
@@ -110,6 +114,13 @@ class EvalVerdictTests(unittest.TestCase):
     def test_empty_or_null_usage_is_unknown(self):
         for raw in (None,{},dict(prompt_tokens=None,completion_tokens=None)):
             self.assertEqual(aggregate_usage([raw]),(None,False))
+
+    def test_component_assessment_is_not_counted_as_queued_business_task(self):
+        _,totals=summarize([dict(outcome='success',task_id='judge:operation',task_ids=['judge:operation'],
+            execution_kind='component_operation',call_ids=['real-call'])])
+        self.assertEqual(totals['tasks'],0)
+        self.assertEqual(totals['component_operations'],1)
+        self.assertEqual(totals['model_calls'],1)
 
     def test_partial_usage_preserves_only_known_component(self):
         self.assertEqual(aggregate_usage([dict(prompt_tokens=12)]),(dict(input_tokens=12,output_tokens=None),False))

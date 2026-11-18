@@ -84,3 +84,14 @@ class ExecutionCenterTests(unittest.TestCase):
         value=center.list(filters=dict(purpose='research'))
         self.assertEqual([r['id']for r in value['items']],['task:r'])
         self.assertEqual(value['kinds']['task'],1)
+
+    def test_unowned_component_operation_remains_unknown_in_trace_and_list(self):
+        now=time.time()-1
+        self.usage.begin('review-call','model',dict(root='judge:operation-r',task='judge:operation-r',model='fixture'),now=now)
+        center=ExecutionCenter(self.usage,self.tools,lambda:dict(tasks=[],attempts=[]),
+            lambda _:dict(nodes=[],edges=[],task_bindings={}))
+        graph=center.locate('judge:operation-r')
+        root=next(n for n in graph['nodes']if n['id']==graph['root'])
+        self.assertEqual(root['kind'],'operation');self.assertEqual(root['state'],'unknown')
+        self.assertTrue(root['owner_missing'])
+        self.assertEqual(center.list()['items'][0]['kind'],root['kind'])

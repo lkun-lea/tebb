@@ -93,7 +93,7 @@ class ExecutionCenter:
             after=page[-1]['seq']
             if len(events)>100000: raise ValueError('执行图超过单次范围，请用工具事件分页查询。')
         if owner is None and not records and not events: raise ValueError('未找到执行记录。')
-        nodes={root:{'id':root,'kind':'task','label':root,**(owner or dict(state='unknown',owner_missing=True))}};edges=[]
+        nodes={root:{'id':root,'kind':'task'if root.startswith(('task:','collab:','workflow:'))else'operation','label':root,**(owner or dict(state='unknown',owner_missing=True))}};edges=[]
         owned=self.owner_source(root)
         nodes.update({n['id']:n for n in owned['nodes']});edges.extend(owned['edges'])
         def add(value,parent,relation):

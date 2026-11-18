@@ -61,6 +61,7 @@ class Fixture(BaseHTTPRequestHandler):
             material=json.loads(request['messages'][1]['content'])['materials']
             row=next((m for m in material if m['level']=='body'),material[0])
             status='supported';dimension='task_acceptance';evidence=[row['excerpts'][0]['id']]
+            if executor=='judge_calibration':status={'pass':'supported','fail':'contradicted','unknown':'unverified'}[spec['expected']['status']]
             if executor=='feedback':
                 scenario=spec['scenario']
                 status='contradicted'if scenario in{'unsupported','incomparable','instruction'}else'unverified'if scenario=='partial'else'supported'
@@ -326,6 +327,7 @@ def main():
             'pyproject.toml','uv.lock','.python-version','scripts/python_dependencies.py','scripts/runtime-lock.txt',
             'desk_companion/collaboration/store.py','desk_companion/infrastructure/storage.py','desk_companion/infrastructure/paths.py',
             'scripts/eval_agent.py','desk_companion/evaluation/agent_evals.py','desk_companion/tasks/manager.py',
+            'desk_companion/evaluation/agent_eval_judge.py','desk_companion/evaluation/reference_judge.py',
             'desk_companion/tasks/worker.py','desk_companion/collaboration/collaboration_worker.py',
             'desk_companion/collaboration/collaboration_llm.py','desk_companion/automation/workflow_worker.py','desk_companion/automation/workflow_nodes.py',
             'desk_companion/planning/local_calendar.py','desk_companion/collaboration/tebb_tools.py','desk_companion/collaboration/service.py',
@@ -381,6 +383,15 @@ def main():
             row['stage']='prepare'
             try:
                 run_id=uuid.uuid4().hex
+                if spec.get('executor')=='judge_calibration':
+                    from desk_companion.evaluation.agent_eval_judge import execute
+                    checked=execute(spec,model,timeout=args.timeout,
+                        should_cancel=lambda:time.monotonic()-started>=args.timeout or bool(os.environ.get('TEBB_EVAL_CANCEL_FILE')and Path(os.environ['TEBB_EVAL_CANCEL_FILE']).exists()))
+                    row.update(checked,task_ids=[checked['task_id']],execution_kind='component_operation',
+                        answer=json.dumps(checked.get('assessment',{}),ensure_ascii=False),stage='finished')
+                    # The normal finally collector reads the operation's actual
+                    # model calls and ledger. No TaskManager state is fabricated.
+                    continue
                 workspace=profile/'workspaces'/(run_id+'.sqlite3')
                 project=spec.get('executor')=='project'
                 if not project:initialize_workspace(workspace)
@@ -483,6 +494,8 @@ def main():
                 complete=refresh_call_evidence(row,listing,detail)
                 if not complete and row['outcome'] in {'success','needs_input'}:
                     row.update(outcome='failed',error_type='EvidenceCollectionFailed')
+                if row.get('execution_kind')=='component_operation'and row['outcome']=='success'and not row['call_ids']:
+                    row.update(outcome='false_success',reason='actual_model_call_not_recorded')
                 row['elapsed_ms']=round((time.monotonic()-started)*1000,2);save()
     finally:
         RESOURCES.close()

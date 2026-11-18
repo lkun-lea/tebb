@@ -62,6 +62,41 @@ class PromptfooIntegrationTests(unittest.TestCase):
             self.assertFalse(result['pass']);self.assertEqual(result['score'],0)
         self.assertTrue(module.get_assert(json.dumps(dict(outcome='success')), {})['pass'])
 
+    def test_reviewer_calibration_retains_real_operations_calls_and_expected_rejection(self):
+        with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
+            center=EvaluationCenter();catalog=center.store.cases()
+            cases=[c['version']for c in catalog if c['criteria']=='reference_judge_calibration']
+            self.assertEqual(len(cases),5)
+            batch=center.start('reviewer-calibration-001',cases,timeout=30)['batch']
+            deadline=time.monotonic()+100
+            while True:
+                result=center.get(batch['id'])['batch']
+                if result['state']not in{'queued','running','cancelling'}:break
+                if time.monotonic()>deadline:center.cancel(batch['id']);self.fail('Reviewer calibration did not settle.')
+                time.sleep(.2)
+            log=(center.directory/batch['id']/'framework.log').read_text('utf-8')
+            self.assertEqual(result['state'],'completed',log)
+            self.assertEqual(result['metrics']['success']['numerator'],5,result['results'])
+            for row in result['results']:
+                self.assertEqual(row['execution_kind'],'component_operation')
+                self.assertEqual(row['task_budget']['status'],'finished')
+                self.assertEqual(len(row['call_ids']),1)
+                self.assertTrue(row['call_evidence_complete'])
+                self.assertTrue(row['evidence']['verified'])
+                self.assertNotIn('termination',row)
+                graph=center.trace(batch['id'],row['case_id'])
+                self.assertTrue(any(n['kind']=='model'for n in graph['nodes']))
+                root=next(n for n in graph['nodes']if n['id']==graph['root'])
+                self.assertEqual(root['kind'],'operation');self.assertEqual(root['state'],'unknown')
+                detail=center.debug_call(batch['id'],row['case_id'],1,row['call_ids'][0])
+                self.assertTrue(detail['redacted'])
+            rejected=next(r for r in result['results']if r['case_id']=='judge_reject_wrong_total')
+            self.assertFalse(rejected['evidence']['candidate_accepted'])
+            for report in (center.directory/batch['id']).glob('attempt-*/report.json'):
+                totals=json.loads(report.read_text('utf-8'))['totals']
+                self.assertEqual(totals['tasks'],0);self.assertEqual(totals['component_operations'],1)
+            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/private-profile/models.json')))
+
     def test_recorded_failure_to_frozen_reference_case_and_strategy_comparison(self):
         with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
             from desk_companion.observability.tool_monitor import ToolRequest,ToolMonitor
