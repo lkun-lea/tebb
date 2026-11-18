@@ -34,5 +34,5 @@ class DiagnosticRedactionTests(unittest.TestCase):
                 value=debug_detail(ident,profile=private)
                 self.assertEqual(value['call']['id'],ident)
                 self.assertNotIn('private-secret-value',json.dumps(value))
-                self.assertEqual(agent_debug.root(),public/'memory/agent_debug')
+                self.assertTrue(agent_debug.root().samefile(public/'memory/agent_debug'))
                 self.assertEqual(os.environ['DESK_COMPANION_DATA_DIR'],str(public))
