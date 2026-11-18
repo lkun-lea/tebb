@@ -47,10 +47,22 @@ class PiProviderFixture(unittest.TestCase):
                     self.wfile.flush()
                 try:
                     frame(dict(reasoning_content='fixture reasoning'))
-                    if scenario == 'tool' and not any(row['role'] == 'tool' for row in body['messages']):
+                    tool_rows=[row for row in body['messages'] if row['role']=='tool']
+                    if scenario=='repeat-write' and len(tool_rows)<2:
+                        frame(dict(tool_calls=[dict(index=0,id='write-'+str(len(tool_rows)),type='function',
+                            function=dict(name='probe_write',arguments=json.dumps(dict(attempt=str(len(tool_rows))))))]))
+                        frame({},'tool_calls')
+                    elif scenario=='reuse-id-tool' and len(tool_rows)<2:
+                        frame(dict(tool_calls=[dict(index=0,id='reused-id',type='function',function=dict(name='probe_add',
+                            arguments=json.dumps(dict(a=17+len(tool_rows),b=23-len(tool_rows)))))]))
+                        frame({},'tool_calls')
+                    elif scenario.endswith('tool') and not tool_rows:
+                        if scenario=='cancel-tool':
+                            frame(dict(content='40'))
+                            time.sleep(3)
                         frame(dict(tool_calls=[dict(index=0, id='call-1', type='function',
-                            function=dict(name='probe_add', arguments='{"a":17,"b":23}'))]))
-                        frame({}, 'tool_calls')
+                            function=dict(name='probe_add', arguments='{"a":"invalid","b":23}' if scenario=='invalid-tool'else'{"a":17,"b":23}'))]))
+                        frame({}, 'length' if scenario=='length-tool'else'tool_calls')
                     else:
                         if scenario != 'empty': frame(dict(content='40'))
                         if scenario == 'cancel':

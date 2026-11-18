@@ -8,7 +8,8 @@ from types import SimpleNamespace
 
 from atlas.llm import ChatCallbacks, ChatOptions, ChatCancelledError, IncompleteResponseError
 from desk_companion.collaboration.execution_context import ExecutionLLM, ContextAdmissionError, configuration_revision
-from desk_companion.models import model_capacity, model_network
+from desk_companion.models import model_capacity
+from desk_companion.pi_runtime.model_mapping import payload_for
 from desk_companion.observability.pi_observer import PiObserver
 from desk_companion.pi_runtime.bridge import PiBridge, PiProcessError, PiCancelled, PiTimeout
 
@@ -35,24 +36,11 @@ class PiInference(ExecutionLLM):
         endpoint = self.item['base_url'].rstrip('/')+'/chat/completions'
         capacity = model_capacity.for_call(self.context_model_id, self.model, endpoint)
         revision = configuration_revision(self.item)
-        wire = {**dict(options.extra_body or {}), 'messages': messages}
-        if 'reasoning_effort' in sampling:
-            wire['thinking'] = {'type':'enabled', **wire.get('thinking', {})}
-        if self.model.lower().startswith(('glm-4.7', 'glm-5')):
-            wire['thinking'] = {**wire.get('thinking', {}), 'clear_thinking':False}
-            wire['tool_stream'] = True
-        payload = dict(model=dict(id=self.model, name=self.model, api='openai-completions', provider='tebb',
-            baseUrl=self.item['base_url'], reasoning=True, input=['text'],
-            contextWindow=capacity.get('window') or 0, maxTokens=0,
-            cost=dict(input=0,output=0,cacheRead=0,cacheWrite=0), thinkingLevelMap={'max':'max'},
-            compat=dict(supportsDeveloperRole=False,supportsStore=False,supportsUsageInStreaming=True,
-                        supportsReasoningEffort=True)),
-            context=dict(systemPrompt='\n'.join(row['content'] for row in messages if row['role']=='system'),
-                         messages=[dict(role='user',content=row['content'],timestamp=0) for row in messages if row['role']=='user']),
-            api_key=self.item['api_key'], network=model_network.pi_policy(), wire_options=wire, observe_provider=True,
-            options={**({'reasoningEffort':sampling['reasoning_effort']} if 'reasoning_effort' in sampling else {}),
-                     **({'temperature':sampling['temperature']} if 'temperature' in sampling else {}),
-                     **({'samplingParams':{'top_p':sampling['top_p']}} if 'top_p' in sampling else {})})
+        payload = payload_for(self.item,sampling)
+        payload['wire_options'].update(dict(options.extra_body or {}))
+        payload['wire_options']['messages'] = messages
+        payload['context'] = dict(systemPrompt='\n'.join(row['content'] for row in messages if row['role']=='system'),
+            messages=[dict(role='user',content=row['content'],timestamp=0) for row in messages if row['role']=='user'])
         started = time.monotonic()
         observer = PiObserver(endpoint)
         usage = None

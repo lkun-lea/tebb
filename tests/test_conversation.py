@@ -1,3 +1,4 @@
+from tests.agent_fixture import build_tool_fixture
 import json
 import os
 from pathlib import Path
@@ -107,7 +108,6 @@ class ConversationServiceTests(unittest.TestCase):
 
     def make_service(self, script):
         from atlas.testing import FakeLLM
-        from desk_companion.chat import assistant
         from desk_companion.chat.conversation import ConversationService
         settings = state.load_state(0, 0, persist=False)
         settings.session_id = 'unit-session'
@@ -116,7 +116,7 @@ class ConversationServiceTests(unittest.TestCase):
                 id='fixture',api_key='fixture',base_url='https://example.invalid/v1',model='fake')), \
              patch('desk_companion.collaboration.execution_context.ExecutionLLM', return_value=FakeLLM(script)), \
              patch('desk_companion.models.model_catalog.bind_llm'):
-            self.service.agent = assistant.build_agent(self.service)
+            self.service.agent = build_tool_fixture(self.service)
         self.service.engage_model = Mock()
         return self.service
 

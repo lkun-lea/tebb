@@ -1,6 +1,7 @@
 """离线回归：只用临时数据，不操作个人账号、游戏或记忆。"""
 from __future__ import annotations
 
+from tests.agent_fixture import build_tool_fixture
 import importlib
 import json
 import pkgutil
@@ -63,7 +64,7 @@ class RegressionTests(unittest.TestCase):
         with patch('desk_companion.models.model_catalog.require_active', return_value={
             'id':'fixture','api_key':'test-only','base_url':'http://example.invalid/v1','model':'test',
         }):
-            agent = assistant.build_agent(host)
+            agent = build_tool_fixture(host)
         names = {tool["function"]["name"] for tool in agent.tools.to_openai_tools()}
         self.assertTrue({"remember_fact", "forget_fact", "web_search", "calendar_propose"} <= names)
         self.assertFalse(any("arknights" in name or name.startswith("maa_") for name in names))

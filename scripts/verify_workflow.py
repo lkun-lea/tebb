@@ -76,7 +76,7 @@ async def verify(port, token, model_port):
                 real_model=False,feishu_writes=False)
 
 
-def main():
+def main(check=verify, model_handler=ModelServer):
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--serve-seconds',type=int,default=0,help='Keep the isolated backend for local browser QA (0–300 seconds).')
@@ -88,7 +88,7 @@ def main():
         raise ValueError('--output 必须是新的隔离目录。')
     output.mkdir(parents=True)
     profile=output/'profile';profile.mkdir()
-    model=ThreadingHTTPServer(('127.0.0.1',0),ModelServer)
+    model=ThreadingHTTPServer(('127.0.0.1',0),model_handler)
     thread=threading.Thread(target=model.serve_forever,daemon=True);thread.start()
     port,token=free_port(),secrets.token_hex(24)
     environment={**os.environ,'DESK_COMPANION_DATA_DIR':str(profile),'PYTHONUTF8':'1',
@@ -106,7 +106,7 @@ def main():
                     time.sleep(.1)
             else:
                 raise TimeoutError('隔离后端未就绪。')
-            result=asyncio.run(verify(port,token,model.server_port))
+            result=asyncio.run(check(port,token,model.server_port))
             (output/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
             print(json.dumps(result,ensure_ascii=False))
             if args.serve_seconds:
@@ -116,6 +116,9 @@ def main():
                     time.sleep(args.serve_seconds)
                 finally:
                     access.unlink(missing_ok=True)
+        except Exception as exc:
+            (output/'failure.json').write_text(json.dumps(dict(ok=False,error_type=type(exc).__name__),indent=2),'utf-8')
+            raise
         finally:
             try:
                 request=urllib.request.Request(f'http://127.0.0.1:{port}/shutdown',headers={'Authorization':'Bearer '+token})

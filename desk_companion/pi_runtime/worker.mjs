@@ -6,6 +6,7 @@ import { Agent } from '@earendil-works/pi-agent-core';
 import { normalizeContext } from '@earendil-works/pi-ai';
 import { stream, streamSimple } from '@earendil-works/pi-ai/api/openai-completions';
 import { Agent as HttpAgent, EnvHttpProxyAgent, ProxyAgent, fetch } from 'undici';
+import { runProductAgent } from './chat_agent.mjs';
 
 assert.equal(process.version, 'v24.22.3');
 const packageFile = name => new URL(`node_modules/@earendil-works/${name}/package.json`, import.meta.url);
@@ -81,7 +82,7 @@ async function execute(command) {
     let modelCalls = 0;
     const common = {
       ...data.options, apiKey: data.api_key, maxRetries: 0,
-      timeoutMs: data.timeout_ms, signal: abort.signal,
+      timeoutMs: data.call_timeout_ms || data.timeout_ms, signal: abort.signal,
       fetch: async (url, init) => {
         const response = await fetch(url, { ...init, dispatcher });
         emit(id, 'http_status', { call_id: modelCalls, status: response.status });
@@ -94,7 +95,7 @@ async function execute(command) {
         usage.reported = false;
         delete usage.raw;
         // The product owns verified generation bindings; Pi defaults cannot invent one.
-        if (data.wire_options) {
+        if (data.wire_options || data.product_gate) {
           delete body.max_tokens; delete body.max_completion_tokens;
           Object.assign(body, data.wire_options);
         }
@@ -102,7 +103,7 @@ async function execute(command) {
         if (data.tool_stream) body.tool_stream = true;
         const allowed = await ask(id, 'before_model', { model: model.id, payload: body, call_id: ++modelCalls });
         if (!allowed.ok || abort.signal.aborted) throw new Error('Model admission denied');
-        return body;
+        return allowed.payload || body;
       },
       onProviderStreamEvent: event => {
         if (data.observe_provider) emit(id, 'provider_frame', event);
@@ -116,6 +117,8 @@ async function execute(command) {
         if (event.type === 'text_delta' || event.type === 'thinking_delta') emit(id, event.type, event.delta);
       }
       message = await output.result();
+    } else if (data.product_gate) {
+      message=await runProductAgent({ id,data,model,common,ask,emit,active,usage });
     } else {
       const tools = (data.tools || []).map(tool => ({ ...tool, label: tool.name,
         execute: async (callId, args) => {

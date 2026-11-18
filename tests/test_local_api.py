@@ -1,4 +1,5 @@
 """真实本地 WebSocket 与无头对话链路；模型和用户文件全部隔离。"""
+from tests.agent_fixture import build_tool_fixture
 import asyncio
 import json
 import os
@@ -11,7 +12,6 @@ from unittest.mock import patch
 from websockets.asyncio.client import connect
 from atlas.testing import FakeLLM
 
-from desk_companion.chat import assistant
 from desk_companion.memory import history as memory
 from desk_companion.infrastructure import state
 from desk_companion.observability import usage
@@ -78,7 +78,7 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
             'id':'fixture','api_key':'test-only','base_url':'http://example.invalid/v1','model':'fake',
         }), patch('desk_companion.collaboration.execution_context.ExecutionLLM', return_value=FakeLLM(["本地流式回归正常。"])), \
                 patch('desk_companion.models.model_catalog.bind_llm'):
-            self.host.agent = assistant.build_agent(self.host)
+            self.host.agent = build_tool_fixture(self.host)
         self.host.agent.llm.sampling = None
         patch.object(self.host, "engage_model").start()
         patch.object(server, "HOST", self.host).start()

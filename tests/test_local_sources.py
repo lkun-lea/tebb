@@ -1,4 +1,5 @@
 """本地资料读取和真实 Agent 输入链路；只读临时文件，不访问个人资料或模型接口。"""
+from tests.agent_fixture import build_tool_fixture
 import json
 import os
 import tempfile
@@ -15,7 +16,6 @@ from unittest.mock import patch
 from desk_companion.knowledge import local_sources as sources
 from desk_companion.knowledge import index as knowledge
 from desk_companion.integrations.feishu import wiki_connection
-from desk_companion.chat import assistant
 from desk_companion.desktop.board_workbench import BoardWorkbench
 
 
@@ -169,7 +169,7 @@ class LocalSourceTests(unittest.TestCase):
         from desk_companion.local_api.host import HeadlessApp
         host = HeadlessApp()
         with patch('desk_companion.models.model_catalog.require_active', return_value={'id':'fixture','api_key':'test','base_url':'http://example.invalid','model':'fake'}):
-            host.agent = assistant.build_agent(host)
+            host.agent = build_tool_fixture(host)
         seen = []
         fake = FakeLLM(['已根据附件回答。'])
         original = fake.chat

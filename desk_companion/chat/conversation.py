@@ -100,6 +100,9 @@ class ConversationService:
             raise RuntimeError(self.agent_error)
 
     def record_usage(self, agent, run_id: str) -> dict:
+        if callable(getattr(agent,'usage_summary',None)):
+            value=agent.usage_summary(run_id)
+            return self._append_usage(agent.llm.model,value['input_tokens'],value['output_tokens'],run_id)
         plugin = token_plugin(agent)
         summary = plugin.get_summary(run_id)
         model = getattr(agent.llm, "model", "") or ""
@@ -108,16 +111,17 @@ class ConversationService:
         return self._append_usage(model, inn, out, run_id)
 
     def _append_usage(self, model: str, inn: int, out: int, run_id: str) -> dict:
+        known=all(type(n)is int and n>=0 for n in (inn,out))
         row = {
             "ts": datetime.now(TZ).isoformat(timespec="seconds"),
             "model": model,
             "input_tokens": inn,
             "output_tokens": out,
-            "total_tokens": inn + out,
-            "cost_cny": cost_cny(model, inn, out, self.state.model_prices),
+            "total_tokens": inn + out if known else None,
+            "cost_cny": cost_cny(model, inn, out, self.state.model_prices) if known else None,
             "run_id": run_id,
         }
-        append_usage(row)
+        if known:append_usage(row)
         return row
 
     def prepare_context(

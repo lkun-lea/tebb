@@ -3,6 +3,8 @@ import copy
 import hashlib
 import json
 from dataclasses import replace
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 from atlas.llm import LLM
 from atlas.context.compact import CompactManager
@@ -166,6 +168,14 @@ class ExecutionLLM(LLM):
 
     def chat(self,messages,tools=None,on_delta=None,*,options=None,callbacks=None):
         if self._closed:return super().chat(messages,tools,on_delta,options=options,callbacks=callbacks)
+        with self.admitted_call(messages,tools,options=options) as call:
+            call.result=self._transport_chat(call.messages,call.tools,on_delta,options=call.options,callbacks=callbacks)
+        return call.result
+
+    @contextmanager
+    def admitted_call(self,messages,tools=None,*,options=None):
+        """Hold one product admission/usage scope across a local or Node transport."""
+        if self._closed:raise RuntimeError('模型适配器已关闭。')
         from desk_companion.tasks.task_budgets import current
         scope=current()
         if scope and scope.phase()=='finish':
@@ -236,7 +246,10 @@ class ExecutionLLM(LLM):
                 source_messages=carry(source_messages,self.source_provider())
             selection = next((getattr(m,'selection',None) for m in source_messages if getattr(m,'selection',None) is not None),None)
             with ModelAttempt(self.model,self.context_model_id,endpoint,call_id)as observed, context(assembly=manifest(source_messages,selection)):
-                result=self._transport_chat(prepared['messages'],tools,on_delta,options=options,callbacks=callbacks)
+                call=SimpleNamespace(messages=prepared['messages'],tools=tools,options=options,result=None)
+                yield call
+                result=call.result
+                if not isinstance(result,dict):raise RuntimeError('模型调用未交还可核对的结果。')
                 observed.returned(result.get('usage'),result.get('finish_reason'))
         except BaseException as exc:
             partial=getattr(exc,'partial',None)
@@ -258,7 +271,6 @@ class ExecutionLLM(LLM):
                     invalidate(self.context_model_id,self.model,endpoint,capability['parameter'])
                     raise BudgetExceeded(violation,result)
         self.last_context['provider_usage']=result.get('usage')
-        return result
 
     def _transport_chat(self,messages,tools,on_delta,*,options,callbacks):
         """Transport seam; admission, accounting and settlement remain above it."""

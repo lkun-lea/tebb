@@ -135,20 +135,25 @@ def main():
             host.agent.llm.on_context=lambda report:emit('context_admission',report)
             original_chat = host.agent.llm.chat
             count = 0
-            def chat(*args, **kwargs):
+            def call_start():
                 nonlocal count
-                import time
-                started = time.monotonic()
                 count += 1
                 emit("llm_start", {"turn": count, "model": host.agent.llm.model})
                 emit("status", "正在分析问题。" if count == 1 else "正在核对已有资料并整理回答。")
+            def call_end(duration):
+                emit("llm_end", {"turn": count, "duration_ms": duration})
+            host.agent.llm.on_call_start=call_start
+            host.agent.llm.on_call_end=call_end
+            def chat(*args, **kwargs):
+                started = time.monotonic()
+                call_start()
                 try:
                     return original_chat(*args, **kwargs)
                 finally:
-                    emit("llm_end", {"turn": count, "duration_ms": int((time.monotonic()-started)*1000)})
+                    call_end(int((time.monotonic()-started)*1000))
             host.agent.llm.chat = chat
             host.agent.terminator = MaxSteps(host.state.max_steps) | Timeout(request["limits"]["task_timeout"] * 1000)
-            host.agent.runtime.terminator = host.agent.terminator
+            if not getattr(host.agent,'pi_runtime',False):host.agent.runtime.terminator = host.agent.terminator
             host.agent.plugin_manager.register(Progress())
             original = host.agent.tools.execute
             from desk_companion.observability.usage_observer import invoke_tool
@@ -177,6 +182,7 @@ def main():
                     task_budgets.record_progress(name,args,output)
                     return output
             host.agent.tools.execute = execute
+            host.agent.tool_budget_managed=True
             emit('worker_phase', {'stage': 'agent_ready',
                                  'duration_ms': int((time.monotonic() - started) * 1000)})
 

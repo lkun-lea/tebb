@@ -1,0 +1,147 @@
+{
+  "issue": 293,
+  "batch": "3: ordinary chat",
+  "date": "2026-11-18",
+  "baseline": "737afbfca856058e24ddcd599d63cf544bf9fe4d",
+  "runtime": {
+    "node": "24.22.3",
+    "pi": "1.5.2",
+    "undici": "8.12.4"
+  },
+  "baseline_ci": {
+    "url": "https://github.com/lkun-lea/tebb/actions/runs/44285277666",
+    "conclusion": "success"
+  },
+  "regression": [
+    {
+      "log": "affected-second.log",
+      "tests": 325,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 331.81
+    },
+    {
+      "log": "policy-final-2.log",
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 45.509
+    }
+  ],
+  "authenticated_chat": {
+    "ok": true,
+    "transport": "pi-agent-core",
+    "task_ids": [
+      "8a48e72097fc5d1d86b2ad770c677b43",
+      "bea9d4093c5e5e5291aeb9899f76d9af"
+    ],
+    "session": "b4201a9a-18fd-4781-81b6-3d9428f4e81d",
+    "model_requests": 3,
+    "memory_fact_id": "f056710f8f674a6789be855fd683f7e7",
+    "actual_local_memory_writes": 1,
+    "history_rows": 4,
+    "memory_source_verified": true,
+    "call_ids": [
+      "83602534fa98451fbf7d298c58081c33",
+      "76a77b0c960247c9ad78fe27ceeeffec",
+      "16d475c98040444fb6fd7b44027bb23c"
+    ],
+    "real_model": false,
+    "real_external_writes": false
+  },
+  "workflow_regression": {
+    "ok": true,
+    "workflow_id": "9a8f76386be046e380af12e075668c02",
+    "version": "093e26db735ac1c414eb27464126d995ad4f48f15d1afaf47bc5203968857083",
+    "run_id": "0406430d47695baaab1af5f841f3204a",
+    "task_id": "83c1c518c36c58af89dd42dc31dbb369",
+    "state": "completed",
+    "model_calls": 1,
+    "node_states": {
+      "trigger": "confirmed",
+      "ai": "confirmed",
+      "check": "confirmed",
+      "selected": "confirmed",
+      "skipped": "skipped"
+    },
+    "transport": "pi",
+    "call_id": "4da8a5fb7103464080b6a1ba6ff02bc8",
+    "usage_call_id": "a5cef44d94e044329e9c827b3ac61439",
+    "real_model": false,
+    "feishu_writes": false
+  },
+  "native_pi_suite": {
+    "entry": "tests.test_pi_chat",
+    "tests": 16,
+    "cases": [
+      "actual model/tool/model payload and usage",
+      "low/high/max and full history",
+      "GLM nonempty reasoning tool history",
+      "verified output cap",
+      "root budget denial",
+      "finish-phase tool removal",
+      "unoffered tool rejected",
+      "length tool calls rejected",
+      "loop limit",
+      "unknown usage",
+      "schema denial before backend",
+      "tool IDs scoped per turn",
+      "unknown write blocked by actual worker",
+      "feishu channel actual worker",
+      "TaskManager cancellation reaps Node and keeps partial"
+    ]
+  },
+  "development_failures_retained": [
+    {
+      "log": "../tebb-293-chat-first.log",
+      "reason": "Test helper import inserted at wrong indentation; corrected test import placement."
+    },
+    {
+      "log": "../tebb-293-chat-second.log",
+      "tests": 73,
+      "failures": 4,
+      "errors": 9,
+      "reason": "Initial facade import used non-exported Memory; test-only worker helper import path was missing."
+    },
+    {
+      "log": "../tebb-293-chat-third.log",
+      "tests": 81,
+      "failures": 0,
+      "errors": 1,
+      "reason": "Plugin before-call signature requires kwargs, not an extra tools argument; corrected mapping."
+    },
+    {
+      "log": "pi-task-first.log",
+      "reason": "Worker fixture called a nonexistent model catalog method; switched to the existing upsert_entry."
+    },
+    {
+      "log": "affected-first.log",
+      "tests": 304,
+      "failures": 13,
+      "errors": 1,
+      "reason": "exec-based test worker has no __file__; fixed test helper path and removed a nonexistent test-module name from the verification command."
+    },
+    {
+      "directory": "api-first",
+      "reason": "Verifier used an RPC name that is not in the whitelist; corrected to existing new_chat_session."
+    },
+    {
+      "directory": "api-second",
+      "reason": "Verifier expected completed instead of the existing TaskManager succeeded state; actual first task had already succeeded."
+    },
+    {
+      "directory": "api-final-2",
+      "reason": "HTTP replay snapshot does not embed task_budget; verified budget through the existing authenticated get_agent_task RPC."
+    }
+  ],
+  "evidence_root": "E:\\Learn_Project\\_work\\tebb-293-chat-evidence",
+  "merge_gate": "Exact candidate commit must pass Frontend, Python / Atlas, Rust before main update.",
+  "remaining": [
+    "New pet floating chat uses collaboration_action and stays in batch 4 with partner/group conversations",
+    "Remaining single-inference callers and all production Atlas dependency removal",
+    "Real provider/proxy combinations, native Tauri and actual Feishu card delivery",
+    "Clean Windows candidate packaging, Node/Pi lifecycle and upgrade/recovery"
+  ]
+}

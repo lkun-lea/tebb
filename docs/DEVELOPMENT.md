@@ -26,6 +26,11 @@ cd tebb
 uv sync --locked
 git clone https://github.com/lkun-lea/tebb-skills.git ../tebb-skills
 uv run --locked python scripts/prepare_skills.py --source ../tebb-skills
+$piNodeRoot = 'E:/tools/node-v24.22.3-win-x64'
+$env:TEBB_PI_NODE = "$piNodeRoot/node.exe"
+Push-Location desk_companion/pi_runtime
+& "$piNodeRoot/node.exe" "$piNodeRoot/node_modules/npm/bin/npm-cli.js" ci --ignore-scripts --no-audit --no-fund
+Pop-Location
 cd client
 pnpm install
 pnpm tauri dev
@@ -33,7 +38,7 @@ pnpm tauri dev
 
 目录职责与新增模块归属见 [Python 包结构](PYTHON_PACKAGES.md)。
 
-本机 HTTP/SSE、任务游标和固定 Pi 私有进程桥的职责、复现命令及验收边界见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。开发进程测试使用固定 Node 24.22.3 和包内锁文件，正式模型入口按迁移批次切换。
+本机 HTTP/SSE、任务游标和固定 Pi 私有进程桥的职责、复现命令及验收边界见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。普通聊天已接入 Pi，源码运行需要固定 Node 24.22.3（下载摘要见[兼容基线](PI_COMPATIBILITY_293.md)）和包内锁文件；缺少运行时明确失败。普通聊天及其余入口的迁移边界见[聊天验收](CHAT_PI_293.md)。
 
 ## Python 环境与依赖
 

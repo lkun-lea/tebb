@@ -1,4 +1,4 @@
-"""组装Atlas Agent，模型身份来自模型目录，执行材料由产品适配器检查。"""
+"""组装 Pi Agent；模型身份、工具权限和执行材料由产品服务持有。"""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -143,7 +143,8 @@ def build_agent(host):
     from desk_companion.observability.agent_debug import install
     install()
     try:
-        from atlas import Agent, Toolkit
+        from atlas import Toolkit
+        from desk_companion.pi_runtime.chat_agent import PiChatAgent as Agent
         from desk_companion.collaboration.execution_context import ExecutionLLM
         from atlas.journal import InMemoryJournal
         from atlas.plugins.token_cost import TokenCostPlugin

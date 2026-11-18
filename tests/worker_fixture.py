@@ -24,7 +24,9 @@ from desk_companion.tasks.worker import main
 from desk_companion.infrastructure.paths import data_root
 from desk_companion.pi_runtime import inference
 
-original = assistant.build_agent
+sys.path.insert(0,str(Path(globals().get('__file__','tests/worker_fixture.py')).resolve().parents[1]))
+from tests.agent_fixture import build_tool_fixture
+original = build_tool_fixture
 fixture_roots=[]
 original_stdin=sys.stdin
 

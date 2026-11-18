@@ -88,7 +88,7 @@ class PiBridge:
             raise PiProcessError('Pi 启动失败，请核对 Node 24.22.3 和固定依赖。') from None
 
     def call(self, kind, payload, *, before_model, tool=None, cancel=None, should_cancel=None, on_event=lambda kind, data: None, timeout=90):
-        if kind not in {'complete', 'agent'} or not 0 < timeout <= 300:
+        if kind not in {'complete', 'agent'} or not 0 < timeout <= (3600 if kind=='agent' else 300):
             raise ValueError('Pi 调用类型或时限无效。')
         if self.used:
             raise PiProcessError('每个 Pi 进程只接纳一个运行。')
@@ -119,7 +119,7 @@ class PiBridge:
             if event['id'] != ident:
                 raise PiProcessError('Pi 返回了其他调用的事件。')
             event_type, data = event['type'], event.get('data')
-            if event_type in {'before_model', 'tool_call'}:
+            if event_type in {'before_model', 'model_end', 'tool_call'}:
                 if requested:
                     cancellation = True
                     self._send(dict(id=ident, type='cancel'))
@@ -127,9 +127,9 @@ class PiBridge:
                 if cancellation:
                     continue
                 try:
-                    if event_type == 'before_model':
-                        before_model(data)
-                        result = dict(ok=True)
+                    if event_type in {'before_model','model_end'}:
+                        admitted=before_model({**data,'event':event_type})
+                        result = dict(ok=True, **(admitted or {}))
                     else:
                         declared = {value['name'] for value in payload.get('tools', [])}
                         if data['name'] not in declared or tool is None:
