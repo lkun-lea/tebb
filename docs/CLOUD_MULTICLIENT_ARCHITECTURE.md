@@ -8,6 +8,8 @@ tebb 继续推进个人工作台的本机、云端与多端路线。原 #314 的
 
 本设计以现有 Tauri、Python 业务服务、任务系统及 Supabase 账号与确认记忆同步为基础。Agent 循环、流式模型调用和模型工具协议使用官方 Pi SDK。此决定替代 #293 早期的 LangGraph / LangChain 方案。
 
+固定 SDK、Atlas 调用清单、现有模型兼容结果与分批验收见 [Pi 首批兼容验证](PI_COMPATIBILITY_293.md)。
+
 ## 目标架构
 
 ```mermaid

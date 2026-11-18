@@ -1,0 +1,672 @@
+{
+  "issue": "https://github.com/lkun-lea/tebb/issues/293",
+  "date": "2026-11-18",
+  "scope": "Pinned standalone compatibility probes and migration inventory; production remains on Atlas.",
+  "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+  "versions": {
+    "node": "24.22.3",
+    "pi-agent-core": "1.5.2",
+    "pi-ai": "1.5.2",
+    "pi-schema": "1.5.2",
+    "undici": "8.12.4"
+  },
+  "node_archive_sha256": "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f",
+  "package_lock_sha256": "13f6f41be2096391e61a02bc754259871df14ee75596e5fc965d1fad09ee3fd9",
+  "configured_models": [
+    "deepseek-flash",
+    "glm-5.3"
+  ],
+  "route": {
+    "mode": "direct",
+    "shared_route_fingerprint": "dc187ac2c80ffb69",
+    "raw_endpoint_omitted": true
+  },
+  "atlas_imports": [
+    {
+      "path": "desk_companion/chat/assistant.py",
+      "line": 117,
+      "module": "atlas.providers"
+    },
+    {
+      "path": "desk_companion/chat/assistant.py",
+      "line": 146,
+      "module": "atlas"
+    },
+    {
+      "path": "desk_companion/chat/assistant.py",
+      "line": 148,
+      "module": "atlas.journal"
+    },
+    {
+      "path": "desk_companion/chat/assistant.py",
+      "line": 149,
+      "module": "atlas.plugins.token_cost"
+    },
+    {
+      "path": "desk_companion/collaboration/collaboration_llm.py",
+      "line": 2,
+      "module": "atlas.llm"
+    },
+    {
+      "path": "desk_companion/collaboration/execution_context.py",
+      "line": 7,
+      "module": "atlas.llm"
+    },
+    {
+      "path": "desk_companion/collaboration/execution_context.py",
+      "line": 8,
+      "module": "atlas.context.compact"
+    },
+    {
+      "path": "desk_companion/collaboration/execution_context.py",
+      "line": 189,
+      "module": "atlas.llm"
+    },
+    {
+      "path": "desk_companion/collaboration/execution_context.py",
+      "line": 193,
+      "module": "atlas.llm"
+    },
+    {
+      "path": "desk_companion/collaboration/readonly_research.py",
+      "line": 27,
+      "module": "atlas"
+    },
+    {
+      "path": "desk_companion/collaboration/readonly_research.py",
+      "line": 28,
+      "module": "atlas.journal"
+    },
+    {
+      "path": "desk_companion/collaboration/readonly_research.py",
+      "line": 81,
+      "module": "atlas.core.terminator"
+    },
+    {
+      "path": "desk_companion/desktop/stream_plugin.py",
+      "line": 6,
+      "module": "atlas.core.plugin"
+    },
+    {
+      "path": "desk_companion/models/model_generation.py",
+      "line": 75,
+      "module": "atlas.llm"
+    },
+    {
+      "path": "desk_companion/tasks/worker.py",
+      "line": 80,
+      "module": "atlas.core.plugin"
+    },
+    {
+      "path": "desk_companion/tasks/worker.py",
+      "line": 81,
+      "module": "atlas.core.terminator"
+    }
+  ],
+  "initial_harness_run": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "offline",
+    "cases": [
+      {
+        "id": "stream-thinking-usage",
+        "status": "passed",
+        "milliseconds": 117,
+        "events": [
+          "start",
+          "thinking_start",
+          "thinking_delta",
+          "text_start",
+          "text_delta",
+          "thinking_end",
+          "text_end",
+          "done"
+        ],
+        "usage": {
+          "input": 10,
+          "output": 7,
+          "cacheRead": 3,
+          "cacheWrite": 0,
+          "reasoning": 2,
+          "totalTokens": 20,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "cost_known": false
+      },
+      {
+        "id": "sampling-low",
+        "status": "passed",
+        "milliseconds": 13,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "sampling-high",
+        "status": "passed",
+        "milliseconds": 7,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "sampling-max",
+        "status": "passed",
+        "milliseconds": 5,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "tool-loop-and-reasoning-history",
+        "status": "failed",
+        "milliseconds": 41,
+        "error": "The expression evaluated to a falsy value:\n\n  assert(result.bodies.every(body => body.thinking.clear_thinking === false && body.tool_stream === true))\n"
+      },
+      {
+        "id": "invalid-tool-arguments",
+        "status": "passed",
+        "milliseconds": 14,
+        "actual_tool_executions": 0,
+        "model_received_error": true
+      },
+      {
+        "id": "length-is-not-complete",
+        "status": "passed",
+        "milliseconds": 5,
+        "stop_reason": "length",
+        "partial_preserved": true,
+        "migration_rule": "Product adapter must reject length before processing business output."
+      },
+      {
+        "id": "missing-finish-is-error",
+        "status": "passed",
+        "milliseconds": 10,
+        "stop_reason": "error",
+        "partial_preserved": true
+      },
+      {
+        "id": "missing-usage-remains-unknown",
+        "status": "passed",
+        "milliseconds": 6,
+        "provider_usage_reported": false,
+        "sdk_total_tokens": 0,
+        "migration_rule": "Track raw usage presence. SDK zero defaults cannot prove zero token use or cost."
+      },
+      {
+        "id": "http-error-no-retry",
+        "status": "passed",
+        "milliseconds": 5,
+        "actual_requests": 1,
+        "stop_reason": "error"
+      },
+      {
+        "id": "abort-partial-and-close",
+        "status": "passed",
+        "milliseconds": 12,
+        "stop_reason": "aborted",
+        "partial_preserved": true
+      },
+      {
+        "id": "idle-network-timeout",
+        "status": "passed",
+        "milliseconds": 157,
+        "actual_requests": 1,
+        "stop_reason": "error"
+      },
+      {
+        "id": "custom-authenticated-http-proxy",
+        "status": "failed",
+        "milliseconds": 3004,
+        "error": "Expected values to be strictly equal:\n\n'' !== '40'\n"
+      },
+      {
+        "id": "environment-http-proxy",
+        "status": "failed",
+        "milliseconds": 3008,
+        "error": "Expected values to be strictly equal:\n\n'' !== '40'\n"
+      },
+      {
+        "id": "socks-proxy-gap",
+        "status": "failed",
+        "milliseconds": 3,
+        "error": "Missing expected exception."
+      }
+    ],
+    "passed": 11,
+    "failed": 4,
+    "evidence_file_sha256": "35c6291fce7cc7139053ed0e59798481731c2f547f1e68b203df80f6dfe3f7ce"
+  },
+  "initial_harness_corrections": [
+    "GLM mock model ID now matches the same glm-5 prefix condition as production-configured models.",
+    "HTTP fixture implements CONNECT; explicitly selected proxyTunnel=true for those fixture dispatchers.",
+    "undici 8.12.4 supports experimental SOCKS5; replaced an incorrect expected-rejection assertion with an actual synthetic SOCKS5 tunnel."
+  ],
+  "offline_final": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "offline",
+    "cases": [
+      {
+        "id": "stream-thinking-usage",
+        "status": "passed",
+        "milliseconds": 94,
+        "events": [
+          "start",
+          "thinking_start",
+          "thinking_delta",
+          "text_start",
+          "text_delta",
+          "thinking_end",
+          "text_end",
+          "done"
+        ],
+        "usage": {
+          "input": 10,
+          "output": 7,
+          "cacheRead": 3,
+          "cacheWrite": 0,
+          "reasoning": 2,
+          "totalTokens": 20,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "cost_known": false
+      },
+      {
+        "id": "sampling-low",
+        "status": "passed",
+        "milliseconds": 8,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "sampling-high",
+        "status": "passed",
+        "milliseconds": 7,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "sampling-max",
+        "status": "passed",
+        "milliseconds": 6,
+        "wire_fields": [
+          "reasoning_effort",
+          "temperature",
+          "top_p",
+          "max_tokens"
+        ]
+      },
+      {
+        "id": "tool-loop-and-reasoning-history",
+        "status": "passed",
+        "milliseconds": 27,
+        "model_requests": 2,
+        "actual_tool_executions": 1,
+        "reasoning_replayed": true,
+        "agent_events": [
+          "agent_start",
+          "turn_start",
+          "message_start",
+          "message_end",
+          "message_update",
+          "tool_execution_start",
+          "tool_execution_end",
+          "turn_end",
+          "agent_end"
+        ]
+      },
+      {
+        "id": "invalid-tool-arguments",
+        "status": "passed",
+        "milliseconds": 12,
+        "actual_tool_executions": 0,
+        "model_received_error": true
+      },
+      {
+        "id": "length-is-not-complete",
+        "status": "passed",
+        "milliseconds": 6,
+        "stop_reason": "length",
+        "partial_preserved": true,
+        "migration_rule": "Product adapter must reject length before processing business output."
+      },
+      {
+        "id": "missing-finish-is-error",
+        "status": "passed",
+        "milliseconds": 6,
+        "stop_reason": "error",
+        "partial_preserved": true
+      },
+      {
+        "id": "missing-usage-remains-unknown",
+        "status": "passed",
+        "milliseconds": 4,
+        "provider_usage_reported": false,
+        "sdk_total_tokens": 0,
+        "migration_rule": "Track raw usage presence. SDK zero defaults cannot prove zero token use or cost."
+      },
+      {
+        "id": "http-error-no-retry",
+        "status": "passed",
+        "milliseconds": 5,
+        "actual_requests": 1,
+        "stop_reason": "error"
+      },
+      {
+        "id": "abort-partial-and-close",
+        "status": "passed",
+        "milliseconds": 7,
+        "stop_reason": "aborted",
+        "partial_preserved": true
+      },
+      {
+        "id": "idle-network-timeout",
+        "status": "passed",
+        "milliseconds": 161,
+        "actual_requests": 1,
+        "stop_reason": "error"
+      },
+      {
+        "id": "custom-authenticated-http-proxy",
+        "status": "passed",
+        "milliseconds": 9,
+        "proxy_used": true,
+        "proxy_credentials_received": true,
+        "fetch_injection": true
+      },
+      {
+        "id": "environment-http-proxy",
+        "status": "passed",
+        "milliseconds": 7,
+        "proxy_used": true,
+        "process_environment_unchanged": true
+      },
+      {
+        "id": "socks5-fetch-injection",
+        "status": "passed",
+        "milliseconds": 9,
+        "supported": true,
+        "experimental_transport": true,
+        "tunnels": 1
+      }
+    ],
+    "passed": 15,
+    "failed": 0,
+    "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+    "probe_sha256": "a2051885d7543142e97366b48da203b08fecc31ef722099188dc9f4dec2557d3",
+    "evidence_file_sha256": "c9cdb819029350bcbc88088e71afaa2feedcfd21d1f3a00e552bf68222fde55f"
+  },
+  "live_first": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "live",
+    "cases": [
+      {
+        "id": "live-text-deepseek-flash",
+        "status": "failed",
+        "milliseconds": 6588,
+        "error": "Connection error.: Client network socket disconnected before secure TLS connection was established (ECONNRESET)\n\n'error' !== 'stop'\n"
+      },
+      {
+        "id": "live-tool-deepseek-flash",
+        "status": "passed",
+        "milliseconds": 4619,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 2,
+        "actual_tool_executions": 1,
+        "result_assertion": 40,
+        "reasoning_replayed": true,
+        "usage_frames": 2,
+        "cost_known": false
+      },
+      {
+        "id": "live-text-glm-5.3",
+        "status": "passed",
+        "milliseconds": 4496,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 1,
+        "http_status": 200,
+        "text_assertion": "PI_COMPAT_OK",
+        "thinking_events": 0,
+        "usage_reported": true,
+        "usage": {
+          "input": 48,
+          "output": 5,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 53,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "stop_reason": "stop",
+        "cost_known": false
+      },
+      {
+        "id": "live-tool-glm-5.3",
+        "status": "passed",
+        "milliseconds": 10871,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 2,
+        "actual_tool_executions": 1,
+        "result_assertion": 40,
+        "reasoning_replayed": true,
+        "usage_frames": 2,
+        "cost_known": false
+      }
+    ],
+    "passed": 3,
+    "failed": 1,
+    "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+    "probe_sha256": "32cfa99d089ffcf09b0c6c6ebbd19f7b4d954b0af54c01c83085362ce9e10c2e",
+    "evidence_file_sha256": "165e650fe30843e2ebffc7924a3cf73191fe9e9c0cc0e6ce08bfbf25b06e90b3"
+  },
+  "live_bounded_recheck": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "live",
+    "cases": [
+      {
+        "id": "live-text-deepseek-flash",
+        "status": "passed",
+        "milliseconds": 3130,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 1,
+        "http_status": 200,
+        "text_assertion": "PI_COMPAT_OK",
+        "thinking_effort": "low",
+        "thinking_events": 15,
+        "usage_reported": true,
+        "usage": {
+          "input": 47,
+          "output": 20,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 15,
+          "totalTokens": 67,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "stop_reason": "stop",
+        "cost_known": false
+      }
+    ],
+    "passed": 1,
+    "failed": 0,
+    "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+    "probe_sha256": "52e6e6dd15f6bc308813006dfd1d5bacc993689b49ed92175337f9dc319c63bb",
+    "evidence_file_sha256": "b7d92b89d6afa7378761b9c9adc2c0e2712268c3d582415b6c4239e30497ee93"
+  },
+  "live_high": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "live",
+    "cases": [
+      {
+        "id": "live-text-deepseek-flash-high",
+        "status": "passed",
+        "milliseconds": 2485,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 1,
+        "http_status": 200,
+        "text_assertion": "PI_COMPAT_OK",
+        "thinking_effort": "high",
+        "thinking_events": 19,
+        "usage_reported": true,
+        "usage": {
+          "input": 47,
+          "output": 24,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 19,
+          "totalTokens": 71,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "stop_reason": "stop",
+        "cost_known": false
+      }
+    ],
+    "passed": 1,
+    "failed": 0,
+    "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+    "probe_sha256": "52e6e6dd15f6bc308813006dfd1d5bacc993689b49ed92175337f9dc319c63bb",
+    "evidence_file_sha256": "cdb70bf5f0545f25efb44c1c31da237931a5fc33b5f0952e7584b516fad9d8db"
+  },
+  "live_max": {
+    "node": "v24.22.3",
+    "pi": "1.5.2",
+    "mode": "live",
+    "cases": [
+      {
+        "id": "live-text-glm-5.3-max",
+        "status": "passed",
+        "milliseconds": 8147,
+        "route": "dc187ac2c80ffb69",
+        "model_requests": 1,
+        "http_status": 200,
+        "text_assertion": "PI_COMPAT_OK",
+        "thinking_effort": "max",
+        "thinking_events": 102,
+        "usage_reported": true,
+        "usage": {
+          "input": 48,
+          "output": 107,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 102,
+          "totalTokens": 155,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0,
+            "totalFromProvider": false
+          }
+        },
+        "stop_reason": "stop",
+        "cost_known": false
+      }
+    ],
+    "passed": 1,
+    "failed": 0,
+    "baseline": "fbc482dd78f4e4f88e69927a70a2442b512a6bdc",
+    "probe_sha256": "52e6e6dd15f6bc308813006dfd1d5bacc993689b49ed92175337f9dc319c63bb",
+    "evidence_file_sha256": "8a045c451f6df0fb06dedd21505da4d11621e526c6ad31e8d1a5dcea05f53842"
+  },
+  "atlas_same_route_control": {
+    "model": "deepseek-flash",
+    "path": "existing-atlas",
+    "attempts": 1,
+    "status": "passed",
+    "finish_reason": null,
+    "usage": {
+      "completion_tokens": 21,
+      "prompt_tokens": 47,
+      "total_tokens": 68,
+      "completion_tokens_details": {
+        "reasoning_tokens": 16
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 47
+    },
+    "milliseconds": 4387,
+    "evidence_file_sha256": "565ac0437b5e961c8cd4cfe80ebd0f9a552f1e9988088965c0cae3cfe8ca8171"
+  },
+  "real_request_attempts": {
+    "pi_first_batch": 6,
+    "pi_recheck": 1,
+    "pi_high": 1,
+    "pi_max": 1,
+    "atlas_control": 1
+  },
+  "probe_revision_notes": [
+    "Each runner report records the probe SHA-256 used for that run. The initial synthetic development report predates runner hashing.",
+    "After live runs the probe gained per-case incremental persistence and separate field-presence/nonempty-reasoning telemetry. Earlier live reasoning_replayed=true proves only field presence.",
+    "The final offline run additionally asserts that the invalid-argument tool error receipt reaches the next model request."
+  ],
+  "limits": [
+    "The first TLS ECONNRESET remains a failed case; the separate one-case recheck and Atlas control passed. Cause is unresolved.",
+    "Only the two configured model aliases on the same gateway were exercised; provider-native endpoints and other models are unverified.",
+    "High was exercised on DeepSeek text and max on GLM text. Other high/max/model combinations and tool-mode combinations remain unverified.",
+    "Live tool history telemetry proves reasoning_content field presence, not nonempty reasoning replay. Nonempty replay passed in the synthetic fixture only.",
+    "Custom authenticated HTTP, environment HTTP and no-auth SOCKS5 proxies used synthetic loopback servers. Real HTTPS proxy servers, SOCKS authentication/SOCKS5H, custom CA and Windows system proxy settings remain unverified.",
+    "The timeout fixture covers a request waiting before response headers; real streaming idle-timeout policy still requires product acceptance.",
+    "SDK missing-usage zero defaults and synthetic cost=0 are not measurements. Product usage/cost must remain unknown when not established.",
+    "No Python-Node product bridge, HTTP/SSE conversion or packaged Windows Node lifecycle has been implemented by this batch."
+  ]
+}
