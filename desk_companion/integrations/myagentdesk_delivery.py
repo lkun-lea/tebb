@@ -10,8 +10,6 @@ import json
 import os
 import re
 
-import httpx
-
 from desk_companion.accounts.account_store import WindowsAccountCipher
 from desk_companion.infrastructure.resource_lock import ResourceLock
 from desk_companion.integrations.myagentdesk_snapshot import prepare
@@ -49,6 +47,8 @@ def canonical_origin(value):
 
 
 def remote(connection, method, path, body=None):
+    import httpx
+
     origin = connection['origin']
     headers = {'Authorization': 'Bearer ' + connection['credential'], 'Origin': origin, 'X-MAD-Request': '1'}
     with httpx.Client(base_url=origin, headers=headers, timeout=5, trust_env=False) as client:
@@ -252,6 +252,8 @@ class DesktopDelivery:
     def sync_once(self):
         if not self.device_file.is_file():
             return
+        import httpx
+
         with self.lock:
             connection = self.connection()
             if not connection:
