@@ -9,7 +9,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from websockets.asyncio.client import connect
-from websockets.asyncio.server import serve
 from atlas.testing import FakeLLM
 
 from desk_companion.chat import assistant
@@ -84,14 +83,15 @@ class LocalApiTests(unittest.IsolatedAsyncioTestCase):
         patch.object(self.host, "engage_model").start()
         patch.object(server, "HOST", self.host).start()
         patch.object(server, "TOKEN", "test-token").start()
-        self.service = await serve(server._handler, "127.0.0.1", 0, process_request=server._health)
+        patch.object(server, 'SHUTDOWN', asyncio.Event()).start()
+        from desk_companion.local_api.http_api import listening
+        self.service = listening(server, 0, legacy=True)
+        self.port = await self.service.__aenter__()
         self.addAsyncCleanup(self.stop_service)
-        self.port = self.service.sockets[0].getsockname()[1]
         self.url = f"ws://127.0.0.1:{self.port}/ws?token=test-token"
 
     async def stop_service(self):
-        self.service.close()
-        await self.service.wait_closed()
+        await self.service.__aexit__(None, None, None)
 
     async def test_personal_usage_authenticated_metadata_read_while_busy(self):
         import threading

@@ -17,18 +17,14 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.smoke_release import ModelServer, ThreadingHTTPServer, free_port
-from websockets.asyncio.client import connect
+from desk_companion.local_api.worker_rpc import request as parent_request
 
 
 async def verify(port, token, model_port):
     async def rpc(method, args=None):
-        async with connect(f'ws://127.0.0.1:{port}/ws?token={token}', proxy=None) as socket:
-            await socket.send(json.dumps(dict(type='rpc', id='verify', method=method, args=args or {})))
-            envelope = json.loads(await asyncio.wait_for(socket.recv(), 30))['result']
-            assert envelope['ok'], envelope
-            result = envelope['result']
-            assert result['ok'], result
-            return result
+        result = await asyncio.to_thread(parent_request, port, token, method, args, timeout=30)
+        assert result['ok'], result
+        return result
     async def workflow(operation, payload=None):
         return await rpc('automation_workflow', dict(operation=operation, payload=payload or {}))
     await rpc('save_model_network', dict(payload=dict(mode='direct')))

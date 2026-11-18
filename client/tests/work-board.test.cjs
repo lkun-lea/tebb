@@ -146,11 +146,10 @@ test('real component creates, moves, archives, restores and preserves its edit f
   assert(rendered().includes('补齐工作看板键盘操作'));
   act(()=>view.unmount());
 
-  const originalSocket=global.WebSocket;
-  global.WebSocket=class {
-    constructor(url){this.url=url;sockets.push(this);}
-    send(message){this.request=JSON.parse(message);}
-    close(){this.closed=true;this.onclose();}
+  const originalFetch=global.fetch;
+  global.fetch=async(url,init)=>{
+    const socket={url,init};sockets.push(socket);
+    return new Response(new ReadableStream({start(controller){socket.controller=controller;init.signal.addEventListener('abort',()=>{socket.closed=true;controller.error(new Error('aborted'));});},cancel(){socket.closed=true;}}),{headers:{'Content-Type':'text/event-stream'}});
   };
   projectRemoved=false;
   try{
@@ -158,20 +157,19 @@ test('real component creates, moves, archives, restores and preserves its edit f
     const [socket]=sockets;
     const initial=livePage.items[0];
     const card=()=>view.root.findAllByType('article').find(a=>a.props['data-work-card']===initial.id);
-    assert.match(socket.url,/\/ws\?token=fixture$/);
-    socket.onopen();
-    assert.deepEqual(socket.request,{type:'work_board_subscribe'});
+    assert.match(socket.url,/\/v1\/notifications\?topic=board$/);
+    assert.equal(socket.init.headers.Authorization,'Bearer fixture');
     assert.equal(reads,0);
-    const broadcast=()=>socket.onmessage({data:'{"type":"work_board_changed"}'});
+    const broadcast=()=>{if(!socket.closed)socket.controller.enqueue(new TextEncoder().encode('data: {"type":"work_board_changed"}\n\n'));};
     await act(async()=>broadcast());
     assert.equal(card().props['data-state'],initial.state);
     livePage=updated(livePage,initial.id,'review',livePage.revision+1);
     await act(async()=>broadcast());
     assert.equal(card().props['data-state'],'review');
     assert.equal(reads,2);
-    act(()=>view.unmount());
+    await act(async()=>view.unmount());
     assert(socket.closed);
     broadcast();
     assert.equal(reads,2);
-  }finally{global.WebSocket=originalSocket;}
+  }finally{global.fetch=originalFetch;}
 });

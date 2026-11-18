@@ -89,6 +89,12 @@ jobs:
       - run: python scripts/prepare_skills.py --source .ci-skills
       - run: uv sync --locked
       - run: uv run --locked python scripts/python_dependencies.py check
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.3'
+      - name: Install pinned private Pi runtime (offline model fixtures only)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: desk_companion/pi_runtime
       - name: Versions and complete regression (one attempt)
         shell: pwsh
         run: |

@@ -471,14 +471,8 @@ def call(method, **args):
     """Workers use the parent service so the UI can inspect/stop their commands."""
     port, token = os.environ.get("DESK_TERMINAL_PORT"), os.environ.get("DESK_TERMINAL_TOKEN")
     if port and token:
-        from websockets.sync.client import connect
-        from urllib.parse import quote
-        with connect(f"ws://127.0.0.1:{int(port)}/ws?token={quote(token)}", open_timeout=5, close_timeout=1, proxy=None) as ws:
-            ws.send(json.dumps({"type": "rpc", "method": "terminal_" + method, "args": args}))
-            reply = json.loads(ws.recv(timeout=35))["result"]
-            if not reply["ok"]:
-                raise RuntimeError(reply["error"])
-            return reply["result"]
+        from desk_companion.local_api.worker_rpc import call as parent_call
+        return parent_call('terminal_' + method, args, timeout=35)
     return getattr(manager(), method)(**args)
 
 

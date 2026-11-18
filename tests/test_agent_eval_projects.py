@@ -78,20 +78,14 @@ class ProjectVerdictTests(unittest.TestCase):
                 def getresponse(self):return self
                 def read(self):return b''
                 def close(self):pass
-            class WS:
-                def __enter__(self):return self
-                def __exit__(self,*args):pass
-                def send(self,text):
-                    message=json.loads(text);method=message['method'];action=message['args'].get('action',{})
-                    if method=='load_collaboration':result=dict(state=dict(agents=[dict(id='research')],runs=[]))
-                    elif action.get('type')=='send':result=dict(state=dict(runs=[copy.deepcopy(root)]))
-                    else:
-                        result=dict(ok=True)
-                        if action.get('type')=='cancel':
-                            root['state']='cancelled';write('progress.json',dict(runs=[root],tasks=[]))
-                    self.response=json.dumps(dict(result=dict(ok=True,result=result)))
-                def recv(self,**kwargs):return self.response
-            with patch('desk_companion.evaluation.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.tasks.task_process.ProcessTree',Tree),patch('websockets.sync.client.connect',lambda *a,**k:WS()),patch('desk_companion.evaluation.agent_eval_projects.http.client.HTTPConnection',Connection):
+            def parent_request(port,token,method,args=None,timeout=80):
+                action=(args or {}).get('action',{})
+                if method=='load_collaboration':return dict(state=dict(agents=[dict(id='research')],runs=[]))
+                if action.get('type')=='send':return dict(state=dict(runs=[copy.deepcopy(root)]))
+                if action.get('type')=='cancel':
+                    root['state']='cancelled';write('progress.json',dict(runs=[root],tasks=[]))
+                return dict(ok=True)
+            with patch('desk_companion.evaluation.agent_eval_projects.subprocess.Popen',Parent),patch('desk_companion.tasks.task_process.ProcessTree',Tree),patch('desk_companion.local_api.worker_rpc.request',parent_request),patch('desk_companion.evaluation.agent_eval_projects.http.client.HTTPConnection',Connection):
                 result,proof,_,_=execute(dict(id='cancel-test',scenario='cancel'),profile=directory,model_id='fake',timeout=20,progress=published.append)
             self.assertEqual(result['state'],'needs_input')
             self.assertEqual(proof['goal_state_before_cleanup'],'needs_input')

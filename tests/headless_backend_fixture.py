@@ -13,9 +13,9 @@ from desk_companion.tasks.manager import TaskManager
 from tests.schedule_fixture import TimeCalendar
 
 
-def manager():
-    return TaskManager(command=[sys.executable, '-u', '-c',
-        "exec(open('tests/worker_fixture.py', encoding='utf-8').read())"])
+def manager(*args, **kwargs):
+    return TaskManager(*args, **{**kwargs, 'command': [sys.executable, '-u', '-c',
+        "exec(open('tests/worker_fixture.py', encoding='utf-8').read())"]})
 
 
 with ExitStack() as stack:

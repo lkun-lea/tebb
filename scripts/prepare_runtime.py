@@ -74,7 +74,7 @@ def main():
     for dll in (site / "pywin32_system32").glob("*.dll"):
         shutil.copy2(dll, runtime / dll.name)
     shutil.copytree(ROOT / "desk_companion", site / "desk_companion",
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log", "*.ready"))
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log", "*.ready", "node_modules"))
     if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
     from scripts.skill_snapshot import export_snapshot
     skills=export_snapshot(args.skills,site/'skills')

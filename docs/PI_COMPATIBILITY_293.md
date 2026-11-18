@@ -10,14 +10,14 @@
 | Node ZIP SHA-256 | `e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f` | [官方摘要](https://nodejs.org/dist/v24.22.3/SHASUMS256.txt) |
 | Pi Agent Core / Pi AI / Pi Schema | 全部 1.5.2 | [Agent Core](https://www.npmjs.com/package/@earendil-works/pi-agent-core/v/1.5.2)、[Pi AI](https://www.npmjs.com/package/@earendil-works/pi-ai/v/1.5.2)，完整传递依赖及 integrity 见 package-lock.json |
 | 独立 fetch 传输 | undici 8.12.4 | 在 Pi 官方 fetch 注入点验证直连与代理，按调用持有 dispatcher |
-| 探针定义 | [package.json](../scripts/pi_compat/package.json) / [锁文件](../scripts/pi_compat/package-lock.json) | 与客户端前端依赖分别安装 |
+| 探针定义 | [package.json](../desk_companion/pi_runtime/package.json) / [锁文件](../desk_companion/pi_runtime/package-lock.json) | 与客户端前端依赖分别安装 |
 | 结果 | [脱敏逐项报告](evals/pi-compatibility-20261118.json) | 保留首轮失败及单独复验 |
 
 默认开发机 Node 20.17.0 低于本批 SDK 要求。使用解压的固定 Node，并核对下载 ZIP 摘要。以下命令中的 `$piNodeRoot` 指向该目录，输出文件必须尚不存在。
 
 ```powershell
 $piNodeRoot = 'E:/temporary/node-v24.22.3-win-x64'
-Push-Location scripts/pi_compat
+Push-Location desk_companion/pi_runtime
 & "$piNodeRoot/node.exe" "$piNodeRoot/node_modules/npm/bin/npm-cli.js" ci --ignore-scripts --no-audit --no-fund
 Pop-Location
 uv run --locked python scripts/pi_compat/run.py --node "$piNodeRoot/node.exe" --output E:/temporary/pi-offline.json
@@ -98,7 +98,7 @@ Pi提供fetch/onPayload/onResponse/onProviderStreamEvent，可用于传输配置
 | 批次 | 工作范围与前置 | 必须通过的验收 | 当前状态 |
 | --- | --- | --- | --- |
 | 0 兼容基线 | 本文固定SDK、Node、入口清单和探针 | 模拟15案；已有模型文本/工具实测；首轮失败与复验独立记录；列明代理与协议缺口 | 本批完成，有上述验证边界 |
-| 1 HTTP/SSE与进程桥 | 复用TaskManager/SQLite/服务；定义Python↔Node私有协议；FastAPI绑定回环 | Tauri启动/健康/认证退出，桌面/桌宠/预览/Python调用；request_id去重与冲突；SSE补读、过期快照、断订阅任务继续；账号切换收回旧订阅；worker_rpc及terminal读取/输入/尺寸/offset | 待实施 |
+| 1 HTTP/SSE与进程桥 | 复用TaskManager/SQLite/服务；定义Python↔Node私有协议；FastAPI绑定回环 | Tauri启动/健康/认证退出，桌面/桌宠/预览/Python调用；request_id去重与冲突；SSE补读、过期快照、断订阅任务继续；账号切换收回旧订阅；worker_rpc及terminal读取/输入/尺寸/offset | 已实现，逐项证据见[进程桥验收](HTTP_SSE_BRIDGE_293.md) |
 | 2 工作流AI节点 | 批次1及模型边界具备；现有解释器/版本/回执持有业务状态 | 手动/定时、条件分支、逐节点确认；原保存版本及计划绑定；外部写入丢回执后按原操作查证；已确认节点跳过、目标侧写入一次 | 待实施 |
 | 3 普通聊天 | Pi Agent Core替代普通Atlas Agent；映射工具与历史 | 桌面/浮动窗/飞书多轮；低高max与模型代理；工具白名单、预算发送前/执行前准入；思考和正文连续；取消后禁止工具及迟到终态覆写；历史与用户选择记忆可追溯 | 待实施 |
 | 4 协作和开发团队 | 路由/计划/执行/交付与只读研究入口逐批接通 | 角色权限、父子取消、并发隔离、阶段恢复、来源/独立审阅；Python回执贯通；原#304伙伴事项实际变更后页面刷新；研究质量及原生跨issue门槛分别记录 | 待实施 |
@@ -107,4 +107,4 @@ Pi提供fetch/onPayload/onResponse/onProviderStreamEvent，可用于传输配置
 
 每批都保留task/run/call/operation编号、实际失败、测试与候选版本。跨端共用契约与共同Agent验收要求继续见 [架构设计](CLOUD_MULTICLIENT_ARCHITECTURE.md)。
 
-下一批先定义运行提交/快照/事件游标和Python↔Node桥消息。统一模型映射先处理终态、未知用量、采样字段、预算准入与可观测，再切换首个工作流AI节点。实际安装包的Node生命周期、授权工具取消和回执恢复必须在相应批次独立验收。
+HTTP/SSE与进程桥的实施及边界见[第二批报告](HTTP_SSE_BRIDGE_293.md)。下一批切换工作流AI节点。统一模型映射先处理终态、未知用量、采样字段、预算准入与可观测，再切换首个工作流AI节点。实际安装包的Node生命周期、授权工具取消和回执恢复必须在相应批次独立验收。

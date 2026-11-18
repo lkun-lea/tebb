@@ -72,6 +72,7 @@ class TaskManager:
                        "text TEXT, request TEXT, state TEXT, answer TEXT DEFAULT '', error TEXT DEFAULT '', "
                        "created REAL, started REAL DEFAULT 0, ended REAL DEFAULT 0, source TEXT DEFAULT '{}')")
             db.execute("CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, task TEXT, kind TEXT, data TEXT, ts REAL)")
+            db.execute('CREATE INDEX IF NOT EXISTS events_task_seq ON events(task,seq)')
             db.execute("UPDATE tasks SET state='interrupted', ended=?, error='桌宠退出时任务中断，已完成的工具不会自动重做。' "
                        "WHERE state IN ('queued','running','cancelling')", (time.time(),))
             db.commit()
@@ -107,7 +108,7 @@ class TaskManager:
             self.cv.notify_all()
         return {"ok": True, "settings": self.settings}
 
-    def submit(self, text, session, channel="desktop", source=None, callback=None, task_limits=None, submission_key="", _budget_root=None, _budget_root_member=False, _prior_budget_unknown=False, *, persisted_callback=None, **request):
+    def submit(self, text, session, channel="desktop", source=None, callback=None, task_limits=None, submission_key="", _budget_root=None, _budget_root_member=False, _prior_budget_unknown=False, *, persisted_callback=None, submission_fingerprint="", **request):
         if not isinstance(text, str) or not text.strip() or len(text) > 200000:
             raise ValueError("请填写有效问题。")
         if not isinstance(session, str) or not session:
@@ -120,9 +121,10 @@ class TaskManager:
                 raise RuntimeError("桌宠正在退出。")
             if submission_key:
                 with self.db() as db:
-                    existing = db.execute("SELECT text,session,channel FROM tasks WHERE id=?", (task_id,)).fetchone()
+                    existing = db.execute("SELECT text,session,channel,source FROM tasks WHERE id=?", (task_id,)).fetchone()
                 if existing:
-                    if tuple(existing) != (text, session, channel):
+                    if tuple(existing)[:3] != (text, session, channel) or (submission_fingerprint and
+                            json.loads(existing['source']).get('_submission_fingerprint') != submission_fingerprint):
                         raise ValueError("任务去重编号已用于其他任务。")
                     return task_id
             if session in self._session_reservations:
@@ -151,6 +153,8 @@ class TaskManager:
                 purpose=request.get('kind')or request.get('workflow')or'task')
             request.pop('task_budget',None)  # Request data cannot grant membership.
             source={**(source or{})}
+            if submission_fingerprint:
+                source['_submission_fingerprint'] = submission_fingerprint
             if '_usage_project_id'not in source:
                 project=source.get('project_id',request.get('project_id',''))
                 source['_usage_project_id']=project if isinstance(project,str)else None
@@ -182,6 +186,26 @@ class TaskManager:
         from desk_companion.tasks.task_budgets import task_view
         value['task_budget']=task_view(task_id)
         return value
+
+    def event_snapshot(self, task_id, after=0, limit=512):
+        """Read the task and a bounded replay window at the same SQLite watermark."""
+        with self.db() as db:
+            db.execute('BEGIN')
+            row = db.execute('SELECT * FROM tasks WHERE id=?', (task_id,)).fetchone()
+            if row is None:
+                raise ValueError('任务不存在。')
+            events = list(reversed(db.execute('SELECT seq,kind,data,ts FROM events WHERE task=? ORDER BY seq DESC LIMIT ?',
+                                             (task_id, limit)).fetchall()))
+            task = dict(row)
+            task.pop('request')
+            task['source'] = json.loads(task['source'])
+            cursor = events[-1]['seq'] if events else 0
+            expired = after > cursor or (len(events) == limit and after < events[0]['seq'])
+            replacement = db.execute("SELECT kind FROM events WHERE task=? AND kind IN ('answer_reset','token') ORDER BY seq DESC LIMIT 1",
+                                     (task_id,)).fetchone()
+            return dict(task=task, cursor=cursor, expired=expired,
+                        replace_pending=bool(replacement and replacement['kind'] == 'answer_reset'),
+                        events=[dict(e, data=json.loads(e['data'])) for e in events if e['seq'] > after])
 
     @contextmanager
     def session_mutation_guard(self, session):
@@ -494,8 +518,8 @@ class TaskManager:
                 finally:self._settled(task_id, control, 'execution_done')
 
     def _save_partial(self, row, reason):
-        if row["channel"] == "collaboration":
-            return  # Collaboration owns its private history and partial results.
+        if row["channel"] in {"collaboration", "notebook"}:
+            return  # These services own their private histories and partial results.
         from desk_companion.memory.history import append_chat
         value = self.get(row["id"], False)
         if value["answer"]:

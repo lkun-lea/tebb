@@ -1,0 +1,236 @@
+{
+  "issue": "https://github.com/lkun-lea/tebb/issues/293",
+  "date": "2026-11-18",
+  "baseline": "0a215f11c3f1ae095eaab4299cc8815e54a8a516",
+  "scope": "HTTP/SSE product transport and private Pi process bridge; production model callers remain on Atlas until subsequent batches.",
+  "previous_main_ci": {
+    "url": "https://github.com/lkun-lea/tebb/actions/runs/44263216315",
+    "conclusion": "success"
+  },
+  "versions": {
+    "node": "24.22.3",
+    "pi": "1.5.2",
+    "undici": "8.12.4",
+    "fastapi": "0.163.2",
+    "uvicorn": "0.54.0"
+  },
+  "source_sha256_lf_normalized": {
+    "client/src/client/App.tsx": "e43b64e53e5333609a7fbf9bca675108e99e5f04c1b2a0bd90c278ba7690bc2f",
+    "client/src/client/api.ts": "913003095caded84c3bf807ff8424609479ce7184972f09b0e31df5c77090977",
+    "client/tests/work-board.test.cjs": "427d352cbdb4f56d524649e7b90586d007443d5b69f9b7a169cb6898ba268fcb",
+    "client/tests/workspace.test.cjs": "3896555302cf0631103e2b056665b1fc345a6bfb650757788cca41d4cd2ea042",
+    "desk_companion/evaluation/agent_eval_authoring.py": "bf14a00f5200aa474e8d68e050ce6a6721a0a3b3599eb952f60d34171c513c7d",
+    "desk_companion/evaluation/agent_eval_projects.py": "f1d974e19dd13e0de7f4892bdac2fdd1dfda51d72019beba7332b4b65a4e0278",
+    "desk_companion/local_api/__init__.py": "16b034ef74d076437b59e45d5b7c3383310fa8cd66bbd3a014702fc164089a58",
+    "desk_companion/local_api/host.py": "8284ebde09d30e3dbeaa02ee18a88f8ac7c108fc0a48d008fe6c6805b86b9af9",
+    "desk_companion/local_api/http_api.py": "dfa2ae796d04013acc0ef2da3727c00e07be9118dd8d46006256a26fc79c4d67",
+    "desk_companion/local_api/legacy_ws.py": "9d20e74c7a6fab01e4385526f27b534a30140983c483b01e35724104d507ce46",
+    "desk_companion/local_api/server.py": "0a53abaf5d852644dfab73fd136538173c985285467203957355cf972f4e7f40",
+    "desk_companion/local_api/worker_rpc.py": "2835ab228318435fa6d23ebdce12bcf8ee619660d6ec2f29512d4cf8ee883159",
+    "desk_companion/pi_runtime/__init__.py": "5e6f1b6c236b1f254400b2791e1eb0fb2e9d8db32aaa8f774a1893668e419e0f",
+    "desk_companion/pi_runtime/bridge.py": "5e80bc74a05fef350de59034989e59ca9d6be909c783e61ab94d69c03d9ecd9a",
+    "desk_companion/pi_runtime/probe.mjs": "a2051885d7543142e97366b48da203b08fecc31ef722099188dc9f4dec2557d3",
+    "desk_companion/pi_runtime/worker.mjs": "852f3f882f075912e5231beae7e81c87f91048bf11debbf6a7afdd660070f635",
+    "desk_companion/projects/terminal.py": "dafda385b6ba33ca48a1173bd96deba34cb1e7eaa5ee83a63bc15dda67116308",
+    "desk_companion/tasks/manager.py": "55db8b9b54ef7fa8804d48481446a4cb086e3e6bace33d63355f62cfdd4ea55c",
+    "desk_companion/tasks/notebook_worker.py": "25babc1f88ed69e280f8c69dba82a2bb23181b8c5eff35f489bd0d12f9dbe12b",
+    "desk_companion/tasks/worker.py": "cc90f04105775144a81cf478e308390d9328e865d1e06fc9fa8e7a724be1390d",
+    "scripts/eval_project_host.py": "794832a6ea9805329f97dc051f9623eb38e81824b0291fc22f27f041dd8b58eb",
+    "scripts/pi_compat/run.py": "206f24d6bebdc54e9dd121a36b22b2420fa113040b62f300067d1df10ac44dfc",
+    "scripts/prepare_runtime.py": "f033cb3546e2d300428e52eeac06e75dc233921cb08ea7f7a0ba3ae0a1055cf3",
+    "scripts/verify_http_client.cjs": "82022abf3955078f3de16aa1de32d3daf570702a343063dceb9485c88d5528a8",
+    "scripts/verify_http_transport.py": "7e39b0cbc9aab68cf507bbd9111720e87e81d62d5b73f486f0af42dd4723c746",
+    "scripts/verify_workflow.py": "5a8fd0dc3424118147307b4e3f4e92f775cdeee032900c979da4efde50720858",
+    "scripts/verify_workflow_scenarios.py": "b62f9522a4c3cb2882739b450e8b93709005139b9a650a488c3169f0ea1ac2a8",
+    "tests/headless_backend_fixture.py": "9a6f120b0958766c00e675449bb9f3b36caac85038cdd45e41c9cb2236611700",
+    "tests/http_worker_fixture.py": "78e97a630479128ff4d6372766f1780acd79b23fa0177f730a03806cadc47574",
+    "tests/pi_task_fixture.py": "19b56ad0ac7ab565e01348c5cb2cb11edeb7635a3539312582119fdc739426c3",
+    "tests/test_agent_eval_projects.py": "1dd661e8c976cf6d26b23e253d7d0501e9dc0a476598ced9ca9c2c8e19a62ae8",
+    "tests/test_http_api.py": "de53fd2e6231bf065b6677b8f8f30c23d3040d7913196f94e8cff04ee5936a9d",
+    "tests/test_local_api.py": "cef12c2f316caf24a5b25f8165f08d96f1678b7559750a5c9b9bc771b5f9ce03",
+    "tests/test_pi_bridge.py": "5ae185087cfcd2b6d2e7e9b32dd6b6379cf2ceb596d25fc11854554fcb8d17bd"
+  },
+  "initial_full_attempt": {
+    "completed": false,
+    "status": "stopped_after_confirmed_regressions",
+    "reason": "HTTP migration omitted evaluation parent listeners and an old transport mock; fixed before starting a fresh full run.",
+    "known_failures": [
+      "test_agent_eval_authoring.WorkflowAuthoringEvaluationTests.test_cli_checks_saved_capability_graph_and_complete_cleanup",
+      "test_agent_eval_projects.ProjectVerdictTests.test_cleanup_cancellation_cannot_replace_the_goal_needs_input_state"
+    ]
+  },
+  "completed_full_before_last_fixture_fix": {
+    "tests": 1514,
+    "failures": [
+      "test_local_api.LocalApiTests.test_tebb_work_item_move_notifies_active_board_after_commit"
+    ],
+    "errors": [
+      "test_local_api.LocalApiTests.test_terminal_worker_uses_shared_rpc_without_waiting_for_agent_turn_lock"
+    ],
+    "skipped": 13,
+    "reason": "The older LocalApiTests listener only accepted WebSocket. HTTP parent RPC clients could not reach it. The fixture now uses the same HTTP listener with the temporary legacy WS adapter.",
+    "evidence_sha256": "f25ba1486022cb997afa94cc4c0b6e2f7db248dcb18cf353d99cba76a3ec9429"
+  },
+  "after_fix": {
+    "local_api": {
+      "tests": 58,
+      "failed": 0,
+      "log_sha256": "0a16afb1e8a9d07078848caeff98dd1dae05a354a556334298c595e72a659a17"
+    },
+    "http_pi_process": {
+      "tests": 15,
+      "failed": 0,
+      "log_sha256": "2aa8ce8c4b14577678050c14844f5a42758ec1f287eb9118cf40b8c16c9b649b"
+    },
+    "evaluation_and_startup": {
+      "tests": 21,
+      "failed": 0,
+      "log_sha256": "6e6a6c423971311793f7b9dc50e4bca7d3564b04eaedaca35875ee5202523e57"
+    },
+    "frontend": {
+      "tests": 315,
+      "failed": 0,
+      "log_sha256": "2e4617c99236e01920c055b3a0ea3917d2f2d317143f829e33b2e6dac62f503e"
+    },
+    "typecheck": true,
+    "production_client_build": true,
+    "wheel_structure": {
+      "built": true,
+      "worker_and_lock_included": true,
+      "node_modules_excluded": true
+    },
+    "relocated_sdk_probe": {
+      "passed": 15,
+      "failed": 0,
+      "evidence_sha256": "82414cf96929485f762202fa29b7f96f80784e52ac4cc0cb4b581260b21cfdf5"
+    }
+  },
+  "actual_client_and_service": {
+    "status": "passed",
+    "real_model": false,
+    "native_ui": false,
+    "node": "v24.22.3",
+    "checks": {
+      "authenticated_http_rpc": true,
+      "board_sse_reconnect_snapshot": true,
+      "task_chat_sse": true,
+      "final_answer": true,
+      "persisted_history": true
+    },
+    "request_id": "9bfa1349-6ccd-474c-b6be-79ad48f46276",
+    "run_id": "e3f6ebab626f58218bec9fd714884857",
+    "board_snapshots": 2,
+    "stream_tokens": 1,
+    "persisted": {
+      "state": "succeeded",
+      "answer": "本地流式回归正常。",
+      "cursor": 19,
+      "events": [
+        {
+          "seq": 1,
+          "kind": "status"
+        },
+        {
+          "seq": 2,
+          "kind": "status"
+        },
+        {
+          "seq": 3,
+          "kind": "worker_pool"
+        },
+        {
+          "seq": 4,
+          "kind": "worker_phase"
+        },
+        {
+          "seq": 5,
+          "kind": "worker_phase"
+        },
+        {
+          "seq": 6,
+          "kind": "worker_phase"
+        },
+        {
+          "seq": 7,
+          "kind": "llm_start"
+        },
+        {
+          "seq": 8,
+          "kind": "status"
+        },
+        {
+          "seq": 9,
+          "kind": "llm_end"
+        },
+        {
+          "seq": 10,
+          "kind": "status"
+        },
+        {
+          "seq": 11,
+          "kind": "tool_start"
+        },
+        {
+          "seq": 12,
+          "kind": "task_budget"
+        },
+        {
+          "seq": 13,
+          "kind": "tool_end"
+        },
+        {
+          "seq": 14,
+          "kind": "llm_start"
+        },
+        {
+          "seq": 15,
+          "kind": "status"
+        },
+        {
+          "seq": 16,
+          "kind": "token"
+        },
+        {
+          "seq": 17,
+          "kind": "llm_end"
+        },
+        {
+          "seq": 18,
+          "kind": "feedback_check"
+        },
+        {
+          "seq": 19,
+          "kind": "done"
+        }
+      ],
+      "tool_receipts": [
+        {
+          "tool": "channel_lookup",
+          "step": "23baf57f-eb71-41a5-beef-6df16b3cf23d:1:0",
+          "input": {},
+          "result": {
+            "output": "离线工具结果"
+          },
+          "status": "success",
+          "duration_ms": 105,
+          "fingerprint": "8f315bd878c67399ae10549ab5fc6e9266d2907ddb1d55edab361994d0726119",
+          "read_only": true
+        }
+      ]
+    },
+    "actual_tool_marker_verified": true,
+    "backend_exit_code": 0
+  },
+  "ci_merge_gate": "All three CI jobs must pass on the candidate commit before updating main. Use the GitHub Actions record for that commit as the final full-regression result.",
+  "development_probe_corrections": [
+    "Notebook fixture initially omitted citations; changed the fixture to provide a valid isolated source rather than weakening the existing notebook validation.",
+    "The older headless test factory did not accept TaskManager path arguments; its signature now preserves those arguments.",
+    "An initial client probe expected ordinary UI item writes to broadcast. Existing behavior only broadcasts partner status writes; the corrected client probe verifies reconnect snapshots, and a separate real-service test verifies partner broadcasts."
+  ],
+  "remaining": [
+    "Subsequent workflow/chat/collaboration model adapters must bind the existing context, budgets, permissions, usage and observability services to PiBridge.",
+    "Real proxy/custom CA and nonempty live reasoning-history coverage remain as documented in the first batch.",
+    "Native UI/candidate installer, bundled Node licensing/provenance and clean Windows upgrade/rollback acceptance remain in their planned batches.",
+    "Temporary legacy WS routes and older release/installer verification scripts remain for compatibility until batch 6."
+  ]
+}

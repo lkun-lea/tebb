@@ -36,6 +36,10 @@ def main():
         install({"task_id": request.get("task_id", ""), "session": request["session_id"], "channel": request.get("channel", "desktop"),
                  'model_id':request.get('model_id',''),'collab_run':request.get('collab_run',''),
                  'conversation':request.get('conversation',''),'phase':request.get('kind',''),'origin_call':request.get('original_call','')})
+        if request.get('workflow') == 'notebook_qa':
+            from desk_companion.tasks.notebook_worker import execute
+            execute(request, emit)
+            return
         if request.get('workflow')=='budget_probe':
             from desk_companion.models.model_generation import verify
             try:verify(request,emit)

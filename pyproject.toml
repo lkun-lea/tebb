@@ -24,6 +24,8 @@ dependencies = [
     "yt-dlp-ejs==0.8.0",
     "websockets>=15,<17",
     "tzdata>=2026.1",
+    "fastapi>=0.121,<1",
+    "uvicorn>=0.38,<1",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +46,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["desk_companion*"]
+exclude = ["*.node_modules*"]
 
 [tool.setuptools.package-data]
-desk_companion = ["ui/*", "ui/fonts/*", "ui/vendor/*"]
+desk_companion = ["ui/*", "ui/fonts/*", "ui/vendor/*", "pi_runtime/*.mjs", "pi_runtime/package*.json"]

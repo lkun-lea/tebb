@@ -32,7 +32,7 @@ Rust 启动 `desk_companion.account_server` 并标记账号引导。引导先取
 
 ## AI 调试接口
 
-复用带本机 token 的 `/ws` RPC；不公开到 Supabase 或浏览器协作预览。`account_session` 为短时只读，不等待模型回合；`account_action` 使用独立账号操作预留，网络等待不持模型或数据写锁。
+复用带本机 token 的 HTTP `POST /rpc`；旧 `/ws` 暂留兼容，不公开到 Supabase 或浏览器协作预览。`account_session` 为短时只读，不等待模型回合；`account_action` 使用独立账号操作预留，网络等待不持模型或数据写锁。新协议与订阅清理验收见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。
 
 ```json
 {"method":"account_session","args":{"operation_id":"可选原操作UUID"}}

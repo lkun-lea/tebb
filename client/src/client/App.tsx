@@ -196,6 +196,12 @@ export function App() {
   const scroller = useRef<HTMLDivElement>(null);
   const notesRef = useRef<string[]>([]);
   const thinkingRef = useRef("");
+  const chatSubscription = useRef<(() => void) | null>(null);
+  const notebookSubscription = useRef<(() => void) | null>(null);
+  useEffect(() => () => {
+    chatSubscription.current?.();
+    notebookSubscription.current?.();
+  }, [info?.port, info?.token]);
   const [thinkPulse, setThinkPulse] = useState(false);
   const [slashParent, setSlashParent] = useState<SlashParent>("all");
   const [composerNotice, setComposerNotice] = useState("");
@@ -577,7 +583,14 @@ export function App() {
       items: [...thread.items, { role: "user", text: shown }, { role: "pet", text: "" }],
     });
     setChatProposals([]);
-    streamChat(info, text, sent, chips, activeModelId, {
+    chatSubscription.current?.();
+    chatSubscription.current = streamChat(info, text, sent, chips, activeModelId, {
+      onSnapshot: text => setThread(cur => {
+        if (!cur) return cur;
+        const items = cur.items.slice(), last = items[items.length - 1];
+        if (last?.role === 'pet') items[items.length - 1] = { ...last, text };
+        return { ...cur, items };
+      }),
       onCalendarProposal:data=>setChatProposals(old=>[...old,...proposalsFromEvents([{kind:'calendar_proposal',data}]).filter(row=>!old.some(p=>p.id===row.id))]),
       onStatus: (line) => {
         if (!line) return;
@@ -798,7 +811,13 @@ export function App() {
       current?.title === "新笔记" ? text.slice(0, 24) : undefined,
     );
     let tokens = 0;
-    streamNotebook(info, sessionId, text, noteChecked, sampling, {
+    notebookSubscription.current?.();
+    notebookSubscription.current = streamNotebook(info, sessionId, text, noteChecked, sampling, {
+      onSnapshot: text => patchNote(sessionId, turns => {
+        const next = turns.slice(), last = next[next.length - 1];
+        if (last?.role === 'pet') next[next.length - 1] = { ...last, text };
+        return next;
+      }),
       onStatus: (line) => {
         if (line) setNoteStatus(line);
       },

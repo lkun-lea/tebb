@@ -33,6 +33,8 @@ pnpm tauri dev
 
 目录职责与新增模块归属见 [Python 包结构](PYTHON_PACKAGES.md)。
 
+本机 HTTP/SSE、任务游标和固定 Pi 私有进程桥的职责、复现命令及验收边界见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。开发进程测试使用固定 Node 24.22.3 和包内锁文件，正式模型入口按迁移批次切换。
+
 ## Python 环境与依赖
 
 默认环境与发布基础运行时一致，不安装 PyTorch 或 sentence-transformers。需要本地知识库模型时运行 `uv sync --locked --extra knowledge`；随后用 `uv run --locked --extra knowledge python ...` 保持该环境。普通 `uv sync --locked` 恢复基础环境，模型权重不会由同步命令下载。
@@ -58,7 +60,7 @@ uv run --locked python scripts/ci_checks.py test --output E:/isolated-output/pyt
 ```mermaid
 flowchart TD
     UI[React + TypeScript 工作台] --> Shell[Tauri 2 / Rust 壳]
-    Shell -->|启动本机后端| API[Python localhost WebSocket API]
+    Shell -->|启动本机后端| API[Python localhost HTTP / SSE API]
     UI <-->|进程 Token 认证 / 流式事件| API
     API --> Queue[SQLite 任务队列]
     Queue --> Worker[独立 Python 工作进程]
@@ -72,7 +74,7 @@ flowchart TD
     Worker --> Debug[实际 HTTP 请求与响应记录]
 ```
 
-桌面与飞书共用 Agent 业务逻辑；普通对话和笔记问答采用不同入口。普通对话按用户选择附加技能、文档和工具，笔记模式先限制来源，再检索与生成。LLM 的流式输出由后端转为 WebSocket 事件，客户端更新气泡与任务状态。
+桌面与飞书共用 Agent 业务逻辑；普通对话和笔记问答采用不同入口。普通对话按用户选择附加技能、文档和工具，笔记模式先限制来源，再检索与生成。LLM 的流式输出由后端转为可补读的 SSE 事件，客户端更新气泡与任务状态，断开页面不取消后台任务。
 
 | 模块 | 主要代码 | 职责 |
 | --- | --- | --- |

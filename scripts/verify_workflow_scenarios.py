@@ -68,15 +68,11 @@ def verify_outputs(ident,run):
 
 
 async def run_cases(args,profile,port,token,report,save):
-    from websockets.asyncio.client import connect
+    from desk_companion.local_api.worker_rpc import request as parent_request
     from desk_companion.observability import agent_debug
     from desk_companion.automation.workflows import WorkflowStore
     async def rpc(method,**params):
-        async with connect(f'ws://127.0.0.1:{port}/ws?token={token}',proxy=None) as ws:
-            await ws.send(json.dumps(dict(type='rpc',id='scenario',method=method,args=params)))
-            result=json.loads(await asyncio.wait_for(ws.recv(),130))['result']
-        if not result['ok']:raise RuntimeError(result.get('error','RPC failed'))
-        return result['result']
+        return await asyncio.to_thread(parent_request,port,token,method,params,timeout=130)
     async def workflow(operation,**payload):
         value=await rpc('automation_workflow',operation=operation,payload=payload)
         if not value['ok']:raise ValueError(value.get('error','workflow rejected'))

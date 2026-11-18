@@ -35,17 +35,15 @@ export type SessionItem = {
 };
 
 type RpcEnvelope<T> = { ok: boolean; result?: T; error?: string };
+export type CollaborationTextVersion = [attempt: number, event: number];
 
 export async function backendInfo(): Promise<BackendInfo> {
   return invoke<BackendInfo>("backend_info");
 }
 
-function wsUrl(info: BackendInfo): string {
-  return `ws://127.0.0.1:${info.port}/${info.scope === "collaboration" ? "collaboration" : "ws"}?token=${encodeURIComponent(info.token)}`;
-}
-
 export type StreamHandlers = {
   onToken: (piece: string) => void;
+  onSnapshot?: (text: string) => void;
   onThink: (piece: string) => void;
   onStatus: (text: string) => void;
   onDone: (answer: string) => void;
@@ -70,180 +68,186 @@ export type NotebookDone = {
 
 export type NotebookFailure = Partial<NotebookDone> & { answer_complete?: boolean };
 
-export function streamNotebook(
-  info: BackendInfo,
-  sessionId: string,
-  text: string,
-  docIds: string[],
-  sampling: Sampling,
-  handlers: {
-    onToken: (piece: string) => void;
-    onStatus: (text: string) => void;
-    onDone: (payload: NotebookDone) => void;
-    onError: (message: string, result?: NotebookFailure) => void;
-  },
-): void {
-  const ws = new WebSocket(wsUrl(info));
-  let settled = false;
-  function fail(message: string, result?: NotebookFailure) {
-    if (settled) return;
-    settled = true;
-    ws.close();
-    handlers.onError(message, result);
+const url = (info: BackendInfo, path: string) => `http://127.0.0.1:${info.port}${path}`;
+const headers = (info: BackendInfo) => ({ Authorization: `Bearer ${info.token}`, 'Content-Type': 'application/json' });
+
+async function response(info: BackendInfo, path: string, init: RequestInit = {}): Promise<Response> {
+  const result = await fetch(url(info, path), { ...init, headers: { ...headers(info), ...init.headers }, cache: 'no-store' });
+  if (!result.ok) {
+    let message = `后台请求失败（${result.status}），请核对原操作结果。`;
+    try { message = (await result.json()).detail || message; } catch { /* Keep the status on a non-JSON failure. */ }
+    throw new Error(String(message));
   }
-  ws.onopen = () => {
-    if (settled) return;
-    ws.send(JSON.stringify({
-      type: "notebook",
-      session_id: sessionId,
-      text,
-      doc_ids: docIds,
-      sampling,
-    }));
-  };
-  ws.onmessage = (ev) => {
-    if (settled) return;
-    let msg: { type: string; data?: string; result?: NotebookFailure };
-    let done: NotebookDone | undefined;
-    try {
-      msg = JSON.parse(String(ev.data));
-      if (typeof msg?.type !== 'string' || typeof msg.data !== 'string') throw new Error('invalid event');
-      if (msg.type === 'done') {
-        done = JSON.parse(msg.data) as NotebookDone;
-        if (typeof done?.answer !== 'string' || !done.answer.trim() || !Array.isArray(done.cites)) throw new Error('invalid result');
-      } else if (!['token', 'status', 'error'].includes(msg.type)) throw new Error('unknown event');
-    } catch {
-      fail('本地后端返回了无法解析的笔记结果，操作可能仍在执行；请重新读取笔记核对。');
-      return;
-    }
-    if (msg.type === 'token') handlers.onToken(msg.data || '');
-    else if (msg.type === 'status') handlers.onStatus(msg.data || '');
-    else if (done) {
-      settled = true;
-      ws.close();
-      handlers.onDone(done);
-    } else fail(msg.data || '笔记提问失败', msg.result);
-  };
-  ws.onerror = () => fail('笔记连接异常，尚未确认操作结果；后台可能继续，请重新读取笔记核对。');
-  ws.onclose = () => fail('笔记连接已断开，尚未收到完成结果；后台可能继续，请重新读取笔记核对。');
+  return result;
 }
 
-export function streamChat(
-  info: BackendInfo,
-  text: string,
-  sampling: Sampling,
-  chips: ChatChips,
-  modelId: string,
-  handlers: StreamHandlers,
-  knowledge = false,
-): void {
-  const ws = new WebSocket(wsUrl(info));
-  ws.onopen = () => ws.send(JSON.stringify({ type: "chat", text, sampling, chips, model_id: modelId, knowledge }));
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(String(ev.data)) as { type: string; data?: string };
-    if (msg.type === "token") handlers.onToken(msg.data || "");
-    else if (msg.type === "think") handlers.onThink(msg.data || "");
-    else if (msg.type === "status") handlers.onStatus(msg.data || "");
-    else if (msg.type === "knowledge") handlers.onKnowledge?.(JSON.parse(msg.data || "null"));
-    else if (msg.type === "calendar_proposal") handlers.onCalendarProposal?.(JSON.parse(msg.data||'null'));
-    else if (msg.type === "done") {
-      handlers.onDone(msg.data || "");
-      ws.close();
-    } else if (msg.type === "error") {
-      handlers.onError(msg.data || "对话失败");
-      ws.close();
-    }
-  };
-  ws.onerror = () => handlers.onError("连不上本地后端。恢复：看 tebb 日志后重启客户端");
+export async function rpc<T>(info: BackendInfo, method: string, args: Record<string, unknown> = {},
+  options: { timeoutMs?: number } = {}): Promise<T> {
+  const controller = new AbortController();
+  const timer = options.timeoutMs ? setTimeout(() => controller.abort(), options.timeoutMs) : undefined;
+  try {
+    const reply = await response(info, '/rpc', { method: 'POST', body: JSON.stringify({ method, args }), signal: controller.signal });
+    let envelope: RpcEnvelope<T>;
+    try { envelope = await reply.json(); } catch { throw new Error('本地后端返回了无法解析的结果，请查看日志。'); }
+    if (envelope?.ok !== true) throw new Error(envelope?.error || 'RPC 失败，请核对原操作结果。');
+    return envelope.result as T;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('调用超时，已停止等待；操作可能仍在执行，请先核查结果。');
+    if (error instanceof TypeError) throw new Error('连接已断开，尚未收到操作结果；请先核查是否已执行。');
+    throw error;
+  } finally { clearTimeout(timer); }
 }
 
-/** 订阅协作任务的正文增量；只读推送，断线后由界面轮询继续兜住结构状态。 */
-export type CollaborationTextVersion = [attempt: number, event: number];
+type EventFrame = { type: string; data: any };
+
+/** Fetch supports Authorization headers; SSE IDs are acknowledged only after delivery. */
+export async function readEvents(info: BackendInfo, path: string, receive: (event: EventFrame, id?: number) => void,
+  signal: AbortSignal): Promise<void> {
+  const reply = await response(info, path, { signal, headers: { Accept: 'text/event-stream' } });
+  if (!reply.headers.get('Content-Type')?.startsWith('text/event-stream') || !reply.body) throw new Error('无法解析后端事件流。');
+  const reader = reply.body.getReader(), decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (!signal.aborted) {
+      const part = await reader.read();
+      if (part.done) break;
+      buffer += decoder.decode(part.value, { stream: true });
+      if (buffer.length > 2_000_000) throw new Error('无法解析过大的后端事件。');
+      let match: RegExpExecArray | null;
+      while ((match = /\r?\n\r?\n/.exec(buffer))) {
+        const block = buffer.slice(0, match.index); buffer = buffer.slice(match.index + match[0].length);
+        const lines = block.split(/\r?\n/);
+        const payload = lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
+        if (!payload || signal.aborted) continue;
+        const rawId = lines.find(line => line.startsWith('id:'))?.slice(3).trim();
+        const id = rawId === undefined ? undefined : Number(rawId);
+        if (id !== undefined && (!Number.isSafeInteger(id) || id < 0)) throw new Error('无法解析事件游标。');
+        let event: EventFrame;
+        try { event = JSON.parse(payload); } catch { throw new Error('无法解析后端事件。'); }
+        if (typeof event?.type !== 'string') throw new Error('无法解析后端事件。');
+        receive(event, id);
+      }
+    }
+  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+}
+
+function subscribe(info: BackendInfo, receive: (event: EventFrame) => void, topic: 'board' | 'collaboration', onDisconnect = () => {}): () => void {
+  const controller = new AbortController();
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  async function connect() {
+    try { await readEvents(info, `/v1/notifications?topic=${topic}`, event => { if (!controller.signal.aborted) receive(event); }, controller.signal); }
+    catch { /* Existing page polling still reads authoritative snapshots. */ }
+    if (!controller.signal.aborted) { onDisconnect(); retry = setTimeout(connect, 1000); }
+  }
+  void connect();
+  return () => { controller.abort(); clearTimeout(retry); };
+}
 
 export function watchWorkBoard(info: BackendInfo, refresh: () => void): () => void {
-  let socket: WebSocket;
-  let reconnect: ReturnType<typeof setTimeout> | undefined;
-  let disposed = false;
   let checked = false;
-  function connect() {
-    socket = new WebSocket(wsUrl(info));
-    socket.onopen = () => socket.send('{"type":"work_board_subscribe"}');
-    socket.onmessage = event => {
-      if (disposed) return;
-      try {
-        if (JSON.parse(String(event.data)).type !== "work_board_changed") return;
-      } catch { return; }
-      checked = true;
-      refresh();
-    };
-    socket.onclose = () => {
-      if (disposed) return;
-      if (!checked) {
-        checked = true;
-        refresh();
-      }
-      reconnect = setTimeout(connect, 1000);
-    };
-  }
-  connect();
-  return () => {
-    disposed = true;
-    clearTimeout(reconnect);
-    socket.close();
-  };
+  return subscribe(info, event => { if (event.type === 'work_board_changed') { checked = true; refresh(); } }, 'board', () => {
+    if (!checked) { checked = true; refresh(); }
+  });
 }
 
 export function watchCollaboration(info: BackendInfo, onText: (run: string, text: string, version: CollaborationTextVersion) => void): () => void {
-  const ws = new WebSocket(`ws://127.0.0.1:${info.port}/stream?token=${encodeURIComponent(info.token)}`);
-  ws.onmessage = (ev) => {
-    let msg: { type?: string; data?: { run?: string; text?: string; version?: CollaborationTextVersion } };
-    try { msg = JSON.parse(String(ev.data)); } catch { return; }
-    const version = msg.data?.version;
-    if (msg.type === 'run_text' && typeof msg.data?.run === 'string' && typeof msg.data.text === 'string'
-      && Array.isArray(version) && version.length === 2 && version.every(Number.isSafeInteger)) {
-      onText(msg.data.run, msg.data.text, version);
-    }
-  };
-  return () => { ws.onmessage = null; ws.close(); };
+  return subscribe(info, event => {
+    const value = event.data, version = value?.version;
+    if (event.type === 'run_text' && typeof value?.run === 'string' && typeof value?.text === 'string'
+      && Array.isArray(version) && version.length === 2 && version.every(Number.isSafeInteger)) onText(value.run, value.text, [version[0], version[1]]);
+  }, 'collaboration');
 }
 
-export function rpc<T>(
-  info: BackendInfo,
-  method: string,
-  args: Record<string, unknown> = {},
-  options: { timeoutMs?: number } = {},
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl(info));
-    let settled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    function finish(error?: Error, result?: T) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      ws.close();
-      if (error) reject(error); else resolve(result as T);
-    }
-    if (options.timeoutMs) timer = setTimeout(() => finish(new Error("调用超时，已停止等待；操作可能仍在执行，请先核查结果。")), options.timeoutMs);
-    ws.onopen = () => {
-      if (settled) return;
-      ws.send(JSON.stringify({ type: "rpc", id: method, method, args }));
-    };
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(String(ev.data)) as {
-          type: string;
-          result?: RpcEnvelope<T>;
-          data?: string;
-        };
-        if (msg.type === "rpc_result" && msg.result?.ok) {
-          finish(undefined, msg.result.result as T);
-          return;
+type RunHandlers = {
+  onToken: (piece: string) => void;
+  onSnapshot?: (text: string) => void;
+  onStatus: (text: string) => void;
+  onThink?: (text: string) => void;
+  onKnowledge?: (value: any) => void;
+  onCalendarProposal?: (value: any) => void;
+  onDone: (answer: string) => void;
+  onError: (message: string, result?: NotebookFailure) => void;
+};
+
+function streamRun(info: BackendInfo, input: Record<string, unknown>, handlers: RunHandlers): () => void {
+  const controller = new AbortController();
+  const command = { ...input, request_id: crypto.randomUUID() };
+  let cursor = 0, notebookResult: NotebookFailure | undefined, settled = false, replacePending = false;
+  async function run() {
+    try {
+      // A lost submit response can be reconciled with this same ID, never a new question.
+      let reply: Response;
+      try { reply = await response(info, '/v1/runs', { method: 'POST', body: JSON.stringify(command), signal: controller.signal }); }
+      catch (error) {
+        if (!(error instanceof TypeError) || controller.signal.aborted) throw error;
+        reply = await response(info, '/v1/runs', { method: 'POST', body: JSON.stringify(command), signal: controller.signal });
+      }
+      let run_id: string;
+      try { ({ run_id } = await reply.json()); }
+      catch { throw new Error('无法解析任务提交回执，后台可能已接收；请查询原任务，不要重复提交。'); }
+      if (!/^[a-f0-9]{32}$/.test(run_id)) throw new Error('无法解析任务提交结果。');
+      for (let attempt = 0; !settled && attempt < 3; attempt++) {
+        try {
+          await readEvents(info, `/v1/runs/${run_id}/events?after=${cursor}`, (event, id) => {
+            if (settled || controller.signal.aborted || (id !== undefined && id <= cursor && event.type !== 'snapshot')) return;
+            const data = event.data;
+            if (event.type === 'snapshot') {
+              notebookResult = data.events.find((row: any) => row.kind === 'notebook_result')?.data;
+              handlers.onSnapshot?.(notebookResult?.answer || data.task.answer || '');
+              replacePending = Boolean(data.replace_pending);
+            } else if (event.type === 'token') {
+              if (replacePending) { handlers.onSnapshot?.(String(data)); replacePending = false; }
+              else handlers.onToken(String(data));
+            }
+            else if (event.type === 'answer_reset') replacePending = true;
+            else if (event.type === 'think') handlers.onThink?.(String(data));
+            else if (event.type === 'status') handlers.onStatus(String(data));
+            else if (event.type === 'knowledge') handlers.onKnowledge?.(data);
+            else if (event.type === 'calendar_proposal') handlers.onCalendarProposal?.(data);
+            else if (event.type === 'notebook_result') notebookResult = data;
+            else if (event.type === 'settled') {
+              settled = true;
+              if (data.task.state === 'succeeded') handlers.onDone(data.task.answer);
+              else handlers.onError(data.task.error || '任务未完成，请核对原任务。', notebookResult);
+              controller.abort();
+            }
+            if (id !== undefined) cursor = id;
+          }, controller.signal);
+        } catch (error) {
+          if (settled || controller.signal.aborted) return;
+          if (!(error instanceof TypeError)) throw error;
         }
-        finish(new Error(msg.result?.error || msg.data || "RPC 失败"));
-      } catch { finish(new Error("本地后端返回了无法解析的结果，请查看日志。")); }
-    };
-    ws.onerror = () => finish(new Error("连不上本地后端。恢复：看 tebb 日志后重启客户端"));
-    ws.onclose = () => finish(new Error("连接已断开，尚未收到操作结果；请先核查是否已执行。"));
+      }
+      if (!settled && !controller.signal.aborted) throw new Error('后台可能继续执行，请读取原任务与笔记核对；不要重复提交。');
+    } catch (error) {
+      if (!controller.signal.aborted && !settled) {
+        settled = true;
+        handlers.onError(error instanceof Error ? error.message : '后台可能继续执行，请核对原任务。', notebookResult);
+      }
+    }
+  }
+  void run();
+  // Unsubscribe only. Cancellation remains an explicit product command.
+  return () => controller.abort();
+}
+
+export function streamChat(info: BackendInfo, text: string, sampling: Sampling, chips: ChatChips, modelId: string,
+  handlers: StreamHandlers, knowledge = false): () => void {
+  return streamRun(info, { kind: 'chat', text, sampling, chips, model_id: modelId, knowledge }, handlers);
+}
+
+export function streamNotebook(info: BackendInfo, sessionId: string, text: string, docIds: string[], sampling: Sampling,
+  handlers: { onToken: (piece: string) => void; onSnapshot?: (text: string) => void; onStatus: (text: string) => void;
+    onDone: (result: NotebookDone) => void; onError: (message: string, result?: NotebookFailure) => void }): () => void {
+  return streamRun(info, { kind: 'notebook', session_id: sessionId, text, doc_ids: docIds, sampling }, {
+    ...handlers,
+    onDone: answer => {
+      let payload: NotebookDone;
+      try {
+        payload = JSON.parse(answer);
+        if (typeof payload?.answer !== 'string' || !payload.answer.trim() || !Array.isArray(payload.cites)) throw Error();
+      } catch { handlers.onError('无法解析笔记完成结果，请重新读取原笔记核对。'); return; }
+      handlers.onDone(payload);
+    },
   });
 }

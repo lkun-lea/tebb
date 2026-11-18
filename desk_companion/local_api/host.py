@@ -150,7 +150,12 @@ class HeadlessApp:
         if not self.turn_lock.acquire(blocking=False):
             raise RuntimeError('助手正在处理其他操作，完成或停止后再修改笔记。')
         try:
-            yield
+            with self.tasks.cv:
+                with self.tasks.db() as db:
+                    pending = db.execute("SELECT 1 FROM tasks WHERE channel='notebook' AND state IN ('queued','running','cancelling') LIMIT 1").fetchone()
+                if pending or any(c['session'].startswith('notebook-') for c in self.tasks.active.values()):
+                    raise RuntimeError('笔记任务尚未结束或仍在收尾，请先等待或取消。')
+                yield
         finally:
             self.turn_lock.release()
 

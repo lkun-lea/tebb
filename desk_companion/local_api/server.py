@@ -1,12 +1,4 @@
-"""P1：本地 API 服务。HTTP /health + WebSocket RPC。
-
-- HTTP GET /health：Rust 壳轮询就绪用。
-- WS /ws?token=：收 {"type":"rpc","id","method","args"}，按白名单派发到 Bridge，
-  回 {"type":"rpc_result","id","result"}。窗口/UI 类方法不在白名单，消除误用。
-
-用法：python -m desk_companion.local_api.server --port 8770 --token <token>
-本轮先做 RPC 数据方法；流式对话在下一刀接入。
-"""
+"""Loopback FastAPI HTTP/SSE service with temporary legacy WS compatibility."""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +8,6 @@ import hmac
 import os
 import threading
 
-from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from desk_companion.infrastructure.runtime_instance import InstanceInUse, INSTANCE_EXIT_CODE
@@ -481,7 +472,8 @@ async def main() -> None:
     args = parser.parse_args()
     from desk_companion.observability.agent_debug import configure_process
     configure_process({"channel": "backend"})
-    TOKEN = args.token
+    import secrets
+    TOKEN = args.token or secrets.token_urlsafe(32)
     os.environ["DESK_TERMINAL_PORT"] = str(args.port)
     os.environ["DESK_TERMINAL_TOKEN"] = TOKEN
     from desk_companion.infrastructure.runtime_instance import acquire_runtime
@@ -492,15 +484,13 @@ async def main() -> None:
     scheduler = asyncio.create_task(scheduled_jobs(HOST, SHUTDOWN))
     project_cleanup=None
     try:
-        async with serve(_handler, "127.0.0.1", args.port, process_request=_health):
-            print(f"local_api ready on 127.0.0.1:{args.port}", flush=True)
+        from types import SimpleNamespace
+        from desk_companion.local_api.http_api import listening
+        backend = SimpleNamespace(TOKEN=TOKEN, HOST=HOST, SHUTDOWN=SHUTDOWN,
+                                  _dispatch=_dispatch, _pet_asset=_pet_asset, _news_cover=_news_cover, _handler=_handler)
+        async with listening(backend, args.port, legacy=True):
+            print(f'local_api ready on 127.0.0.1:{args.port}', flush=True)
             await SHUTDOWN.wait()
-            HOST.automation.stop()
-            from desk_companion.knowledge.local_sources import cancel_all
-            cancel_all()
-            if HOST._project_environments is not None:
-                HOST._project_environments.closed=True
-                project_cleanup=asyncio.create_task(asyncio.to_thread(HOST._project_environments.shutdown))
     finally:
         SHUTDOWN.set()
         HOST.personalization.request_stop()
@@ -510,6 +500,8 @@ async def main() -> None:
             HOST._project_environments.closed=True
             project_cleanup=asyncio.create_task(asyncio.to_thread(HOST._project_environments.shutdown))
         HOST.automation.stop()
+        from desk_companion.knowledge.local_sources import cancel_all
+        cancel_all()
         await scheduler
         if HOST._tasks is not None:
             HOST._tasks.shutdown()

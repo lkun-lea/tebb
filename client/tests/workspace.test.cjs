@@ -130,55 +130,104 @@ test('slash menu picks the actual category in All and shows purpose, source and 
   assert(renderedText(item).includes('本地技能')); assert(renderedText(item).includes('已加入')); await act(async () => view.unmount());
 });
 
-test('RPC rejects disconnects, invalid replies and explicit timeouts instead of leaving controls waiting forever', async () => {
-  const { rpc } = load('api'); let socket;
-  global.WebSocket = class { constructor() { socket = this; } close() { this.onclose?.(); } send() {} };
-  const info = { port: 1, token: 'test' };
-  let pending = rpc(info, 'read'); socket.onclose(); await assert.rejects(pending, /连接已断开/);
-  pending = rpc(info, 'read'); socket.onmessage({ data: '{bad' }); await assert.rejects(pending, /无法解析/);
-  pending = rpc(info, 'read', {}, { timeoutMs: 5 }); await assert.rejects(pending, /超时/);
-  pending = rpc(info, 'read'); socket.onmessage({ data: JSON.stringify({ type: 'rpc_result', result: { ok: true, result: { value: 42 } } }) });
-  assert.deepEqual(await pending, { value: 42 });
+function sseResponse(frames) {
+  const text = frames.map(value => 'data: ' + JSON.stringify(value) + '\n\n').join('');
+  return new Response(text, {headers:{'Content-Type':'text/event-stream'}});
+}
+const settled = (state, answer = '', error = '') => ({type:'settled',data:{task:{state,answer,error}}});
+const runId = 'a'.repeat(32);
+
+test('HTTP RPC rejects disconnects, invalid replies and explicit timeouts without replaying writes', async () => {
+  const {rpc}=load('api'), original=global.fetch, calls=[];
+  try {
+    global.fetch=async(...args)=>{calls.push(args);throw new TypeError('closed');};
+    await assert.rejects(rpc({port:1,token:'test'},'write'),/连接已断开/);assert.equal(calls.length,1);
+    global.fetch=async()=>new Response('{bad');await assert.rejects(rpc({port:1,token:'test'},'read'),/无法解析/);
+    global.fetch=(_url,init)=>new Promise((_resolve,reject)=>init.signal.addEventListener('abort',()=>reject(new Error('aborted'))));
+    await assert.rejects(rpc({port:1,token:'test'},'read',{}, {timeoutMs:5}),/超时/);
+    global.fetch=async(_url,init)=>{assert.equal(init.headers.Authorization,'Bearer test');return Response.json({ok:true,result:{value:42}});};
+    assert.deepEqual(await rpc({port:1,token:'test'},'read'),{value:42});
+  } finally {global.fetch=original;}
 });
 
-test('notebook stream settles once on early close and retains already delivered text', () => {
-  const { streamNotebook } = load('api'); let socket; const errors = [], tokens = [], done = [];
-  global.WebSocket = class { constructor() { socket = this; } close() { this.onclose?.(); } send(value) { this.sent = JSON.parse(value); } };
-  const start = () => streamNotebook({port: 1, token: 'test'}, 'session', 'question', ['doc'], {}, {
-    onToken: text => tokens.push(text), onStatus() {}, onDone: value => done.push(value), onError: (...args) => errors.push(args),
-  });
-  start(); socket.onopen(); assert.equal(socket.sent.type, 'notebook');
-  socket.onmessage({data: JSON.stringify({type:'token', data:'partial'})});
-  socket.onclose(); socket.onerror();
-  socket.onmessage({data: JSON.stringify({type:'done', data:JSON.stringify({answer:'late', cites:[]})})});
-  assert.deepEqual(tokens, ['partial']); assert.equal(errors.length, 1); assert.match(errors[0][0], /后台可能继续/);
-  assert.deepEqual(done, []);
-  start(); socket.onerror(); socket.onclose(); assert.equal(errors.length, 2);
+test('SSE reconnect uses the original run and cursor, deduplicates events and settles once',async()=>{
+  const {streamNotebook}=load('api'),original=global.fetch,tokens=[],done=[],calls=[];
+  let subscription=0;
+  try {
+    global.fetch=async(url,init)=>{
+      calls.push([url,init]);
+      if(url.endsWith('/v1/runs'))return Response.json({run_id:runId});
+      subscription++;
+      if(subscription===1)return new Response('id: 1\ndata: '+JSON.stringify({type:'token',data:'partial'})+'\n\n',{headers:{'Content-Type':'text/event-stream'}});
+      assert.match(url,/after=1$/);
+      return new Response('id: 1\ndata: '+JSON.stringify({type:'token',data:'partial'})+'\n\n'+'id: 2\ndata: '+JSON.stringify({type:'token',data:' complete'})+'\n\n'+'data: '+JSON.stringify(settled('succeeded',JSON.stringify({answer:'partial complete',cites:[]})))+'\n\n',{headers:{'Content-Type':'text/event-stream'}});
+    };
+    await new Promise((resolve,reject)=>streamNotebook({port:1,token:'test'},'s','q',['d'],{}, {
+      onToken:text=>tokens.push(text),onStatus(){},onDone:result=>{done.push(result);resolve();},onError:reject,
+    }));
+    assert.deepEqual(tokens,['partial',' complete']);assert.equal(done.length,1);
+    assert.equal(calls.filter(([url])=>url.endsWith('/v1/runs')).length,1);
+  }finally{global.fetch=original;}
 });
 
-test('notebook stream rejects malformed events and keeps structured failure body without claiming completion', () => {
-  const { streamNotebook } = load('api'); let socket;
-  global.WebSocket = class { constructor() { socket = this; } close() { this.onclose?.(); } send() {} };
-  for (const frame of ['{bad', JSON.stringify({type:'done',data:'{bad'}),
-      JSON.stringify({type:'done',data:JSON.stringify({answer:'',cites:[]})}), JSON.stringify({type:'unknown',data:'bad'})]) {
-    let failures=0;
-    streamNotebook({port:1,token:'test'},'s','q',['d'],{}, {
-      onToken() {},onStatus() {},onDone(){assert.fail('invalid completion');},onError(message){failures++;assert.match(message,/无法解析/);},
-    });
-    socket.onmessage({data:frame}); socket.onclose(); assert.equal(failures,1);
-  }
-  let failed;
-  streamNotebook({port:1,token:'test'},'s','q',['d'],{}, {
-    onToken() {},onStatus() {},onDone(){assert.fail('failure is not completion');},onError:(message,result)=>{failed={message,result};},
-  });
-  socket.onmessage({data:JSON.stringify({type:'error',data:'save unconfirmed',result:{answer:'full body',answer_complete:true,cites:[]}})});
-  assert.equal(failed.result.answer,'full body');assert.equal(failed.message,'save unconfirmed');
-  let count=0;
-  streamNotebook({port:1,token:'test'},'s','q',['d'],{}, {
-    onToken() {},onStatus() {},onError(){assert.fail('successful close is not an error');},onDone(result){count++;assert.equal(result.answer,'complete');},
-  });
-  socket.onmessage({data:JSON.stringify({type:'done',data:JSON.stringify({answer:'complete',cites:[]})})});
-  socket.onclose(); assert.equal(count,1);
+test('notebook SSE rejects malformed completion and preserves structured partial failure',async()=>{
+  const {streamNotebook}=load('api'),original=global.fetch;
+  try {
+    for (const answer of ['{bad',JSON.stringify({answer:'',cites:[]})]) {
+      global.fetch=async url=>url.endsWith('/v1/runs')?Response.json({run_id:runId}):sseResponse([settled('succeeded',answer)]);
+      await new Promise(resolve=>streamNotebook({port:1,token:'test'},'s','q',[],{}, {onToken(){},onStatus(){},onDone(){assert.fail();},onError:message=>{assert.match(message,/无法解析/);resolve();}}));
+    }
+    global.fetch=async url=>url.endsWith('/v1/runs')?Response.json({run_id:runId}):sseResponse([
+      {type:'notebook_result',data:{answer:'full body',answer_complete:true,cites:[]}},settled('failed','','save unconfirmed')]);
+    await new Promise(resolve=>streamNotebook({port:1,token:'test'},'s','q',[],{}, {onToken(){},onStatus(){},onDone(){assert.fail();},onError:(message,result)=>{assert.equal(message,'save unconfirmed');assert.equal(result.answer,'full body');resolve();}}));
+  }finally{global.fetch=original;}
+});
+
+test('lost HTTP submit acknowledgement reuses its ID and expired cursor replaces visible text',async()=>{
+  const {streamChat}=load('api'),original=global.fetch,submitted=[],snapshots=[],tokens=[];
+  try{
+    global.fetch=async(url,init)=>{
+      if(url.endsWith('/v1/runs')){
+        submitted.push(JSON.parse(init.body));
+        if(submitted.length===1)throw new TypeError('lost acknowledgement');
+        return Response.json({run_id:runId});
+      }
+      return new Response('id: 600\ndata: '+JSON.stringify({type:'snapshot',data:{task:{answer:'restored'},events:[]}})+'\n\n'
+        +'id: 601\ndata: '+JSON.stringify({type:'token',data:' tail'})+'\n\n'
+        +'data: '+JSON.stringify(settled('succeeded','restored tail'))+'\n\n',{headers:{'Content-Type':'text/event-stream'}});
+    };
+    await new Promise((resolve,reject)=>streamChat({port:1,token:'test'},'question',{}, {},'',{
+      onToken:text=>tokens.push(text),onSnapshot:text=>snapshots.push(text),onThink(){},onStatus(){},onDone:resolve,onError:reject,
+    }));
+    assert.equal(submitted.length,2);assert.deepEqual(submitted[0],submitted[1]);
+    assert.deepEqual(snapshots,['restored']);assert.deepEqual(tokens,[' tail']);
+  }finally{global.fetch=original;}
+});
+
+test('disposing old-account SSE subscriptions ignores late frames and never cancels a task',async()=>{
+  const {watchWorkBoard}=load('api'),original=global.fetch;
+  let controller,signal,refreshes=0;const calls=[];
+  try{
+    global.fetch=async(url,init)=>{calls.push(url);signal=init.signal;return new Response(new ReadableStream({start(value){controller=value;}}),{headers:{'Content-Type':'text/event-stream'}});};
+    const stop=watchWorkBoard({port:1,token:'old-account'},()=>refreshes++);
+    await new Promise(resolve=>setImmediate(resolve));stop();
+    controller.enqueue(new TextEncoder().encode('data: {"type":"work_board_changed"}\n\n'));
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(refreshes,0);assert(signal.aborted);assert.equal(calls.length,1);assert(!calls.some(url=>url.includes('/cancel')));
+  }finally{global.fetch=original;}
+});
+
+test('a snapshot retains an unconsumed answer reset until the replacement token arrives',async()=>{
+  const {streamChat}=load('api'),original=global.fetch,snapshots=[],tokens=[];
+  try{
+    global.fetch=async url=>url.endsWith('/v1/runs')?Response.json({run_id:runId}):sseResponse([
+      {type:'snapshot',data:{task:{answer:'previous draft'},events:[],replace_pending:true}},
+      {type:'token',data:'replacement'},settled('succeeded','replacement')]);
+    await new Promise((resolve,reject)=>streamChat({port:1,token:'test'},'q',{}, {},'',{
+      onToken:piece=>tokens.push(piece),onSnapshot:text=>snapshots.push(text),onThink(){},onStatus(){},onDone:resolve,onError:reject,
+    }));
+    assert.deepEqual(snapshots,['previous draft','replacement']);assert.deepEqual(tokens,[]);
+  }finally{global.fetch=original;}
 });
 
 test('notebook titles are reading links, citations use complete stored Markdown, and batch/delete actions are explicit', async () => {

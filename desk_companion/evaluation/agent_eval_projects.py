@@ -122,7 +122,7 @@ def judge(scenario,root,proof):
 
 def execute(spec,*,profile,model_id,timeout,sample=1,official=False,variant=None,progress=lambda value:None):
     """One isolated case. Setup, model action, semantic proof and cleanup stay distinct."""
-    from websockets.sync.client import connect
+    from desk_companion.local_api.worker_rpc import request as parent_request
     from desk_companion.observability.agent_debug import listing
     from desk_companion.evaluation.agent_evals import call_evidence
     from desk_companion.evaluation.agent_eval_lifecycle import worker_alive
@@ -137,11 +137,7 @@ def execute(spec,*,profile,model_id,timeout,sample=1,official=False,variant=None
                variant=variant,scenario=scenario,case_directory=str(folder),cancel_requested=False,active_guest_marker=False,
                stage='parent_setup',timeout_seconds=timeout,worker_exit_grace_seconds=8,verification_grace_seconds=90,parent_exit_grace_seconds=110)
     def rpc(method,**args):
-        with connect(f'ws://127.0.0.1:{port}/ws?token={token}',proxy=None,open_timeout=5,close_timeout=1)as ws:
-            ws.send(json.dumps(dict(type='rpc',method=method,args=args)))
-            envelope=json.loads(ws.recv(timeout=80))['result']
-            if not envelope['ok']:raise RuntimeError(envelope.get('error','project RPC failed'))
-            return envelope['result']
+        return parent_request(port,token,method,args,timeout=80)
     def collect():
         nonlocal root,calls,tasks
         observed=read_json(folder/'progress.json',{})

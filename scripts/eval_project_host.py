@@ -115,7 +115,7 @@ def verify(host,folder,scenario,variant,request,setup):
 
 
 async def main(args):
-    from websockets.asyncio.server import serve
+    from desk_companion.local_api.http_api import listening
     folder=Path(args.directory).resolve();host=HeadlessApp();server.HOST=host;server.TOKEN=args.token;server.SHUTDOWN=asyncio.Event()
     client=SandboxesClient()
     if args.sdk=='fixture':
@@ -145,7 +145,7 @@ async def main(args):
                     if not written['ok']:raise RuntimeError(written.get('error','synthetic input write failed'))
                     setup['setup_operations'].append(written['operation']['id'])
         verification=None
-        async with serve(server._handler,'127.0.0.1',args.port,process_request=server._health):
+        async with listening(server,args.port):
             atomic_json(folder/'ready.json',setup)
             try:
                 while not server.SHUTDOWN.is_set():

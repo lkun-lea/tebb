@@ -15,11 +15,13 @@ def parent(host):
     environment={k:os.environ.get(k) for k in ('DESK_TERMINAL_PORT','DESK_TERMINAL_TOKEN')}
     ready=threading.Event();state={};token=uuid.uuid4().hex
     async def main():
-        from websockets.asyncio.server import serve
+        from desk_companion.local_api.http_api import listening
         state.update(loop=asyncio.get_running_loop(),stop=asyncio.Event())
         try:
-            async with serve(server._handler,'127.0.0.1',0) as listener:
-                state['port']=listener.sockets[0].getsockname()[1];ready.set();await state['stop'].wait()
+            backend=SimpleNamespace(HOST=host,TOKEN=token,SHUTDOWN=state['stop'],_dispatch=server._dispatch,
+                                    _pet_asset=server._pet_asset,_news_cover=server._news_cover)
+            async with listening(backend,0) as port:
+                state['port']=port;ready.set();await state['stop'].wait()
         except Exception as exc:state['error']=type(exc).__name__;ready.set()
     server.HOST,server.TOKEN=host,token
     thread=threading.Thread(target=lambda:asyncio.run(main()),daemon=True);thread.start()

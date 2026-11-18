@@ -19,6 +19,7 @@
 | integrations/feishu、github、web | 飞书、GitHub 和公开网页接入 |
 | integrations | Skill 目录和工具、配置的 MCP 接入 |
 | models | 模型清单、网络、生成参数、容量和 tokenizer |
+| pi_runtime | 固定 Pi SDK 的私有 Node 进程、消息适配与有界清理；业务调用按 #293 分批迁移 |
 | accounts | 账号认证、注册表及个性化同步 |
 | reports | 图表输入契约、构建与渲染 |
 | observability | 调用调试、用量、日志和性能 |

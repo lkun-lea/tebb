@@ -10,6 +10,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PROBE = ROOT / 'desk_companion/pi_runtime/probe.mjs'
 
 
 def inventory():
@@ -51,15 +52,15 @@ def main():
         payload = dict(models=[{key: row[key] for key in ("model", "base_url", "api_key")} for row in models],
                        network=dict(mode="direct"), caseFilter=args.case_filter, effort=args.effort)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    command = [str(args.node.resolve()), str(Path(__file__).with_name("probe.mjs")), mode, str(args.output.resolve())]
+    command = [str(args.node.resolve()), str(PROBE), mode, str(args.output.resolve())]
     result = subprocess.run(command, input=json.dumps(payload), text=True, encoding="utf-8",
-                            capture_output=True, cwd=Path(__file__).parent, timeout=330,
+                            capture_output=True, cwd=PROBE.parent, timeout=330,
                             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
     if not result.stdout:
         raise RuntimeError("Node probe produced no report. Check the pinned runtime and npm ci prerequisites.")
     report = json.loads(result.stdout)
     report.update(baseline=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-                  probe_sha256=hashlib.sha256(Path(__file__).with_name("probe.mjs").read_bytes()).hexdigest(),
+                  probe_sha256=hashlib.sha256(PROBE.read_bytes()).hexdigest(),
                   atlas_imports=inventory())
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for case in report["cases"]:
