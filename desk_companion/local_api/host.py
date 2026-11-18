@@ -40,6 +40,10 @@ class HeadlessApp:
         self.accounts = AccountService()
         from desk_companion.accounts.personalization import PersonalizationService
         self.personalization = PersonalizationService(self.accounts, scopes=self._personalization_scopes)
+        from desk_companion.infrastructure.paths import data_root
+        from desk_companion.integrations.myagentdesk_delivery import DesktopDelivery
+        from desk_companion.projects.terminal import manager, workspace
+        self.myagentdesk_delivery = DesktopDelivery(data_root() / 'memory' / 'myagentdesk', manager(), workspace)
         self._tasks = None
         self._tasks_lock = threading.Lock()
         # 坐标仅供旧桌面使用；已有坐标照读，后台不读取显示器。

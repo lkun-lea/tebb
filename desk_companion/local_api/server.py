@@ -17,7 +17,7 @@ from desk_companion.local_api.host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
-    'account_session', 'account_action',
+    'account_session', 'account_action', 'myagentdesk_delivery',
     'personalization_status', 'personalization_action',
     "development_team",
     "execution_inspect", "agent_evaluation",
@@ -462,7 +462,8 @@ async def scheduled_jobs(host, shutdown):
                 logging.getLogger(__name__).warning('后台定时扫描未完成：%s',type(exc).__name__)
             try:await asyncio.wait_for(shutdown.wait(),5)
             except asyncio.TimeoutError:pass
-    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick),periodic(host.personalization.tick))
+    await asyncio.gather(periodic(host.automation.tick), periodic(host.calendar_reminders.tick),
+                         periodic(host.personalization.tick), periodic(host.myagentdesk_delivery.sync_once))
 
 
 async def main() -> None:

@@ -197,11 +197,10 @@ class TerminalManager:
             requests = root() / "requests"
             requests.mkdir(exist_ok=True)
             receipt = requests / request_id
-            if receipt.exists():
-                return {"ok": True, "job": self.get(receipt.read_text("utf-8"))}
-            for job in self.list()["jobs"]:
-                if job.get("request_id") == request_id:
-                    return {"ok": True, "job": job}  # RPC retries never execute twice.
+            prior = (self.find_request(request_id) if receipt.is_file() else
+                     next((job for job in self.list()["jobs"] if job.get("request_id") == request_id), None))
+            if prior:
+                return {"ok": True, "job": prior}
             if self.closed or task_id and task_id in self.cancelled_tasks:
                 raise RuntimeError("任务已结束，拒绝启动新命令。")
             if session in self.file_operations:
@@ -324,6 +323,27 @@ class TerminalManager:
             if job["state"] in ACTIVE and not live_lease(job_id):
                 job.update(state="interrupted", error="后端已重启；监督进程会在租约过期后停止。")
             return job
+
+    def find_request(self, request_id):
+        """Read the original request without creating or restarting a command."""
+        if not isinstance(request_id, str) or not re.fullmatch(r'[a-f0-9]{32}', request_id):
+            raise ValueError('执行请求标识不正确。')
+        with self.lock:
+            receipt = root() / 'requests' / request_id
+            if receipt.is_file():
+                try:
+                    job = self.get(receipt.read_text('utf-8'))
+                    if job.get('request_id', request_id) == request_id:
+                        return job
+                except (OSError, ValueError):
+                    pass  # Terminal metadata remains usable after an interrupted index write.
+            for file in (root() / 'jobs').glob('*/meta.json'):
+                try:
+                    if json.loads(file.read_text('utf-8')).get('request_id') == request_id:
+                        return self.get(file.parent.name)
+                except (OSError, ValueError):
+                    continue
+            return None
 
     def read(self, job_id, offset=0):
         if type(offset) is not int or offset < 0:

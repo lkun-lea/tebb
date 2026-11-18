@@ -20,6 +20,7 @@ import { ReminderSettings } from "./reminders";
 import { PersonalUsagePane } from "./usage-center";
 import { ReleaseIntro, ReleaseSettings, useReleaseIntro } from "./release";
 import { ModelNetworkSettings } from "./model-network";
+import { MyAgentDeskPane } from './myagentdesk-delivery';
 import { SearchSettings } from "./search-settings";
 import { FeishuPane, feishuLoggedIn } from "./feishu";
 import { FeishuAgentPane } from "./feishu-agent";
@@ -375,6 +376,7 @@ export function SettingsApp() {
           </div>
 
           <div hidden={section !== "connections"}>
+            {section === 'connections' && !debug && <MyAgentDeskPane info={info} />}
             <ModelNetworkSettings info={info} debug={debug} />
             <SearchSettings info={info} debug={debug} />
             <StatusGrid cards={statuses} onOpenFeishu={() => { setSection("connections"); void feishuState.ensureFeishu(); }} />

@@ -46,6 +46,20 @@ class TerminalTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "任务已结束"):
                 self.manager.start("echo ok", task_id="task1", request_id=uuid.uuid4().hex)
 
+    def test_recovers_original_request_with_a_partial_index(self):
+        identifier, request = uuid.uuid4().hex, uuid.uuid4().hex
+        job = {"id": identifier, "request_id": request, "state": "succeeded", "created": 1, "session": "desktop"}
+        root = terminal.root()
+        folder = root / "jobs" / identifier
+        folder.mkdir(parents=True)
+        (folder / "meta.json").write_text(json.dumps(job), "utf-8")
+        (root / "requests").mkdir()
+        (root / "requests" / request).write_text("", "utf-8")
+        self.assertEqual(self.manager.find_request(request), job)
+        with patch.object(self.manager, "status", return_value={"ready": True}), patch("subprocess.Popen") as popen:
+            self.assertEqual(self.manager.start("echo ok", request_id=request)["job"], job)
+            popen.assert_not_called()
+
     def test_record_restart_is_interrupted_and_output_is_paginated_by_bytes(self):
         ident = uuid.uuid4().hex
         directory = terminal.root() / "jobs" / ident; directory.mkdir(parents=True)
