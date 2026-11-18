@@ -82,6 +82,9 @@ class PromptfooIntegrationTests(unittest.TestCase):
             diagnostics=center.operate('diagnose',dict(ident=batch['id']))
             self.assertEqual(diagnostics['timeout_calls'],7)
             self.assertEqual(len(diagnostics['localization']),7)
+            stalled=next(r for r in result['results']if r['case_id']=='timeout_stalled')
+            progress=stalled['evidence']['diagnosis']['progress']
+            self.assertGreaterEqual(progress['elapsed_ms']-max(progress['last_frame_ms'],progress['last_reasoning_ms']),1000)
             self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/p/models.json')))
 
     def test_reviewer_calibration_retains_real_operations_calls_and_expected_rejection(self):

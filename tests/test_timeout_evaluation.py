@@ -28,6 +28,10 @@ class TimeoutEvaluationTests(unittest.TestCase):
         self.assertEqual(diagnose({**row,'stream_progress':StreamProgress(clock).snapshot()})['kind'],'before_model_send')
         startup_heavy={**snapshot,'elapsed_ms':3200,'first_frame_ms':1900,'last_frame_ms':1900,'last_reasoning_ms':1910}
         self.assertEqual(diagnose({**row,'stream_progress':startup_heavy})['kind'],'stream_gap')
+        ci_gap={**snapshot,'elapsed_ms':1797.17,'first_frame_ms':880.15,'last_frame_ms':880.16,
+                'first_reasoning_ms':880.82,'last_reasoning_ms':880.83}
+        self.assertEqual(diagnose({**row,'stream_progress':ci_gap})['kind'],'reasoning_without_answer')
+        self.assertEqual(diagnose({**row,'stream_progress':{**ci_gap,'elapsed_ms':2000}})['kind'],'stream_gap')
         with self.assertRaises(ValueError):validate({**snapshot,'content':'secret'})
         with self.assertRaises(ValueError):validate({**snapshot,'frames':True})
         for malformed in ({'choices':None},{'choices':[{'delta':[]}]},{'choices':[{'delta':{'tool_calls':[{'function':None}]}}]}):

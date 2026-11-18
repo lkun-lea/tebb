@@ -175,6 +175,40 @@
       "typecheck": true,
       "build": true
     },
+    "stall_injection_three_planned_samples": [
+      {
+        "sample": 1,
+        "outcome": "success",
+        "observed_idle_ms": 3873.52,
+        "injected_timeout_seconds": 4
+      },
+      {
+        "sample": 2,
+        "outcome": "success",
+        "observed_idle_ms": 3885.45,
+        "injected_timeout_seconds": 4
+      },
+      {
+        "sample": 3,
+        "outcome": "success",
+        "observed_idle_ms": 3892.99,
+        "injected_timeout_seconds": 4
+      }
+    ],
+    "retained_failed_ci": {
+      "commit": "3884ddd43059a37d8642e62318c478238cfbbd94",
+      "run": 44383279075,
+      "artifact": 14465247519,
+      "sha256": "52d7717490d42956a6b969571626c31dd8c2349e40c9681c158527a39181fdfa",
+      "tests": 1580,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 12,
+      "case": "timeout_stalled",
+      "observed_idle_ms": 916.34,
+      "required_idle_ms": 1000,
+      "reason": "Injected request deadline did not leave the required observation window after headers; production classifier correctly did not report a long gap."
+    },
     "legacy_comparison_and_gate_guards": {
       "tests": 32,
       "failed": 0,
@@ -212,7 +246,7 @@
       "baselineEvidenceVisible": true
     },
     "gate_recheck_after_holdout_configuration_guard": {
-      "code_version": "01c5d71ed1eb0362adf50b39d06e29946fefcfd2210788b98c5d1fe6133b1568",
+      "code_version": "5f44f49161b462d0e708e216baffe04f046dbf9a3bcd887f27443af306d23235",
       "checks": {
         "candidate_all_mandatory_checks": false,
         "no_regressions": false,
@@ -866,6 +900,7 @@
     "Twelve installed-sandbox tests and one OS-disallowed symlink test were skipped locally; no native installer acceptance or release.",
     "Knowledge RAG, complete notebook generation, news/video/weekly review, and complete multi-stage DevCycle still lack independent end-to-end golden samples.",
     "Business reference_rubric grading freezes reviewer effort; changed grading policy is rejected for both new and legacy comparison records. Calibration keeps fixed expected labels while reviewer effort is the candidate parameter.",
+    "The failed 3884ddd CI is retained. Only the synthetic stall case now uses a four-second request deadline and six-second server stall; the other six probes remain at 1.5 seconds. Production classification threshold and real 60-second reviewer deadlines are unchanged.",
     "Known/unknown usage and costs remain separate; no p95 is inferred from these small live cohorts."
   ]
 }
