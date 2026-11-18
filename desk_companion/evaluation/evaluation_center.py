@@ -12,6 +12,7 @@ import uuid
 from desk_companion.infrastructure.paths import source_root
 from desk_companion.tasks.task_process import ProcessTree
 from desk_companion.evaluation.golden_store import GoldenStore
+from desk_companion.evaluation.artifacts import attempt_profile
 from desk_companion.evaluation.batch_metrics import metrics,compare
 from desk_companion.observability.tool_monitor import fingerprint
 
@@ -32,6 +33,25 @@ class EvaluationCenter:
         payload={}if payload is None else payload
         if not isinstance(payload,dict):raise ValueError('评测参数无效。')
         if operation=='cases':return dict(ok=True,items=self.store.cases())
+        if operation=='coverage':
+            from desk_companion.evaluation.coverage import coverage
+            return coverage(self.store.cases(),self.store.batches(100))
+        if operation=='diagnose':
+            from desk_companion.observability.timeout_diagnostics import report
+            from desk_companion.observability.performance import task_snapshot,task_timing
+            batch=self.get(payload['ident'])['batch'];value=report(batch);value['tasks']=[]
+            for index,plan in enumerate(batch['planned']):
+                row=next((r for r in batch['results']if r['case_id']==plan['case_id']and r['sample']==plan['sample']),{})
+                profile=attempt_profile(self.directory/batch['id']/('attempt-'+str(index)))
+                original=task_snapshot(row.get('task_id'),profile=profile)
+                if original:value['tasks'].append(dict(case_id=plan['case_id'],task=original['id'],state=original['state'],
+                    timing=task_timing(original),budget_stop=(row.get('task_budget')or{}).get('stop_reason'),
+                    evaluation_deadline_exceeded=row.get('deadline_exceeded',False),source='original_task_owner'))
+            return value
+        if operation=='gate':
+            from desk_companion.evaluation.quality_gate import gate
+            return gate(self.get(payload['baseline'])['batch'],self.get(payload['candidate'])['batch'],
+                self.get(payload['holdout'])['batch']if payload.get('holdout')else None)
         if operation=='runtime':
             from desk_companion.pi_runtime.bridge import PiBridge
             package=Path(__file__).with_name('promptfoo')/'node_modules/promptfoo/package.json'
@@ -61,16 +81,18 @@ class EvaluationCenter:
         if operation=='compare':return compare(self.get(payload['baseline'])['batch'],self.get(payload['candidate'])['batch'])
         raise ValueError('评测操作无效。')
 
-    def start(self,request_id,case_versions,*,candidate='current',mode='fixture',samples=1,timeout=120,tool_loading='demand',live_authorized=False,model_id='',judge_model_id=''):
+    def start(self,request_id,case_versions,*,candidate='current',mode='fixture',samples=1,timeout=120,tool_loading='demand',live_authorized=False,model_id='',judge_model_id='',review_effort='provider_default'):
         if not isinstance(request_id,str)or not re.fullmatch(r'[A-Za-z0-9_-]{8,128}',request_id):raise ValueError('评测请求编号无效。')
         if not isinstance(candidate,str)or not 1<=len(candidate)<=200 or type(samples)is not int or not 1<=samples<=5 or type(timeout)is not int or not 20<=timeout<=300:raise ValueError('评测版本或预算无效。')
         if mode not in{'fixture','live'}or tool_loading not in{'demand','eager'}:raise ValueError('评测模式无效。')
+        if not isinstance(review_effort,str)or review_effort not in {'auto','provider_default','low'}:raise ValueError('审阅推理策略无效。')
         if mode=='live'and live_authorized is not True:raise ValueError('真实模型评测须显式授权有限批次。')
         if not isinstance(model_id,str)or len(model_id)>200 or mode=='fixture'and model_id:raise ValueError('模型选择与评测模式不一致。')
         if not isinstance(case_versions,list)or not 1<=len(case_versions)<=20 or any(not isinstance(v,str)for v in case_versions)or len(set(case_versions))!=len(case_versions):raise ValueError('请选择1到20个固定版本用例。')
         catalog={c['version']:c for c in self.store.cases()}
         if any(v not in catalog for v in case_versions):raise ValueError('用例版本不存在。')
         cases=[catalog[v]for v in case_versions]
+        if mode=='live'and any(c['spec'].get('executor')=='timeout_probe'for c in cases):raise ValueError('故障注入用例仅允许隔离模拟模式。')
         if not isinstance(judge_model_id,str)or len(judge_model_id)>200 or mode=='fixture'and judge_model_id:raise ValueError('审阅模型选择与评测模式不一致。')
         if len({c['id']for c in cases})!=len(cases):raise ValueError('同批不能混用同一用例的不同标准。')
         if len({c['split']for c in cases})!=1:raise ValueError('开发集、回归集与保留集须分批运行。')
@@ -81,12 +103,12 @@ class EvaluationCenter:
         model_config=model_configuration(mode,model_id)
         judge_config=model_configuration(mode,judge_model_id)if any(c['criteria']=='reference_rubric'for c in cases)else None
         from desk_companion.tasks.task_budgets import policy
-        judge_limits=policy('simple')if judge_config else None
+        judge_limits=policy('simple')if judge_config or any(c['criteria']=='reference_judge_calibration'for c in cases)else None
         from desk_companion.evaluation.grading_contract import grading_contract
         judge_contract=grading_contract(cases,judge_config)
         case_hash=fingerprint(dict(cases=cases,planned=planned,mode=mode,timeout=timeout,judge_contract=judge_contract,judge_limits=judge_limits))
         manifest=dict(cases=cases,planned=planned,case_manifest_hash=case_hash,candidate=candidate,mode=mode,timeout=timeout,
-                      tool_loading=tool_loading,code_version=code,model_config=model_config,judge_config=judge_config,judge_limits=judge_limits,judge_contract=judge_contract,framework=dict(name='promptfoo',version='0.125.1'),judge='product_contract_'+str(cases[0]['contract_version']))
+                      tool_loading=tool_loading,review_effort=review_effort,code_version=code,model_config=model_config,judge_config=judge_config,judge_limits=judge_limits,judge_contract=judge_contract,framework=dict(name='promptfoo',version='0.125.1'),judge='product_contract_'+str(cases[0]['contract_version']))
         manifest_hash=fingerprint(manifest)
         value=dict(**manifest,id=uuid.uuid4().hex,created=time.time(),state='queued',manifest_hash=manifest_hash,results=[])
         with self.lock:
@@ -157,7 +179,7 @@ class EvaluationCenter:
         batch=self.store.batch(ident)
         for index in range(len(batch['planned'])):
             for name in ('models.json','model-network.json'):
-                path=self.directory/ident/('attempt-'+str(index))/'private-profile'/name
+                path=attempt_profile(self.directory/ident/('attempt-'+str(index)))/name
                 path.unlink(missing_ok=True)
 
     @staticmethod
@@ -189,7 +211,7 @@ class EvaluationCenter:
         row=next((r for r in batch['results']if r['case_id']==case_id and r['sample']==sample),{})
         task=row.get('task_id')
         if not task:raise ValueError('本用例尚未提交任务。')
-        profile=self.directory/ident/('attempt-'+str(index))/'private-profile'
+        profile=attempt_profile(self.directory/ident/('attempt-'+str(index)))
         from desk_companion.observability.execution_center import ExecutionCenter
         from desk_companion.observability.execution_sources import owner_nodes,task_checks
         from desk_companion.observability.usage_sources import task_metadata
@@ -215,7 +237,7 @@ class EvaluationCenter:
         row=next((r for r in batch['results']if r['case_id']==case_id and r['sample']==sample),{})
         if index is None or call_id not in row.get('call_ids',[]):raise ValueError('调用不属于该评测用例。')
         from desk_companion.observability.redaction import debug_detail
-        profile=self.directory/ident/('attempt-'+str(index))/'private-profile'
+        profile=attempt_profile(self.directory/ident/('attempt-'+str(index)))
         return debug_detail(call_id,profile=profile)
 
     def get(self,ident):

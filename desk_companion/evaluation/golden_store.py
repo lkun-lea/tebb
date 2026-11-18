@@ -25,7 +25,7 @@ class GoldenStore:
     def seed(self):
         with closing(self.db()) as db,db:
             for spec in CASES:
-                value=dict(id=spec['id'],split='regression',spec=spec,contract_version=CONTRACT_VERSION,
+                value=dict(id=spec['id'],split=spec.get('dataset_split','regression'),spec=spec,contract_version=CONTRACT_VERSION,
                            origin='existing_product_acceptance',criteria='reference_judge_calibration'if spec.get('executor')=='judge_calibration'else'existing_receipt_judge',weight=1)
                 value['version']=fingerprint(value)
                 db.execute('INSERT OR IGNORE INTO cases VALUES(?,?,?,?)',(value['id'],value['version'],json.dumps(value,ensure_ascii=False),time.time()))

@@ -89,10 +89,13 @@ class UsageStore:
         return True
 
     def update(self, ident, **changes):
-        allowed = {'state','ended','error_kind','finish_reason','usage','cost_cny','network_attempts','result_kind','debug_call','debug_calls','first_token_ms','first_text_ms','first_output_ms','prompt_version','tools_version','input_version','request_configuration_version'}
+        allowed = {'state','ended','error_kind','finish_reason','usage','cost_cny','network_attempts','result_kind','debug_call','debug_calls','first_token_ms','first_text_ms','first_output_ms','prompt_version','tools_version','input_version','request_configuration_version','stream_progress'}
         if set(changes)-allowed: raise ValueError('不允许修改用量身份或归属。')
         if 'state'in changes and changes['state']not in{'running','returned','failed','timed_out','cancelled','unknown','rejected','cached','replayed'}:raise ValueError('用量状态无效。')
         if 'usage'in changes and(not isinstance(changes['usage'],dict)or set(changes['usage'])-{'input_tokens','output_tokens','cached_tokens','cache_write_tokens','reasoning_tokens','total_tokens','usage_quality'}):raise ValueError('用量只允许计数元数据。')
+        if 'stream_progress'in changes:
+            from desk_companion.observability.stream_progress import validate
+            validate(changes['stream_progress'])
         with closing(self._db()) as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT data FROM records WHERE id=?', (ident,)).fetchone()

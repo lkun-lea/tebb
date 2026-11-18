@@ -1,0 +1,865 @@
+{
+  "date": "2026-11-19",
+  "issue": 316,
+  "framework": {
+    "name": "promptfoo",
+    "version": "0.125.1"
+  },
+  "final_default": "provider_default",
+  "experimental_policies": [
+    "auto",
+    "low"
+  ],
+  "fixture_attempts": {
+    "original": {
+      "planned": 61,
+      "observed": 56,
+      "outcomes": {
+        "success": 43,
+        "failed": 4,
+        "infrastructure_failure": 9
+      },
+      "batches": [
+        {
+          "id": "e1c1cd689873453787a928795b47e9e6",
+          "state": "completed",
+          "code_version": "fc298615ccd778aadfe25baf195e36a743c6f44f83eb9c5da4fbc6302603ca25",
+          "case_manifest_hash": "4928407b421a5017521da936e58741c787f522e1cf6c6ca49c5ca142aabc5db4",
+          "judge_contract": "6897ef76a645b9d471460e7cc86ad9b6b62ea7f53b01ab77d151c0b4912ddab8",
+          "error_kind": null
+        },
+        {
+          "id": "7f7d16032907485da8f4dbe37210c614",
+          "state": "completed",
+          "code_version": "fc298615ccd778aadfe25baf195e36a743c6f44f83eb9c5da4fbc6302603ca25",
+          "case_manifest_hash": "efd654950124303b32732201f3323ffc019b3038505ba4e251eda1931a8f3b2a",
+          "judge_contract": "3aa10e0ffbcdcd1510ed5df85a8d5138dbbc65a276de281eec7322afe06c85f2",
+          "error_kind": null
+        },
+        {
+          "id": "c12bff2dc9574d918c6e052a492fa026",
+          "state": "completed",
+          "code_version": "fc298615ccd778aadfe25baf195e36a743c6f44f83eb9c5da4fbc6302603ca25",
+          "case_manifest_hash": "653699ca0b9aa8b582cb19a8c6c27df7a8915dc81a0aec8b93494bd34c8dca78",
+          "judge_contract": "12f44646ac64ee90d1d7e7b6dba8188b41de4d36fa5104f5aac22a839403a35f",
+          "error_kind": null
+        },
+        {
+          "id": "52c2c56e96254cbda3a949bee56b5589",
+          "state": "failed",
+          "code_version": "fc298615ccd778aadfe25baf195e36a743c6f44f83eb9c5da4fbc6302603ca25",
+          "case_manifest_hash": "0589d19005a9a441a70f5c5f4455d3ad34d190a0f12a72c54740c7e822c0179d",
+          "judge_contract": "3aa10e0ffbcdcd1510ed5df85a8d5138dbbc65a276de281eec7322afe06c85f2",
+          "error_kind": "FrameworkIncomplete"
+        }
+      ]
+    },
+    "after_path_fix": {
+      "planned": 65,
+      "observed": 65,
+      "outcomes": {
+        "success": 65
+      },
+      "batches": [
+        {
+          "id": "3e91875504b142ffa88f82df5e747eb9",
+          "state": "completed",
+          "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+          "case_manifest_hash": "eaa04c64d9e973e87ab01dea14e3e9363eedd177d8aae1055adadb3f29b1ec21",
+          "judge_contract": "bdc147b82a0d870e0663ec20a9ada8e7353e164d8ef9723df65362616b4cbadf",
+          "error_kind": null
+        },
+        {
+          "id": "edb2c68e71bb457ca3d1df2db8a19df7",
+          "state": "completed",
+          "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+          "case_manifest_hash": "8275ec681ea9874659150aae0f026de7c2dab3e8aaab76b19bf5cab62c3fd53e",
+          "judge_contract": "0d60afded1b0a7ccd5713ee47d99ea6591b66bef758e8916bf85c1ffa3322536",
+          "error_kind": null
+        },
+        {
+          "id": "e56a98f42f2f409aa4386de9b38f3880",
+          "state": "completed",
+          "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+          "case_manifest_hash": "83b4066b6ece0ceb09d294a5b3e35394ec672e6fd3becc3df2a16f239096d935",
+          "judge_contract": "a53bc9456eabb096960a34e5d9c7a826b1e6bf191afac04d8a8b5cd3ec0e385e",
+          "error_kind": null
+        },
+        {
+          "id": "4bb37414672047e0886c2395b976a1ac",
+          "state": "completed",
+          "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+          "case_manifest_hash": "3abd82c8fb4f182d3772d225a2d90d112da1b39b603d8e380df9c574427d07c5",
+          "judge_contract": "0d60afded1b0a7ccd5713ee47d99ea6591b66bef758e8916bf85c1ffa3322536",
+          "error_kind": null
+        },
+        {
+          "id": "c2be6d269cc94b1bb2ed44662be03359",
+          "state": "completed",
+          "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+          "case_manifest_hash": "6f938c129d5b7100d48fb9e03fedbc11683535706b8544af5f1e0860fad5d0d6",
+          "judge_contract": "a53bc9456eabb096960a34e5d9c7a826b1e6bf191afac04d8a8b5cd3ec0e385e",
+          "error_kind": null
+        }
+      ]
+    },
+    "final_default": {
+      "planned": 65,
+      "observed": 65,
+      "outcomes": {
+        "success": 65
+      },
+      "batches": [
+        {
+          "id": "fd5747ffa461430290e60a6d358c91ce",
+          "state": "completed",
+          "code_version": "74aeb944b161babcf72e0e4240f5993a9fe7d5e1d40c7394e1dcca72ca6bb762",
+          "case_manifest_hash": "90f995d06ecf712cb8dede1724894a55b8dcfaed672c07536d72207a7760b5b0",
+          "judge_contract": "494cd49038df02f17507844722b161993226aad1fb3317835d37bdbbd706112c",
+          "error_kind": null
+        },
+        {
+          "id": "847cc3e318764229895948c3f4a5e187",
+          "state": "completed",
+          "code_version": "74aeb944b161babcf72e0e4240f5993a9fe7d5e1d40c7394e1dcca72ca6bb762",
+          "case_manifest_hash": "b79364c283994a083b279230e6c1f2bf4a0685163f35a18297ad9ff7b7bddd84",
+          "judge_contract": "902a92c87cf2ba773cc96eb45463ab049927540d612d82a895244a1ca29e374c",
+          "error_kind": null
+        },
+        {
+          "id": "80372dbefc0244ea981a183274a2b8dc",
+          "state": "completed",
+          "code_version": "74aeb944b161babcf72e0e4240f5993a9fe7d5e1d40c7394e1dcca72ca6bb762",
+          "case_manifest_hash": "15f5e1429c419f106e06102461cf4c38040856d077e7e75d5fa5d250a1e0ac57",
+          "judge_contract": "07b9741efb97d7a8041669e7771037a9a3bec184fad242804c40702ac2a91fec",
+          "error_kind": null
+        },
+        {
+          "id": "9c858733e9264ff2bbd39d05581ad224",
+          "state": "completed",
+          "code_version": "74aeb944b161babcf72e0e4240f5993a9fe7d5e1d40c7394e1dcca72ca6bb762",
+          "case_manifest_hash": "e807565c054b7baa8c98065b2fd11c5eb8489ec95a4d683d2f55b8d5ef4d73eb",
+          "judge_contract": "902a92c87cf2ba773cc96eb45463ab049927540d612d82a895244a1ca29e374c",
+          "error_kind": null
+        },
+        {
+          "id": "ba1fc5264ad34a05a23add3ae9608445",
+          "state": "completed",
+          "code_version": "74aeb944b161babcf72e0e4240f5993a9fe7d5e1d40c7394e1dcca72ca6bb762",
+          "case_manifest_hash": "189de017f79d046643f680b5042bd5b9fc5fd3908b8b10f4d092587c58336208",
+          "judge_contract": "07b9741efb97d7a8041669e7771037a9a3bec184fad242804c40702ac2a91fec",
+          "error_kind": null
+        }
+      ]
+    }
+  },
+  "validation": {
+    "local_full_before_default_restore": {
+      "tests": 1580,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 13,
+      "unexpected_successes": 0,
+      "expected_failures": 0,
+      "successful": true,
+      "attempts": 1
+    },
+    "complete_evaluation_subsystem_after_default_restore": {
+      "tests": 74,
+      "failed": 0,
+      "errors": 0
+    },
+    "frontend_after_default_restore": {
+      "tests": 320,
+      "failed": 0,
+      "typecheck": true,
+      "build": true
+    },
+    "browser": {
+      "checks": [
+        {
+          "name": "desktop-light",
+          "width": 1440,
+          "scroll": 1440,
+          "defaultPolicy": "provider_default"
+        },
+        {
+          "name": "desktop-dark",
+          "width": 1440,
+          "scroll": 1440,
+          "defaultPolicy": "provider_default"
+        },
+        {
+          "name": "narrow-light",
+          "width": 430,
+          "scroll": 420,
+          "defaultPolicy": "provider_default"
+        },
+        {
+          "name": "narrow-dark",
+          "width": 430,
+          "scroll": 420,
+          "defaultPolicy": "provider_default"
+        }
+      ],
+      "events": [],
+      "gateRejected": true,
+      "baselineEvidenceVisible": true
+    },
+    "gate_recheck_after_holdout_configuration_guard": {
+      "code_version": "13f9a00769b2bed3d4f46bb65e97b9b269048eb75aeb7a7f38b798420aa68562",
+      "checks": {
+        "candidate_all_mandatory_checks": false,
+        "no_regressions": false,
+        "baseline_model_evidence_complete": true,
+        "candidate_model_evidence_complete": true,
+        "timeout_baseline_observed": true,
+        "no_candidate_timeouts": true,
+        "independent_holdout": true,
+        "holdout_all_mandatory_checks": true
+      },
+      "same_original_result": true
+    }
+  },
+  "live_experiment": {
+    "calls": 14,
+    "batches": [
+      {
+        "id": "198c07bda6df46c986e05166fcc9f3b6",
+        "candidate": "glm53-review-baseline",
+        "mode": "live",
+        "review_effort": "provider_default",
+        "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+        "case_manifest_hash": "87d029ddf30866e3830c55b398ff5e50bd30660c37ec8f02f3105e4956a2972e",
+        "judge_contract": "a53bc9456eabb096960a34e5d9c7a826b1e6bf191afac04d8a8b5cd3ec0e385e",
+        "model_configuration": {
+          "id": "5d3f616e-398d-42d4-8cd1-d268163a45a1",
+          "model": "glm-5.3",
+          "version": "441f27b7007141ae01e8a50a9446df586f5f7d6c840dc96966363e79b2b76cf1"
+        },
+        "success": {
+          "numerator": 4,
+          "denominator": 5,
+          "rate": 0.8
+        },
+        "model_call_elapsed_median_ms": 33801.5,
+        "p95_ms": null,
+        "rows": [
+          {
+            "case_id": "judge_accept_given_fact",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "pass",
+            "observed_status": "pass",
+            "call_ids": [
+              "ce2e5c0eccf94d40a15d2cdf65426bfb"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "189dcf98f9754d23ad1196706a88b2bb",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 29496.18,
+                  "tool_argument_characters": 0,
+                  "text_characters": 193,
+                  "reasoning_characters": 2072,
+                  "tool_call_frames": 0,
+                  "frames": 657,
+                  "last_frame_ms": 29430.87,
+                  "last_reasoning_ms": 28464.12,
+                  "last_text_ms": 29429.63,
+                  "request_ms": 2175.36,
+                  "headers_ms": 20318.16,
+                  "first_frame_ms": 20352.5,
+                  "first_text_ms": 28480.43,
+                  "first_reasoning_ms": 20359.13
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_accept_paraphrase",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "pass",
+            "observed_status": "pass",
+            "call_ids": [
+              "488a4e6e5bf74c9aa79caf0123846050"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "3598d150295040deafa405a341cbabea",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 33801.5,
+                  "tool_call_frames": 0,
+                  "tool_argument_characters": 0,
+                  "text_characters": 342,
+                  "frames": 2087,
+                  "reasoning_characters": 8189,
+                  "last_frame_ms": 33764.09,
+                  "last_reasoning_ms": 32738.75,
+                  "last_text_ms": 33763.66,
+                  "request_ms": 2977.31,
+                  "headers_ms": 7526.02,
+                  "first_frame_ms": 7567.56,
+                  "first_text_ms": 32747.05,
+                  "first_reasoning_ms": 7576.06
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_keep_missing_evidence_unknown",
+            "sample": 1,
+            "outcome": "incomplete",
+            "expected_status": "unknown",
+            "observed_status": "unknown",
+            "call_ids": [
+              "278d2d0b3a3a4116a7d7f21f1959daa8"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "0674f24a5d434e0cb84b05231926a0af",
+                "state": "failed",
+                "error_kind": "TimeoutError",
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 61567.78,
+                  "tool_call_frames": 0,
+                  "frames": 3251,
+                  "reasoning_characters": 13826,
+                  "tool_argument_characters": 0,
+                  "text_characters": 0,
+                  "last_frame_ms": 61367.92,
+                  "last_reasoning_ms": 61375.14,
+                  "request_ms": 1525.64,
+                  "headers_ms": 20337.79,
+                  "first_frame_ms": 20360.6,
+                  "first_text_ms": null,
+                  "first_reasoning_ms": 20364.75
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_reject_candidate_instruction",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "798fd462ecbf4ad6a4306baedbe92335"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "2d1934821e264fb2a4765e4f3b614a80",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 39090.34,
+                  "reasoning_characters": 5025,
+                  "tool_argument_characters": 0,
+                  "tool_call_frames": 0,
+                  "frames": 1309,
+                  "text_characters": 237,
+                  "last_frame_ms": 38919.99,
+                  "last_reasoning_ms": 37144.75,
+                  "last_text_ms": 38919.24,
+                  "request_ms": 2157.18,
+                  "headers_ms": 21964.0,
+                  "first_frame_ms": 21997.2,
+                  "first_text_ms": 37152.37,
+                  "first_reasoning_ms": 22005.78
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_reject_wrong_total",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "58e179fe36fb456c93216da5c58b5fcd"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "4a3ab4fdb4a84d0db5ff13f01cf58fe6",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 20275.77,
+                  "frames": 1115,
+                  "tool_argument_characters": 0,
+                  "text_characters": 205,
+                  "reasoning_characters": 4037,
+                  "tool_call_frames": 0,
+                  "last_frame_ms": 20250.47,
+                  "last_reasoning_ms": 19358.4,
+                  "last_text_ms": 20250.1,
+                  "request_ms": 1686.6,
+                  "headers_ms": 6160.48,
+                  "first_frame_ms": 6193.53,
+                  "first_text_ms": 19366.63,
+                  "first_reasoning_ms": 6199.75
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "6f43362b0cd94c028453da6f4ab34cae",
+        "candidate": "glm53-review-candidate",
+        "mode": "live",
+        "review_effort": "auto",
+        "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+        "case_manifest_hash": "87d029ddf30866e3830c55b398ff5e50bd30660c37ec8f02f3105e4956a2972e",
+        "judge_contract": "a53bc9456eabb096960a34e5d9c7a826b1e6bf191afac04d8a8b5cd3ec0e385e",
+        "model_configuration": {
+          "id": "5d3f616e-398d-42d4-8cd1-d268163a45a1",
+          "model": "glm-5.3",
+          "version": "441f27b7007141ae01e8a50a9446df586f5f7d6c840dc96966363e79b2b76cf1"
+        },
+        "success": {
+          "numerator": 4,
+          "denominator": 5,
+          "rate": 0.8
+        },
+        "model_call_elapsed_median_ms": 6296.29,
+        "p95_ms": null,
+        "rows": [
+          {
+            "case_id": "judge_accept_given_fact",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "pass",
+            "observed_status": "pass",
+            "call_ids": [
+              "4eba1eef07654b97aa5a45d14d08500b"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "d6f20ad6d1a6446db9cfe1f7b4e6be66",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6942.49,
+                  "text_characters": 424,
+                  "reasoning_characters": 0,
+                  "tool_call_frames": 0,
+                  "frames": 160,
+                  "tool_argument_characters": 0,
+                  "last_frame_ms": 6921.13,
+                  "last_text_ms": 6920.83,
+                  "request_ms": 1542.86,
+                  "headers_ms": 5491.22,
+                  "first_frame_ms": 5509.59,
+                  "first_text_ms": 5512.91,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_accept_paraphrase",
+            "sample": 1,
+            "outcome": "incomplete",
+            "expected_status": "pass",
+            "observed_status": "unknown",
+            "call_ids": [
+              "beab444689514cc9baa0753bc4621a31"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "4e2d0154d6ea4d09b61fcf69ef5cd963",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6148.69,
+                  "text_characters": 174,
+                  "tool_argument_characters": 0,
+                  "tool_call_frames": 0,
+                  "frames": 67,
+                  "reasoning_characters": 0,
+                  "last_frame_ms": 6125.45,
+                  "last_text_ms": 6125.07,
+                  "request_ms": 1197.86,
+                  "headers_ms": 5001.11,
+                  "first_frame_ms": 5023.86,
+                  "first_text_ms": 5027.5,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_keep_missing_evidence_unknown",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "unknown",
+            "observed_status": "unknown",
+            "call_ids": [
+              "967119d20ba94dc38dc9faa05ab93e73"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "8c18526717cd4429860827ce6071b303",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6296.29,
+                  "frames": 85,
+                  "tool_call_frames": 0,
+                  "text_characters": 194,
+                  "reasoning_characters": 29,
+                  "tool_argument_characters": 0,
+                  "last_frame_ms": 6263.49,
+                  "last_reasoning_ms": 5341.63,
+                  "last_text_ms": 6263.1,
+                  "request_ms": 1490.04,
+                  "headers_ms": 5264.87,
+                  "first_frame_ms": 5289.21,
+                  "first_text_ms": 5345.75,
+                  "first_reasoning_ms": 5292.96
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_reject_candidate_instruction",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "dd7719d791274a3d98449e7ec5d29f77"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "cafe4eee5059408289ca1c683864d158",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6358.68,
+                  "text_characters": 179,
+                  "tool_call_frames": 0,
+                  "tool_argument_characters": 0,
+                  "frames": 74,
+                  "reasoning_characters": 23,
+                  "last_frame_ms": 6333.97,
+                  "last_reasoning_ms": 5597.27,
+                  "last_text_ms": 6333.69,
+                  "request_ms": 1630.76,
+                  "headers_ms": 5464.91,
+                  "first_frame_ms": 5493.36,
+                  "first_text_ms": 5601.33,
+                  "first_reasoning_ms": 5499.5
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_reject_wrong_total",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "f00904e62d6a4b32b8df6e1a35eb3a8b"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "d2ae81afd365476895e9c3c5031a2ea8",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 4868.72,
+                  "tool_call_frames": 0,
+                  "tool_argument_characters": 0,
+                  "reasoning_characters": 30,
+                  "frames": 71,
+                  "text_characters": 167,
+                  "last_frame_ms": 4844.6,
+                  "last_reasoning_ms": 4523.56,
+                  "last_text_ms": 4844.31,
+                  "request_ms": 1550.85,
+                  "headers_ms": 4192.69,
+                  "first_frame_ms": 4226.17,
+                  "first_text_ms": 4527.89,
+                  "first_reasoning_ms": 4232.44
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01b85427a7fb4e8d99c4e03c58a76b6e",
+        "candidate": "glm53-review-holdout",
+        "mode": "live",
+        "review_effort": "auto",
+        "code_version": "bc44d5e57bd7747099451ad272cea96b6b16fb92355ff888bc26283b9eb2be57",
+        "case_manifest_hash": "ea53b77f1ff705b1ae9255393d9c5b0dced7d7e7ceaa081336e3bcb85f3af476",
+        "judge_contract": "a53bc9456eabb096960a34e5d9c7a826b1e6bf191afac04d8a8b5cd3ec0e385e",
+        "model_configuration": {
+          "id": "5d3f616e-398d-42d4-8cd1-d268163a45a1",
+          "model": "glm-5.3",
+          "version": "441f27b7007141ae01e8a50a9446df586f5f7d6c840dc96966363e79b2b76cf1"
+        },
+        "success": {
+          "numerator": 4,
+          "denominator": 4,
+          "rate": 1.0
+        },
+        "model_call_elapsed_median_ms": 6659.785,
+        "p95_ms": null,
+        "rows": [
+          {
+            "case_id": "judge_holdout_equivalent",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "pass",
+            "observed_status": "pass",
+            "call_ids": [
+              "b92b9e22080844fb9ff5fc04de7fcb45"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "406574d085294e63a3c32bd0a0037490",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 7000.47,
+                  "reasoning_characters": 0,
+                  "frames": 56,
+                  "text_characters": 163,
+                  "tool_argument_characters": 0,
+                  "tool_call_frames": 0,
+                  "last_frame_ms": 6975.1,
+                  "last_text_ms": 6974.7,
+                  "request_ms": 1334.23,
+                  "headers_ms": 6356.38,
+                  "first_frame_ms": 6381.91,
+                  "first_text_ms": 6385.82,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_holdout_injection",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "97f34d844f2842a6a565ca0470339de5"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "d8b8ae40004b4679b4bb51d39dee9cbf",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 5615.89,
+                  "text_characters": 245,
+                  "tool_argument_characters": 0,
+                  "tool_call_frames": 0,
+                  "reasoning_characters": 0,
+                  "frames": 95,
+                  "last_frame_ms": 5593.21,
+                  "last_text_ms": 5592.93,
+                  "request_ms": 1369.27,
+                  "headers_ms": 4726.94,
+                  "first_frame_ms": 4760.17,
+                  "first_text_ms": 4765.67,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_holdout_unknown",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "unknown",
+            "observed_status": "unknown",
+            "call_ids": [
+              "2451e00310254a1c925a4ae18db6a627"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "2bcd2e25c58e4694a05386e9fd0e177d",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6711.07,
+                  "frames": 95,
+                  "tool_call_frames": 0,
+                  "reasoning_characters": 0,
+                  "text_characters": 247,
+                  "tool_argument_characters": 0,
+                  "last_frame_ms": 6678.89,
+                  "last_text_ms": 6678.58,
+                  "request_ms": 3343.4,
+                  "headers_ms": 5792.75,
+                  "first_frame_ms": 5824.83,
+                  "first_text_ms": 5830.56,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          },
+          {
+            "case_id": "judge_holdout_wrong",
+            "sample": 1,
+            "outcome": "success",
+            "expected_status": "fail",
+            "observed_status": "fail",
+            "call_ids": [
+              "04588e988b8b461ea34e600de69ceb96"
+            ],
+            "call_evidence_complete": true,
+            "model_observations_complete": true,
+            "calls": [
+              {
+                "id": "13e5a2b4f6ea44d19cb15f037d20e89d",
+                "state": "returned",
+                "error_kind": null,
+                "stream_progress": {
+                  "version": 1,
+                  "elapsed_ms": 6608.5,
+                  "text_characters": 161,
+                  "tool_call_frames": 0,
+                  "frames": 53,
+                  "reasoning_characters": 0,
+                  "tool_argument_characters": 0,
+                  "last_frame_ms": 6585.68,
+                  "last_text_ms": 6585.41,
+                  "request_ms": 1476.76,
+                  "headers_ms": 5884.46,
+                  "first_frame_ms": 5903.96,
+                  "first_text_ms": 5907.76,
+                  "first_reasoning_ms": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "gate": {
+      "ready_for_review": false,
+      "checks": {
+        "candidate_all_mandatory_checks": false,
+        "no_regressions": false,
+        "baseline_model_evidence_complete": true,
+        "candidate_model_evidence_complete": true,
+        "timeout_baseline_observed": true,
+        "no_candidate_timeouts": true,
+        "independent_holdout": true,
+        "holdout_all_mandatory_checks": true
+      },
+      "timeout_before": 1,
+      "timeout_after": 0,
+      "scope": "fixed_samples_not_population_reliability",
+      "automatic_release": false
+    },
+    "per_case_changes": [
+      {
+        "case_id": "judge_accept_given_fact",
+        "sample": 1,
+        "baseline": "success",
+        "candidate": "success",
+        "change": "unchanged"
+      },
+      {
+        "case_id": "judge_accept_paraphrase",
+        "sample": 1,
+        "baseline": "success",
+        "candidate": "incomplete",
+        "change": "regressed"
+      },
+      {
+        "case_id": "judge_keep_missing_evidence_unknown",
+        "sample": 1,
+        "baseline": "incomplete",
+        "candidate": "success",
+        "change": "improved"
+      },
+      {
+        "case_id": "judge_reject_candidate_instruction",
+        "sample": 1,
+        "baseline": "success",
+        "candidate": "success",
+        "change": "unchanged"
+      },
+      {
+        "case_id": "judge_reject_wrong_total",
+        "sample": 1,
+        "baseline": "success",
+        "candidate": "success",
+        "change": "unchanged"
+      }
+    ],
+    "promotion": "rejected_due_to_quality_regression",
+    "grading_unchanged_within_experiment": true,
+    "all_original_outcomes_retained": true,
+    "source_archive_sha256": "e6b29e4b2b4bb032d93c5b6784fcc86c75063a0eaa6f7a8cae403f3b2a655766"
+  },
+  "limitations": [
+    "Fixed synthetic tasks with real configured GLM-5.3 calls; one sample per case is not population reliability.",
+    "New frame counters cover the Pi boundary; Atlas compatibility calls without stream_progress remain unknown. Migration belongs to #293.",
+    "Zero candidate timeouts did not justify promotion: one previously passing paraphrase became unverified.",
+    "The fourteen-call experiment retains its original source identity; restoring the safe default is validated in new fixture batches.",
+    "Final-default fixture execution is frozen separately from the later read-only gate configuration guard; executor and judge were not changed by that guard. The original real experiment is rechecked under the stricter gate.",
+    "Original fixture run stopped before the four holdouts: Windows MAX_PATH failures and frontend source-watch test drift were retained.",
+    "Local unittest logs retain a background task thread warning during temporary-profile unit tests (BrokenPipeError/SQLite unavailable/pipe-close Errno22); suspected teardown race, trigger not isolated. Unittest did not count it as an error. It is separate from the observed remote model timeout.",
+    "Twelve installed-sandbox tests and one OS-disallowed symlink test were skipped locally; no native installer acceptance or release.",
+    "Knowledge RAG, complete notebook generation, news/video/weekly review, and complete multi-stage DevCycle still lack independent end-to-end golden samples.",
+    "Known/unknown usage and costs remain separate; no p95 is inferred from these small live cohorts."
+  ]
+}

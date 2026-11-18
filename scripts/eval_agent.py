@@ -56,6 +56,9 @@ class Fixture(BaseHTTPRequestHandler):
         call_names={c['id']:c['function']['name']for m in request['messages']for c in m.get('tool_calls',[])}
         receipts=[m for m in request['messages'] if m.get('role')=='tool' and not call_names.get(m.get('tool_call_id'),'').startswith('tebb_tools_')]
         executor=spec.get('executor')
+        if executor=='timeout_probe':
+            from desk_companion.evaluation.agent_eval_timeout import respond
+            respond(self,spec['fault_scenario']);return
         available={v.get('function',{}).get('name')for v in request.get('tools',[])}
         if request['messages'][0].get('content','').startswith('反馈审阅协议'):
             material=json.loads(request['messages'][1]['content'])['materials']
@@ -208,6 +211,7 @@ def main():
     parser.add_argument('--live',action='store_true')
     parser.add_argument('--model-id',default='',help='Explicit configured model for a bounded live batch')
     parser.add_argument('--judge-model-id',default='',help='Frozen configured independent reviewer for a reference rubric')
+    parser.add_argument('--review-effort',choices=['auto','provider_default','low'],default='provider_default')
     parser.add_argument('--reuse-model-policy',action='store_true',help='Copy only selected model capacity, verified output policy and prices into the private profile')
     parser.add_argument('--case',action='append',default=[])
     parser.add_argument('--case-snapshot',type=Path,help='Frozen data-only case snapshot from the evaluation center')
@@ -251,6 +255,7 @@ def main():
     selected_ids=FAILURE_CASES if args.suite=='failures'else args.case
     selected=[s for s in available_cases if not selected_ids or s['id'] in selected_ids][:args.limit]
     if not selected or set(args.case)-{s['id'] for s in available_cases}:parser.error('unknown or empty case selection')
+    if args.live and any(s.get('executor')=='timeout_probe'for s in selected):parser.error('timeout fault injection is fixture-only')
     projects=any(s.get('executor')=='project'for s in selected)
     readonly=any(s.get('scenario')=='readonly'for s in selected)
     if args.research_corpus and(not readonly or not args.research_corpus.is_dir()):parser.error('research-corpus requires readonly cases and an existing corpus directory')
@@ -281,7 +286,8 @@ def main():
         RESOURCES.callback(server.shutdown)
         model['base_url']=f'http://127.0.0.1:{server.server_port}/v1'
     output=args.output.resolve();output.mkdir(parents=True)
-    profile=output/'private-profile';profile.mkdir()
+    from desk_companion.evaluation.artifacts import attempt_profile
+    profile=attempt_profile(output);profile.mkdir()
     # This private profile contains a credential for the worker, never report it.
     CREDENTIAL_PATH=profile/'models.json'
     CREDENTIAL_PATH.write_text(json.dumps(dict(active=model['id'],items=list({m['id']:m for m in (model,judge_model)}.values()))),'utf-8')
@@ -383,9 +389,14 @@ def main():
             row['stage']='prepare'
             try:
                 run_id=uuid.uuid4().hex
+                if spec.get('executor')=='timeout_probe':
+                    from desk_companion.evaluation.agent_eval_timeout import execute
+                    def progress(value):row.update(value);save()
+                    row.update(execute(spec,model,progress=progress),stage='finished');continue
                 if spec.get('executor')=='judge_calibration':
                     from desk_companion.evaluation.agent_eval_judge import execute
-                    checked=execute(spec,model,timeout=args.timeout,
+                    def progress(value):row.update(value);save()
+                    checked=execute(spec,model,timeout=args.timeout,review_effort=args.review_effort,progress=progress,
                         should_cancel=lambda:time.monotonic()-started>=args.timeout or bool(os.environ.get('TEBB_EVAL_CANCEL_FILE')and Path(os.environ['TEBB_EVAL_CANCEL_FILE']).exists()))
                     row.update(checked,task_ids=[checked['task_id']],execution_kind='component_operation',
                         answer=json.dumps(checked.get('assessment',{}),ensure_ascii=False),stage='finished')
@@ -461,7 +472,7 @@ def main():
                 outcome,evidence=evaluate(spec,task,verification=verification)
                 if spec.get('rubric')and task['state']=='succeeded'and not expired:
                     from desk_companion.evaluation.reference_judge import assess
-                    judge=assess(spec,task.get('answer',''),judge_model,timeout=min(args.timeout,60),
+                    judge=assess(spec,task.get('answer',''),judge_model,timeout=min(args.timeout,60),review_effort=args.review_effort,
                         should_cancel=lambda:time.monotonic()-started>=args.timeout or bool(os.environ.get('TEBB_EVAL_CANCEL_FILE')and Path(os.environ['TEBB_EVAL_CANCEL_FILE']).exists()))
                     row.update(judge=judge,goal_checks=judge['goal_checks'],judge_task_ids=[judge['task_id']])
                     states=[c['status']for c in judge['goal_checks']]
@@ -488,7 +499,8 @@ def main():
             except CancellationNotSettled as exc:
                 row.update(outcome='timed_out',termination=exc.task['state'],deadline_exceeded=True,cancellation_confirmed=False,error_type=type(exc).__name__)
             except Exception as exc:
-                row.update(outcome='failed',error_type=type(exc).__name__,error=str(exc).replace(model['api_key'],'[redacted]'))
+                accepted=bool(row.get('task_id')or row.get('task_ids')or row.get('root_run'))
+                row.update(outcome='failed'if accepted else'infrastructure_failure',error_type=type(exc).__name__,error=str(exc).replace(model['api_key'],'[redacted]'))
             finally:
                 Fixture.release.set()
                 complete=refresh_call_evidence(row,listing,detail)
@@ -521,7 +533,7 @@ def main():
         if previous is None:os.environ.pop('DESK_COMPANION_DATA_DIR',None)
         else:os.environ['DESK_COMPANION_DATA_DIR']=previous
     print(json.dumps(dict(mode=report['mode'],summary=report['summary'],report=str(output/'report.json')),ensure_ascii=False))
-    return int(bool(alive) or not complete or any(r['outcome'] in {'failed','false_success','timed_out','incomplete','cancelled'} for r in report['cases']))
+    return int(bool(alive) or not complete or any(r['outcome'] in {'failed','false_success','timed_out','incomplete','cancelled','infrastructure_failure'} for r in report['cases']))
 
 
 if __name__=='__main__':raise SystemExit(run_with_cleanup(main))

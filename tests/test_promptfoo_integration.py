@@ -21,6 +21,7 @@ class PromptfooIntegrationTests(unittest.TestCase):
             cases=[next(c['version']for c in catalog if c['id']==ident)for ident in ('extract_record','sort_unique','pi_tools_discovery')]
             batch=center.start('framework-product-001',cases,timeout=30)['batch']
             self.assertEqual(batch['metrics']['planned'],3)
+            self.assertEqual(batch['review_effort'],'provider_default')
             self.assertIn('success',batch['metrics'])
             reused=center.start('framework-product-001',cases,timeout=30)
             self.assertTrue(reused['reused']);self.assertEqual(reused['batch']['id'],batch['id'])
@@ -50,7 +51,7 @@ class PromptfooIntegrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):center.debug_call(batch['id'],'pi_tools_discovery',1,'f'*32)
             restarted=EvaluationCenter().get(batch['id'])['batch']
             self.assertEqual(result['results'],restarted['results'])
-            for profile in (center.directory/batch['id']).glob('attempt-*/private-profile'):
+            for profile in (center.directory/batch['id']).glob('attempt-*/p'):
                 self.assertFalse((profile/'models.json').exists())
                 self.assertFalse((profile/'model-network.json').exists())
 
@@ -62,12 +63,33 @@ class PromptfooIntegrationTests(unittest.TestCase):
             self.assertFalse(result['pass']);self.assertEqual(result['score'],0)
         self.assertTrue(module.get_assert(json.dumps(dict(outcome='success')), {})['pass'])
 
+    def test_transport_faults_have_correct_localization_and_no_false_business_delivery(self):
+        with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
+            center=EvaluationCenter();cases=center.operate('coverage')['suites']['timeout']
+            batch=center.start('transport-faults-001',cases,timeout=30)['batch'];deadline=time.monotonic()+150
+            while True:
+                result=center.get(batch['id'])['batch']
+                if result['state']not in{'queued','running','cancelling'}:break
+                if time.monotonic()>deadline:center.cancel(batch['id']);self.fail('Transport fault suite did not settle.')
+                time.sleep(.2)
+            self.assertEqual(result['state'],'completed')
+            self.assertEqual(result['metrics']['success']['numerator'],7,[(r['case_id'],r['outcome'],r.get('evidence'))for r in result['results']])
+            for row in result['results']:
+                self.assertTrue(row['expected_fault']);self.assertTrue(row['evidence']['verified'])
+                self.assertEqual(row['execution_kind'],'component_operation')
+                self.assertEqual(len(row['call_ids']),1)
+                self.assertIn('stream_progress',row['model_observations'][0])
+            diagnostics=center.operate('diagnose',dict(ident=batch['id']))
+            self.assertEqual(diagnostics['timeout_calls'],7)
+            self.assertEqual(len(diagnostics['localization']),7)
+            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/p/models.json')))
+
     def test_reviewer_calibration_retains_real_operations_calls_and_expected_rejection(self):
         with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
             center=EvaluationCenter();catalog=center.store.cases()
-            cases=[c['version']for c in catalog if c['criteria']=='reference_judge_calibration']
+            cases=[c['version']for c in catalog if c['criteria']=='reference_judge_calibration'and c['split']=='regression']
             self.assertEqual(len(cases),5)
-            batch=center.start('reviewer-calibration-001',cases,timeout=30)['batch']
+            batch=center.start('reviewer-calibration-001',cases,timeout=30,review_effort='low')['batch']
             deadline=time.monotonic()+100
             while True:
                 result=center.get(batch['id'])['batch']
@@ -90,12 +112,13 @@ class PromptfooIntegrationTests(unittest.TestCase):
                 self.assertEqual(root['kind'],'operation');self.assertEqual(root['state'],'unknown')
                 detail=center.debug_call(batch['id'],row['case_id'],1,row['call_ids'][0])
                 self.assertTrue(detail['redacted'])
+                self.assertEqual(detail['request'].get('reasoning_effort'),'low')
             rejected=next(r for r in result['results']if r['case_id']=='judge_reject_wrong_total')
             self.assertFalse(rejected['evidence']['candidate_accepted'])
             for report in (center.directory/batch['id']).glob('attempt-*/report.json'):
                 totals=json.loads(report.read_text('utf-8'))['totals']
                 self.assertEqual(totals['tasks'],0);self.assertEqual(totals['component_operations'],1)
-            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/private-profile/models.json')))
+            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/p/models.json')))
 
     def test_recorded_failure_to_frozen_reference_case_and_strategy_comparison(self):
         with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder):
@@ -153,4 +176,4 @@ class PromptfooIntegrationTests(unittest.TestCase):
             self.assertEqual(current['metrics']['success']['numerator'],0)
             self.assertGreaterEqual(current['metrics']['outcomes'].get('not_started',0),1)
             self.assertFalse(any(r.get('outcome')=='running'for r in current['results']))
-            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/private-profile/models.json')))
+            self.assertFalse(list((center.directory/batch['id']).glob('attempt-*/p/models.json')))

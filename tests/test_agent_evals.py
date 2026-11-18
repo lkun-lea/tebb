@@ -50,14 +50,14 @@ class EvalVerdictTests(unittest.TestCase):
         self.assertEqual(wait_task(Queue(),'task',0),(dict(state='succeeded'),False))
 
     def test_named_cases_have_explicit_conditions_and_separate_cancellation_scopes(self):
-        self.assertEqual(len(CASES),54)
+        self.assertEqual(len(CASES),65)
         self.assertEqual(len({c['id'] for c in CASES}),len(CASES))
         self.assertEqual({c['research_mode']for c in CASES if c.get('scenario')=='readonly'},{'serial','legacy_parallel','atlas_parallel'})
         self.assertTrue(all('expected_state' in c and 'prerequisite' in c for c in CASES))
         discovery=next(c for c in CASES if c['id']=='pi_tools_discovery')
         self.assertEqual(discovery['required_tools'],['web_fixture_sum','project_fixture_check'])
         self.assertEqual(discovery['executor'],'pi_tools')
-        calibration=[c for c in CASES if c.get('executor')=='judge_calibration']
+        calibration=[c for c in CASES if c.get('executor')=='judge_calibration'and c.get('dataset_split')!='holdout']
         self.assertEqual(len(calibration),5)
         self.assertEqual(sorted(c['expected']['status']for c in calibration),['fail','fail','pass','pass','unknown'])
         self.assertTrue(all(c['budget']==1 and c['candidate'] and c['criterion']for c in calibration))
@@ -103,7 +103,8 @@ class EvalVerdictTests(unittest.TestCase):
         self.assertTrue(same_json(200.0,200))
 
     def test_summary_retains_failure_and_unknown_usage(self):
-        counts,totals=summarize([dict(outcome='failed',task_id='task1',call_ids=['call1'],usage=None),dict(outcome='incomplete')])
+        counts,totals=summarize([dict(outcome='failed',task_id='task1',call_ids=['call1'],usage=None),dict(outcome='incomplete'),dict(outcome='infrastructure_failure')])
+        self.assertEqual(counts['infrastructure_failure'],1)
         self.assertEqual(counts['failed'],1)
         self.assertEqual(counts['incomplete'],1)
         self.assertEqual(counts['skip'],0)

@@ -16,9 +16,14 @@ class PiObserver:
         self.first = None
         self.lost = False
         self.status = None
+        from desk_companion.observability.stream_progress import StreamProgress
+        self.progress=StreamProgress();self.last_flush=0
+        self.attempt=current_model_attempt()
 
     def sending(self, payload):
+        self.progress.event('model_request',None)
         attempt = current_model_attempt()
+        self.attempt=attempt
         if attempt:
             _safe(attempt.observe,payload)
             self.handle = attempt.sending()
@@ -38,6 +43,10 @@ class PiObserver:
                 debug.safe_update(self.call_id, state='recording_failed', error='TraceWriteError')
 
     def event(self, kind, data):
+        self.progress.event(kind,data)
+        now=time.monotonic()
+        if self.attempt and now-self.last_flush>=1:
+            _safe(self.attempt.store.update,self.attempt.id,stream_progress=self.progress.snapshot());self.last_flush=now
         if kind in {'text_delta','thinking_delta'}and isinstance(data,str)and data:
             attempt=current_model_attempt()
             if attempt:
@@ -58,6 +67,7 @@ class PiObserver:
                 self.lost = True
 
     def finish(self, error=None):
+        if self.attempt:_safe(self.attempt.store.update,self.attempt.id,stream_progress=self.progress.snapshot())
         if error:
             http_returned(self.handle, status=self.status, error=error)
         if self.call_id:

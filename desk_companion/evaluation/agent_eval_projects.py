@@ -9,6 +9,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
@@ -129,8 +130,8 @@ def execute(spec,*,profile,model_id,timeout,sample=1,official=False,variant=None
     scenario=spec['scenario']
     if variant not in {None,'node','python'}:raise ValueError('unsupported project variant')
     variant=variant or ('python'if scenario=='coding'or scenario=='clone'and sample%2==0 else'node')
-    folder=Path(profile)/'project_cases'/(spec['id']+'-s'+str(sample)+'-'+uuid.uuid4().hex)
-    folder.mkdir(parents=True)
+    parent=Path(profile)/'p';parent.mkdir(parents=True,exist_ok=True)
+    folder=Path(tempfile.mkdtemp(prefix='p',dir=parent))
     with socket.socket()as reserved:reserved.bind(('127.0.0.1',0));port=reserved.getsockname()[1]
     token=uuid.uuid4().hex;backend=None;tree=None;stream=None;root={};goal_root=None;goal_events=[];calls=[];tasks=[];run_id='';expired=False
     proof=dict(verified=False,scope='authenticated_project_lifecycle',provider_mode='official'if official else'fixture',

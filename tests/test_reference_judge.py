@@ -7,6 +7,23 @@ from desk_companion.evaluation.reference_judge import assess
 
 
 class ReferenceJudgeTests(unittest.TestCase):
+    def test_glm_reviewer_has_explicit_low_effort_with_reproducible_original_baseline(self):
+        received=[]
+        class Model:
+            def __init__(self,*a,**kw):pass
+            def __enter__(self):return self
+            def __exit__(self,*a):pass
+            def chat(self,messages,**kw):
+                received.append(kw['options'].sampling)
+                return dict(message=dict(content=json.dumps(dict(requirements=[dict(requirement='x',dimension='task_acceptance',status='unverified',reason='fixture',evidence=[])]))))
+        with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder),patch('desk_companion.pi_runtime.inference.PiInference',Model):
+            spec=dict(prompt='x',expected='x',rubric=[dict(id='x',criterion='x',weight=1)])
+            assess(spec,'x',dict(id='glm',model='glm-5.3'),review_effort='auto')
+            assess(spec,'x',dict(id='glm',model='glm-5.3'))
+            assess(spec,'x',dict(id='other',model='other'))
+        self.assertEqual(received[0],dict(reasoning_effort='low'))
+        self.assertFalse(received[1]);self.assertFalse(received[2])
+
     def test_review_transport_failure_cannot_pass_expected_unknown(self):
         from desk_companion.evaluation.agent_eval_judge import execute
         with tempfile.TemporaryDirectory()as folder,patch.dict(os.environ,DESK_COMPANION_DATA_DIR=folder),patch(

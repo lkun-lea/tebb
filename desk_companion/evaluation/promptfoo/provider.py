@@ -30,9 +30,11 @@ def call_api(prompt, options, context):
         return dict(output=json.dumps(row))
     snapshot=batch/('case-'+str(index)+'.json');snapshot.write_text(json.dumps([case],ensure_ascii=False),'utf-8')
     output=batch/('attempt-'+str(index))
+    from desk_companion.evaluation.artifacts import attempt_profile
     command=[sys.executable,str(ROOT/'scripts/eval_agent.py'),'--output',str(output),'--case-snapshot',str(snapshot),
              '--samples','1','--limit','1','--timeout',str(manifest['timeout']),
              '--tool-loading',manifest['tool_loading']]
+    command.extend(['--review-effort',manifest.get('review_effort','provider_default')])
     if manifest['mode']=='live':command.extend(['--live','--model-id',manifest['model_config']['id'],'--reuse-model-policy'])
     if manifest['mode']=='live'and judge_config:command.extend(['--judge-model-id',judge_config['id']])
     # stdout/stderr stay private; public errors are categories, not echoed keys.
@@ -42,7 +44,7 @@ def call_api(prompt, options, context):
     finally:
         # Credentials are always temporary, including parent harness failure.
         for name in ('models.json','model-network.json'):
-            (output/'private-profile'/name).unlink(missing_ok=True)
+            (attempt_profile(output)/name).unlink(missing_ok=True)
     report_path=output/'report.json'
     if not report_path.is_file():
         row=dict(case_id=case['id'],sample=planned['sample'],outcome='infrastructure_failure',error_kind='ProductEvalUnavailable')
@@ -55,7 +57,7 @@ def call_api(prompt, options, context):
     if manifest['code_version']!=code_version()or manifest['model_config']!=model_configuration(manifest['mode'],manifest['model_config']['id'])or(judge_config and judge_config!=model_configuration(manifest['mode'],judge_config['id'])):
         row.update(original_outcome=row['outcome'],outcome='infrastructure_failure',error_kind='FrozenCodeOrConfigurationChanged')
     from desk_companion.observability.usage_store import UsageStore
-    observations=[r for r in UsageStore(output/'private-profile/memory/usage-observations.sqlite3').rows()if r['kind']=='model']
+    observations=[r for r in UsageStore(attempt_profile(output)/'memory/usage-observations.sqlite3').rows()if r['kind']=='model']
     row['model_observations']=observations
     observed_calls={ident for r in observations for ident in r.get('debug_calls',([r['debug_call']]if r.get('debug_call')else[]))}
     row['model_observations_complete']=bool(observations)and set(row.get('call_ids',[]))<=observed_calls

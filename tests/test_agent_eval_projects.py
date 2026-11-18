@@ -12,11 +12,14 @@ from desk_companion.evaluation.agent_evals import CASES, evaluate
 class ProjectVerdictTests(unittest.TestCase):
     def test_setup_failure_waits_for_parent_cleanup_without_calling_unserved_http(self):
         with TemporaryDirectory()as directory:
+            directory=Path(directory)/('nested-'+'a'*70);directory.mkdir()
             folder=None;parent=None
             class Parent:
                 def __init__(self,command,**kwargs):
                     nonlocal folder,parent
                     parent=self;folder=Path(command[command.index('--directory')+1]);self.returncode=None;self.waited=False
+                    from desk_companion.infrastructure.resource_lock import ResourceLock
+                    with ResourceLock('original-operation',directory=folder/'projects/operation-locks'):pass
                     (folder/'setup-error.json').write_text(json.dumps(dict(error='fixture create EOF')),'utf-8')
                 def poll(self):return self.returncode
                 def wait(self,**kwargs):

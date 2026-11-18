@@ -21,12 +21,13 @@ def verdict(assessment,expected):
 
 
 @budgeted_operation('judge_calibration','simple')
-def execute(spec,model,*,timeout,should_cancel=None):
+def execute(spec,model,*,timeout,should_cancel=None,review_effort='provider_default',progress=lambda _:None):
     task=current().task
+    progress(dict(task_id=task,task_ids=[task],execution_kind='component_operation',stage='review'))
     try:
         assessment=assess(dict(prompt=spec['prompt'],expected=spec['reference'],
             rubric=[dict(id='calibration_criterion',criterion=spec['criterion'],weight=1)]),spec['candidate'],model,
-            timeout=min(timeout,60),should_cancel=should_cancel)
+            timeout=min(timeout,60),should_cancel=should_cancel,review_effort=review_effort)
         evidence=verdict(assessment,spec['expected']['status'])
         outcome='success'if evidence['verified']else'incomplete'if not evidence['valid_assessment']or evidence['observed']=='unknown'else'failed'
         return dict(task_id=task,outcome=outcome,assessment=assessment,evidence=evidence)

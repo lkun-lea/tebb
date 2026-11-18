@@ -77,5 +77,5 @@ def compare(baseline,candidate):
         pairs.append(dict(case_id=key[0],sample=key[1],baseline=before,candidate=after,
             change='improved'if after=='success'and before!='success'else'regressed'if before=='success'and after!='success'else'unchanged'))
     return dict(ok=True,baseline=baseline['id'],candidate=candidate['id'],items=pairs,changes=dict(Counter(p['change']for p in pairs)),
-                configuration_changes={key:dict(baseline=baseline.get(key),candidate=candidate.get(key))for key in ('tool_loading','model_config','code_version','candidate')if baseline.get(key)!=candidate.get(key)},
+                configuration_changes={key:dict(baseline=baseline.get(key),candidate=candidate.get(key))for key in ('tool_loading','review_effort','model_config','code_version','candidate')if baseline.get(key)!=candidate.get(key)},
                 baseline_metrics=baseline.get('metrics')or metrics(baseline.get('results',[]),baseline['planned']),candidate_metrics=candidate.get('metrics')or metrics(candidate.get('results',[]),candidate['planned']))
