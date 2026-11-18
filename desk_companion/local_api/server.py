@@ -20,6 +20,7 @@ RPC_METHODS = frozenset({
     'account_session', 'account_action',
     'personalization_status', 'personalization_action',
     "development_team",
+    "execution_inspect", "agent_evaluation",
     'read_calendar_proposal',
     'calendar_reminder_status','calendar_reminder_scan','calendar_reminder_settings','calendar_reminder_claim','calendar_reminder_ack',
     'task_completion_prepare','task_completion_confirm','task_completion_status','task_completion_inspect',
@@ -184,7 +185,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
                       "load_board", "create_agenda", "delete_agenda", "delete_task", "read_calendar_proposal",
                       "generate_week_review", "write_today_summary_doc", "write_week_review_doc",
                       "list_automation_jobs", "save_automation_job", "delete_automation_job", "run_automation_job", "automation_workflow",
-                      "development_team", "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
+                      "execution_inspect", "agent_evaluation", "development_team", "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
                       "list_debug_calls", "get_debug_call", "set_debug_recording", "explain_debug_call", "load_context_debug", "save_context_capacity", "memory_debug",
                       "load_model_network", "save_model_network", "load_search_settings", "save_search_settings", "test_search",
                       "load_video_settings", "save_video_settings", "list_task_videos", "export_task_video",
@@ -493,6 +494,7 @@ async def main() -> None:
             await SHUTDOWN.wait()
     finally:
         SHUTDOWN.set()
+        evaluation_cleanup=asyncio.create_task(asyncio.to_thread(HOST.bridge.shutdown_evaluations))
         HOST.personalization.request_stop()
         profile_cleanup=asyncio.create_task(asyncio.to_thread(HOST.personalization.shutdown))
         HOST.calendar_reminders.stop()
@@ -510,6 +512,10 @@ async def main() -> None:
         from desk_companion.projects.terminal import manager
         await asyncio.to_thread(manager().shutdown)
         await asyncio.to_thread(HOST.feishu_agent.stop, False)
+        evaluation_result=await evaluation_cleanup
+        if not evaluation_result['complete']:
+            import logging
+            logging.getLogger(__name__).warning('评测资源仍在收尾，保留批次与未确认记录。')
         profile_result=await profile_cleanup
         if not profile_result['complete']:
             import logging

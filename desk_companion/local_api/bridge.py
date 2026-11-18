@@ -24,6 +24,9 @@ class Bridge:
         return snapshot()
 
     def __init__(self, host, *, session_changed=None) -> None:
+        import threading
+        self._evaluation_lock=threading.Lock()
+        self._evaluation_stopped=False
         self._host = host
         self._session_changed = session_changed
 
@@ -272,8 +275,8 @@ class Bridge:
         return listing(channel, task_id, before)
 
     def get_debug_call(self, call_id: str) -> dict:
-        from desk_companion.observability.agent_debug import detail
-        return detail(call_id)
+        from desk_companion.observability.redaction import debug_detail
+        return debug_detail(call_id)
 
     def set_debug_recording(self, enabled: bool) -> dict:
         from desk_companion.observability.agent_debug import configure
@@ -703,6 +706,26 @@ class Bridge:
     def load_personal_usage(self,filters=None,cursor='',limit=50) -> dict:
         from desk_companion.observability.usage_center import UsageCenter
         return UsageCenter().query(filters,cursor,limit)
+
+    def execution_inspect(self,operation,payload=None):
+        from desk_companion.observability.execution_center import ExecutionCenter
+        from desk_companion.observability.redaction import diagnostic_export
+        return diagnostic_export(ExecutionCenter().operate(operation,payload))
+
+    def agent_evaluation(self,operation,payload=None):
+        with self._evaluation_lock:
+            if self._evaluation_stopped:raise ValueError('评测服务正在退出。')
+            if not hasattr(self,'_evaluation_center'):
+                from desk_companion.evaluation.evaluation_center import EvaluationCenter
+                self._evaluation_center=EvaluationCenter()
+        from desk_companion.observability.redaction import diagnostic_export
+        return diagnostic_export(self._evaluation_center.operate(operation,payload))
+
+    def shutdown_evaluations(self):
+        with self._evaluation_lock:
+            self._evaluation_stopped=True
+            center=getattr(self,'_evaluation_center',None)
+        return center.shutdown()if center else dict(complete=True,pending_batch_ids=[])
 
     def load_feishu(self) -> dict:
         from desk_companion.integrations.feishu.feishu_auth import feishu_status

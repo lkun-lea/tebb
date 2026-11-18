@@ -1,4 +1,5 @@
 import { InspectorDisclosure } from './inspector-disclosure';
+import {ExecutionEntry,executionRoot} from './execution-entry';
 import {accountStorage} from './account-storage';
 import { ClarificationCard } from './clarification-card';
 import { openProjectRuntime } from './project-runtime-events';
@@ -364,6 +365,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
               {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}
               {real&&item.sender!=='user'&&<CalendarProposalCards info={backend} proposals={proposalTree(runs.find(run=>run.id===item.run),runs)}/>}
+              {real&&item.sender!=='user'&&item.run&&<ExecutionEntry info={backend||null} root={'collab:'+executionRoot(item.run,runs)}/>}
               {item.sender !== 'user' && item.run && <div className="cp-message-footer">{(developer || runs.find(run=>run.id===item.run)?.state==='needs_input' || !["chat","route","compress"].includes(runs.find(run => run.id===item.run)?.kind || "")) && <button className="cp-message-reference" onClick={() => { setFocusedRun(item.run!); setInspector(true); setTab("tasks"); }}>↗ 关联任务</button>}
               {real && <small className="cp-message-usage" title="本条消息的执行模型与输入／输出 token 用量">{runs.find(r => r.id===item.run)?.model} · ↑ {runs.find(r => r.id===item.run)?.input_tokens || 0} / ↓ {runs.find(r => r.id===item.run)?.output_tokens || 0}</small>}
               {real && backend && backend.scope!=='collaboration' && item.sender!=='user' && item.run && runs.some(r=>r.id===item.run && r.state==='succeeded' && ['task','chat','route'].includes(r.kind || '') && (r.kind==='task'||!runs.some(child=>child.parent===r.id))) && <button className="cp-message-reference" title={currentProject?'保存到知识库并共享为本项目资料':'保存到知识库'} onClick={async()=>{try { const result=await rpc<{ok:boolean;error?:string}>(backend,'save_collaboration_note',{run_id:item.run}); if(!result.ok) throw new Error(result.error || '收藏失败'); setStorageError(currentProject?`已收藏到知识库，并加入「${currentProject.name}」项目资料。`:'已收藏到知识库的「伙伴成果」笔记，可继续作为资料使用。'); window.dispatchEvent(new Event('tebb-notebooks-changed')); } catch(error){setStorageError(String(error));} }}>{currentProject?'收藏到项目笔记':'收藏到笔记'}</button>}

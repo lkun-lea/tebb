@@ -4,7 +4,7 @@ import time
 from types import SimpleNamespace
 
 from desk_companion.observability import agent_debug as debug
-from desk_companion.observability.usage_observer import current_model_attempt, http_returned
+from desk_companion.observability.usage_observer import current_model_attempt, http_returned, _safe
 
 
 class PiObserver:
@@ -20,6 +20,7 @@ class PiObserver:
     def sending(self, payload):
         attempt = current_model_attempt()
         if attempt:
+            _safe(attempt.observe,payload)
             self.handle = attempt.sending()
         try:
             if debug.settings()['enabled']:
@@ -37,6 +38,11 @@ class PiObserver:
                 debug.safe_update(self.call_id, state='recording_failed', error='TraceWriteError')
 
     def event(self, kind, data):
+        if kind in {'text_delta','thinking_delta'}and isinstance(data,str)and data:
+            attempt=current_model_attempt()
+            if attempt:
+                attempt.output_received()
+                if kind=='text_delta':attempt.text_received()
         if kind == 'http_status':
             self.status = data['status']
             http_returned(self.handle, status=data['status'])

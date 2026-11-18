@@ -50,9 +50,14 @@ def capture_runtime(destination):
     if spec and spec.origin:packages.append(Path(spec.origin).parent)
     hashes={};originals={}
     for package in packages:
-        for path in sorted(package.rglob('*')):
-            if not path.is_file()or any(part in{'__pycache__','.git','node_modules'}for part in path.parts):continue
-            if path.suffix not in{'.py','.md','.txt','.json','.toml','.yaml','.yml','.jinja','.html','.css','.js'}:continue
+        # Prune private npm dependencies before traversal. Filtering rglob
+        # afterwards still walks tens of thousands of framework files.
+        files=[]
+        for directory,folders,names in os.walk(package):
+            folders[:]=[name for name in folders if name not in{'__pycache__','.git','node_modules'}]
+            files.extend(Path(directory)/name for name in names)
+        for path in sorted(files):
+            if path.suffix not in{'.py','.md','.txt','.json','.toml','.yaml','.yml','.jinja','.html','.css','.js','.mjs'}:continue
             relative=Path(package.name)/path.relative_to(package);body=path.read_bytes();target=destination/relative
             target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body)
             hashes[relative.as_posix()]=hashlib.sha256(body).hexdigest();originals[relative.as_posix()]=path

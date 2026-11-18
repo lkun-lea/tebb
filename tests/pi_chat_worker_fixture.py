@@ -20,6 +20,7 @@ class MarkedBridge(OriginalBridge):
 
 def build(host):
     agent=original_build(host)
+    agent.tool_loading='eager'  # Existing admission/write tests use the full-catalog baseline.
     root=Path(os.environ['DESK_COMPANION_DATA_DIR'])
     def add(args):
         (root/'read_called').write_text('1')

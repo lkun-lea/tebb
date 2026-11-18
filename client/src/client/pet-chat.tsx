@@ -16,6 +16,7 @@ import { DraftNotice, ExecutionTree, executionMessage, visibleChatMessage } from
 import { CollaborationSync, loadCollaboration, useCollaborationStream } from './collaboration-sync';
 import { composerTrigger, applyComposerChoice } from './composer-picker';
 import { AppIcon } from './companion-ui';
+import {ExecutionEntry} from './execution-entry';
 
 type Progress = { enabled: boolean; task?: { id: string; state: string; text: string; status: string; answer: string; events: string[] } };
 export function PetChat({ backend }: { backend?: BackendInfo }) {
@@ -134,7 +135,7 @@ export function PetChat({ backend }: { backend?: BackendInfo }) {
       {!state && <p className="pet-chat-placeholder">正在连接当前会话…</p>}
       {state && !messages.length && <p className="pet-chat-placeholder">{current?.title || '当前会话'}<br/>可以直接提问，也可以 @ 伙伴安排任务。</p>}
       {messages.map(message => { const run=runs.find(r=>r.id===message.run);return <article key={message.id} className={`pet-chat-message ${message.sender==='user'?'from-user':''}`}><small>{message.sender==='user'?'你':state?.agents.find(a=>a.id===message.sender)?.name || 'tebb'}</small>{message.sender!=='user' && run && <ExecutionTree run={run} runs={runs} agents={state?.agents||[]}/>}{run?.state==='needs_input'&&message.sender!=='user'&&<ClarificationCard key={run.id+':'+run.clarification_version} run={run} busy={busy} onAction={clarify} onText={()=>{setResumeRun(run.id);input.current?.focus();}}/>}{message.sender!=='user'&&<DraftNotice run={run}/>}{(message.sender==='user'||run?.state!=='needs_input')&&<StreamText copyable={message.sender!=='user'} text={executionMessage(message,runs)} active={!!run && runActive(run) && !!message.text} />}{message.sender!=='user' && run && (runActive(run)||run.state==='needs_input') && <button className="pet-chat-stop" onClick={()=>void stop(run.id)}>停止任务</button>}</article>; })}
-      {runs.filter(run=>!run.parent).map(run=><CalendarProposalCards key={run.id} info={info} proposals={proposalTree(run,runs)}/>)}
+      {runs.filter(run=>!run.parent).map(run=><section key={run.id}><CalendarProposalCards info={info} proposals={proposalTree(run,runs)}/><ExecutionEntry info={info} root={'collab:'+run.id}/></section>)}
       {progress?.enabled && progress.task && <details className="pet-chat-task" open><summary>其他通道 · {progress.task.text}</summary><ol>{progress.task.events?.map((event,index)=><li key={index}><span>{event}</span></li>)}</ol><StreamText text={progress.task.answer || progress.task.status} active={['running','queued','cancelling'].includes(progress.task.state)} /></details>}
     </div>
     {(error || pollError) && <p className="pet-chat-error" role="alert">{error || pollError}</p>}

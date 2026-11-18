@@ -48,7 +48,16 @@ class PiProviderFixture(unittest.TestCase):
                 try:
                     frame(dict(reasoning_content='fixture reasoning'))
                     tool_rows=[row for row in body['messages'] if row['role']=='tool']
-                    if scenario=='repeat-write' and len(tool_rows)<2:
+                    if scenario=='discover-tool':
+                        names=[c['function']['name']for row in body['messages']for c in row.get('tool_calls',[])]
+                        if 'tebb_tools_search'not in names:name,args='tebb_tools_search',dict(query='probe_add')
+                        elif 'tebb_tools_load'not in names:name,args='tebb_tools_load',dict(names=['probe_add'])
+                        elif 'probe_add'not in names:name,args='probe_add',dict(a=17,b=23)
+                        else:name=None
+                        if name:
+                            frame(dict(tool_calls=[dict(index=0,id='discovery-'+str(len(names)),type='function',function=dict(name=name,arguments=json.dumps(args)))]));frame({},'tool_calls')
+                        else:frame(dict(content='40'));frame({},'stop')
+                    elif scenario=='repeat-write' and len(tool_rows)<2:
                         frame(dict(tool_calls=[dict(index=0,id='write-'+str(len(tool_rows)),type='function',
                             function=dict(name='probe_write',arguments=json.dumps(dict(attempt=str(len(tool_rows))))))]))
                         frame({},'tool_calls')

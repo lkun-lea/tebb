@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from desk_companion.evaluation.benchmarking import BenchmarkPlan, run_benchmark
 
@@ -30,6 +31,18 @@ class FakeManager:
 
 
 class BenchmarkingTests(unittest.TestCase):
+    def test_source_snapshot_includes_private_node_code_but_excludes_dependencies(self):
+        from desk_companion.evaluation.benchmarking import capture_runtime
+        with tempfile.TemporaryDirectory()as folder:
+            root=Path(folder);package=root/'desk_companion';package.mkdir()
+            (package/'bridge.mjs').write_text('export const fixture = 1;','utf-8')
+            dependency=package/'node_modules/private';dependency.mkdir(parents=True)
+            (dependency/'do-not-copy.py').write_text('private dependency','utf-8')
+            with patch('desk_companion.evaluation.benchmarking.source_root',return_value=root),patch('desk_companion.evaluation.benchmarking.importlib.util.find_spec',return_value=None):
+                snapshot,_=capture_runtime(root/'snapshot')
+            self.assertIn('desk_companion/bridge.mjs',snapshot['sha256'])
+            self.assertFalse(any('node_modules'in key for key in snapshot['sha256']))
+
     def run_case(self,folder,manager):
         output=Path(folder)/'new.json';manager.output=output
         return run_benchmark(BenchmarkPlan(output=output,samples=2,parallel=1),

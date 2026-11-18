@@ -12,6 +12,23 @@ from tests.test_pi_inference import PiInferenceFixture
 
 
 class PiChatTests(PiInferenceFixture):
+    def test_demand_loading_updates_actual_sdk_payload_before_execution(self):
+        agent=self.agent('discover-tool');agent.tool_loading='demand'
+        self.assertEqual(agent.run('Discover and use the calculator.'),'40')
+        names=lambda r:[t['function']['name']for t in r.get('tools',[])]
+        self.assertEqual(names(self.requests[0]),['tebb_tools_search','tebb_tools_load'])
+        self.assertEqual(names(self.requests[1]),names(self.requests[0]))
+        self.assertEqual(names(self.requests[2]),names(self.requests[0])+['probe_add'])
+        self.assertEqual(self.writes,[dict(a=17,b=23)])
+        self.assertEqual(len(self.requests),4)
+        from desk_companion.observability.tool_monitor import ToolMonitor
+        effective=[e for e in ToolMonitor().events()if e['phase']=='definition_effective'and e['tool']=='probe_add']
+        self.assertTrue(effective);self.assertGreater(effective[0]['position'],0)
+        # A new private Node process replays the same owned loading receipt.
+        self.assertEqual(agent.run('Use the established result.'),'40')
+        self.assertEqual(len(self.requests),5);self.assertEqual(len(self.writes),1)
+        self.assertEqual(names(self.requests[4]),names(self.requests[3]))
+
     def agent(self, scenario='normal', *, max_steps=8):
         llm=self.llm(scenario)
         llm.client=SimpleNamespace(base_url=llm.item['base_url'],api_key='isolated-test-only',timeout=SimpleNamespace(read=10))
@@ -19,7 +36,7 @@ class PiChatTests(PiInferenceFixture):
         def add(args):self.writes.append(args);return args['a']+args['b']
         tools.register(name='probe_add',description='Read-only fixture calculator',parameters=dict(type='object',
             properties=dict(a=dict(type='integer'),b=dict(type='integer')),required=['a','b']),func=add,isReadOnly=True)
-        return PiChatAgent(llm=llm,tools=tools,system_prompt='Use the registered calculator. Return exactly 40.',max_steps=max_steps)
+        return PiChatAgent(llm=llm,tools=tools,system_prompt='Use the registered calculator. Return exactly 40.',max_steps=max_steps,tool_loading='eager')
 
     def test_official_loop_receipt_usage_and_actual_second_request(self):
         agent=self.agent('tool')

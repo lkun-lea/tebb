@@ -21,18 +21,25 @@ class CancellationNotSettled(TimeoutError):
         self.task=task
 
 
-def wait_task(manager, task_id, deadline, *, grace=8, clock=time.monotonic, pause=time.sleep):
+def wait_task(manager, task_id, deadline, *, grace=8, clock=time.monotonic, pause=time.sleep,should_cancel=None):
     """Bound cancellation waiting; never use the task queue's unbounded wait()."""
     cancelled=False
+    expired=False
+    if should_cancel is None:
+        import os
+        from pathlib import Path
+        marker=os.environ.get('TEBB_EVAL_CANCEL_FILE')
+        should_cancel=lambda:bool(marker and Path(marker).is_file())
     cancel_deadline=None
     while True:
         task=manager.get(task_id)
         if task['state'] in {'succeeded','failed','timed_out','cancelled','interrupted'}:
-            return task,cancelled
+            return task,expired
         now=clock()
-        if not cancelled and now>=deadline:
+        if not cancelled and(now>=deadline or should_cancel()):
             manager.cancel(task_id)
             cancelled=True
+            expired=now>=deadline
             cancel_deadline=clock()+grace
         elif cancelled and now>=cancel_deadline:
             raise CancellationNotSettled(task)
@@ -204,6 +211,9 @@ CASES.extend([
 CASES.append(case('attachment_tail','coverage','请实际读取所选合成附件的末尾“交付限制”章节，只返回JSON对象code和rule，值必须来自实际读到的原文。不猜测，不把目录或开头当全文。',
     dict(code='Cedar-947',rule='offline_only'),executor='attachment_tail',kind='task',budget=8,required_tools=['read_local_source']))
 
+CASES.append(case('pi_tools_discovery','tools','在隔离工具目录中，实际调用 web_fixture_sum 计算7与11之和，再用 project_fixture_check 核对这个实际总数。不要使用不需要的工具。最终只返回JSON {"total":18,"checked":true}，以真实回执为准。',
+    dict(total=18,checked=True),executor='pi_tools',kind='task',budget=8,required_tools=['web_fixture_sum','project_fixture_check']))
+
 
 def evaluate(spec, task, *, verification=None):
     """Queue success alone cannot establish semantic success."""
@@ -235,6 +245,10 @@ def evaluate(spec, task, *, verification=None):
     if spec.get('executor')in{'chart','calendar_proposal'}:
         return ('success' if all(t in tools for t in spec['required_tools']) else 'false_success'),evidence
     if spec.get('executor')=='feedback':return 'success',evidence
+    if spec.get('rubric'):
+        # The caller must run the frozen, independent semantic reviewer. Queue
+        # success never passes an open-ended golden case on its own.
+        return 'incomplete',dict(evidence,reason='reference_judge_required')
     try:
         value=json_answer(task.get('answer',''))
     except (ValueError,TypeError):

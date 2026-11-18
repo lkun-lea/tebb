@@ -15,6 +15,7 @@ from desk_companion.infrastructure.paths import data_root
 
 _context = contextvars.ContextVar("agent_debug_context", default={})
 _default = {}
+_profile = contextvars.ContextVar('agent_debug_profile',default=None)
 
 
 def metadata():
@@ -22,7 +23,7 @@ def metadata():
 
 
 def root():
-    path = data_root() / "memory" / "agent_debug"
+    path = (_profile.get() or data_root()) / "memory" / "agent_debug"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -112,6 +113,16 @@ def begin(request, payload):
         db.execute("INSERT INTO calls VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
             call_id, now, now, info.get("task_id", ""), info.get("session", ""), info.get("channel", "backend"),
             str(payload.get("model", "")), endpoint, "sending", 0, 0, 0, len(body), "", os.getpid()))
+    from desk_companion.observability.usage_observer import current_model_attempt,_safe
+    attempt=current_model_attempt()
+    if attempt:
+        attempt.observe(payload,call_id)
+        path=root()/(call_id+'.meta.json')
+        def link():
+            from desk_companion.infrastructure.storage import atomic_write
+            metadata=json.loads(path.read_text('utf-8'))if path.exists()else{}
+            atomic_write(path,{**metadata,'usage_call_id':attempt.id})
+        _safe(link)
     return call_id
 
 
@@ -245,6 +256,10 @@ def install(default=None):
 
 def save_timing(call_id,timing,mode):
     try:
+        if 'first_text'in timing.marks:
+            from desk_companion.observability.usage_observer import current_model_attempt
+            attempt=current_model_attempt()
+            if attempt:attempt.text_received()
         target=root()/(call_id+'.timing.json');temp=target.with_suffix('.timing.tmp')
         temp.write_text(json.dumps(timing.payload() | dict(network_mode=mode,saved_at=time.time())),encoding='utf-8')
         os.replace(temp,target)
@@ -365,7 +380,15 @@ def decode_response(raw):
     return {"choices": [{"message": c} for c in choices.values()], "usage": usage, "events": events}
 
 
-def detail(call_id):
+def detail(call_id,*,profile=None):
+    if profile is not None:
+        token=_profile.set(profile)
+        try:return _detail(call_id,profile=profile)
+        finally:_profile.reset(token)
+    return _detail(call_id)
+
+
+def _detail(call_id,*,profile=None):
     call_id = valid_id(call_id)
     with database() as db:
         row = db.execute("SELECT * FROM calls WHERE id=?", (call_id,)).fetchone()
@@ -376,14 +399,16 @@ def detail(call_id):
     info = dict(row)
     refresh(info)
     from desk_companion.observability.performance import task_snapshot, task_timing
-    task=task_snapshot(info['task_id'])
+    task=task_snapshot(info['task_id'],profile=profile)
+    from desk_companion.tasks.task_budgets import Ledger
+    ledger=Ledger(profile/'memory/task_budgets.sqlite3')if profile is not None else None
     if task:
         from desk_companion.tasks.task_budgets import task_view
-        task['task_budget']=task_view(info['task_id'])
+        task['task_budget']=task_view(info['task_id'],ledger=ledger)
     meta=read_metadata(call_id)
     from desk_companion.tasks.task_budgets import task_view
     return {"ok": True, "call": info, "meta":meta, "request": json.loads(raw_request), "request_raw": raw_request,
-            'task_budget':task_view(info['task_id']),
+            'task_budget':task_view(info['task_id'],ledger=ledger),
             "response": decode_response(raw_response), "response_raw": raw_response,
             'timing':load_timing(call_id,info['state'] in {'sending','receiving'},info['updated']),'task':task,'chain':task_timing(task)}
 

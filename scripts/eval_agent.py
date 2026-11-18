@@ -53,7 +53,8 @@ class Fixture(BaseHTTPRequestHandler):
             return dict(tool_calls=[dict(index=0,id=uuid.uuid4().hex,type='function',function=dict(name=name,arguments=json.dumps(arguments,ensure_ascii=False)))])
         if spec.get('kind')=='route'and not spec.get('executor'):
             delta=tool('request_clarification',dict(question='请补充目标、日期和时间。'))if value['mode']=='clarify'else dict(content=json.dumps(spec['business_expected'],ensure_ascii=False)if 'business_expected'in spec else '幂等表示重复执行产生相同效果。')
-        receipts=[m for m in request['messages'] if m.get('role')=='tool']
+        call_names={c['id']:c['function']['name']for m in request['messages']for c in m.get('tool_calls',[])}
+        receipts=[m for m in request['messages'] if m.get('role')=='tool' and not call_names.get(m.get('tool_call_id'),'').startswith('tebb_tools_')]
         executor=spec.get('executor')
         available={v.get('function',{}).get('name')for v in request.get('tools',[])}
         if request['messages'][0].get('content','').startswith('反馈审阅协议'):
@@ -67,6 +68,10 @@ class Fixture(BaseHTTPRequestHandler):
                 if scenario=='incomparable':evidence=[m['excerpts'][0]['id']for m in material if m['level']=='body']
             delta=dict(content=json.dumps(dict(requirements=[dict(requirement='模拟交付检查',dimension=dimension,status=status,
                 reason='受控模拟审阅，不构成真实语义验收',evidence=evidence)]),ensure_ascii=False))
+        elif executor=='pi_tools':
+            if not receipts:delta=tool('web_fixture_sum',dict(a=7,b=11))
+            elif len(receipts)==1:delta=tool('project_fixture_check',dict(total=json.loads(receipts[0]['content'])['total']))
+            else:delta=dict(content=json.dumps(value))
         elif executor=='authoring':
             invoked=[c['function']['name'] for m in request['messages'] for c in m.get('tool_calls',[])]
             values=[]
@@ -175,6 +180,14 @@ class Fixture(BaseHTTPRequestHandler):
                 delta=dict(content=json.dumps(dict(count=actual.get('total'),titles=[e['summary'] for e in actual.get('events',[])]),ensure_ascii=False))
             else:
                 delta=dict(tool_calls=[dict(index=0,id='calendar-read',type='function',function=dict(name='read_local_calendar',arguments=json.dumps(dict(day='2040-01-02'))))])
+        # Fixture-only model behavior: discover and load a needed authorized
+        # definition before asking the real SDK to call it. Discovery receipts
+        # are not business tool receipts used by the case's original judge.
+        if delta.get('tool_calls') and 'tebb_tools_load' in available:
+            target=delta['tool_calls'][0]['function']['name']
+            if target not in available:
+                searched=any(name=='tebb_tools_search'for name in call_names.values())
+                delta=tool('tebb_tools_load',dict(names=[target])) if searched else tool('tebb_tools_search',dict(query=target))
         self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
         if executor=='lifecycle' and spec['scenario']=='cancel':
             try:
@@ -192,7 +205,12 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--live',action='store_true')
+    parser.add_argument('--model-id',default='',help='Explicit configured model for a bounded live batch')
+    parser.add_argument('--judge-model-id',default='',help='Frozen configured independent reviewer for a reference rubric')
+    parser.add_argument('--reuse-model-policy',action='store_true',help='Copy only selected model capacity, verified output policy and prices into the private profile')
     parser.add_argument('--case',action='append',default=[])
+    parser.add_argument('--case-snapshot',type=Path,help='Frozen data-only case snapshot from the evaluation center')
+    parser.add_argument('--tool-loading',choices=['demand','eager'],default='demand')
     parser.add_argument('--suite',choices=['failures'],help='Fixed high-frequency failure cohort; cannot combine with --case')
     parser.add_argument('--limit',type=int,default=len(CASES))
     parser.add_argument('--samples',type=int,default=1)
@@ -203,13 +221,35 @@ def main():
     parser.add_argument('--output-limit-bindings',type=Path,help='Explicit verified generation-binding SQLite snapshot for this isolated live cohort')
     parser.add_argument('--research-corpus',type=Path,help='Explicit frozen actual-source corpus for live readonly runtime comparison')
     args=parser.parse_args()
+    os.environ['TEBB_TOOL_LOADING']=args.tool_loading
+    available_cases=CASES
+    if args.case_snapshot:
+        frozen=json.loads(args.case_snapshot.read_text('utf-8'))
+        if not isinstance(frozen,list)or len(frozen)!=1:parser.error('case-snapshot requires exactly one frozen case')
+        value=frozen[0]
+        if value.get('contract_version')!=CONTRACT_VERSION:parser.error('case contract changed; preserve the old report and use a new batch')
+        spec=value.get('spec',{});canonical=next((s for s in CASES if s['id']==spec.get('id')),None)
+        if canonical is not None:
+            if spec!=canonical:parser.error('canonical case snapshot differs from current contract')
+        elif set(spec)-{'id','category','prompt','expected','expected_state','required_tools','rubric'}or spec.get('required_tools') or spec.get('expected_state')!='success':
+            parser.error('custom case snapshot contains unsupported executable behavior')
+        if canonical is None:
+            from desk_companion.evaluation.golden_store import GoldenStore
+            # Reuse data validation without persisting or trusting arbitrary
+            # snapshot fields as commands, tools or fixture behavior.
+            import tempfile
+            with tempfile.TemporaryDirectory()as temporary:
+                validated=GoldenStore(Path(temporary)/'validate.sqlite3').save_case(dict(id=spec['id'],prompt=spec['prompt'],expected=spec['expected'],category=spec['category'],rubric=spec.get('rubric',[])))
+            if validated['spec']!=spec:parser.error('custom case data differs from validated contract')
+        spec={**spec,'prerequisite':spec.get('prerequisite','')}
+        available_cases=[spec]
     if not 1<=args.limit<=len(CASES) or not 20<=args.timeout<=300 or not 1<=args.samples<=5:parser.error(f'limit 1..{len(CASES)}, timeout 20..300, samples 1..5')
     if args.output.exists():parser.error('--output must be a new directory; earlier failures are retained')
     if args.output_limit_bindings and(not args.live or not args.output_limit_bindings.is_file()):parser.error('output-limit-bindings requires --live and an existing verified SQLite snapshot')
     if args.suite and args.case:parser.error('--suite and --case are mutually exclusive')
     selected_ids=FAILURE_CASES if args.suite=='failures'else args.case
-    selected=[s for s in CASES if not selected_ids or s['id'] in selected_ids][:args.limit]
-    if not selected or set(args.case)-{s['id'] for s in CASES}:parser.error('unknown or empty case selection')
+    selected=[s for s in available_cases if not selected_ids or s['id'] in selected_ids][:args.limit]
+    if not selected or set(args.case)-{s['id'] for s in available_cases}:parser.error('unknown or empty case selection')
     projects=any(s.get('executor')=='project'for s in selected)
     readonly=any(s.get('scenario')=='readonly'for s in selected)
     if args.research_corpus and(not readonly or not args.research_corpus.is_dir()):parser.error('research-corpus requires readonly cases and an existing corpus directory')
@@ -221,9 +261,16 @@ def main():
     from desk_companion.models import model_catalog
     from desk_companion.models import model_network
     from desk_companion.models import model_capacity
-    model=model_catalog.require_active() if args.live else dict(id='eval-fixture',model='eval-fixture',api_key='eval-fixture-only',base_url='')
+    if args.model_id and not args.live:parser.error('model-id requires --live')
+    model=(model_catalog.require_item(args.model_id)if args.model_id else model_catalog.require_active()) if args.live else dict(id='eval-fixture',model='eval-fixture',api_key='eval-fixture-only',base_url='')
+    if args.judge_model_id and not args.live:parser.error('judge-model-id requires --live')
+    judge_model=model_catalog.require_item(args.judge_model_id)if args.judge_model_id else model
     policy=model_network.load() if args.live else dict(mode='direct')
     capacity=model_capacity.load(model['id'])if args.live else{}
+    judge_capacity=model_capacity.load(judge_model['id'])if args.live else{}
+    if args.reuse_model_policy and(not args.live or args.output_limit_bindings):parser.error('reuse-model-policy requires live and cannot combine with an explicit binding file')
+    from desk_companion.evaluation.profile_snapshot import selected_policies,write_policies
+    policies=selected_policies([model,judge_model])if args.reuse_model_policy else None
     server=None
     if not args.live:
         server=ThreadingHTTPServer(('127.0.0.1',0),Fixture)
@@ -236,10 +283,11 @@ def main():
     profile=output/'private-profile';profile.mkdir()
     # This private profile contains a credential for the worker, never report it.
     CREDENTIAL_PATH=profile/'models.json'
-    CREDENTIAL_PATH.write_text(json.dumps(dict(active=model['id'],items=[model])),'utf-8')
+    CREDENTIAL_PATH.write_text(json.dumps(dict(active=model['id'],items=list({m['id']:m for m in (model,judge_model)}.values()))),'utf-8')
     NETWORK_PATH=profile/'model-network.json'
     NETWORK_PATH.write_text(json.dumps(policy),'utf-8')
-    (profile/'model-capacity.json').write_text(json.dumps({model['id']:capacity}if capacity else{}),'utf-8')
+    (profile/'model-capacity.json').write_text(json.dumps({m['id']:c for m,c in ((model,capacity),(judge_model,judge_capacity))if c}),'utf-8')
+    if policies:write_policies(profile,policies)
     if args.output_limit_bindings:
         import sqlite3
         from contextlib import closing
@@ -252,6 +300,9 @@ def main():
         from desk_companion.evaluation.agent_eval_research import prepare_corpus
         research_corpus=prepare_corpus(profile,args.research_corpus,live=args.live)
     os.environ['DESK_COMPANION_DATA_DIR']=str(profile)
+    if policies:
+        from desk_companion.infrastructure.state import load_state
+        private_state=load_state(0,0);private_state.model_prices=policies['prices'];private_state.save()
     for key in ('DESK_TERMINAL_PORT','DESK_TERMINAL_TOKEN'):os.environ.pop(key,None)
     report=dict(schema_version=1,contract_version=CONTRACT_VERSION,mode='live' if args.live else 'fixture',suite=args.suite,planned_cases=[s['id']for s in selected],model=model['model'],cases=[],attempts=1,
                 samples_per_case=args.samples,sampling_plan='independent; no retry or success selection',
@@ -264,8 +315,10 @@ def main():
     report['source_dirty']=bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],cwd=ROOT,text=True).strip())
     from desk_companion.tasks.task_budgets import VERSION as budget_policy_version
     report['root_budget_policy_version']=budget_policy_version
+    report['tool_loading']=args.tool_loading
     if research_corpus:report['research_corpus']=research_corpus
-    report['verified_output_binding_snapshot']=bool(args.output_limit_bindings)
+    report['verified_output_binding_snapshot']=bool(args.output_limit_bindings or policies and policies['bindings'])
+    report['selected_model_policy_snapshot']=bool(policies)
     report['capacity_snapshot']=dict(window=capacity.get('window'),output_reserve=capacity.get('output_reserve'),
         tokenizer_bound=bool(capacity.get('tokenizer_dir')),tokenizer_signature=capacity.get('tokenizer_signature'))
     import hashlib
@@ -346,6 +399,11 @@ def main():
                     row['task_ids']=task_ids;task_id=task_ids[0]if task_ids else''
                     expired=verification.get('deadline_exceeded',False)
                     row['project_case']=verification
+                elif spec.get('executor')=='pi_tools':
+                    from desk_companion.evaluation.agent_eval_pi_tools import execute
+                    def progress(value):row.update(value);save()
+                    task,verification,task_ids,calls,expired=execute(spec,profile=profile,model_id=model['id'],timeout=args.timeout,progress=progress)
+                    row['task_ids']=task_ids;task_id=task_ids[0]if task_ids else''
                 elif spec.get('executor')=='authoring':
                     from desk_companion.evaluation.agent_eval_authoring import execute
                     def progress(value):row.update(value);save()
@@ -379,17 +437,24 @@ def main():
                 else:
                     task_id=manager.submit(context['prompt'],'eval-'+run_id,'collaboration',workflow='collaboration',kind=spec.get('kind','chat'),role=dict(id='research',name='验收助手',role='按实际输入完成可验证任务',tools=spec.get('tools',[])),selection=context['selection'],context=context.get('history',[]),members=[],model_id=model['id'],collab_run=run_id,collab_path=str(workspace),budget=spec.get('budget',2),search_budget=spec.get('search_budget',0),fetch_budget=spec.get('fetch_budget',0),task_limits=dict(call_timeout=min(args.timeout,90),task_timeout=args.timeout),sampling=dict(reasoning_effort='low',temperature=0.1,top_p=1),**context.get('request_extra',{}))
                 row['task_id']=task_id;save()
-                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:row['task_ids']=[task_id]
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring','pi_tools'}:row['task_ids']=[task_id]
                 row['stage']='wait'
-                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:task,expired=wait_task(manager,task_id,started+args.timeout)
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring','pi_tools'}:task,expired=wait_task(manager,task_id,started+args.timeout)
                 row['deadline_exceeded']=expired
                 if spec['category']=='workflow':
                     observed=service.operation('get',dict(run_id=run['id']))['run']
                     row['node_states']={k:v['state'] for k,v in observed['receipts'].items()}
                     task={**task,'answer':observed['receipts'].get('ai',{}).get('output',{}).get('text','')}
-                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring'}:verification=verify(spec,task,context)
+                if not lifecycle and not project and spec.get('executor')not in{'memory','authoring','pi_tools'}:verification=verify(spec,task,context)
                 row['stage']='verify'
                 outcome,evidence=evaluate(spec,task,verification=verification)
+                if spec.get('rubric')and task['state']=='succeeded'and not expired:
+                    from desk_companion.evaluation.reference_judge import assess
+                    judge=assess(spec,task.get('answer',''),judge_model,timeout=min(args.timeout,60),
+                        should_cancel=lambda:time.monotonic()-started>=args.timeout or bool(os.environ.get('TEBB_EVAL_CANCEL_FILE')and Path(os.environ['TEBB_EVAL_CANCEL_FILE']).exists()))
+                    row.update(judge=judge,goal_checks=judge['goal_checks'],judge_task_ids=[judge['task_id']])
+                    states=[c['status']for c in judge['goal_checks']]
+                    outcome='false_success'if 'fail'in states else'success'if states and all(s=='pass'for s in states)else'incomplete'
                 if expired:outcome='timed_out'
                 row.update(outcome=outcome,evidence=evidence,answer=task.get('answer','').replace(model['api_key'],'[redacted]'),termination=task['state'],error=task.get('error','').replace(model['api_key'],'[redacted]'))
                 row['task_budget']=task.get('task_budget')or(verification or{}).get('task_budget')
@@ -398,6 +463,7 @@ def main():
                     if spec.get('executor')=='local_calendar':
                         row.update(calendar_before_sha256=verification.get('before_sha256'),calendar_after_sha256=verification.get('after_sha256'))
                 if calls is None:calls=listing(task_id=task_id)['items']
+                for ident in row.get('judge_task_ids',[]):calls.extend(listing(task_id=ident)['items'])
                 row['call_ids']=[v['id'] for v in calls]
                 row['calls']=[call_evidence(v) for v in calls]
                 usages=[detail(v['id'])['response'].get('usage') for v in calls]
@@ -432,9 +498,12 @@ def main():
             if ids:row['task_budget']=task_view(ids[0])
         complete=all(row.get('call_evidence_complete',False) for row in report['cases'] if row.get('task_id'))
         observed=[call for row in report['cases'] for call in row.get('calls',[]) if call.get('pid') and call.get('created')]
-        alive=[call['id'] for call in observed if worker_alive(call)]
+        # A bounded reviewer runs in this harness process. Its own PID is still
+        # alive until this function returns; it is not an orphan task worker.
+        alive=[call['id'] for call in observed if call['pid']!=os.getpid()and worker_alive(call)]
         report['cleanup']=dict(model_credential_removed=not CREDENTIAL_PATH.exists(),network_policy_removed=not NETWORK_PATH.exists(),
-                               observed_workers_exited=not alive if complete else None,call_evidence_complete=complete,still_alive_call_ids=alive)
+                               observed_workers_exited=not alive if complete else None,call_evidence_complete=complete,still_alive_call_ids=alive,
+                               in_process_call_ids=[call['id']for call in observed if call['pid']==os.getpid()])
         save()
         if previous is None:os.environ.pop('DESK_COMPANION_DATA_DIR',None)
         else:os.environ['DESK_COMPANION_DATA_DIR']=previous

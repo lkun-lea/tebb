@@ -423,8 +423,8 @@ def current():return _SCOPE.get()
 def current_phase():return _PHASE.get()
 
 
-def task_view(task):
-    ledger=Ledger();member=ledger.member(task)
+def task_view(task,*,ledger=None):
+    ledger=ledger or Ledger();member=ledger.member(task)
     return ledger.view(member['id'])if member else None
 
 

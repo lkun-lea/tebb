@@ -1,6 +1,7 @@
 // Official Pi owns the loop. Python owns model admission, tool authorization and receipts.
 import { Agent } from '@earendil-works/pi-agent-core';
 import { stream } from '@earendil-works/pi-ai/api/openai-completions';
+import { replayToolHistory } from './tool_history.mjs';
 
 const emptyUsage = { input:0, output:0, cacheRead:0, cacheWrite:0, totalTokens:0,
   cost:{ input:0, output:0, cacheRead:0, cacheWrite:0, total:0 } };
@@ -25,20 +26,31 @@ function history(rows, model) {
 }
 
 export async function runProductAgent({ id, data, model, common, ask, emit, active, usage }) {
-  const tools=(data.tools || []).map(tool => ({ ...tool, label:tool.name,
+  let agent;
+  const catalog=(data.tools || []).map(tool => ({ ...tool, label:tool.name,
     execute:async (callId,args) => {
       if (active.abort.signal.aborted) throw new Error('cancelled');
       const receipt=await ask(id,'tool_call',{ name:tool.name, call_id:callId, arguments:args });
       if (!receipt.ok || active.abort.signal.aborted) throw new Error('Product tool gate stopped');
+      if (tool.name==='tebb_tools_load' && receipt.result?.ok===true) {
+        // Public SDK state setter; the SDK records tool changes before the next
+        // request. The product gate still checks that request's offered list.
+        const names=['tebb_tools_search','tebb_tools_load',...receipt.result.loaded];
+        agent.state.tools=names.map(name=>catalog.find(item=>item.name===name)).filter(Boolean);
+      }
       return { content:[{ type:'text', text:typeof receipt.result==='string' ? receipt.result : JSON.stringify(receipt.result) }],
         details:receipt.result };
     },
   }));
-  const messages=history(data.messages,model);
+  const initial=data.initial_tools || catalog.map(tool=>tool.name);
+  const tools=initial.map(name=>catalog.find(tool=>tool.name===name)).filter(Boolean);
+  let messages=history(data.messages,model);
   if (messages[0]?.role !== 'system') throw new Error('Missing product system message');
-  messages[0].toolsAdded=tools.map(({ name,description,parameters })=>({ name,description,parameters }));
-  const agent=new Agent({ initialState:{ model,messages,tools,thinkingLevel:data.thinking_level || 'low' },
+  messages=data.base_tools ? replayToolHistory(data.messages,messages,{catalog,versions:data.tool_versions||{},baseNames:data.base_tools}) : messages;
+  if(!data.base_tools)messages[0].toolsAdded=tools.map(({ name,description,parameters })=>({ name,description,parameters }));
+  agent=new Agent({ initialState:{ model,messages,tools,thinkingLevel:data.thinking_level || 'low' },
     toolExecution:'sequential', streamFn:(current,context,options)=>stream(current,context,{ ...options,...common }),
+    prepareNextTurnWithContext:({context})=>({context:{...context,tools:agent.state.tools}}),
   });
   active.agent=agent;
   agent.subscribe(async event => {
@@ -52,6 +64,8 @@ export async function runProductAgent({ id, data, model, common, ask, emit, acti
       const receipt=await ask(id,'model_end',{ message,provider_usage:usage.raw });
       if (!receipt.ok || active.abort.signal.aborted) throw new Error('Model settlement stopped');
     }
+    if(event.type==='message_end'&&event.message.role==='system'&&event.message.toolsAdded?.length)
+      emit(id,'tool_definitions',{position:agent.state.messages.length-1,names:event.message.toolsAdded.map(tool=>tool.name)});
     if (event.type==='tool_execution_end') emit(id,'tool_result',{ name:event.toolName,call_id:event.toolCallId,
       result:event.result,is_error:event.isError });
   });

@@ -22,14 +22,18 @@ def scope_metadata(scope):
         channel=(origin or{}).get('channel',None if kind in{'task','collab','workflow'}else'operation'),source={'collab':'collaboration'}.get(kind,kind),purpose=scope.member.get('purpose',''))
 
 
-def task_metadata():
+def task_metadata(profile=None,collaboration_paths=None):
     from desk_companion.tasks.manager import usage_metadata as tasks
     from desk_companion.collaboration.service import usage_metadata as collaboration
     from desk_companion.automation.workflows import usage_metadata as workflows
-    roots=[];attempts=[]
-    for path in [data_root()/'memory/tasks.sqlite3',data_root()/'memory/collaboration/work/tasks.sqlite3',data_root()/'memory/collaboration/chat/tasks.sqlite3']:
-        result=tasks(path);roots.extend(result['tasks']);attempts.extend(result['attempts'])
-    roots.extend(collaboration());roots.extend(workflows())
+    from pathlib import Path
+    from desk_companion.tasks.task_budgets import Ledger
+    directory=Path(profile)if profile is not None else data_root()
+    ledger=Ledger(directory/'memory/task_budgets.sqlite3');roots=[];attempts=[]
+    for relative in ('memory/tasks.sqlite3','memory/collaboration/work/tasks.sqlite3','memory/collaboration/chat/tasks.sqlite3'):
+        result=tasks(directory/relative,ledger);roots.extend(result['tasks']);attempts.extend(result['attempts'])
+    for path in collaboration_paths or [directory/'memory/collaboration/workspace.sqlite3']:roots.extend(collaboration(path))
+    roots.extend(workflows(directory/'memory/workflows.sqlite3'))
     owners={r['id']:r for r in roots}
     for attempt in attempts:
         origin=owners.get(attempt['root'])

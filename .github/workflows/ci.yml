@@ -46,7 +46,7 @@ jobs:
   python:
     name: Python / Atlas
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       PYTHONUTF8: '1'
     steps:
@@ -95,7 +95,12 @@ jobs:
       - name: Install pinned private Pi runtime (offline model fixtures only)
         run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: desk_companion/pi_runtime
+      - name: Install pinned local evaluation framework
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: desk_companion/evaluation/promptfoo
       - name: Versions and complete regression (one attempt)
+        # The evaluation framework is separate from the Agent runtime dependency graph.
+        # Models and external writes remain local fixtures in this job.
         shell: pwsh
         run: |
           $env:DESK_TEST_ATLAS_SOURCE = Join-Path $env:GITHUB_WORKSPACE '.ci-atlas'

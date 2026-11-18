@@ -30,6 +30,7 @@ def normalized_usage(usage):
     if cached is not None and inn is not None and cached > inn: cached = None
     if reasoning is not None and out is not None and reasoning > out: reasoning = None
     return dict(input_tokens=inn, output_tokens=out, cached_tokens=cached, reasoning_tokens=reasoning,
+                cache_write_tokens=tokens(usage.get('cache_creation_input_tokens')),
                 total_tokens=inn+out if inn is not None and out is not None else None,
                 usage_quality='invalid_details' if invalid else 'complete' if inn is not None and out is not None else 'partial' if inn is not None or out is not None else 'unknown')
 
@@ -71,7 +72,7 @@ class UsageStore:
     def begin(self, ident, kind, metadata, *, now=None):
         if kind not in {'model', 'tool'} or not isinstance(ident, str) or not ident:
             raise ValueError('无效用量身份。')
-        if set(metadata)-{'root','task','model_id','model','model_key','route','project_id','channel','source','tool','parent_call','price_snapshot','purpose'}:
+        if set(metadata)-{'root','task','model_id','model','model_key','route','project_id','channel','source','tool','parent_call','price_snapshot','purpose','session','agent','role','provider','phase','configuration_version','code_version','skills_selection_version'}:
             raise ValueError('用量记录只允许元数据。')
         now = time.time() if now is None else now
         if number(now) is None: raise ValueError('无效用量时间。')
@@ -88,10 +89,10 @@ class UsageStore:
         return True
 
     def update(self, ident, **changes):
-        allowed = {'state','ended','error_kind','finish_reason','usage','cost_cny','network_attempts','result_kind'}
+        allowed = {'state','ended','error_kind','finish_reason','usage','cost_cny','network_attempts','result_kind','debug_call','debug_calls','first_token_ms','first_text_ms','first_output_ms','prompt_version','tools_version','input_version','request_configuration_version'}
         if set(changes)-allowed: raise ValueError('不允许修改用量身份或归属。')
-        if 'state'in changes and changes['state']not in{'running','returned','failed','cancelled','unknown','rejected','cached','replayed'}:raise ValueError('用量状态无效。')
-        if 'usage'in changes and(not isinstance(changes['usage'],dict)or set(changes['usage'])-{'input_tokens','output_tokens','cached_tokens','reasoning_tokens','total_tokens','usage_quality'}):raise ValueError('用量只允许计数元数据。')
+        if 'state'in changes and changes['state']not in{'running','returned','failed','timed_out','cancelled','unknown','rejected','cached','replayed'}:raise ValueError('用量状态无效。')
+        if 'usage'in changes and(not isinstance(changes['usage'],dict)or set(changes['usage'])-{'input_tokens','output_tokens','cached_tokens','cache_write_tokens','reasoning_tokens','total_tokens','usage_quality'}):raise ValueError('用量只允许计数元数据。')
         with closing(self._db()) as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT data FROM records WHERE id=?', (ident,)).fetchone()
@@ -100,10 +101,17 @@ class UsageStore:
             db.execute('UPDATE records SET updated=?,data=? WHERE id=?', (value['updated'],json.dumps(value,ensure_ascii=False,allow_nan=False),ident))
             db.commit()
 
-    def rows(self, since=0, until=None):
+    def rows(self, since=0, until=None,*,root=None,task=None):
         until = time.time() if until is None else until
-        rows = read_rows(self.path, 'SELECT data FROM records WHERE started>=? AND started<? ORDER BY started DESC,id DESC', (since,until))
+        clauses=['started>=?','started<?'];values=[since,until]
+        for key,value in [('root',root),('task',task)]:
+            if value is not None:clauses.append(key+'=?');values.append(value)
+        rows = read_rows(self.path, 'SELECT data FROM records WHERE '+' AND '.join(clauses)+' ORDER BY started DESC,id DESC', values)
         return [json.loads(row['data']) for row in rows]
+
+    def get(self,ident):
+        rows=read_rows(self.path,'SELECT data FROM records WHERE id=?',(ident,))
+        return json.loads(rows[0]['data'])if rows else None
 
     def model_ids(self,owners):
         result=set();owners=list(owners)

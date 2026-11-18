@@ -6,6 +6,7 @@ import { TaskVideos } from "./video";
 import { TaskBudgetView,type TaskBudget } from './task-budget';
 import{CalendarProposalCards}from'./calendar-proposal';
 import{proposalsFromEvents}from'./calendar-proposal-state';
+import {ExecutionEntry} from './execution-entry';
 
 type Settings = { parallel: number; call_timeout: number; task_timeout: number; pet_progress: boolean };
 type Event = { seq: number; kind: string; ts: number; data: string | { tool?: string; status?: string; duration_ms?: number; message?: string } };
@@ -97,6 +98,7 @@ export function AgentMonitor({ info, debug = false }: { info: BackendInfo | null
       {detail && <div className="min-w-0 space-y-4">
         <div className="flex items-center justify-between"><span>{STATES[detail.state]} · {detail.elapsed} 秒</span>
           <button className="rounded bg-red-400/10 px-3 py-2 text-sm" disabled={busy || !active(detail)} onClick={() => void run("cancel_agent_task", { task_id: detail.id })}>停止任务</button></div>
+        <ExecutionEntry info={info} task={detail.id}/>
         {detail.error && <p role="alert" className="rounded bg-red-400/10 p-3 text-sm">{detail.error}</p>}
         <TaskBudgetView budget={detail.task_budget}/>
         <div className="rounded-lg bg-white/5 p-4"><p className="mb-2 text-xs text-white/40">当前答案{active(detail) ? " · 正在更新" : ""}</p><Markdown text={detail.answer || "尚未生成正文。"} /></div>

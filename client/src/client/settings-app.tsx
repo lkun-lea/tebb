@@ -26,13 +26,16 @@ import { FeishuAgentPane } from "./feishu-agent";
 import { VideoLogin, VideoSettings } from "./video";
 import { StatusGrid, loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusView } from "./status";
 import { AgentDebugDialog } from "./agent-debug";
+import { ExecutionCenterPane } from './execution-trace';
+import { ToolMonitorPane } from './tool-monitor';
+import { EvaluationPane } from './evaluation-center';
 import { readDeveloperMode } from "./companion-ui";
 import { WindowCloseButton } from "./window-chrome";
 import "./settings-window.css";
 
 const PersonalizationPane = lazy(() => import("./personalization").then(module => ({ default: module.PersonalizationPane })));
 
-type SettingsSection = "assistant" | "account" | "personalization" | "connections" | "appearance" | "usage" | "about";
+type SettingsSection = "assistant" | "account" | "personalization" | "connections" | "appearance" | "usage" | "tools" | "evaluation" | "about";
 
 type NavItem = { id: SettingsSection; label: string; keywords: string };
 
@@ -48,6 +51,8 @@ const SETTINGS_NAV: { id: string; label: string; items: NavItem[] }[] = [
     id: "data", label: "连接与数据", items: [
       { id: "connections", label: "连接与网络", keywords: "飞书 github 网络代理 搜索 视频 登录 连接" },
       { id: "usage", label: "个人使用", keywords: "用量 费用 统计 token 成本" },
+      { id: "tools", label: "工具", keywords: "工具 集合 加载 调用 失败 监控" },
+      { id: "evaluation", label: "Agent 调试与评测", keywords: "执行图 流程 时间线 评测 黄金集 调试 agent" },
     ],
   },
   {
@@ -66,10 +71,12 @@ const SECTION_META: Record<SettingsSection, { title: string; blurb: string }> = 
   connections: { title: "连接与网络", blurb: "管理飞书、GitHub、搜索与视频来源的连接。" },
   appearance: { title: "界面外观", blurb: "调整主题与工作台背景。" },
   usage: { title: "个人使用", blurb: "查看调用次数、费用估算与明细。" },
+  tools: {title:'工具',blurb:'查看固定工具定义、加载记录、调用与失败。'},
+  evaluation: {title:'Agent 调试与评测',blurb:'追踪真实执行过程，按原始证据核对任务结果。'},
   about: { title: "版本与诊断", blurb: "查看版本信息、检查更新与调用调试。" },
 };
 
-const SECTIONS: SettingsSection[] = ["assistant", "account", "personalization", "connections", "appearance", "usage", "about"];
+const SECTIONS: SettingsSection[] = ["assistant", "account", "personalization", "connections", "appearance", "usage", "tools", "evaluation", "about"];
 
 function initialSection(): SettingsSection {
   const value = new URLSearchParams(window.location.search).get("section");
@@ -330,6 +337,8 @@ export function SettingsApp() {
 
           {section === "assistant" ? <ReminderSettings info={info} debug={debug} /> : null}
           {section === "account" ? <AccountsPane info={info} debug={debug} /> : null}
+          {section === 'tools' ? <ToolMonitorPane info={info}/> : null}
+          {section === 'evaluation' ? <><ExecutionCenterPane info={info} onInspectCalls={()=>setAgentDebugOpen(true)}/><EvaluationPane info={info}/></> : null}
           {section === "personalization" ? (
             <Suspense fallback={<p role="status">正在打开个人画像…</p>}>
               <PersonalizationPane info={info} debug={debug} target={profileTarget} onInspect={() => setAgentDebugOpen(true)} />

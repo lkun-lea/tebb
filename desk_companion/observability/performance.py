@@ -59,10 +59,10 @@ def summarize(samples):
                 note='最近已结束请求耗时含失败和超时；首段文字仅统计成功且有测量的请求。P99至少需要100个对应样本，P95至少20个。')
 
 
-def task_snapshot(task_id):
+def task_snapshot(task_id,*,profile=None):
     if not isinstance(task_id,str) or not re.fullmatch('[a-f0-9]{32}',task_id): return None
     for relative in ('memory/tasks.sqlite3','memory/collaboration/chat/tasks.sqlite3','memory/collaboration/work/tasks.sqlite3'):
-        path=data_root()/relative
+        path=(profile if profile is not None else data_root())/relative
         if not path.is_file(): continue
         with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=3)) as db:
             db.row_factory=sqlite3.Row

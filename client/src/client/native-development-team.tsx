@@ -4,6 +4,7 @@ import {CollaborationSync,loadCollaboration} from "./collaboration-sync";
 import type {DemoState} from "./chat-prototype-state";
 import {usePageActive} from "./page-stack";
 import {DevelopmentFlow} from "./development-flow";
+import {ExecutionEntry} from './execution-entry';
 import {FlowCanvas} from "./flow-canvas";
 
 export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|null;onOpen?:(id:string)=>Promise<void>;onSetup?:()=>void}) {
@@ -79,8 +80,8 @@ export function NativeDevelopmentTeam({info,onOpen,onSetup}:{info:BackendInfo|nu
     {roots.map(r=><option key={r.id} value={r.id}>{r.title} · {r.id.slice(0,8)}</option>)}</select></label>}
    {notice&&<p role="status">{notice}</p>}
   </div>
-  {root?<DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
-   onOpen={onOpen?()=>void onOpen(group!.id).catch(e=>setNotice(String(e))):undefined}/>:
+  {root?<><DevelopmentFlow key={root.id} root={root} runs={runs} agents={agents} busy={busy} onStop={()=>void stop()}
+   onOpen={onOpen?()=>void onOpen(group!.id).catch(e=>setNotice(String(e))):undefined}/><ExecutionEntry info={info} root={'collab:'+root.id}/></>:
    <section aria-label="开发流程概览"><small>填写需求并点击“开始开发”，下方卡片将显示真实阶段变化。</small>
     <FlowCanvas nodes={["需求与分工","实现与自测","独立验收","交付"].map((title,i)=>({id:String(i),title,state:"unseen",summary:"尚未开始"}))}/></section>}
  </div>;

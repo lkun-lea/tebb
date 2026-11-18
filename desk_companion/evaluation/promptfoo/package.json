@@ -1,0 +1,7 @@
+{
+  "name": "tebb-evaluation-adapter",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "24.22.3" },
+  "dependencies": { "promptfoo": "0.125.1" }
+}

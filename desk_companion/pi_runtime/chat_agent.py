@@ -1,5 +1,6 @@
 """Product compatibility facade; the official Pi Agent Core owns the tool loop."""
 import json
+import os
 import time
 import uuid
 from types import SimpleNamespace
@@ -32,7 +33,10 @@ class PiAgentLimit(RuntimeError):
 class PiChatAgent:
     pi_runtime=True
 
-    def __init__(self, *, llm, tools, system_prompt, journal=None, max_steps=10, compact_threshold=None):
+    def __init__(self, *, llm, tools, system_prompt, journal=None, max_steps=10, compact_threshold=None, tool_loading=None):
+        tool_loading=tool_loading or os.environ.get('TEBB_TOOL_LOADING','demand')
+        if tool_loading not in {'demand','eager'}:raise ValueError('工具加载策略无效。')
+        self.tool_loading=tool_loading
         self.llm,self.tools=llm,tools
         self.memory=Memory(system_prompt=system_prompt,compact_threshold=compact_threshold)
         self.plugin_manager=PluginManager()
@@ -136,13 +140,42 @@ class PiChatAgent:
             result=data['result']
             text='\n'.join(b.get('text','')for b in result.get('content',[])if b.get('type')=='text')
             self.memory.add_tool(text,data['call_id'])
+            if data.get('is_error'):
+                from desk_companion.observability.tool_monitor import ToolRequest
+                with ToolRequest(data['name'],ident=f'{self.run_id}:{self.turn}:{data["call_id"]}') as request:
+                    request.reject('sdk_validation')
+        elif kind=='tool_definitions':
+            from desk_companion.observability.usage_observer import _safe
+            for name in data['names']:
+                _safe(self.loading.store.event,'definition_effective',tool=name,**self.loading.owner,
+                    definition_version=self.loading.catalog.get(name,{}).get('version'),position=data['position'],effective_turn=self.turn+1,state='effective',protocol='pi_public_tool_declaration')
         if self.llm.on_progress and kind in {'text_delta','thinking_delta','provider_frame'}:self.llm.on_progress()
 
     def _tool(self, name, arguments, call_id):
+        from desk_companion.observability.tool_monitor import ToolRequest
+        metadata={**self.loading.owner,'model':self.llm.model,'definition_version':self.loading.catalog.get(name,{}).get('version')}
+        with ToolRequest(name,ident=f'{self.run_id}:{self.turn}:{call_id}',metadata=metadata) as request:
+            return self._admitted_tool(name,arguments,call_id,request)
+
+    def _admitted_tool(self, name, arguments, call_id, request):
         if self._cancelled():raise ChatCancelledError(dict(message={},usage=None,duration_ms=0))
         if (self.turn,call_id) in self.completed:raise RuntimeError('本轮工具调用编号重复，未重复执行。')
+        if name not in self.allowed_tools:
+            request.reject('not_allowed')
+            raise ValueError('该工具不在本轮模型请求的授权清单中。')
+        from desk_companion.pi_runtime.tool_loading import SEARCH,LOAD
+        if name in {SEARCH,LOAD}:
+            from desk_companion.tasks.task_budgets import current
+            if current():current().tool(True,name)
+            before=set(self.loading.loaded)
+            result=self.loading.execute(name,arguments,request.id)
+            if current() and name==LOAD:
+                for loaded in self.loading.loaded:
+                    if loaded not in before:current().progress('tool_definition',loaded,self.loading.catalog[loaded]['version'])
+            self.completed.add((self.turn,call_id))
+            self.memory.add_tool(json.dumps(result,ensure_ascii=False),call_id)
+            return result
         tool=self.tools.get(name)
-        if name not in self.allowed_tools:raise ValueError('该工具不在本轮模型请求的授权清单中。')
         tool.validate_input(arguments)
         from desk_companion.tasks.task_budgets import current
         scope=current()
@@ -153,6 +186,8 @@ class PiChatAgent:
         try:result=self.tools.execute(name,arguments)
         except Exception as exc:
             status='failed';result=dict(ok=False,error='工具执行未完成（'+type(exc).__name__+'），请核对原操作回执。')
+        from desk_companion.observability.tool_monitor import tool_result_state
+        if tool_result_state(result)in{'failed','unknown','timed_out','cancelled','rejected'}:status='failed'
         self.completed.add((self.turn,call_id))
         text=result if isinstance(result,str)else json.dumps(result,ensure_ascii=False)
         self.memory.add_tool(text,call_id)
@@ -173,9 +208,21 @@ class PiChatAgent:
         client=self.llm.client
         item=dict(id=self.llm.context_model_id,model=self.llm.model,api_key=client.api_key,base_url=str(client.base_url))
         payload=payload_for(item,sampling)
+        from desk_companion.pi_runtime.tool_loading import ToolLoading
+        from desk_companion.observability.usage_observer import _metadata
+        from desk_companion.observability.agent_debug import metadata
+        owner=_metadata()
+        self.loading=ToolLoading(self.tools.to_openai_tools(),session=metadata().get('session') or self.run_id,
+            root=owner.get('root',''),task=owner.get('task',''))
+        if self.tool_loading=='eager' and self.loading.catalog:
+            names=list(self.loading.catalog)
+            for offset in range(0,len(names),20):self.loading.execute('tebb_tools_load',dict(names=names[offset:offset+20]),'eager_baseline')
         payload.update(product_gate=True,messages=self.memory.messages,
-            tools=[spec['function']for spec in self.tools.to_openai_tools()],
+            tools=self.loading.specs(all_tools=True),initial_tools=[t['name']for t in self.loading.specs()],
             thinking_level=sampling.get('reasoning_effort','low'),call_timeout_ms=round((client.timeout.read or 90)*1000))
+        from desk_companion.pi_runtime.tool_loading import BASIC,SEARCH,LOAD
+        payload.update(base_tools=[t['name']for t in self.loading.specs()]if self.tool_loading=='eager'else[SEARCH,LOAD]+[n for n in self.loading.catalog if n in BASIC],
+            tool_versions={n:d['version']for n,d in self.loading.catalog.items()})
         error=None
         self.running=True
         try:

@@ -32,10 +32,14 @@ def main():
     from desk_companion.tasks import task_budgets
     with contextlib.redirect_stdout(sys.stderr),task_budgets.installed(request['task_id'],emit):
         emit('worker_phase', {'stage': 'request_received'})
+        from desk_companion.observability.tool_monitor import fingerprint as definition_fingerprint
+        configuration_version=definition_fingerprint({key:request.get(key)for key in('role','model_id','sampling','selection','workspace','limits')})
         from desk_companion.observability.agent_debug import install
         install({"task_id": request.get("task_id", ""), "session": request["session_id"], "channel": request.get("channel", "desktop"),
                  'model_id':request.get('model_id',''),'collab_run':request.get('collab_run',''),
-                 'conversation':request.get('conversation',''),'phase':request.get('kind',''),'origin_call':request.get('original_call','')})
+                 'conversation':request.get('conversation',''),'phase':request.get('kind')or request.get('workflow',''),'origin_call':request.get('original_call',''),
+                 'agent':(request.get('role')or{}).get('id','tebb'),'role':(request.get('role')or{}).get('id','tebb'),
+                 'configuration_version':configuration_version,'skills_selection_version':definition_fingerprint((request.get('selection')or{}).get('skills',[]))})
         if request.get('workflow') == 'notebook_qa':
             from desk_companion.tasks.notebook_worker import execute
             execute(request, emit)
@@ -160,15 +164,21 @@ def main():
             def execute(name, arguments):
                 args = json.loads(arguments) if isinstance(arguments, str) else arguments
                 if fingerprint(name, args) in request.get("completed_writes", []):
+                    from desk_companion.observability.tool_monitor import intercept_current
+                    intercept_current('unknown_operation')
                     return "该写入在前次任务中已经尝试过，本次不再重复执行；请查询确认原结果，再下达新的操作。"
                 tool = host.agent.tools.get(name)
                 from desk_companion.collaboration.feedback import pending_operations
                 pending=[op for op in pending_operations(actual_receipts)if op['write_attempted']]
                 if not tool.isReadOnly and pending:
+                    from desk_companion.observability.tool_monitor import intercept_current
+                    intercept_current('unknown_operation')
                     emit('unknown_operation_blocked',dict(tool=name,operation_ids=[op['operation_id']for op in pending]))
                     return '原写入/执行结果仍未知，本次操作未执行。按原编号只读核对，不重复创建或发送。'
                 try:task_budgets.current().tool(tool.isReadOnly,name)
                 except task_budgets.BudgetExceeded as exc:
+                    from desk_companion.observability.tool_monitor import intercept_current
+                    intercept_current('budget_denied')
                     return dict(ok=False,error=exc.public_message,budget_denied=True,operation=dict(state='not_started'))
                 if tool.isReadOnly:
                     output = invoke_tool(name,original,name,arguments)

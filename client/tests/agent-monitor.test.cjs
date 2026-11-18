@@ -24,7 +24,8 @@ test('monitor stops only selected task, continues same conversation and sends on
     if (method === 'cancel_agent_task') return { ok: true, task: { ...task, state: 'cancelled' } };
     return { ok: true };
   };
-  const original = mod.require.bind(mod);
+  const baseRequire = mod.require.bind(mod);
+  const original = id => id === './execution-entry' ? {ExecutionEntry:()=>null} : baseRequire(id);
   mod.require = id => id === './calendar-proposal' ? {CalendarProposalCards:()=>null} : id === './calendar-proposal-state' ? require('./load-client.cjs')('calendar-proposal-state.ts') : id === './task-budget' ? require('./component-fixture.cjs').loader({})('task-budget') : id === './page-stack' ? { usePageActive: () => true } : id === './api' ? { rpc } : id === './video' ? { TaskVideos: () => null, VideoSettings: () => null } : id === './Markdown' ? {
     Markdown: ({ text }) => React.createElement('p', null, text) } : original(id);
   mod._compile(compiled, filename);
