@@ -26,19 +26,28 @@ cd tebb
 uv sync --locked
 git clone https://github.com/lkun-lea/tebb-skills.git ../tebb-skills
 uv run --locked python scripts/prepare_skills.py --source ../tebb-skills
-$piNodeRoot = 'E:/tools/node-v24.22.3-win-x64'
-$env:TEBB_PI_NODE = "$piNodeRoot/node.exe"
+cd client
+pnpm install --frozen-lockfile
+# 首次准备项目私有 Node；--help 不启动 Vite、Rust 或模型调用。
+pnpm tauri dev --help
+cd ..
+$piNodeRoot = (Resolve-Path .runtime/node-v24.22.3-win-x64).Path
 Push-Location desk_companion/pi_runtime
 & "$piNodeRoot/node.exe" "$piNodeRoot/node_modules/npm/bin/npm-cli.js" ci --ignore-scripts --no-audit --no-fund
 Pop-Location
 cd client
-pnpm install
 pnpm tauri dev
 ```
 
 目录职责与新增模块归属见 [Python 包结构](PYTHON_PACKAGES.md)。
 
-本机 HTTP/SSE、任务游标和固定 Pi 私有进程桥的职责、复现命令及验收边界见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。普通聊天已接入 Pi，源码运行需要固定 Node 24.22.3（下载摘要见[兼容基线](PI_COMPATIBILITY_293.md)）和包内锁文件；缺少运行时明确失败。普通聊天及其余入口的迁移边界见[聊天验收](CHAT_PI_293.md)。
+`pnpm tauri dev` 在启动 Tauri 前自动选择固定 Node 24.22.3：显式 `TEBB_PI_NODE` → 仓库 `.runtime/node-v24.22.3-win-x64/node.exe` → 当前 Node / PATH 中的精确版本。都缺失时，Windows x64 从 Node 官方地址下载 ZIP，按[兼容基线](PI_COMPATIBILITY_293.md)的固定 SHA-256 校验后解压、检查可执行版本，并原子发布至项目缓存。首次下载需要网络；后续直接复用缓存。显式配置或已有缓存版本错误时明确失败，不静默换用其他运行时；损坏缓存应移至仓库外备份后重新准备。非 Windows x64 需自行提供精确版本。
+
+选择只影响本次 Tauri 及其子进程的 `TEBB_PI_NODE` 和 PATH，不改变全局 Node、终端环境或用户数据；因此系统 Node 20 仍可启动开发命令。`pnpm tauri build` 等其他命令仍使用官方 CLI 原流程，此项不代表发布包已打包 Node。上面的初始化示例按默认 Windows x64 缓存路径安装 Pi；若显式提供或系统已安装固定 Node，则将 `$piNodeRoot` 改为启动日志中的 Node 所在目录。Pi 和评测框架的 npm 依赖仍按各自锁文件显式安装，不在启动时隐式更新。
+
+AI 可在 `client/` 执行 `node --test tests/node-runtime.test.cjs` 验证选择优先级、错误版本、下载校验、环境传递及 CLI 参数与退出状态；`pnpm tauri dev --help` 可离线复核已有缓存与 CLI，不访问模型。实机验收从清除 `TEBB_PI_NODE` 的终端执行 `pnpm tauri dev`，核对 `[tebb] Pi Node ...`、原生主窗口、新设置页及后端继承路径。缓存目录已忽略，不入 Git。首次准备失败时保留下载/校验错误、删除仅本次临时目录；修复网络或显式配置后重试。
+
+本机 HTTP/SSE、任务游标和固定 Pi 私有进程桥的职责、复现命令及验收边界见 [#293 进程桥](HTTP_SSE_BRIDGE_293.md)。普通聊天已接入 Pi，源码运行需要固定 Node 24.22.3 和包内锁文件。普通聊天及其余入口的迁移边界见[聊天验收](CHAT_PI_293.md)。
 
 ## Python 环境与依赖
 

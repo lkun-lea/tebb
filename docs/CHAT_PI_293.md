@@ -20,7 +20,7 @@ SDK 每次准备模型请求时通过私有进程桥回到 `ExecutionLLM.admitte
 
 ## 可复用验收
 
-源码需要 Node **24.22.3**、Pi 三个包 **1.5.2** 和 undici **8.12.4**。固定依赖与下载摘要见 [兼容基线](PI_COMPATIBILITY_293.md)。未发布新安装包。
+源码需要 Node **24.22.3**、Pi 三个包 **1.5.2** 和 undici **8.12.4**。`pnpm tauri dev` 已自动选择或准备固定 Node，日常启动无需设置环境变量；首次依赖准备与选择优先级见[开发指南](DEVELOPMENT.md)。以下是单独执行 Python 验收时的显式配置示例。固定依赖与下载摘要见 [兼容基线](PI_COMPATIBILITY_293.md)。未发布新安装包。
 
 ```powershell
 $piNodeRoot = 'E:/tools/node-v24.22.3-win-x64'
