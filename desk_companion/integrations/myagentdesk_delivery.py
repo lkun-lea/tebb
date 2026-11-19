@@ -1,5 +1,6 @@
 """Account-scoped device pairing, explicit local approval and durable receipt replay."""
 from base64 import b64decode, b64encode
+from hashlib import sha256
 from pathlib import Path
 from secrets import token_hex
 from shlex import join
@@ -12,11 +13,13 @@ import re
 
 from desk_companion.accounts.account_store import WindowsAccountCipher
 from desk_companion.infrastructure.resource_lock import ResourceLock
+from desk_companion.integrations.myagentdesk_coding import allowed_paths, implement, restore_patch
 from desk_companion.integrations.myagentdesk_snapshot import prepare
 from desk_companion.projects.project_workspace import clean_root
 
 
 ACTIVE = {'starting', 'running', 'stopping'}
+CHUNK_BYTES = 32768
 
 
 def write_bytes(path, data):
@@ -94,7 +97,8 @@ def result_evidence(terminal, job, key, environment):
 
 
 class DesktopDelivery:
-    def __init__(self, folder, terminal, workspace, *, cipher=None, transport=remote, snapshot=prepare):
+    def __init__(self, folder, terminal, workspace, *, cipher=None, transport=remote, snapshot=prepare, coder=implement,
+                 chunk_bytes=CHUNK_BYTES):
         self.folder = Path(folder)
         self.device_file = self.folder / 'pairing.dpapi'
         self.lock = ResourceLock('myagentdesk-delivery', directory=self.folder)
@@ -103,6 +107,8 @@ class DesktopDelivery:
         self.workspace = workspace
         self.request = transport
         self.snapshot = snapshot
+        self.coder = coder
+        self.chunk_bytes = chunk_bytes
         self.queue = []
         self.connection_status = 'offline'
 
@@ -138,7 +144,7 @@ class DesktopDelivery:
             self.queue = []
             self.connection_status = 'pairing'
 
-    def approve(self, identifier, directory, recipe):
+    def approve(self, identifier, directory, recipe, sources=''):
         identifier = str(UUID(identifier))
         with self.lock:
             connection = self.connection()
@@ -150,7 +156,8 @@ class DesktopDelivery:
             if request is None:
                 raise ValueError('当前派发不可领取，请刷新任务。')
             root = str(clean_root(directory))
-            self.save({'request': request, 'device': connection['id'], 'directory': root,
+            paths = allowed_paths(sources) if request['input'].get('automatic') else []
+            self.save({'request': request, 'device': connection['id'], 'directory': root, 'paths': paths,
                        'commands': commands_for(request, recipe), 'phase': 'authorized', 'checks': []})
 
     def status(self):
@@ -163,6 +170,7 @@ class DesktopDelivery:
                 'queue': [item for item in self.queue if item['id'] not in known],
                 'runs': [{**{key: row['request'][key] for key in ('id', 'title', 'stage', 'input', 'source')},
                           'phase': row['phase'], 'receipt_status': row.get('receipt', {}).get('status'),
+                          'coding_run': row.get('coding_run'), 'upload': row.get('upload'),
                           'runs': [item['run'] for item in row['checks']] + ([row['job']] if row.get('job') else []),
                           'error': row.get('error', '')} for row in jobs]}
 
@@ -172,6 +180,10 @@ class DesktopDelivery:
         row['receipt'] = {'device': row['device'], 'commit': frozen['commit'], 'status': outcome,
                           'digest': row.get('digest'), 'artifact': row.get('artifact') if share else None,
                           'checks': row['checks']}
+        if row.get('coding'):
+            row['receipt']['coding'] = row['coding']
+        if share:
+            row['chunk_bytes'] = self.chunk_bytes
         row['phase'] = 'outbox'
         row.pop('artifact', None)
         row.pop('job', None)
@@ -211,9 +223,16 @@ class DesktopDelivery:
         phase = row['phase']
         if phase == 'intent':
             self.reconcile(row)
+        elif phase == 'coding_intent':
+            self.task_receipt(row, 'needs_review')
         elif phase == 'outbox':
-            response = self.request(connection, 'PUT', path + '/receipt', row['receipt'])
+            receipt = dict(row['receipt'])
+            artifact = receipt.pop('artifact', None)
+            if artifact:
+                self.upload(connection, path, row, b64decode(artifact, validate=True))
+            response = self.request(connection, 'PUT', path + '/receipt', receipt)
             row.update(phase='uploaded', receipt_status=response['status'], error='')
+            row['receipt'].pop('artifact', None)
             self.save(row)
         elif phase in {'authorized', 'claimed', 'ready'}:
             if phase == 'authorized':
@@ -233,7 +252,19 @@ class DesktopDelivery:
                     self.save(row)
                     return
                 row['session'] = 'mad-desktop-' + UUID(identifier).hex
-                patch, digest = self.snapshot(clean_root(row['directory']), row['request']['input'], self.workspace(row['session']))
+                frozen = row['request']['input']
+                folder = self.workspace(row['session'])
+                directory = clean_root(row['directory'])
+                if frozen.get('automatic'):
+                    run = str(uuid5(UUID(identifier), 'tebb-coding'))
+                    row.update(phase='coding_intent', coding_run=run)
+                    self.save(row)
+                    patch, digest, row['coding'] = self.coder(directory, frozen, folder, row['paths'], run)
+                elif frozen.get('patch_only'):
+                    response = self.request(connection, 'GET', path + '/candidate?device=' + row['device'])
+                    patch, digest = restore_patch(directory, frozen, folder, b64decode(response['patch'], validate=True))
+                else:
+                    patch, digest = self.snapshot(directory, frozen, folder)
                 row.update(phase='ready', digest=digest, artifact=b64encode(patch).decode(),
                            environment=f"{sandbox['provider']} / {sandbox['distro']}", error='')
                 self.save(row)
@@ -248,6 +279,22 @@ class DesktopDelivery:
                 row.update(phase='intent', intent=uuid5(UUID(identifier), command['key']).hex)
                 self.save(row)
                 self.terminal.start(command['command'], row['session'], timeout=90, request_id=row['intent'])
+
+    def upload(self, connection, path, row, payload):
+        size = row.get('chunk_bytes', self.chunk_bytes)
+        pieces = [payload[offset:offset + size] for offset in range(0, len(payload), size)]
+        manifest = {'device': row['device'], 'digest': row['receipt']['digest'], 'size': len(payload), 'chunk_bytes': size,
+                    'chunks': [sha256(piece).hexdigest() for piece in pieces]}
+        progress = self.request(connection, 'PUT', path + '/upload', manifest)
+        row['upload'] = {'received': progress['received'], 'total': progress['total']}
+        self.save(row)
+        for index in progress['missing']:
+            if type(index) is not int or not 0 <= index < len(pieces):
+                raise ValueError('工作台返回的分片位置无效。')
+            self.request(connection, 'PUT', path + '/upload/' + str(index),
+                         {'device': row['device'], 'data': b64encode(pieces[index]).decode()})
+            row['upload']['received'] += 1
+            self.save(row)
 
     def sync_once(self):
         if not self.device_file.is_file():
@@ -281,7 +328,7 @@ class DesktopDelivery:
             for row in self.rows():
                 if row['device'] != connection['id'] or row['phase'] in {'uploaded', 'blocked'}:
                     continue
-                if self.connection_status != 'online' and row['phase'] != 'intent':
+                if self.connection_status != 'online' and row['phase'] not in {'intent', 'coding_intent'}:
                     continue
                 try:
                     self._advance(connection, row, eligible)
@@ -297,11 +344,11 @@ class DesktopDelivery:
                     row['error'] = '需核对本机仓库、命令或原 tebb 运行记录。'
                     self.save(row)
 
-    def operation(self, action='status', package='', identifier='', directory='', recipe=''):
+    def operation(self, action='status', package='', identifier='', directory='', recipe='', sources=''):
         if action == 'pair':
             self.pair(package)
         elif action == 'approve':
-            self.approve(identifier, directory, recipe)
+            self.approve(identifier, directory, recipe, sources)
         elif action != 'status':
             raise ValueError('不支持的交付操作。')
         return self.status()
