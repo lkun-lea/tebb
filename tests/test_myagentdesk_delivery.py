@@ -1,12 +1,15 @@
 import json
 from pathlib import Path
+from subprocess import check_output
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 from uuid import uuid4
 
 import httpx
 
 from desk_companion.integrations.myagentdesk_delivery import DesktopDelivery
+from desk_companion.integrations.myagentdesk_coding import implement, restore_patch
 
 
 class TestCipher:
@@ -47,6 +50,10 @@ class DesktopDeliveryTest(TestCase):
             return {'dispatches': [self.source]}
         if path.endswith('/claim'):
             return {'input': self.source['input'], 'status': 'running'}
+        if path.endswith('/upload'):
+            return {'missing': [0], 'received': 0, 'total': 1}
+        if path.endswith('/upload/0'):
+            return {'index': 0, 'accepted': True}
         if method == 'PUT':
             self.sent.append(body)
             if self.lose_receipt:
@@ -78,7 +85,6 @@ class DesktopDeliveryTest(TestCase):
         return {'data': 'b2s=' if offset == 0 else '', 'offset': 2}
 
     def authorize(self):
-        from unittest.mock import patch
         package = json.dumps({'origin': 'http://localhost:8000', 'id': self.device, 'code': self.secret})
         self.controller.operation(action='pair', package=package)
         self.controller.sync_once()
@@ -109,6 +115,36 @@ class DesktopDeliveryTest(TestCase):
         self.assertEqual(self.controller.status()['runs'][0]['phase'], 'uploaded')
         self.assertEqual(self.sent[0], self.sent[1])
         self.assertEqual(self.starts, 1)
+
+    def test_automatic_patch_does_not_touch_clone_and_applies_in_clean_workspace(self):
+        clone = self.root / 'clone'
+        clone.mkdir()
+        source = clone / 'view.ts'
+        source.write_bytes(b'export const state = "pending";\n')
+
+        def git(*args):
+            return check_output(['git', '-C', str(clone), *args], timeout=10).decode().strip()
+
+        git('init', '--quiet')
+        git('remote', 'add', 'origin', 'https://github.com/example/workbench')
+        git('add', 'view.ts')
+        git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.com', 'commit', '--quiet', '-m', 'Base')
+        base = git('rev-parse', 'HEAD')
+        frozen = {'repository': 'example/workbench', 'base': base, 'commit': base}
+        snapshot = self.root / 'snapshot'
+        coding_run = str(uuid4())
+
+        def edit(_frozen, folder, paths, run_id):
+            self.assertEqual((paths, run_id), (['view.ts'], coding_run))
+            (folder / 'view.ts').write_bytes(b'export const state = "reverify";\n')
+
+        with patch('desk_companion.integrations.myagentdesk_coding.code_with_pi', side_effect=edit):
+            diff, digest, proof = implement(clone, frozen, snapshot, ['view.ts'], coding_run)
+        self.assertEqual(proof, {'run': coding_run, 'files': ['view.ts']})
+        self.assertEqual(source.read_bytes(), b'export const state = "pending";\n')
+        fresh = self.root / 'independent'
+        restore_patch(clone, {**frozen, 'digest': digest, 'paths': ['view.ts']}, fresh, diff)
+        self.assertEqual((fresh / 'view.ts').read_bytes(), b'export const state = "reverify";\n')
 
     def test_unrecorded_start_waits_for_review(self):
         self.unrecorded = True

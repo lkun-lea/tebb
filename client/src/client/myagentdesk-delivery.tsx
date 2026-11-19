@@ -7,14 +7,16 @@ type Dispatch = {
   title: string;
   stage: 'development' | 'testing';
   source: string;
-  input: { repository: string; commit: string; requirement_revision: number; plan_revision: number; criteria: string[]; checks: string[] };
+  input: { repository: string; commit: string; requirement_revision: number; plan_revision: number; criteria: string[]; checks: string[];
+    automatic?: boolean; patch_only?: boolean; instruction?: string };
 };
-type DeliveryRun = Dispatch & { phase: string; receipt_status?: string; runs: string[]; error: string };
+type DeliveryRun = Dispatch & { phase: string; receipt_status?: string; runs: string[]; error: string;
+  coding_run?: string; upload?: { received: number; total: number } };
 type State = { device: { origin: string; label: string | null } | null; connection: 'offline' | 'online' | 'pairing' | 'denied';
   queue: Dispatch[]; runs: DeliveryRun[] };
 
 const phases: Record<string, string> = { authorized: '等待领取', claimed: '已领取', ready: '准备运行', intent: '核对本机运行',
-  outbox: '等待补传', uploaded: '已回传', blocked: '已阻塞' };
+  coding_intent: '正在编码或等待核对', outbox: '等待补传', uploaded: '已回传', blocked: '已阻塞' };
 const outcomes: Record<string, string> = { succeeded: '已完成', failed: '执行失败', cancelled: '已取消', needs_review: '待核对', historical: '历史回执' };
 
 export function MyAgentDeskPane({ info }: { info: BackendInfo | null }) {
@@ -24,6 +26,7 @@ export function MyAgentDeskPane({ info }: { info: BackendInfo | null }) {
   const [selected, setSelected] = useState<string>();
   const [directory, setDirectory] = useState('');
   const [recipe, setRecipe] = useState('');
+  const [sources, setSources] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const task = state?.queue.find(item => item.id === selected);
@@ -76,22 +79,26 @@ export function MyAgentDeskPane({ info }: { info: BackendInfo | null }) {
     {state?.connection === 'online' && !state.queue.length && <p>暂无待领取的派发。</p>}
     {state?.queue.map(item => <div key={item.id}>
       <p>{item.title} · {item.stage === 'testing' ? '独立验收' : '实现与自测'}</p>
-      <UiButton onClick={() => { setSelected(item.id); setDirectory(''); setRecipe(''); setError(''); }}
+      <UiButton onClick={() => { setSelected(item.id); setDirectory(''); setRecipe(''); setSources(''); setError(''); }}
         disabled={busy} aria-pressed={selected === item.id}>核对并授权</UiButton>
     </div>)}
     {task && <form onSubmit={event => {
       event.preventDefault();
-      void act({ action: 'approve', identifier: task.id, directory, recipe }, () => {
-        setSelected(undefined); setDirectory(''); setRecipe('');
+      void act({ action: 'approve', identifier: task.id, directory, recipe, sources }, () => {
+        setSelected(undefined); setDirectory(''); setRecipe(''); setSources('');
       });
     }}>
       <h3>{task.title}</h3>
       <p>{task.input.repository} · 需求 v{task.input.requirement_revision} · 计划 v{task.input.plan_revision}</p>
-      <p>固定候选 <code>{task.input.commit}</code></p>
+      <p>{task.input.automatic || task.input.patch_only ? '固定基准' : '固定候选'} <code>{task.input.commit}</code></p>
+      {task.input.instruction && <p>{task.input.instruction}</p>}
       <ul>{task.input.criteria.concat(task.input.checks).map((item, index) => <li key={index}>{item}</li>)}</ul>
       <UiField label="授权本机克隆目录" help="输入绝对路径。命令只在该提交的隔离快照中执行。">
         <input required value={directory} onChange={event => setDirectory(event.target.value)} />
       </UiField>
+      {task.input.automatic && <UiField label="授权 Agent 读写的源码" help="每行一个仓库相对路径。Agent 只读写清单内的已有文本文件。">
+        <textarea required rows={3} maxLength={5000} value={sources} onChange={event => setSources(event.target.value)} />
+      </UiField>}
       <UiField label="本机命令清单" help="粘贴 JSON。研发使用 implementation；独立验收按顺序使用 criterion:1 和 check:1 等编号。">
         <textarea required rows={4} maxLength={20000} value={recipe} onChange={event => setRecipe(event.target.value)} />
       </UiField>
@@ -103,6 +110,8 @@ export function MyAgentDeskPane({ info }: { info: BackendInfo | null }) {
       <p>{item.title} · {item.id.slice(0, 8)} · {phases[item.phase]}
         {item.receipt_status && ' · ' + outcomes[item.receipt_status]}</p>
       {!!item.runs.length && <p>原运行 <code>{item.runs.join(' · ')}</code></p>}
+      {item.coding_run && <p>编码运行 <code>{item.coding_run}</code></p>}
+      {item.upload && <p>已上传 {item.upload.received} / {item.upload.total} 个补丁分片</p>}
       {item.error && <p role="alert">{item.error}</p>}
     </div>)}
   </section>;
