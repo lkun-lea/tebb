@@ -83,3 +83,7 @@ cargo check --locked
 ## UI 开发
 
 - 新建或修改前端 UI 前阅读 `docs/UI_DEVELOPMENT.md`，按十条铁律实现；复用 `ui-foundations.css` 和 `ui-controls.tsx/css`，禁止页面另建主题。保留 `docs/UI_CONTRACT.md` 的状态、可访问性和业务控制器契约。深浅主题和实际页面效果分别验证；未迁移项不得记为已完成。
+
+## Agent 自测能力入口（#320）
+
+自测和验收前先执行 `uv run --locked python scripts/agent_inspect.py selftest catalog`，读取当前能力、Schema、缺口及 [Agent 自测指南](docs/AGENT_SELF_TEST.md)。目录可离线查询；执行通过已有完整 Token 的本机 RPC。产品内伙伴使用 `self_test_catalog` 与相同合同的自测工具；按原批次编号查询、取消和读取报告。默认只运行隔离模拟，模拟通过不代表真实模型、原生界面或外部服务通过，未覆盖项明确列出。

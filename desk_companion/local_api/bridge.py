@@ -712,6 +712,10 @@ class Bridge:
         from desk_companion.observability.redaction import diagnostic_export
         return diagnostic_export(ExecutionCenter().operate(operation,payload))
 
+    def agent_self_test(self,operation,payload=None,task_id='',run_id=''):
+        from desk_companion.evaluation.self_test import execute
+        return execute(self._host,self.agent_evaluation,operation,payload,task_id=task_id,run_id=run_id)
+
     def agent_evaluation(self,operation,payload=None):
         with self._evaluation_lock:
             if self._evaluation_stopped:raise ValueError('评测服务正在退出。')

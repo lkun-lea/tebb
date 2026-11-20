@@ -10,6 +10,17 @@ from desk_companion.observability.tool_monitor import fingerprint
 from desk_companion.evaluation.agent_evals import CASES, CONTRACT_VERSION
 
 
+def builtin_cases():
+    """The same immutable built-in contracts for discovery and execution."""
+    values=[]
+    for spec in CASES:
+        value=dict(id=spec['id'],split=spec.get('dataset_split','regression'),spec=spec,contract_version=CONTRACT_VERSION,
+                   origin='existing_product_acceptance',criteria='reference_judge_calibration'if spec.get('executor')=='judge_calibration'else'existing_receipt_judge',weight=1)
+        value['version']=fingerprint(value)
+        values.append(value)
+    return values
+
+
 class GoldenStore:
     def __init__(self,path=None):
         self.path=Path(path or data_root()/'memory/evaluation.sqlite3').resolve()
@@ -24,10 +35,7 @@ class GoldenStore:
 
     def seed(self):
         with closing(self.db()) as db,db:
-            for spec in CASES:
-                value=dict(id=spec['id'],split=spec.get('dataset_split','regression'),spec=spec,contract_version=CONTRACT_VERSION,
-                           origin='existing_product_acceptance',criteria='reference_judge_calibration'if spec.get('executor')=='judge_calibration'else'existing_receipt_judge',weight=1)
-                value['version']=fingerprint(value)
+            for value in builtin_cases():
                 db.execute('INSERT OR IGNORE INTO cases VALUES(?,?,?,?)',(value['id'],value['version'],json.dumps(value,ensure_ascii=False),time.time()))
 
     def cases(self):

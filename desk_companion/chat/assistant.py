@@ -187,12 +187,15 @@ def build_agent(host):
     for spec in video_specs(lambda: host.state.session_id,
                             lambda text: host.ui(lambda: host.on_stream_status(text))):
         tools.register(**spec)
+    from desk_companion.evaluation.self_test_tools import specs as self_test_specs, HINT as SELF_TEST_HINT
+    for spec in self_test_specs():
+        tools.register(**spec['function'],func=spec['implementation'],isReadOnly=spec['read_only'],retry_max=0)
     agent = Agent(
         llm=ExecutionLLM(
             api_key=model['api_key'],base_url=model['base_url'],model=model['model'],context_model_id=model['id'],
         ),
         tools=tools,
-        system_prompt=build_system_prompt(state.persona),
+        system_prompt=build_system_prompt(state.persona)+'\n'+SELF_TEST_HINT,
         journal=InMemoryJournal(save_full_payload=True),
         max_steps=state.max_steps,
         compact_threshold=None,

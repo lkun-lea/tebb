@@ -305,6 +305,11 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     if kind=='task' and role.get('id')=='tebb':
         from desk_companion.collaboration.tebb_tools import specs as tebb_specs
         for spec in tebb_specs(request):extra[spec['function']['name']]=spec
+    if kind=='task' and request.get('task_type')!='workspace_question' and (role.get('id')=='tebb' or (
+            request.get('development_task') and (request.get('workspace')or{}).get('primary') and permissions & {'文件编辑','终端'})):
+        from desk_companion.evaluation.self_test_tools import specs as self_test_specs, HINT as SELF_TEST_HINT
+        for spec in self_test_specs(request):extra[spec['function']['name']]=spec
+        messages[0]['content']+='\n'+SELF_TEST_HINT
     discovery_tools = {'workspace_search','workspace_read_symbol','workspace_read','workspace_list','workspace_run'}
     coding_child = bool(request.get('parent_run') and 'workspace_patch' in extra)
     if extra and kind == 'task':
