@@ -105,4 +105,3 @@ class MainActivity : ComponentActivity() {
     /** 显示一次与本轮语音操作有关的提示。 */
     private fun message(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 }
-

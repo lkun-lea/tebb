@@ -109,4 +109,3 @@ internal fun PairingPanel(model: PairingViewModel, onDecode: (Boolean) -> Unit) 
         }
     }
 }
-

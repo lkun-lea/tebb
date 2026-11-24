@@ -91,4 +91,3 @@ class ComposerStateTest {
         assertEquals("已有文字", interim.cancelDictation().visibleDraft)
     }
 }
-

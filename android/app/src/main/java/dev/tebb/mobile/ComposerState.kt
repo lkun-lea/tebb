@@ -90,4 +90,3 @@ data class ComposerState(
         return copy(target = key, manuallySelected = true, dismissed = dismissed - key)
     }
 }
-
