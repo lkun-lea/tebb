@@ -46,3 +46,5 @@
 .cp-modal-footer { display:flex;gap:12px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap; }
 @container (max-width:600px) { .cp-new-setup { padding:12px; }.cp-new-fields { grid-template-columns:1fr;gap:8px; } }
 @media(pointer:coarse) { .cp-sidebar-unified .cp-history-item > .cp-conversation { min-height:46px; }.cp-sidebar-unified .cp-history-more { height:42px;width:30px; }.cp-sidebar-unified .cp-project-heading { min-height:44px; } }
+
+

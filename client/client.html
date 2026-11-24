@@ -6,22 +6,22 @@
     <title>tebb</title>
     <style>
       html, body { margin: 0; height: 100%; background: #101216; }
-      .startup { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; overflow: hidden; background: #101216; color: #f4f1ea; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; transition: opacity 220ms ease; }
-      .startup::before { content: ""; position: absolute; inset: -60px; background-image: linear-gradient(#ffd42908 1px, transparent 1px), linear-gradient(90deg, #ffd42908 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at center, black, transparent 70%); animation: startup-grid 16s linear infinite; }
+      .startup { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; overflow: hidden; background: #101216; color: #f4f1ea; font-family: var(--ui-font-sans, "Microsoft YaHei UI", sans-serif); transition: opacity 220ms ease; }
+      .startup::before { content: ""; position: absolute; inset: -60px; background-image: linear-gradient(#719bff08 1px, transparent 1px), linear-gradient(90deg, #719bff08 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at center, black, transparent 70%); animation: startup-grid 16s linear infinite; }
       .startup-card { position: relative; width: min(440px, calc(100vw - 48px)); text-align: center; }
-      .startup-emblem { position: relative; display: grid; place-items: center; width: 112px; height: 112px; margin: 0 auto 32px; color: #ffd429; }
-      .startup-orbit { position: absolute; inset: 9px; border: 1px solid #ffd42930; transform: rotate(45deg); }
-      .startup-orbit::before, .startup-orbit::after { content: ""; position: absolute; width: 7px; height: 7px; background: #ffd429; box-shadow: 0 0 18px #ffd42966; animation: startup-pulse 2s ease-in-out infinite; }
+      .startup-emblem { position: relative; display: grid; place-items: center; width: 112px; height: 112px; margin: 0 auto 32px; color: #719bff; }
+      .startup-orbit { position: absolute; inset: 9px; border: 1px solid #719bff30; transform: rotate(45deg); }
+      .startup-orbit::before, .startup-orbit::after { content: ""; position: absolute; width: 7px; height: 7px; background: #719bff; box-shadow: 0 0 18px #719bff66; animation: startup-pulse 2s ease-in-out infinite; }
       .startup-orbit::before { top: -4px; left: -4px; }
       .startup-orbit::after { right: -4px; bottom: -4px; animation-delay: 1s; }
       .startup-core { width: 64px; height: 64px; animation: startup-breathe 3s ease-in-out infinite; }
       .startup-title { margin: 0; font-size: 25px; font-weight: 600; letter-spacing: 2px; }
       .startup-caption { margin: 10px 0 30px; color: #92979f; font-size: 13px; letter-spacing: 3px; }
       .startup-track { height: 2px; width: 180px; margin: 0 auto 20px; overflow: hidden; background: #ffffff12; }
-      .startup-track::after { content: ""; display: block; width: 50%; height: 100%; background: #ffd429; animation: startup-track 1.8s ease-in-out infinite; }
+      .startup-track::after { content: ""; display: block; width: 50%; height: 100%; background: #719bff; animation: startup-track 1.8s ease-in-out infinite; }
       .startup-status { margin: 0; color: #c8cbd1; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
-      .startup-retry { margin-top: 20px; border: 1px solid #ffd42955; border-radius: 6px; background: #ffd4290d; color: #ffd429; padding: 9px 20px; cursor: pointer; font: inherit; font-size: 13px; }
-      .startup-retry:focus-visible { outline: 2px solid #ffd429; outline-offset: 4px; }
+      .startup-retry { margin-top: 20px; border: 1px solid #719bff55; border-radius: 6px; background: #719bff0d; color: #719bff; padding: 9px 20px; cursor: pointer; font: inherit; font-size: 13px; }
+      .startup-retry:focus-visible { outline: 2px solid #719bff; outline-offset: 4px; }
       .startup-footer { position: absolute; bottom: 28px; color: #676d76; font-size: 11px; letter-spacing: 2px; }
       .startup[data-state="error"] .startup-status { color: #ffb4b4; }
       .startup[data-state="error"] .startup-track::after { animation: none; background: #ff8484; width: 100%; }
@@ -46,7 +46,6 @@
         <p id="startup-status" class="startup-status">正在载入界面…</p>
         <button id="startup-retry" class="startup-retry" type="button" hidden>重新加载</button>
       </div>
-      <div class="startup-footer" aria-hidden="true">ZHIXING</div>
     </div>
     <div id="root"></div>
     <script src="/startup.js"></script>

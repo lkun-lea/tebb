@@ -3,7 +3,7 @@
 .reminder-notice p{margin:0;flex:1;overflow-wrap:anywhere}
 .reminder-notice button{flex-shrink:0;border:1px solid currentColor;border-radius:5px;padding:4px 10px}
 .reminder-settings{margin:16px 0;padding:16px;border:1px solid hsl(var(--border));border-radius:8px}
-.reminder-settings h2{font-size:16px;margin-bottom:10px}
+.reminder-settings h2{font-size:var(--ui-text-section);margin-bottom:10px}
 .reminder-settings p{font-size:13px;line-height:1.7;margin:8px 0}
 .reminder-settings label{display:flex;gap:8px;align-items:center}
 .reminder-settings button{border:1px solid currentColor;border-radius:5px;padding:5px 10px}

@@ -1,23 +1,27 @@
+import {WorkspaceDialog} from './workspace-dialog';
 import {useEffect,useRef,useState} from 'react';
 import {rpc,type BackendInfo} from './api';
 import {UiButton,UiFeedback,UiField} from './ui-controls';
 
-type Coverage={canonical_cases:number;splits:Record<string,number>;areas:{id:string;label:string;level:string;missing:string[];cases:{id:string;fixture:unknown;live:unknown}[]}[];suites:Record<string,string[]>;uncovered_entries:{entry:string;reason:string}[];unmapped_cases?:string[]};
+type Coverage={canonical_cases:number;splits:Record<string,number>;areas:{id:string;label:string;level:string;missing:string[];cases:{id:string;fixture:unknown;live:unknown}[]}[];suites:Record<string,string[]>;uncovered_entries:{entry:string;reason:string;drafts?:string[]}[];unmapped_cases?:string[]};
 type Diagnosis={calls:number;timeout_calls:number;items:{id:string;case_id:string;timeout:boolean;label:string;error_kind:string;progress:Record<string,unknown>|null;limitation:string}[];tasks?:{task:string;case_id:string;state:string;timing:{stages:{label:string;duration_ms:number}[]}}[]};
 type Gate={ready_for_review:boolean;checks:Record<string,boolean>;timeout_before:number;timeout_after:number;scope:string};
 
-export function EvaluationCoverage({info,onSelect}:{info:BackendInfo|null;onSelect:(versions:string[])=>void}){
+export function EvaluationCoverage({info,onSelect,onAdd,revision}:{revision?:number;onAdd?:(category:string)=>void;info:BackendInfo|null;onSelect:(versions:string[])=>void}){
+ const [areaId,setAreaId]=useState("");
  const [value,setValue]=useState<Coverage|null>(null),[error,setError]=useState('');const epoch=useRef(0);
  async function refresh(){if(!info)return;const request=++epoch.current;try{const next=await rpc<Coverage>(info,'agent_evaluation',{operation:'coverage'});if(request===epoch.current){setValue(next);setError('');}}catch(e){if(request===epoch.current)setError(String(e));}}
- useEffect(()=>{setValue(null);setError('');void refresh();return()=>{epoch.current++;};},[info]);
- return <details><summary>Agent 测评覆盖矩阵</summary><p className="ui-field-help">用例存在、模拟通过与真实模型通过分别记录；缺少端到端样本的入口保留为缺口。</p>
- <UiButton disabled={!info} onClick={()=>void refresh()}>刷新覆盖</UiButton>{error&&<UiFeedback state="error" title="覆盖读取失败">{error}</UiFeedback>}
- {value&&<><p>已登记 {value.canonical_cases} 个用例 · {Object.entries(value.splits).map(([key,count])=>`${key} ${count}`).join(' · ')}</p>
- <div className="execution-toolbar">{Object.entries(value.suites).map(([key,ids])=><UiButton key={key} onClick={()=>onSelect(ids)}>选择{({smoke:'冒烟集',timeout:'超时专项',judge:'审阅回归集',holdout:'独立保留集'} as Record<string,string>)[key]||key}（{ids.length}）</UiButton>)}</div>
- <ul>{value.areas.map(area=><li key={area.id}><strong>{area.label}</strong> · {area.level==='end_to_end'?'端到端':'组件'} · {area.cases.length} 例 · 已有模拟记录 {area.cases.filter(c=>c.fixture).length} · 已有真实记录 {area.cases.filter(c=>c.live).length}{area.missing.length>0&&<span> · 缺少 {area.missing.join('、')}</span>}</li>)}</ul>
- {value.uncovered_entries.length>0&&<UiFeedback state="unconfirmed" title="仍有入口缺少独立黄金样本"><ul>{value.uncovered_entries.map(g=><li key={g.entry}>{g.entry}：{g.reason}</li>)}</ul></UiFeedback>}</>}
+ useEffect(()=>{setValue(null);setError('');void refresh();return()=>{epoch.current++;};},[info,revision]);
+ return <section className="eval-coverage"><header className="calls-title"><h3>能力覆盖</h3><UiButton disabled={!info} onClick={()=>void refresh()}>刷新覆盖</UiButton></header><p className="ui-field-help">用例存在、模拟通过与真实模型通过分别记录；缺少端到端样本的入口保留为缺口。</p>
+ {error&&<UiFeedback state="error" title="覆盖读取失败">{error}</UiFeedback>}
+ {value&&<><p>已登记 {value.canonical_cases} 个用例 · {Object.entries(value.splits).map(([key,count])=>`${({regression:'回归集',holdout:'保留集',development:'开发集'} as Record<string,string>)[key]||key} ${count}`).join(' · ')}</p>
+ <div className="evaluation-suites">{Object.entries(value.suites).map(([key,ids])=><UiButton key={key} onClick={()=>onSelect(ids)}>选择{({smoke:'冒烟集',timeout:'超时专项',judge:'审阅回归集',holdout:'独立保留集'} as Record<string,string>)[key]||key}（{ids.length}）</UiButton>)}</div>
+ <div className="coverage-layout"><div className="coverage-scroll"><table className="coverage-table"><thead><tr><th>能力</th><th>用例</th><th>模拟记录</th><th>真实记录</th></tr></thead><tbody>
+ {value.areas.map(area=><tr key={area.id} data-selected={area.id===areaId} onClick={()=>setAreaId(area.id)}><th scope="row"><button aria-pressed={area.id===areaId} onClick={()=>setAreaId(area.id)}>{area.label}</button></th><td><span className="coverage-case-count"><i aria-hidden="true" style={{width:40*area.cases.length/Math.max(1,...value.areas.map(item=>item.cases.length))}}/>{area.cases.length}</span></td><td>{area.cases.filter(c=>c.fixture).length}</td><td>{area.cases.filter(c=>c.live).length}</td></tr>)}</tbody></table></div>
+ {value.areas.filter(area=>area.id===areaId).map(area=><WorkspaceDialog key={area.id} className="coverage-detail" title={area.label} onClose={()=>setAreaId("")}><p>{area.level==='end_to_end'?'端到端':'组件'} · {area.cases.length} 个用例</p><ul>{area.cases.map(c=><li key={c.id}><code>{c.id}</code><small>{c.fixture?'有模拟记录':'无模拟记录'} · {c.live?'有真实记录':'无真实记录'}</small></li>)}</ul>{area.missing.length>0&&<p>待补充 · {area.missing.join('、')}</p>}{onAdd&&<UiButton onClick={()=>{setAreaId("");onAdd(area.id)}}>补充用例</UiButton>}</WorkspaceDialog>)}
+ {value.uncovered_entries.length>0&&<section className="coverage-missing"><h4>独立黄金样本缺口</h4><ul className="coverage-gaps">{value.uncovered_entries.map(g=><li key={g.entry}><span><strong>{g.entry}</strong><small>{g.reason}</small>{!!g.drafts?.length&&<small>已补充 · {g.drafts.join("、")}</small>}</span>{onAdd&&<UiButton onClick={()=>onAdd(g.entry)}>补充样本</UiButton>}</li>)}</ul></section>}</div></>}
  {value?.unmapped_cases&&value.unmapped_cases.length>0&&<UiFeedback state="unconfirmed" title="还有用例未归入覆盖矩阵">{value.unmapped_cases.join('、')}</UiFeedback>}
- </details>;
+ </section>;
 }
 
 export function EvaluationDiagnosis({info,ident,baseline,holdouts}:{info:BackendInfo|null;ident:string;baseline:string;holdouts:{id:string;candidate:string}[]}){

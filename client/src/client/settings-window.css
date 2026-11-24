@@ -9,7 +9,9 @@
   color: hsl(var(--foreground));
 }
 
-.settings-window aside {
+.settings-window [hidden] { display: none !important; }
+
+.settings-window > aside {
   display: flex;
   flex: 1 0 216px;
   max-width: 264px;
@@ -94,7 +96,7 @@
   outline-offset: 1px;
 }
 
-.settings-window main {
+.settings-window > main {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
@@ -114,7 +116,7 @@
 
 .settings-section-header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size:var(--ui-text-title);
   font-weight: var(--ui-weight-600);
 }
 
@@ -176,6 +178,6 @@
 /* 窄窗口：侧栏收窄为图标列不可行（纯文字导航），改为上下堆叠并限制搜索宽度。 */
 @media (max-width: 640px) {
   .settings-window { flex-direction: column; }
-  .settings-window aside { max-width: none; flex: 0 0 auto; }
+  .settings-window > aside { max-width: none; flex: 0 0 auto; }
   .settings-main-inner { padding: 16px 16px 32px; }
 }

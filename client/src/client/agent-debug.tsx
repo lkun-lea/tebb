@@ -1,3 +1,4 @@
+import { WorkspaceDialog } from './workspace-dialog';
 import { InspectorDisclosure } from './inspector-disclosure';
 import { useEffect, useRef, useState } from "react";
 import { rpc, type BackendInfo } from "./api";
@@ -64,11 +65,11 @@ function MessageCards({ rows, empty = "没有 messages 字段，完整载荷见�
   </section>)}{!rows.length && <p className="text-xs text-muted-foreground">{empty}</p>}</div>;
 }
 
-export function AgentDebugDialog({ info, onClose, debug = false, callId = '', snapshot }: { info: BackendInfo | null; onClose: () => void; debug?: boolean; callId?:string; snapshot?:DebugDetail }) {
+export function AgentDebugDialog({ info, onClose, debug = false, callId = '', snapshot, inline=false }: { info: BackendInfo | null; onClose: () => void; debug?: boolean; callId?:string; snapshot?:DebugDetail;inline?:boolean }) {
   const sample=snapshot||DEBUG_SAMPLE;
   const dialog = useRef<HTMLElement>(null);
   const [calls, setCalls] = useState<DebugCall[]>(debug ? [sample.call] : []);
-  const [selected, select] = useState(callId || (debug ? sample.call.id : ""));
+  const [selected, select] = useState(callId || (debug && !inline ? sample.call.id : ""));
   const [detail, setDetail] = useState<DebugDetail | null>(debug ? sample : null);
   const [channel, setChannel] = useState("");
   const [filter, setFilter] = useState("");
@@ -84,10 +85,10 @@ export function AgentDebugDialog({ info, onClose, debug = false, callId = '', sn
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const selectedRef = useRef(selected); selectedRef.current = selected;
   const olderRef = useRef(older); olderRef.current = older;
 
   useEffect(() => {
+    if(inline)return;
     const previousFocus = document.activeElement as HTMLElement | null;
     dialog.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
     return () => previousFocus?.focus?.();
@@ -103,7 +104,6 @@ export function AgentDebugDialog({ info, onClose, debug = false, callId = '', sn
         if (!live) return;
         setCalls(page.items); if (!olderRef.current.length) setMore(page.has_more); setEnabled(page.settings.enabled);
         setPerformance(page.performance || null);
-        if (!selectedRef.current && page.items[0]) select(page.items[0].id);
       } catch (err) { if (live) setError(String(err)); }
       finally { loading = false; }
     }
@@ -133,6 +133,7 @@ export function AgentDebugDialog({ info, onClose, debug = false, callId = '', sn
     return () => { live = false; window.clearInterval(timer); };
   }, [info, debug, selected]);
   const all = [...calls, ...older.filter(row => !calls.some(c => c.id === row.id))];
+  const longest = all.reduce((max,call)=>Math.max(max,call.duration_ms),1);
   const previousCall = detail ? all.find(c => c.id !== detail.call.id && c.created < detail.call.created && (
     detail.call.task_id ? c.task_id === detail.call.task_id : !!c.session && c.session === detail.call.session)) : undefined;
   useEffect(() => {
@@ -181,46 +182,9 @@ export function AgentDebugDialog({ info, onClose, debug = false, callId = '', sn
   const usage = detail?.response.usage as Obj | undefined;
   const responses = (detail?.response.choices as { message?: Obj }[] | undefined)?.map(c => c.message || {}) || [];
   const tabs = { messages: "消息", performance:"耗时分析", raw: "原始载荷", diff: "请求差异", tools: "工具与时间线", explain: "协助解读" } as const;
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" data-agent-debug
-    onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="agent-debug-title"
-      className="flex h-[94vh] w-full max-w-[1440px] flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-2xl"
-      onKeyDown={e => {
-        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
-        if (e.key !== "Tab") return;
-        const nodes = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, textarea, a[href], [tabindex="0"]')];
-        if (e.shiftKey && document.activeElement === nodes[0]) { e.preventDefault(); nodes.at(-1)?.focus(); }
-        else if (!e.shiftKey && document.activeElement === nodes.at(-1)) { e.preventDefault(); nodes[0]?.focus(); }
-      }}>
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div><p className="text-[10px] tracking-[.2em] text-primary">AGENT INSPECTOR</p><h1 id="agent-debug-title" className="mt-1 text-lg font-semibold">Agent 调试</h1></div>
-        <div className="flex items-center gap-3"><span className="text-xs text-muted-foreground" title="暂停详细载荷后，本机使用中心仍记录不含正文的次数与用量元数据。">{snapshot ? '只读评测证据 · 已脱敏' : debug ? "样本预览" : enabled ? "● 正在记录详细载荷" : "详细载荷已暂停"}</span>
-          <button className="desk-btn" disabled={pending || !info || debug} onClick={() => void recording()}>{enabled ? "暂停详细载荷" : "恢复详细载荷"}</button>
-          <button className="desk-btn" disabled={!detail} onClick={exportCall}>导出本次 JSON</button>
-          <button className="desk-btn" aria-label="关闭 Agent 调试" onClick={onClose}>关闭</button>
-        </div>
-      </header>
-      {performance&&<PerformanceStats value={performance}/>}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="flex max-h-48 w-full shrink-0 flex-col border-b border-border bg-card/35 p-3 md:max-h-none md:w-64 md:border-b-0 md:border-r">
-          <label className="text-xs text-muted-foreground">调用来源<select aria-label="调用来源" className="mt-2 w-full rounded border border-border bg-background p-2 text-foreground" value={channel}
-            onChange={e => { setChannel(e.target.value); setOlder([]); select(""); setDetail(null); setError(""); }}><option value="">全部来源</option>{Object.entries(CHANNEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-          <input className="my-3 rounded border border-border bg-background px-3 py-2 text-xs" aria-label="筛选调用" placeholder="模型 / 任务 / 会话" value={filter} onChange={e => setFilter(e.target.value)} />
-          <div className="min-h-0 flex-1 overflow-auto space-y-2">
-            {all.filter(c => `${c.model} ${c.task_id} ${c.session} ${c.endpoint}`.toLowerCase().includes(filter.toLowerCase())).map(c => <button key={c.id}
-              className={`w-full rounded-lg border p-3 text-left ${selected === c.id ? "border-primary/60 bg-primary/10" : "border-border hover:bg-secondary"}`}
-              onClick={() => { select(c.id); setDetail(debug ? sample : null); setTask(null); setError(""); setExplainId(""); setExplanation(null); }}>
-              <span className="block truncate text-xs font-medium">{c.model}</span>
-              <span className="mt-2 block text-[11px] text-primary">{STATE[c.state] || c.state} · {(c.duration_ms / 1000).toFixed(1)}s</span>
-              <span className="mt-1 block text-[10px] text-muted-foreground">{CHANNEL[c.channel] || c.channel} · {new Date(c.created * 1000).toLocaleTimeString()}</span>
-              <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground" title={c.task_id || c.id}>{c.task_id || c.id}</span>
-            </button>)}
-            {!all.length && <p className="py-4 text-xs leading-6 text-muted-foreground">从启用记录后的新调用开始显示。旧任务没有完整网络载荷，无法补录；可发起一次新对话观察。</p>}
-            {more && <button className="desk-btn w-full" disabled={pending} onClick={() => void loadOlder()}>加载更早的调用</button>}
-          </div>
-          <p className="mt-3 text-[10px] leading-5 text-muted-foreground">完整载荷保存在本机。鉴权头不记录。折叠只改变显示，不截断消息；流式响应持续更新。</p>
-        </aside>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+  const [visibleCount,setVisibleCount]=useState(12);
+  const matching=all.filter(c=>[c.model,c.task_id,c.session,c.endpoint].join(' ').toLowerCase().includes(filter.trim().toLowerCase()));
+  const inspector=(        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {detail ? <>
             <div className="shrink-0 border-b border-border px-5 py-3">
               <p className="truncate text-xs text-muted-foreground" title={detail.call.endpoint}>{detail.call.endpoint}</p>
@@ -266,9 +230,65 @@ export function AgentDebugDialog({ info, onClose, debug = false, callId = '', sn
                   {explanation && active(explanation.state) && <button className="desk-btn mt-3" onClick={() => { if (info) void rpc(info, "cancel_agent_task", { task_id: explainId }).catch(e => setError(String(e))); }}>停止解读</button>}</div>}
               </div>}
             </div>
-          </> : <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">选择一次调用，检查实际输入与返回。</div>}
+          </> : <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">{selected?'正在读取调用详情…':'选择一次调用，检查实际输入与返回。'}</div>}
           {error && <p role="alert" className="shrink-0 border-t border-border px-5 py-3 text-xs text-destructive">{error}</p>}
+        </div>);
+  if(inline)return <section className="calls-workspace" aria-label="调用记录">
+    <header className="calls-title"><h2>调用记录</h2><button className="desk-btn" disabled={pending||!info||debug} onClick={()=>void recording()}>{enabled?'暂停详细载荷':'恢复详细载荷'}</button></header>
+    {performance&&<PerformanceStats value={performance}/>}
+    <div className="calls-filters"><label>调用来源<select value={channel} onChange={e=>{setChannel(e.target.value);setOlder([]);setVisibleCount(12);}}><option value="">全部来源</option>{Object.entries(CHANNEL).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+    <input type="search" aria-label="筛选调用" placeholder="搜索模型、任务或会话" value={filter} onChange={e=>{setFilter(e.target.value);setVisibleCount(12);}}/></div>
+    <div className="calls-ledger"><div className="calls-columns" aria-hidden="true"><span>模型</span><span>来源 / 时间</span><span>耗时</span><span>状态</span></div>
+    {matching.slice(0,visibleCount).map(c=><button className="calls-row" key={c.id} onClick={()=>{select(c.id);setDetail(debug?sample:null);setTask(null);setError('');setExplainId('');setExplanation(null);setTab('messages');}}>
+      <strong>{c.model}</strong><span>{CHANNEL[c.channel]||c.channel}<small>{new Date(c.created*1000).toLocaleString()}</small></span>
+      <span className="calls-latency">{duration(c.duration_ms)}<i><b style={{width:Math.min(100,100*c.duration_ms/longest)+'%'}}/></i></span>
+      <span className="calls-state" data-failed={!!c.error}>{STATE[c.state]||c.state}</span></button>)}</div>
+    {!matching.length&&<p>{filter?'没有匹配的调用':'暂无调用记录'}</p>}
+    {matching.length>visibleCount?<button className="desk-btn" onClick={()=>setVisibleCount(n=>n+12)}>显示更多调用</button>:more&&<button className="desk-btn" disabled={pending} onClick={()=>void loadOlder()}>加载更早的调用</button>}
+    {error&&!selected&&<p role="alert">{error}</p>}
+    {selected&&<WorkspaceDialog title="调用详情" className="call-detail-dialog" onClose={()=>{select('');setDetail(null);setError('');}}><button className="desk-btn" disabled={!detail} onClick={exportCall}>导出本次 JSON</button>{inspector}</WorkspaceDialog>}
+  </section>;
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" data-agent-debug data-inline={inline}
+    onMouseDown={e => { if (!inline && e.target === e.currentTarget) onClose(); }}>
+    <section ref={dialog} role={inline?"region":"dialog"} aria-modal={inline?undefined:"true"} aria-labelledby="agent-debug-title"
+      className="flex h-[94vh] w-full max-w-[1440px] flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-2xl"
+      onKeyDown={e => {
+        if(inline)return;
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
+        if (e.key !== "Tab") return;
+        const nodes = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, textarea, a[href], [tabindex="0"]')];
+        if (e.shiftKey && document.activeElement === nodes[0]) { e.preventDefault(); nodes.at(-1)?.focus(); }
+        else if (!e.shiftKey && document.activeElement === nodes.at(-1)) { e.preventDefault(); nodes[0]?.focus(); }
+      }}>
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <div><h1 id="agent-debug-title" className="mt-1 text-lg font-semibold">{inline?"调用记录":"Agent 调试"}</h1></div>
+        <div className="flex items-center gap-3"><span className="text-xs text-muted-foreground" title="暂停详细载荷后，本机使用中心仍记录不含正文的次数与用量元数据。">{snapshot ? '只读评测证据 · 已脱敏' : debug ? "样本预览" : enabled ? "● 正在记录详细载荷" : "详细载荷已暂停"}</span>
+          <button className="desk-btn" disabled={pending || !info || debug} onClick={() => void recording()}>{enabled ? "暂停详细载荷" : "恢复详细载荷"}</button>
+          <button className="desk-btn" disabled={!detail} onClick={exportCall}>导出本次 JSON</button>
+          {!inline&&<button className="desk-btn" aria-label="关闭 Agent 调试" onClick={onClose}>关闭</button>}
         </div>
+      </header>
+      {performance&&<PerformanceStats value={performance}/>}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <aside className="flex max-h-48 w-full shrink-0 flex-col border-b border-border bg-card/35 p-3 md:max-h-none md:w-64 md:border-b-0 md:border-r">
+          <label className="text-xs text-muted-foreground">调用来源<select aria-label="调用来源" className="mt-2 w-full rounded border border-border bg-background p-2 text-foreground" value={channel}
+            onChange={e => { setChannel(e.target.value); setOlder([]); select(""); setDetail(null); setError(""); }}><option value="">全部来源</option>{Object.entries(CHANNEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+          <input className="my-3 rounded border border-border bg-background px-3 py-2 text-xs" aria-label="筛选调用" placeholder="模型 / 任务 / 会话" value={filter} onChange={e => setFilter(e.target.value)} />
+          <div className="min-h-0 flex-1 overflow-auto space-y-2">
+            {all.filter(c => `${c.model} ${c.task_id} ${c.session} ${c.endpoint}`.toLowerCase().includes(filter.toLowerCase())).map(c => <button key={c.id}
+              aria-pressed={selected===c.id} className={`call-record w-full rounded-lg border p-3 text-left ${selected === c.id ? "border-primary/60 bg-primary/10" : "border-border hover:bg-secondary"}`}
+              onClick={() => { select(c.id); setDetail(debug ? sample : null); setTask(null); setError(""); setExplainId(""); setExplanation(null); }}>
+              <span className="block truncate text-xs font-medium">{c.model}</span>
+              <span aria-hidden="true" className="call-duration"><i style={{width:Math.min(100,100*c.duration_ms/longest)+"%",background:c.error?"var(--call-warning)":undefined}}/></span><span className="mt-2 block text-xs">{STATE[c.state] || c.state} · {(c.duration_ms / 1000).toFixed(1)}s</span>
+              <span className="mt-1 block text-[10px] text-muted-foreground">{CHANNEL[c.channel] || c.channel} · {new Date(c.created * 1000).toLocaleTimeString()}</span>
+              <span className="mt-1 block truncate font-mono text-xs text-muted-foreground" title={c.task_id || c.id}>{c.task_id || c.id}</span>
+            </button>)}
+            {!all.length && <p className="py-4 text-xs leading-6 text-muted-foreground">从启用记录后的新调用开始显示。旧任务没有完整网络载荷，无法补录；可发起一次新对话观察。</p>}
+            {more && <button className="desk-btn w-full" disabled={pending} onClick={() => void loadOlder()}>加载更早的调用</button>}
+          </div>
+          <p className="mt-3 text-[10px] leading-5 text-muted-foreground">完整载荷保存在本机。鉴权头不记录。折叠只改变显示，不截断消息；流式响应持续更新。</p>
+        </aside>
+        {inspector}
       </div>
     </section>
   </div>;

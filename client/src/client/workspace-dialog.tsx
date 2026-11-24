@@ -1,3 +1,4 @@
+import './workspace-dialog.css';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { usePageActive } from './page-stack';
 

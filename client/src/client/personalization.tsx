@@ -1,5 +1,6 @@
+import {ReceiptNotice} from "./toast";
 import {useEffect,useMemo,useState} from 'react';
-import {Plus,RefreshCw,UserRound} from 'lucide-react';
+import {Plus,RefreshCw} from 'lucide-react';
 import {ProfileOverview} from './profile-overview';
 import {ProfileRecordCard} from './profile-record-card';
 import {profileKinds as kinds,profileCategories as categories,profileScopeLabel} from './profile-records';
@@ -12,7 +13,7 @@ import './personalization.css';
 const jobNames:Record<string,string>={queued:'等待开始',running:'正在同步',complete:'本轮已完成',paused:'本轮已暂停，可继续同步',needs_confirmation:'有资料需要处理',failed:'同步未完成',cancelled:'已取消',interrupted:'上次同步已中断'};
 type Draft={id?:string;version?:number;kind:string;category:string;text:string;scope:string;scope_id:string;resolve?:boolean};
 const blank=():Draft=>({kind:'preference',category:'communication',text:'',scope:'user',scope_id:''});
-export function PersonalizationPane({info,debug=false,target,onInspect}:{info:BackendInfo|null;debug?:boolean;target?:{id:string;nonce:number}|null;onInspect?:()=>void}){
+export function PersonalizationPane({info,debug=false,target,onInspect,onAccount}:{onAccount?:()=>void;info:BackendInfo|null;debug?:boolean;target?:{id:string;nonce:number}|null;onInspect?:()=>void}){
   const controller=useMemo(()=>new PersonalizationController((method,args)=>{
     if(debug)return Promise.resolve(structuredClone(PERSONALIZATION_FIXTURE));
     if(!info)return Promise.reject(Error('本地助手尚未连接。'));
@@ -35,14 +36,14 @@ export function PersonalizationPane({info,debug=false,target,onInspect}:{info:Ba
   const scopeLabel=(row:{scope:string;scope_id:string})=>profileScopeLabel(page,row);
   const recordActions={blocked:blocked||local,scopeLabel,onEdit:edit,onAct:act};
   return <section className="profile-pane" aria-label="个人资料">
-    <header><div><h2><UserRound size={23}/>个人画像</h2><p>已确认的画像、偏好与长期记忆，用于后续对话。</p></div><div className="profile-actions"><UiButton variant="primary" disabled={blocked||local||!!draft} onClick={()=>setDraft(blank())}><Plus size={15}/>新增资料</UiButton><UiButton disabled={controller.busy||controller.loading} onClick={()=>void controller.read(true)}>刷新状态</UiButton><UiButton busy={active} busyLabel="正在同步…" disabled={blocked||local||active} onClick={()=>void controller.act('sync')}><RefreshCw size={15}/>立即同步</UiButton></div></header>
+    <header><div className="profile-actions">{!local&&<UiButton variant="primary" disabled={blocked||!!draft} onClick={()=>setDraft(blank())}><Plus size={15}/>新增资料</UiButton>}<details className="profile-more"><summary aria-label="资料管理选项">•••</summary><div><UiButton disabled={controller.busy||controller.loading} onClick={()=>void controller.read(true)}>刷新状态</UiButton><UiButton busy={active} busyLabel="正在同步…" disabled={blocked||local||active} onClick={()=>void controller.act('sync')}><RefreshCw size={15}/>立即同步</UiButton></div></details></div></header>
     {debug&&<UiFeedback state="unconfirmed" title="设计预览 · 合成资料，操作不写入账号"/>}
     {controller.unknown&&<UiFeedback state="unconfirmed" title="原操作结果待核对"><p>已保留操作编号 {controller.unknown.id}；不会自动重新提交。</p><UiButton disabled={controller.busy} onClick={()=>void controller.read()}>核对原操作</UiButton></UiFeedback>}
     {!draft&&controller.error&&<UiFeedback state="error" title={controller.error}/>}
-    {controller.notice&&<UiFeedback state="success" title={controller.notice}/>}
+    <ReceiptNotice text={controller.notice}/>
     <nav className="profile-view-tabs" aria-label="个人画像视图"><UiButton aria-pressed={view==='overview'} onClick={()=>setView('overview')}>画像总览</UiButton><UiButton aria-pressed={view==='records'} onClick={()=>setView('records')}>已有资料</UiButton></nav>
     {view==='overview'&&<ProfileOverview page={page} {...recordActions} onAdd={category=>setDraft({...blank(),category})} onInspect={onInspect}/>}
-    {local?<UiFeedback state="empty" title="当前为本机空间"><p>请在“账号与空间”登录并重启切换，再管理同步资料。本机记忆继续保留，登录不会自动上传。</p></UiFeedback>:<>
+    {local?<UiFeedback state="empty" title="当前为本机空间"><p>切换到账号空间后可补充和同步资料。</p>{onAccount&&<UiButton onClick={onAccount}>前往账号与空间</UiButton>}</UiFeedback>:<>
       {page.auto_paused&&<UiFeedback state="unconfirmed" title="自动同步已暂停"><p>点击“立即同步”恢复；资料继续保留在当前账号。</p></UiFeedback>}
       {page.job&&<div className={'profile-sync '+(['failed','needs_confirmation'].includes(page.job.state)?'has-warning':'')} role="status"><div><strong>{jobNames[page.job.state]||page.job.state}</strong><span>本轮已处理 {page.job.processed} 项{page.job.phase==='pull'?' · 正在读取云端变化':''}</span>{page.job.error&&<p>{page.job.error}</p>}</div>{active&&<UiButton disabled={blocked} onClick={()=>void controller.act('cancel')}>取消并暂停自动同步</UiButton>}<details><summary>同步编号</summary><code>{page.job.id}</code><p>本机游标 {page.cursor} / 已观察云端 {page.head}</p></details></div>}
       {view==='records'&&<nav className="profile-tabs" aria-label="个人资料分类">{[['all','全部资料'],...Object.entries(kinds),['deleted','已删除']].map(([id,label])=><button type="button" key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}<span>{page.records.filter(r=>id==='deleted'?r.state==='deleted':r.state!=='deleted'&&(id==='all'||r.kind===id)).length}</span></button>)}</nav>}

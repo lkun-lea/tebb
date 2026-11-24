@@ -32,13 +32,13 @@ export function ReminderSettings({info,debug=false,transport,visible=true}:Props
     catch(error){setError(String(error));}finally{setBusy(false);}
   }
   useEffect(()=>{if(visible)void call('calendar_reminder_status');},[info?.port,info?.token,visible,transport]);
-  return <section className="reminder-settings"><h2>会前提醒</h2>
-    <label><input type="checkbox" checked={status?.enabled===true} disabled={busy||!status||(!transport&&debug)} onChange={event=>void call('calendar_reminder_settings',{enabled:event.target.checked})}/>应用运行时，提前 10 分钟提醒</label>
-    <p>覆盖本地与已连接的飞书主日历，通过桌宠或主窗口提示。确认后不再重复。</p>
+  return <section className="reminder-settings"><h2>通知偏好</h2>
+    <label><input type="checkbox" checked={status?.enabled===true} disabled={busy||!status||(!transport&&debug)} onChange={event=>void call('calendar_reminder_settings',{enabled:event.target.checked})}/>会前 10 分钟提醒</label>
+    <details><summary>提醒记录</summary>
     <button type="button" disabled={busy||(!transport&&(!info||debug))} onClick={()=>void call('calendar_reminder_status')}>核对提醒记录</button>
     {status?.scan&&<p role="status">扫描：{({never:'尚未扫描',pending:'等待扫描',disabled:'已关闭',scanning:'读取中',completed:'已核对',partial:'部分来源未核实',failed:'未完成'}as Record<string,string>)[status.scan.state]||status.scan.state} · 当前候选 {status.candidates?.length||0} 条</p>}
     {status?.scan?.errors?.length?<p role="alert">部分日程来源未核实，请检查飞书连接；未核实的远端日程不会投递。</p>:null}
-    <details><summary>最近提醒记录</summary>{status?.reminders?.length?status.reminders.map(row=><p key={row.id}>{reminderText(row)} · {row.acknowledged_at?'已确认':row.delivered_at?'已投递':'未投递'} · <code>{row.id}</code></p>):<p>暂无提醒记录。</p>}</details>
+    {status?.reminders?.length?status.reminders.map(row=><p key={row.id}>{reminderText(row)} · {row.acknowledged_at?'已确认':row.delivered_at?'已投递':'未投递'} · <code>{row.id}</code></p>):<p>暂无提醒记录。</p>}</details>
     {error&&<p role="alert">{error}</p>}{debug&&!transport&&<p>隔离演示不投递真实提醒。</p>}
   </section>;
 }

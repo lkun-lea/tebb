@@ -1,3 +1,4 @@
+import {ReceiptNotice} from './toast';
 import {accountStorage} from './account-storage';
 import { useEffect, useRef, useState } from "react";
 import type { ModelSetupState } from './onboarding-state';
@@ -198,6 +199,7 @@ export function SettingsPane(props: {
   const [apiKey, setApiKey] = useState("");
   const [tested, setTested] = useState(false);
   const revision = useRef(0);
+  const [assistantTab,setAssistantTab] = useState("model");
   const [persona, setPersona] = useState(props.persona);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -232,11 +234,9 @@ export function SettingsPane(props: {
 
   return (
     <div data-settings className="flex flex-col gap-6">
-      <section className="settings-card text-sm">
-        <p className="mb-3 text-muted-foreground">首次使用或不确定配置位置时，可以重新打开引导，查看模型、账号和可选功能的准备步骤。</p>
-        <div className="flex flex-wrap gap-2"><button type="button" className="desk-btn desk-btn-lg" onClick={() => props.onOpenGuide(false)}>继续使用引导</button><button type="button" className="desk-btn desk-btn-lg" onClick={() => props.onOpenGuide(true)}>从头重播引导</button></div>
-      </section>
-      <section hidden={props.section==='appearance'} className="settings-card">
+
+      {props.section!=='appearance' && <nav className="settings-local-tabs" aria-label="模型与人设">{[["model","模型服务"],["persona","系统提示词"]].map(([id,label])=><button key={id} aria-pressed={assistantTab===id} onClick={()=>setAssistantTab(id)}>{label}</button>)}</nav>}
+      <section hidden={props.section==='appearance'||assistantTab!=="model"} className="settings-card">
         <h2 className="text-sm font-semibold text-primary">模型</h2>
         <div className="flex flex-col gap-1">
           {props.models.length === 0 ? (
@@ -322,6 +322,16 @@ export function SettingsPane(props: {
           </button>
           <button
             type="button"
+            data-model-test
+            data-guide-anchor="model-test"
+            disabled={props.busy}
+            className="desk-btn desk-btn-lg"
+            onClick={() => void testConnection()}
+          >
+            测试连通
+          </button>
+          <details className="model-more"><summary aria-label="更多模型操作">•••</summary><div>          <button
+            type="button"
             data-model-create
             disabled={props.busy}
             className="desk-btn desk-btn-lg"
@@ -338,30 +348,17 @@ export function SettingsPane(props: {
           >
             删除这条
           </button>
-          <button
-            type="button"
-            data-model-test
-            data-guide-anchor="model-test"
-            disabled={props.busy}
-            className="desk-btn desk-btn-lg"
-            onClick={() => void testConnection()}
-          >
-            测试连通
-          </button>
+</div></details>
         </div>
-        <p className="text-xs text-muted-foreground">测试连通会向你填写的服务商发送一条简短请求，可能产生 API 费用。Key 保存在本机配置文件中。</p>
-        {props.notice ? (
-          <p data-settings-notice className="text-sm text-primary">
-            {props.notice}
-          </p>
-        ) : null}
+        <p className="text-xs text-muted-foreground">测试发送 1 次请求，可能计费。</p>
+        <ReceiptNotice text={props.notice}/>
         {props.modelError ? (
           <p data-settings-error className="text-sm text-destructive">
             {props.modelError}
           </p>
         ) : null}
       </section>
-      <section hidden={props.section==='appearance'} className="settings-card">
+      <section hidden={props.section==='appearance'||assistantTab!=="persona"} className="settings-card">
         <h2 className="text-sm font-semibold text-primary">系统提示词</h2>
         <p className="text-xs text-muted-foreground">保存后立刻生效。工具用法仍由程序接在这段后面。</p>
         <textarea
@@ -380,23 +377,22 @@ export function SettingsPane(props: {
         >
           保存提示词
         </button>
-        {props.personaNotice ? (
-          <p data-persona-notice className="text-sm text-primary">
-            {props.personaNotice}
-          </p>
-        ) : null}
+        <ReceiptNotice text={props.personaNotice}/>
         {props.personaError ? (
           <p data-persona-error className="text-sm text-destructive">
             {props.personaError}
           </p>
         ) : null}
       </section>
+      <details hidden={props.section==="appearance" || assistantTab!=="model"} className="setup-guide">
+        <summary>设置引导</summary>
+        <div className="flex flex-wrap gap-2"><button className="desk-btn" onClick={()=>props.onOpenGuide(false)}>继续引导</button><button className="desk-btn" onClick={()=>props.onOpenGuide(true)}>重新开始</button></div>
+      </details>
       <section hidden={props.section==='assistant'} className="settings-card">
-        <h2 className="text-sm font-semibold text-primary">外观</h2>
+        <h2>主题模式</h2>
+        <div className="theme-choices">{[false,true].map(dark=><button key={String(dark)} type="button" data-theme aria-pressed={props.dark===dark} onClick={()=>{if(props.dark!==dark)props.onToggleTheme()}}><i data-dark={dark} aria-hidden="true"/>{dark?'深色':'浅色'}</button>)}</div>
+        <h3>工作台背景</h3>
         <div className="flex flex-wrap gap-2">
-          <button type="button" data-theme className="desk-btn desk-btn-lg desk-btn-solid" onClick={props.onToggleTheme}>
-            {props.dark ? "浅色" : "深色"}
-          </button>
           <button
             type="button"
             data-bg-pick

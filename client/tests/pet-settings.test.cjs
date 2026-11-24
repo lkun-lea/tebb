@@ -12,7 +12,7 @@ function load(relative, mocks = {}) {
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(file, module); mod.filename = file; mod.paths = Module._nodeModulePaths(path.dirname(file));
-  const original = mod.require.bind(mod); mod.require = id => mocks[id] || original(id);
+  const original = mod.require.bind(mod); mod.require = id => mocks[id] || (id === "./toast" ? require("./load-client.cjs")("toast.tsx") : original(id));
   mod._compile(code, file); return mod.exports;
 }
 const pets = load('builtin-pet.ts');

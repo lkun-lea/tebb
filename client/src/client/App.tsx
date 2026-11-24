@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Fragment, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button, Card, CardBody } from "reend-components";
 import { useBoardActions } from "./board-actions";
+import {MobilePairingNotice} from './mobile-pairing';
 import {ReminderNotice}from'./reminders';
 import{CalendarProposalNavigation}from'./calendar-proposal-navigation';
 import{CalendarProposalCards}from'./calendar-proposal';
@@ -26,8 +27,6 @@ import { ContextCard, ContextSplit, modelVerbatim, splitIndex, type ContextView,
 import { KnowledgePane, KnowledgeTraceView, mergeKnowledgePage, type FeishuDoc, type KnowledgePayload } from "./knowledge";
 import { MaterialsPane } from './materials';
 import { NoteMode, type NotebookPage, type NoteDoc, type NoteSession } from "./note";
-import { AgentMonitor } from "./agent-monitor";
-import { WorkspaceRuns } from "./workspace-runs";
 import { NotebookSources } from "./notebook-sources";
 import { CalendarWorkspace } from "./calendar-workspace";
 import type { ScheduleTarget } from "./schedule";
@@ -87,10 +86,12 @@ import {
 } from "./settings";
 
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
-type Pane = "work" | "chat" | "board" | "automation" | "monitor" | "collaboration" | "pet" | "team";
+type SettingsTarget = {section?:string;profile?:string;service?:string;trace?:string};
+const EmbeddedSettings = lazy(() => import('./settings-app').then(module => ({default:module.SettingsApp})));
+type Pane = "settings" | "work" | "chat" | "board" | "automation" | "collaboration" | "pet" | "team";
 
 const debugKind = debugPane();
-const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "monitor" || debugKind === "video";
+const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "video";
 
 type Thread = {
   sessionId: string;
@@ -98,6 +99,7 @@ type Thread = {
   items: ChatItem[];
   context: ContextView | null;
 };
+
 
 export function App() {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
@@ -121,7 +123,7 @@ export function App() {
   const [modelItems, setModelItems] = useState<ModelEntry[]>(() => (debugKind ? MODELS_FIXTURE.items : []));
   const [activeModelId, setActiveModelId] = useState(() => (debugKind ? MODELS_FIXTURE.active : ""));
   const [pane, setPane] = useState<Pane>(
-    debugKind === "work" || debugKind === "automation" || debugKind === "monitor"
+    debugKind === "work" || debugKind === "automation"
       ? debugKind
       : debugKind === "board"
         ? "board"
@@ -249,8 +251,12 @@ export function App() {
         setBgUrl(ev.newValue || "");
       }
     };
+    const syncLocal = (e:Event) => setDark((e as CustomEvent<boolean>).detail);
+    const syncBg=(e:Event)=>setBgUrl((e as CustomEvent<string>).detail);
+    window.addEventListener("tebb-background",syncBg);
+    window.addEventListener("tebb-theme",syncLocal);
     window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    return () => {window.removeEventListener("storage", sync);window.removeEventListener("tebb-theme",syncLocal);window.removeEventListener("tebb-background",syncBg);};
   }, []);
 
   // 设置窗口可能增删模型：主窗口重新获得焦点时刷新对话可用的模型列表。
@@ -264,22 +270,34 @@ export function App() {
       }).catch(() => { /* 焦点刷新失败不提示，下次聚焦重试 */ });
     };
     window.addEventListener("focus", reload);
-    return () => window.removeEventListener("focus", reload);
+    window.addEventListener("tebb-models-changed",reload);
+    return () => {window.removeEventListener("focus", reload);window.removeEventListener("tebb-models-changed",reload);};
   }, [info, debugKind]);
 
-  function openSettings(section?: string, profile?: string) {
-    if (isTauri()) {
-      void invoke("open_settings_window", { section: section ?? null, profile: profile ?? null }).catch((err: unknown) => setError(String(err)));
-      return;
-    }
-    const params = new URLSearchParams();
-    const kind = debugPane();
-    if (kind) params.set("debug", kind);
-    if (section) params.set("section", section);
-    if (profile) params.set("profile", profile);
-    const query = params.toString();
-    window.open(`settings.html${query ? `?${query}` : ""}`, "_blank");
+  const [settingsTarget,setSettingsTarget]=useState<SettingsTarget>({});
+  const lastWorkspace=useRef<Pane>("collaboration");
+  if(pane!=="settings") lastWorkspace.current=pane;
+  function routeSettings(target:SettingsTarget){
+    setSettingsTarget(target);
+    setPane('settings');
   }
+  function openSettings(section?:string,profile?:string){routeSettings({section,profile});}
+  useEffect(()=>{
+    const local=(event:Event)=>routeSettings((event as CustomEvent<SettingsTarget>).detail||{});
+    window.addEventListener('tebb-open-settings',local);
+    let active=true,off:(()=>void)|undefined;
+    async function connect(){
+      const drain=async()=>{
+        const target=await invoke<SettingsTarget|null>('take_settings_target');
+        if(active&&target)routeSettings(target);
+      };
+      const unsubscribe=await listen('settings-requested',()=>{void drain().catch(e=>setError(String(e)));});
+      if(!active){unsubscribe();return;}
+      off=unsubscribe;await drain();
+    }
+    if(isTauri())void connect().catch(e=>{if(active)setError(String(e));});
+    return ()=>{active=false;off?.();window.removeEventListener('tebb-open-settings',local);};
+  },[]);
 
   useEffect(() => {
     slashIndexRef.current = 0;
@@ -397,13 +415,14 @@ export function App() {
   useEffect(() => {
     if (!isTauri()) return;
     let stop = () => {};
+    const collaborationListener=listen("open-collaboration",()=>setPane("collaboration"));
     void listen("open-today", () => {
       setCalendarTarget({view:'today'});
       openBoardRef.current(false);
     }).then((unlisten) => {
       stop = unlisten;
     });
-    return () => stop();
+    return () => {stop();void collaborationListener.then(dispose=>dispose());};
   }, []);
 
   async function loadThread(backend: BackendInfo) {
@@ -425,9 +444,10 @@ export function App() {
   }
 
   useEffect(() => {
-    // 设置类调试页由独立设置窗口承载：直接跳转，避免主窗口再渲染一套设置面板。
+    // 设置预览与正式入口共用嵌入式工作区。
     if (debugKind && ["settings", "usage", "profile", "feishu", "video"].includes(debugKind)) {
-      location.replace(`settings.html${location.search}`);
+      openSettings();
+      startupReady();
       return;
     }
     installDeskDebug({
@@ -488,8 +508,6 @@ export function App() {
         setActiveModelId(models.active);
         const setup = await rpc<SetupStatus>(backend, "load_onboarding");
         setSetupStatus(setup);
-        // 首次使用引导由设置窗口承载（模型与飞书阶段锚点都在设置窗口内）。
-        if (setup.show) openSettings();
         startupReady();
       })
       .catch((err: unknown) => {
@@ -1436,7 +1454,6 @@ export function App() {
     <span className="tebb-nav-group">协作</span>
     <RailButton icon="tasks" label="开发团队" active={pane === "team"} onClick={() => navigateWorkspace(()=>setPane("team"))} />
     <RailButton icon="chat" label="伙伴聊天" active={pane === "collaboration"} onClick={() => navigateWorkspace(()=>setPane("collaboration"))} />
-    <RailButton icon="tasks" label="AI 执行" active={pane === "monitor"} onClick={() => navigateWorkspace(()=>setPane("monitor"))} />
     <RailButton icon="automation" label="自动化" active={pane === "automation"} onClick={() => navigateWorkspace(()=>setPane("automation"))} />
     <span className="tebb-nav-group">工作</span>
     <RailButton icon="board" label="事项" active={pane === "work"} onClick={() => navigateWorkspace(()=>setPane("work"))} />
@@ -1445,12 +1462,13 @@ export function App() {
     <RailButton icon="notes" label="笔记" active={pane === "chat" && (chatFace === "notebooks" || chatFace === "thread" && !!noteSessionId)} onClick={() => navigateWorkspace(()=>void openNotes())} />
     <RailButton icon="knowledge" label="知识库" active={pane === "chat" && chatFace === "knowledge"} onClick={() => navigateWorkspace(()=>void openKnowledge())} />
     <span className="tebb-nav-group">偏好</span>
-    <RailButton icon="settings" label="设置" active={false} onClick={() => openSettings()} />
+    <RailButton icon="settings" label="设置" active={pane==="settings"} onClick={() => openSettings()} />
     <div className="tebb-nav-actions"><RailButton icon="pet" label="桌宠" active={pane==='pet'} onClick={()=>navigateWorkspace(()=>setPane('pet'))}/></div>
   </>;
 
   return (
     <div className="tebb-workspace relative flex h-full flex-col overflow-hidden bg-background text-foreground" data-pane={pane}>
+      {!debugKind && <MobilePairingNotice info={info}/>}
       <ReminderNotice info={info} debug={!!debugKind}/>
       <CalendarProposalNavigation info={info} onTarget={target=>navigateWorkspace(()=>openCalendar(target))}/>
       {releaseIntro.open ? <ReleaseIntro daily={releaseIntro.daily}
@@ -1466,12 +1484,12 @@ export function App() {
       </div>
       <WindowTitleBar />
       <div className="tebb-workspace-body flex min-h-0 flex-1">
-      <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>
+      {pane!=="settings" && <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>}
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
-        <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
-          ({ team:"开发团队", work: "事项", board: "日程", automation: "自动化", monitor: "AI 执行", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
+        {pane!=="settings" && <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
+          ({ settings:"设置",team:"开发团队", work: "事项", board: "日程", automation: "自动化", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
           model={modelItems.find(m => m.id === activeModelId)?.model ? `默认：${modelItems.find(m => m.id === activeModelId)?.model}` : ""} connected={!!info || !!debugKind} busy={busy || noteBusy}
-          onFile={() => setLocalDialog("file")} onFolder={openProjectFolder} onTerminal={openTerminal} sidebarOpen={sidebarState.open} sidebarAvailable={sidebarState.available} onSidebarToggle={togglePreview} />
+          onFile={() => setLocalDialog("file")} onFolder={openProjectFolder} onTerminal={openTerminal} sidebarOpen={sidebarState.open} sidebarAvailable={sidebarState.available} onSidebarToggle={togglePreview} />}
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
         {localDialog && <LocalSourcesDialog info={info} initialKind={localDialog} debug={!!debugPane()} onClose={() => { setLocalDialog(null); setLocalDialogMinimized(false); }} onPreview={previewSource} onMinimizedChange={setLocalDialogMinimized}
           onAttach={sources => { setPickedAttachments(sources); setLocalDialog(null); setPane("collaboration"); setNoteSessionId(null); }}
@@ -1485,12 +1503,12 @@ export function App() {
           onLink={url => { if (noteSessionId && pane === "chat" && chatFace === "thread") setDraft(text => `${text}${text ? "\n" : ""}${url}`); else { setComposeRequest({ id: Date.now(), text: url }); setPane("collaboration"); } }}
           onRequest={() => {}}>
         <div className="tebb-content-slot" data-content-slot>
-        <div className="tebb-core-chat" hidden={!coreChat} style={{ display: coreChat ? "flex" : "none", flex: 1, minHeight: 0, minWidth: 0 }}>
-          {!debugKind && <Suspense fallback={<p className="p-6">正在连接伙伴…</p>}><LiveCollaboration onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
+        <div className="tebb-core-chat" hidden={!coreChat} style={{ flexDirection: "column", display: coreChat ? "flex" : "none", flex: 1, minHeight: 0, minWidth: 0 }}>
+          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page" hidden={coreChat} style={{ display: coreChat ? "none" : "flex" }}>
         <PageStack active={coreChat ? "" : pane === "chat" ? chatFace : pane}>
-          {coreChat ? null : pane === "chat" && chatFace === "knowledge" ? (
+          {pane === "settings" ? <Suspense fallback={<p role="status"><LoadingText text="正在打开设置…"/></p>}><EmbeddedSettings onBack={()=>setPane(lastWorkspace.current)} target={settingsTarget} onOpenChat={()=>setPane("collaboration")}/></Suspense> : coreChat ? null : pane === "chat" && chatFace === "knowledge" ? (
             <section
               key="knowledge"
               data-chat-face="knowledge"
@@ -1776,7 +1794,7 @@ export function App() {
               </div>
             </section>
           ) : pane === "pet" ? (
-            <section key="pet" className="flex-1 overflow-y-auto px-8 py-6"><h1 className="text-2xl mb-4">桌宠</h1><p className="mb-5 text-sm text-muted-foreground">选择外观、预览并管理桌宠窗口。</p><PetSettings info={info} debug={!!debugKind}/></section>
+            <section key="pet" className="flex-1 overflow-y-auto px-8 py-6"><h1 className="text-2xl mb-4">桌宠</h1><PetSettings info={info} debug={!!debugKind}/></section>
                     ) : pane === "team" ? <DevelopmentTeam info={info} onSetup={()=>setPane("collaboration")} onOpen={async id=>{
             if(!info)throw Error("后端尚未连接");
             await rpc(info,"collaboration_action",{action:{type:"select",id,conversation:id,request_id:crypto.randomUUID()}});
@@ -1792,13 +1810,6 @@ export function App() {
                 await rpc(info, "collaboration_action", {action:{type:"select",id:conversation,conversation,request_id:crypto.randomUUID()}});
                 setPane("collaboration"); window.dispatchEvent(new CustomEvent("tebb-show-tasks"));
               }} />
-            </section>
-          ) : pane === "monitor" ? (
-            <section key="monitor" data-page="monitor" className="flex-1 overflow-y-auto px-8 py-6">
-              <h1 className="text-2xl font-semibold">AI 执行</h1>
-              <p className="mt-2 text-sm text-muted-foreground">查看桌面与飞书会话的执行过程，停止任务或继续聊天。</p>
-              <WorkspaceRuns info={info} onOpen={conversation => { if (!info) return; void rpc(info, 'collaboration_action', { action: { type: 'select', id: conversation, conversation, request_id: crypto.randomUUID() } }).then(() => { setPane('collaboration'); window.dispatchEvent(new CustomEvent('tebb-show-tasks')); }).catch(e => setError(String(e))); }} />
-              <details className="mt-6"><summary>其他渠道与旧任务记录</summary><AgentMonitor info={info} debug={boardClock !== null} /></details>
             </section>
           ) : (
             <section

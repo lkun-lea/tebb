@@ -17,7 +17,7 @@ export function TaskBudgetView({budget}:{budget?:TaskBudget|null}){
   const used=budget.consumed;
   return <details className="mt-3 rounded-lg border border-current/15 p-3 text-xs" aria-label="整个目标的任务预算">
     <summary>任务预算 · {tiers[budget.tier]||budget.tier} · 请求 {used.model_calls}/{budget.limits.model_calls} · 工具 {used.tool_calls}/{budget.limits.tool_calls}{budget.waiting_user?' · 等待补充，执行计时暂停':budget.status==='active'?' · 执行中':' · 已结束'}</summary>
-    <dl className="mt-3 grid grid-cols-2 gap-2">
+    <dl className="mt-3 ui-facts">
       <div><dt>已回报输入 / 输出</dt><dd>{count(used.input_tokens)} / {count(used.output_tokens)} tokens</dd></div>
       <div><dt>缺用量的请求（输入 / 输出）</dt><dd>{used.input_unknown_calls} / {used.output_unknown_calls}</dd></div>
       <div><dt>输入 / 输出预算</dt><dd>{count(budget.limits.input_tokens)} / {count(budget.limits.output_tokens)}</dd></div>

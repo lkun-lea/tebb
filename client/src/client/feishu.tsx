@@ -1,4 +1,4 @@
-import { Button } from "reend-components";
+import {UiButton} from "./ui-controls";
 
 // 飞书页只转述登录接口里已有的字段。登录地址由 feishu_login 现取。
 
@@ -7,6 +7,7 @@ export type FeishuSnap = {
   installed?: boolean;
   logged_in?: boolean;
   system_logged_in?: boolean;
+  token_expired?: boolean;
   connected?: boolean;
   user_name?: string;
   has_calendar?: boolean;
@@ -56,6 +57,8 @@ export function FeishuPane(props: {
   debug: boolean;
   onLogin: () => void;
   onLogout: () => void;
+  onCheck?: () => void;
+  checkDisabled?: boolean;
 }) {
   const logged = feishuLoggedIn(props.snap);
   const waiting = feishuWaiting(props.snap);
@@ -64,16 +67,8 @@ export function FeishuPane(props: {
   const missing = missingScopes(props.snap);
   return (
     <div data-feishu data-feishu-logged={logged ? "1" : "0"} data-feishu-busy={waiting ? "1" : "0"}>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold">飞书</h1>
-        <div className="mt-1 text-sm text-muted-foreground">每个 tebb 数据目录独立连接；系统已有登录不会自动导入日程和待办。</div>
-      </div>
-      {props.debug ? <div className="mb-4 text-xs text-muted-foreground">调试样本，未连接后端</div> : null}
-      {notice ? (
-        <p data-feishu-message className={`text-sm leading-6 ${failed ? "text-destructive" : ""}`}>
-          {notice}
-        </p>
-      ) : null}
+      {props.debug && <small>调试样本</small>}
+      {(failed || waiting || props.snap?.installed === false) && <p role={failed?'alert':'status'} data-feishu-message>{notice}</p>}
       {logged && missing.length > 0 ? (
         <ul className="mt-4 space-y-1 text-sm">
           {missing.map((label) => (
@@ -83,26 +78,26 @@ export function FeishuPane(props: {
           ))}
         </ul>
       ) : null}
-      <div className="mt-6" data-guide-anchor="feishu-connect" tabIndex={-1}>
+      <div className="ui-action-row" data-guide-anchor="feishu-connect" tabIndex={-1}>
         {logged ? (
           <span data-feishu-logout="">
-            <Button type="button" variant="secondary" size="sm" disabled={props.busy} onClick={props.onLogout}>
+            <UiButton type="button" disabled={props.busy} onClick={props.onLogout}>
               断开 tebb 连接
-            </Button>
+            </UiButton>
           </span>
         ) : (
           <span data-feishu-login="" data-feishu-login-disabled={props.busy || waiting ? "1" : "0"}>
-            <Button
+            <UiButton
               type="button"
               variant="primary"
-              size="sm"
               disabled={props.busy || waiting}
               onClick={props.onLogin}
             >
-              {props.snap?.system_logged_in ? '连接本机账户' : '打开网页登录并连接'}
-            </Button>
+              {props.snap?.system_logged_in ? '连接本机账户' : props.snap?.token_expired?'重新授权飞书':'连接飞书账号'}
+            </UiButton>
           </span>
         )}
+        {props.onCheck && <UiButton type="button" disabled={props.checkDisabled} onClick={props.onCheck}>检查连接</UiButton>}
       </div>
     </div>
   );

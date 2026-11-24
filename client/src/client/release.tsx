@@ -86,7 +86,7 @@ export function ReleaseSettings({ info, onShowIntro }: { info: BackendInfo | nul
     catch { setResult({ ok: false, current_version: manifest.version, error: "暂时无法检查更新，请稍后重试。", release_url: releases + "/latest" }); }
     finally { setBusy(false); }
   }
-  return <section className="mt-6 flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-5" data-release-settings>
+  return <section className="flex flex-col items-start gap-3" data-release-settings>
     <h2 className="text-sm font-semibold text-primary">版本与更新</h2><p className="text-sm">当前版本 v{manifest.version}</p>
     <div className="flex flex-wrap gap-3"><button className="desk-btn desk-btn-lg" onClick={onShowIntro}>查看版本介绍</button>
       <button className="desk-btn desk-btn-lg desk-btn-solid" disabled={!info || busy} onClick={() => void check()}>{busy ? "正在检查…" : "检查更新"}</button></div>

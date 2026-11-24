@@ -23,12 +23,12 @@
 .desk-btn[aria-pressed=true] { background: hsl(var(--primary) / .14); color: hsl(var(--primary)); }
 .desk-btn[aria-busy=true] { cursor: progress; }
 .ui-field { display: grid; gap: var(--ui-space-xs); min-width: 0; }
-.ui-field>label { font-size: var(--ui-text-sm); font-weight: var(--ui-weight-500); }
+.ui-field>label { line-height: var(--ui-leading-body); font-size: var(--ui-text-body); font-weight: var(--ui-weight-500); }
 .ui-field>:where(input:not([type=checkbox]):not([type=radio]), select, textarea) {
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px;
   padding: 8px 10px; border-radius: var(--ui-radius); font: inherit; font-size: var(--ui-text-body);
 }
-.ui-field-help, .ui-field-error { margin: 0; font-size: var(--ui-text-sm); line-height: 1.6; text-wrap: pretty; }
+.ui-field-help, .ui-field-error { margin: 0; font-size: var(--ui-text-sm); line-height: var(--ui-leading-body); text-wrap: pretty; }
 .ui-field-help { color: hsl(var(--muted-foreground)); }
 .ui-field-error { color: hsl(var(--ui-status-danger)); }
 .ui-feedback { padding: var(--ui-space-md); border: 0; border-radius: var(--ui-radius); background: hsl(var(--secondary)); font-size: var(--ui-text-sm); line-height: 1.6; }

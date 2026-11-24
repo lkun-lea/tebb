@@ -73,7 +73,7 @@ export function FlowReplay({steps,model}:{steps:ReplayStep[];model?:string}){
    <aside className="df-inspector" aria-label="节点详情"><h4 className="df-panel-title">▤　节点详情</h4>
     <div className="df-panel-subtitle"><strong>{node.title}</strong><span className={"flow-state-badge tone-"+flowTone(node.state)}>{flowLabel(node.state)}</span></div>
     <button className="df-follow" onClick={()=>select("")}>跟随当前节点</button>
-    <dl><dt>执行者</dt><dd>{["负责人","编码伙伴","验证伙伴","负责人"][Number(node.id)]}{model&&" · "+model}</dd><dt>正在做什么</dt><dd>{node.summary}</dd></dl>
+    <dl className="ui-facts"><dt>执行者</dt><dd>{["负责人","编码伙伴","验证伙伴","负责人"][Number(node.id)]}{model&&" · "+model}</dd><dt>正在做什么</dt><dd>{node.summary}</dd></dl>
     <h4>最近节点记录</h4><div className={"df-receipt tone-"+flowTone(node.state)}><strong>{receipt?.label||"尚未进入"}</strong><p>{receipt?.note||"该节点尚无更多记录。"}</p></div>
     <h4>当前回放位置</h4>{step&&<div role="status"><strong>{step.label}</strong><p>{step.note||"此条未记录更多说明"}</p></div>}
     <h4>下一步</h4><p>点击播放或下一步查看后续记录。历史回放不会执行模型或修改项目。</p>

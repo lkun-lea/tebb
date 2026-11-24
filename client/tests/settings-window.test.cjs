@@ -12,7 +12,11 @@ function stubWindow(search=''){
 }
 
 const panes={
+  './window-chrome':{WindowCloseButton:()=>null},
+  './agent-monitor':{AgentMonitor:()=>null},
+  './workspace-runs':{WorkspaceRuns:()=>null},
   './accounts':{AccountsPane:() => null},
+  './mobile-pairing':{MobilePairingPane:() => null},
   './reminders':{ReminderSettings:() => null},
   './usage-center':{PersonalUsagePane:() => null},
   './release':{useReleaseIntro:()=>({open:false,show(){},close(){},daily:false,setDaily(){},preferenceError:''}),ReleaseSettings:() => null,ReleaseIntro:() => null},
@@ -58,9 +62,9 @@ test('分组导航覆盖现有分类并按大分组组织',()=>{
   let view;act(()=>{view=create(React.createElement(SettingsApp));});
   assert.equal(view.root.findByProps({'data-settings-shell':'1'}).props['data-settings-section'],'assistant');
   const groups=view.root.findAllByProps({className:'settings-nav-group-label'}).map(text);
-  assert.deepEqual(groups,['通用','连接与数据','账号与关于']);
+  assert.deepEqual(groups,['','其他设置']);
   assert.deepEqual(navItems(view).map(node=>node.props['data-settings-nav-item']),
-    ['assistant','appearance','connections','usage','account','personalization','about']);
+    ['account','assistant','connections','tools','monitor','evaluation','usage','personalization','appearance','network','about']);
   act(()=>view.unmount());
 });
 
@@ -73,7 +77,7 @@ test('搜索按分类与关键词过滤，清空恢复，无匹配给出状态',
   assert.equal(navItems(view).length,0);
   assert(text(view.root).includes('没有匹配的分类'));
   act(()=>{searchBox(view).props.onChange({target:{value:''}});});
-  assert.equal(navItems(view).length,7);
+  assert.equal(navItems(view).length,11);
   act(()=>view.unmount());
 });
 
@@ -93,7 +97,7 @@ test('外观分类渲染主题与背景卡片并隐藏模型表单',()=>{
   assert.equal(view.root.findByProps({'data-settings-shell':'1'}).props['data-settings-section'],'appearance');
   const rendered=text(view.root);
   assert(rendered.includes('外观'));
-  assert.equal(view.root.findAll(node=>node.props['data-theme']!==undefined).length,1);
+  assert.equal(view.root.findAll(node=>node.type==='button'&&node.props['data-theme']!==undefined).length,2);
   assert.equal(view.root.findAllByProps({'data-bg-pick':true}).length,1);
   // 模型卡片仍挂载但通过 hidden 属性收起，切换分类不丢表单状态。
   const modelSection=view.root.findAllByType('section').find(node=>text(node).startsWith('模型'));

@@ -4,7 +4,7 @@ import { ChartBuildProgress } from './chart-building';
 import { TaskBudgetView } from './task-budget';
 import { InspectorDisclosure } from './inspector-disclosure';
 
-const toolNames: Record<string,string> = {calendar_propose:'生成日程提案',web_search:'联网搜索',web_fetch:'网页读取',build_chart:'构建图表',github_repository:'GitHub 仓库',workspace_read:'读取文件',workspace_list:'浏览目录',workspace_tree:'浏览目录',workspace_write:'编辑文件',workspace_run:'运行命令',read_local_source:'读取附件',read_local_calendar:'本地日程读取',project_chat_search:'检索项目对话',project_prepare:'准备项目环境',project_read:'读取项目文件',project_write:'修改项目文件',project_execute:'运行项目命令',project_start:'启动项目服务',project_status:'核对项目状态',project_log:'读取项目日志',project_stop:'停止项目环境',project_list:'查看项目环境',project_reconcile:'核对原环境'};
+const toolNames: Record<string,string> = {calendar_create:'创建日程',calendar_propose:'生成日程提案',web_search:'联网搜索',web_fetch:'网页读取',build_chart:'构建图表',github_repository:'GitHub 仓库',workspace_read:'读取文件',workspace_list:'浏览目录',workspace_tree:'浏览目录',workspace_write:'编辑文件',workspace_run:'运行命令',read_local_source:'读取附件',read_local_calendar:'本地日程读取',project_chat_search:'检索项目对话',project_prepare:'准备项目环境',project_read:'读取项目文件',project_write:'修改项目文件',project_execute:'运行项目命令',project_start:'启动项目服务',project_status:'核对项目状态',project_log:'读取项目日志',project_stop:'停止项目环境',project_list:'查看项目环境',project_reconcile:'核对原环境'};
 export function hasCalendarContext(run?:DemoRun){return !!run?.events?.some(event=>/^tool_(?:start|end):\s*get_today_agenda(?:\s|$)/.test(event));}
 export function progressText(event: string) {
   const match = /^(tool_start|tool_end):\s*(\S+)\s*(.*)$/.exec(event);
@@ -31,7 +31,7 @@ export function DraftNotice({run}:{run?:DemoRun}) {
     ? <small role="status" className="block text-xs text-muted-foreground">上一段草稿 · 正在继续处理</small> : null;
 }
 
-function runProgressText(run: DemoRun) {
+export function runProgressText(run: DemoRun) {
   const state=run.chain?.state||run.state,events=run.events||[];
   return state==='needs_input'?'待补充　尚未开始执行':runActive({...run,state}) ? progressText(run.status || events.at(-1) || '正在准备…') : run.chain?.error || run.error || `已结束　${events.length} 条执行记录`;
 }

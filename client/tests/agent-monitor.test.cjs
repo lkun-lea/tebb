@@ -25,14 +25,15 @@ test('monitor stops only selected task, continues same conversation and sends on
     return { ok: true };
   };
   const baseRequire = mod.require.bind(mod);
-  const original = id => id === './execution-entry' ? {ExecutionEntry:()=>null} : baseRequire(id);
-  mod.require = id => id === './calendar-proposal' ? {CalendarProposalCards:()=>null} : id === './calendar-proposal-state' ? require('./load-client.cjs')('calendar-proposal-state.ts') : id === './task-budget' ? require('./component-fixture.cjs').loader({})('task-budget') : id === './page-stack' ? { usePageActive: () => true } : id === './api' ? { rpc } : id === './video' ? { TaskVideos: () => null, VideoSettings: () => null } : id === './Markdown' ? {
+  const original = id => id === './workspace-dialog' ? {WorkspaceDialog:({children})=>React.createElement('dialog',null,children)} : id === './execution-entry' ? {ExecutionEntry:()=>null} : baseRequire(id);
+  mod.require = id => id === './ui-controls' ? require('./load-client.cjs')('ui-controls.tsx') : id === './calendar-proposal' ? {CalendarProposalCards:()=>null} : id === './calendar-proposal-state' ? require('./load-client.cjs')('calendar-proposal-state.ts') : id === './task-budget' ? require('./component-fixture.cjs').loader({})('task-budget') : id === './page-stack' ? { usePageActive: () => true } : id === './api' ? { rpc } : id === './video' ? { TaskVideos: () => null, VideoSettings: () => null } : id === './Markdown' ? {
     Markdown: ({ text }) => React.createElement('p', null, text) } : original(id);
   mod._compile(compiled, filename);
   global.window = { setInterval: () => 1, clearInterval() {} };
   let renderer;
   await act(async () => { renderer = create(React.createElement(mod.exports.AgentMonitor, { info: { port: 1, token: 'test' } })); });
   const button = label => renderer.root.findAllByType('button').find(n => n.children.join('') === label);
+  await act(async () => renderer.root.findAllByType('button').find(n=>n.findAllByType('span').some(s=>s.children.includes('问天气'))).props.onClick());
   assert.ok(JSON.stringify(renderer.toJSON()).includes('已查到部分信息'));
   await act(async () => button('停止任务').props.onClick());
   assert.deepEqual(calls.find(c => c[0] === 'cancel_agent_task')[1], { task_id: 'selected-task' });

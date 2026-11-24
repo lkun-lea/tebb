@@ -6,6 +6,7 @@ const {AccountController,ACCOUNT_FIXTURE,ACCOUNT_MARKER_KEY}=load('account-state
 const memory=()=>{const values=new Map();return {values,getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};};
 const page=extra=>({...structuredClone(ACCOUNT_FIXTURE),...extra});
 const deferred=()=>{let resolve;return {promise:new Promise(r=>resolve=r),resolve:value=>resolve(value)};};
+const openLogin=view=>act(async()=>view.root.findAllByType('button').find(n=>text(n)==='登录 tebb').props.onClick());
 const text=node=>typeof node==='string'?node:(node.children||[]).map(text).join('');
 
 test('browser preferences and pending receipts are isolated and a live webview cannot change its binding',()=>{
@@ -105,39 +106,70 @@ test('unconfigured account UI exposes configuration state, disables email sends 
   const {AccountsPane}=load('accounts.tsx',{'./account-state':state,'./api':{rpc:async(_info,method)=>{calls.push(method);return page({});}},
     '@tauri-apps/api/core':{invoke:async()=>{throw Error('no automatic restart');}},'./accounts.css':{}});
   let view;await act(async()=>{view=create(React.createElement(AccountsPane,{info:{port:1,token:'synthetic'}}));});
+  await openLogin(view);
+  await act(async()=>view.root.findAllByType('button').find(n=>text(n)==='暂不登录').props.onClick());
+  assert.equal(view.root.findAllByType('dialog').length,0);
+  await openLogin(view);
   assert.match(text(view.root),/账号服务尚未配置/);assert.equal(view.root.findAllByType('button').find(n=>text(n)==='获取验证码').props.disabled,true);
   assert.deepEqual(calls,['account_session']);await act(async()=>view.unmount());delete global.localStorage;
 });
 
-test('a rejected code is explained beside the invalid field and the same login step can be corrected',async()=>{
+test('a rejected code uses a toast and focuses the invalid field and the same login step can be corrected',async()=>{
   global.localStorage=memory();global.crypto=require('node:crypto').webcrypto;
   const challenge={id:randomUUID(),email:'a@tebb.invalid',expires_at:Date.now()/1000+600};
   const initial=page({configured:true,config_managed:true,challenge}),calls=[];let focused=0,scrolled=0;
-  const state=load('account-state.ts');
-  const {AccountsPane}=load('accounts.tsx',{'./account-state':state,'./api':{rpc:async(_info,method,args)=>{
+  const state=load('account-state.ts'),toasts=load('toast.tsx');
+  const {AccountsPane}=load('accounts.tsx',{'./toast':toasts,'./account-state':state,'./api':{rpc:async(_info,method,args)=>{
     if(method==='account_session')return initial;
     const payload=args.payload;calls.push(payload);
     return payload.code==='000000'?{...initial,version:2,ok:false,error:'验证码已过期或无效，请重新获取。',
       operation:{id:payload.request_id,type:'verify_code',state:'failed',code:'invalid_otp'}}:
       page({configured:true,config_managed:true,version:4,selected:'a'.repeat(64),restart_required:true,
         operation:{id:payload.request_id,type:'verify_code',state:'complete'}});
-  }},'@tauri-apps/api/core':{invoke:async()=>{throw Error('no automatic restart');}},'./accounts.css':{}});
-  let view;await act(async()=>{view=create(React.createElement(AccountsPane,{info:{port:1,token:'synthetic'}}),{
+  }},'@tauri-apps/api/core':{invoke:async(cmd,args)=>{calls.push({cmd,args});}},'./accounts.css':{}});
+  let view;await act(async()=>{view=create(React.createElement(React.Fragment,null,React.createElement(toasts.ToastHost),React.createElement(AccountsPane,{info:{port:1,token:'synthetic'}})),{
     createNodeMock:element=>element.props.autoComplete==='one-time-code'?{focus(){focused++;},parentElement:{scrollIntoView(){scrolled++;}}}:null,
   });});
+  await openLogin(view);
   await act(async()=>view.root.findByProps({autoComplete:'email'}).props.onChange({target:{value:challenge.email}}));
   await act(async()=>view.root.findByProps({autoComplete:'one-time-code'}).props.onChange({target:{value:'000000'}}));
   const verifyForm=()=>view.root.findAllByType('form').find(n=>n.findAllByProps({autoComplete:'one-time-code'}).length);
   await act(async()=>verifyForm().props.onSubmit({preventDefault(){}}));
   const code=view.root.findByProps({autoComplete:'one-time-code'}),field=code.parent;
   assert.equal(code.props['aria-invalid'],true);assert.equal(code.props.value,'');
-  assert.match(text(field),/验证码已过期或无效/);assert.equal(field.findByProps({role:'alert'}).type,'span');
+  assert.match(text(view.root.findByProps({className:'ui-toast-region'})),/验证码已过期或无效/);
+  assert.doesNotMatch(text(field),/验证码已过期或无效/);
   assert.equal(view.root.findAllByProps({'data-ui-feedback':'error'}).length,0);
   assert.equal(view.root.findByProps({autoComplete:'email'}).props.value,challenge.email);
   assert.equal(focused,1);assert.equal(scrolled,1);
   await act(async()=>view.root.findByProps({autoComplete:'one-time-code'}).props.onChange({target:{value:'123456'}}));
   await act(async()=>verifyForm().props.onSubmit({preventDefault(){}}));
-  assert.equal(calls.length,2);assert.equal(calls[1].challenge_id,challenge.id);
-  assert.match(text(view.root),/待重启切换空间/);assert.doesNotMatch(text(view.root),/验证码已过期或无效/);
+  assert.equal(calls.length,3);assert.equal(calls[1].challenge_id,challenge.id);
+  assert.deepEqual(calls[2],{cmd:'switch_account_workspace',args:{previousPort:1}});assert.equal(view.root.findAllByType('dialog').length,0);assert.doesNotMatch(text(view.root.findByType('section')),/验证码已过期或无效/);
   await act(async()=>view.unmount());delete global.localStorage;
+});
+
+for (const [code,message] of [['rate_limited','请稍后再获取验证码。'],['version_conflict','账号状态已变化，请刷新后再操作。']])
+test(code+' uses the shared toast without a page-level banner',async()=>{
+  global.localStorage=memory();
+  const initial=page({configured:true,config_managed:true});
+  const pendingSend=deferred();
+  const toasts=load('toast.tsx');
+  const {AccountsPane}=load('accounts.tsx',{'./toast':toasts,'./account-state':{AccountController,ACCOUNT_FIXTURE},'./api':{rpc:async(_info,method)=>
+    method==='account_session'?initial:pendingSend.promise
+  },'@tauri-apps/api/core':{invoke:async()=>{}},'./accounts.css':{}});
+  let view;
+  try{
+    await act(async()=>{view=create(React.createElement(React.Fragment,null,
+      React.createElement(toasts.ToastHost),React.createElement(AccountsPane,{info:{port:1,token:'fixture'}})));});
+    await openLogin(view);
+    const input=view.root.findByProps({autoComplete:'email'});
+    await act(async()=>input.props.onChange({target:{value:'a@tebb.invalid'}}));
+    const form=view.root.findAllByType('form').find(n=>n.findAllByProps({autoComplete:'email'}).length);
+    await act(async()=>form.props.onSubmit({preventDefault(){}}));
+    assert.doesNotMatch(text(view.root),/上次账号操作需要核对/);
+    await act(async()=>pendingSend.resolve({...initial,ok:false,accepted:false,code,error:message}));
+    assert.equal(text(view.root.findByProps({className:'ui-toast-region'})),message);
+    assert.equal(view.root.findAllByProps({'data-ui-feedback':'error'}).length,0);
+  }finally{await act(async()=>view?.unmount());delete global.localStorage;}
 });

@@ -1,3 +1,4 @@
+import {ReceiptNotice} from './toast';
 import { usePageActive } from "./page-stack";
 import { useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -116,19 +117,20 @@ export function FeishuAgentPane({ info, debug = false }: { info: BackendInfo | n
   function openLink(url: string) {
     if (isTauri()) void invoke("open_link", { url }); else window.open(url, "_blank", "noopener");
   }
-  return <section className="mt-10 max-w-2xl rounded-xl border border-border p-5" aria-label="飞书 tebb Agent">
-    <h2 className="text-base font-semibold">在飞书使用 tebb Agent</h2>
-    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-      接入本机飞书 CLI 已配置的应用。接入后，你可以在飞书私聊机器人，使用 tebb 的模型、技能、知识库和工具。
-      仅接受绑定的登录用户；tebb 需要保持运行，聊天历史与桌面当前对话分开保存。
-    </p>
-    <p className="mt-4 text-sm" data-feishu-agent-state>{STATES[snap?.state || "stopped"] || "读取状态中"}</p>
-    {snap?.connected && <p className="mt-2 text-xs text-white/50">记忆菜单：{snap.menu_connected ? "已监听" : "等待连接"}。菜单动作需配置为 memory_request_from_feishu，订阅 application.bot.menu_v6 后发布应用。</p>}
-    {snap?.menu_error && <p role="alert" className="mt-2 text-sm text-amber-300">{snap.menu_error}</p>}
-    {snap?.binding?.app_id ? <p className="mt-2 text-sm text-muted-foreground">
-      应用：{snap.binding.app_name || snap.binding.app_id}<br />
-      允许私聊：{snap.binding.owner_name || snap.binding.owner_id}
-    </p> : null}
+  return <section className="bot-config text-foreground" aria-label="飞书 tebb Agent">
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <h3 className="font-semibold">私聊机器人</h3>
+      <span className="bot-state" data-state={snap?.state} data-feishu-agent-state>
+        {snap ? STATES[snap.state] || "状态未知" : "正在读取状态"}
+      </span>
+    </div>
+    <p className="mt-1 text-sm text-muted-foreground">tebb 运行时，绑定用户可以在飞书私聊中使用模型、技能、知识库和工具。</p>
+    {snap?.connected && <p className="mt-2 text-xs text-muted-foreground">记忆菜单：{snap.menu_connected ? "已监听" : "等待连接"}。菜单动作需配置为 memory_request_from_feishu，订阅 application.bot.menu_v6 后发布应用。</p>}
+    {snap?.menu_error && <p role="alert" className="mt-2 text-sm text-destructive">{snap.menu_error}</p>}
+    {snap?.binding?.app_id ? <dl className="ui-facts mt-3">
+      <div><dt>绑定应用</dt><dd>{snap.binding.app_name || snap.binding.app_id}</dd></div>
+      <div><dt>允许私聊</dt><dd>{snap.binding.owner_name || snap.binding.owner_id || "未知用户"}</dd></div>
+    </dl> : null}
     {error || snap?.error ? <p role="alert" className="mt-3 whitespace-pre-wrap text-sm text-destructive">{error || snap?.error}</p> : null}
     {snap?.diagnostic ? <p className="mt-2 text-sm text-muted-foreground">{snap.diagnostic}</p> : null}
     {!!snap?.next_retry_at && <p className="mt-2 text-xs text-muted-foreground">下次重试：{new Date(snap.next_retry_at * 1000).toLocaleTimeString()}，会重新校验同一应用和绑定用户。</p>}
@@ -140,6 +142,17 @@ export function FeishuAgentPane({ info, debug = false }: { info: BackendInfo | n
       </li>)}</ol>
     </details>}
     {snap?.last_reply ? <p className="mt-2 text-xs text-muted-foreground">最近回复：{snap.last_reply}</p> : null}
+    <div className="ui-action-row mt-3">
+      <Button type="button" variant="primary" size="sm" disabled={locked || dirty} onClick={() => void change(true)}>
+        {snap?.state === "error" ? "重新接入" : "接入飞书"}
+      </Button>
+      <Button type="button" variant="secondary" size="sm" disabled={busy || (!working && !snap?.enabled) || !info || debug} onClick={() => void change(false)}>停止接入</Button>
+      <Button type="button" variant="secondary" size="sm" disabled={busy || !info || debug || !settings.profile} onClick={() => void configure("check")}>检查连接占用</Button>
+    </div>
+    {dirty ? <p className="mt-2 text-xs text-muted-foreground">有未保存的连接设置，请先保存。</p> : null}
+    <ReceiptNotice text={message}/>
+    {check ? <p role="status" className="mt-3 whitespace-pre-wrap text-sm">{check}</p> : null}
+    <details className="bot-options"><summary>应用与重连设置</summary>
     <fieldset className="mt-5 space-y-4 rounded-lg bg-muted/30 p-4" disabled={locked}>
       <legend className="px-1 text-sm font-medium">长连接设置</legend>
       <label className="block text-sm">飞书应用
@@ -169,16 +182,9 @@ export function FeishuAgentPane({ info, debug = false }: { info: BackendInfo | n
         <Button type="button" variant="secondary" size="sm" className="mt-3" disabled={locked || !settings.profile || !secret.trim()} onClick={() => void configure("secret")}>更新应用密钥</Button>
       </div>
     </fieldset>
-    {dirty ? <p className="mt-2 text-xs text-muted-foreground">有未保存的连接设置，请先保存。</p> : null}
-    {message ? <p role="status" className="mt-3 text-sm">{message}</p> : null}
-    {check ? <p role="status" className="mt-3 whitespace-pre-wrap text-sm">{check}</p> : null}
-    <div className="mt-4 flex gap-3">
-      <Button type="button" variant="primary" size="sm" disabled={locked || dirty} onClick={() => void change(true)}>
-        {snap?.state === "error" ? "重新接入" : "接入飞书"}
-      </Button>
-      <Button type="button" variant="secondary" size="sm" disabled={busy || (!working && !snap?.enabled) || !info || debug} onClick={() => void change(false)}>停止接入</Button>
-      <Button type="button" variant="secondary" size="sm" disabled={busy || !info || debug || !settings.profile} onClick={() => void configure("check")}>检查连接占用</Button>
-    </div>
+    </details>
+    <details className="bot-options"><summary>接入说明</summary>
+    <p className="mt-2 text-sm">飞书私聊的历史记录与桌面对话分开保存。</p>
     {selected ? <button type="button" className="mt-3 text-xs underline" onClick={() => openLink(`https://${selected.brand === "lark" ? "open.larksuite.com" : "open.feishu.cn"}/app/${selected.appId}`)}>打开所选应用后台</button> : null}
     <p className="mt-3 text-xs leading-6 text-muted-foreground">接收方式：长连接 · 事件：im.message.receive_v1 · 接收范围：绑定用户的私聊。平台心跳由 CLI 管理。</p>
     <p className="mt-4 text-xs leading-6 text-muted-foreground">
@@ -189,5 +195,6 @@ export function FeishuAgentPane({ info, debug = false }: { info: BackendInfo | n
       const url = "https://open.feishu.cn/document/server-docs/event-subscription-guide/event-subscription-configure-/request-url-configuration-case";
       openLink(url);
     }}>查看飞书官方长连接开发文档</button>
+    </details>
   </section>;
 }

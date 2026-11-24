@@ -70,10 +70,11 @@ test('pending replacement is labelled as a retained draft in both chat surfaces'
 
 test('system Feishu login is not displayed as an application connection', async () => {
   env();const {FeishuPane,feishuNotice,feishuLoggedIn}=load('feishu',{'reend-components':{Button:p=>React.createElement('button',p)}});let connected=0;
-  const snap={ok:true,system_logged_in:true,connected:false,logged_in:false,user_name:'fixture'};
+  const snap={ok:true,system_logged_in:true,connected:false,logged_in:false,user_name:'fixture',hint:'lark-cli auth login --domain calendar,task,docs'};
   assert.equal(feishuLoggedIn(snap),false);assert(feishuNotice(snap).includes('尚未连接此 tebb'));
   let view;await act(async()=>{view=create(React.createElement(FeishuPane,{snap,busy:false,debug:false,onLogin:()=>connected++,onLogout(){}}));});
   const button=view.root.findAllByType('button').find(b=>strings(b).includes('连接本机账户'));
+  assert(!strings(view.toJSON()).includes('lark-cli auth login'));
   assert(button);await act(async()=>button.props.onClick());assert.equal(connected,1);
   await act(async()=>view.update(React.createElement(FeishuPane,{snap:{...snap,connected:true,logged_in:true},busy:false,debug:false,onLogin(){},onLogout(){}})));
   assert(strings(view.toJSON()).includes('断开 tebb 连接'));

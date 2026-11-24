@@ -33,6 +33,7 @@ struct Rect {
     h: f64,
 }
 
+struct CurrentBackend(Mutex<BackendInfo>);
 struct BackendProcess(Mutex<Option<Child>>);
 struct BackendFailure(Mutex<Option<String>>);
 // 退出收尾只在后台线程执行一次，期间持续拦截退出请求。
@@ -63,11 +64,11 @@ fn set_hit_regions(regions: tauri::State<HitRegions>, rects: Vec<Rect>) {
 }
 
 #[tauri::command]
-async fn backend_info(app: tauri::AppHandle, info: tauri::State<'_, BackendInfo>, failure: tauri::State<'_, BackendFailure>) -> Result<BackendInfo, String> {
+async fn backend_info(app: tauri::AppHandle, info: tauri::State<'_, CurrentBackend>, failure: tauri::State<'_, BackendFailure>) -> Result<BackendInfo, String> {
     if let Some(error) = failure.0.lock().map_err(|err| err.to_string())?.clone() {
         return Err(error);
     }
-    let backend = info.inner().clone();
+    let backend = info.0.lock().map_err(|err| err.to_string())?.clone();
     let port = backend.port;
     // 窗口先打开并显示启动页，健康检查在后台等待，不阻塞 UI 线程。
     tauri::async_runtime::spawn_blocking(move || wait_healthy(port, &app.state::<BackendProcess>().0))
@@ -146,20 +147,36 @@ fn quit_app(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-async fn restart_for_account(app: tauri::AppHandle) -> Result<(), String> {
+async fn switch_account_workspace(app: tauri::AppHandle, previous_port: u16) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<BackendProcess>();
-        let mut guard = state.0.lock().map_err(|_| "后台状态不可用，尚未切换账号。".to_string())?;
-        if let Some(mut child) = guard.take() {
-            if let Err(error) = stop_backend(&mut child, &app.state::<BackendInfo>()) {
-                *guard = Some(child);
-                return Err(error);
+        let process = app.state::<BackendProcess>();
+        let current = app.state::<CurrentBackend>();
+        let port = {
+            let mut child = process.0.lock().map_err(|err| err.to_string())?;
+            let mut info = current.0.lock().map_err(|err| err.to_string())?;
+            // 同一旧窗口重试时复用已经启动的新后台。
+            let stopped = match child.as_mut() {
+                Some(proc) => proc.try_wait().map_err(|err| err.to_string())?.is_some(),
+                None => true,
+            };
+            if info.port == previous_port || stopped {
+                let next = BackendInfo { port: pick_free_port(), token: gen_token() };
+                if let Some(proc) = child.as_mut() { stop_backend(proc, &info)?; }
+                *child = None;
+                *child = Some(start_backend(&app, next.port, &next.token)?);
+                *info = next;
+                *app.state::<BackendFailure>().0.lock().map_err(|err| err.to_string())? = None;
+            }
+            info.port
+        };
+        wait_healthy(port, &process.0)?;
+        for label in ["main", "pet", "pet-chat", "settings"] {
+            if let Some(window) = app.get_webview_window(label) {
+                window.reload().map_err(|err| err.to_string())?;
             }
         }
-        drop(guard);
-        app.request_restart();
         Ok(())
-    }).await.map_err(|_| "后台收尾未确认，尚未重启或切换账号。".to_string())?
+    }).await.map_err(|err| err.to_string())?
 }
 
 /// 只打开 http/https。走 ShellExecute，不经过 cmd，避免链接里的符号被当成命令。
@@ -351,7 +368,7 @@ pub fn run() {
     let menu_region_for_poll = menu_region.clone();
 
     tauri::Builder::default()
-        .manage(BackendInfo { port, token })
+        .manage(CurrentBackend(Mutex::new(BackendInfo { port, token })))
         .manage(BackendProcess(Mutex::new(None)))
         .manage(BackendFailure(Mutex::new(None)))
         .manage(HitRegions(regions_for_state))
@@ -363,7 +380,7 @@ pub fn run() {
             if let Some(main) = app.get_webview_window("main") {
                 main_window::retain_on_close(&main);
             }
-            let backend = app.state::<BackendInfo>();
+            let backend = app.state::<CurrentBackend>().0.lock().unwrap().clone();
             match start_backend(app.handle(), backend.port, &backend.token) {
                 Ok(child) => *app.state::<BackendProcess>().0.lock().unwrap() = Some(child),
                 Err(error) => *app.state::<BackendFailure>().0.lock().unwrap() = Some(error),
@@ -412,7 +429,7 @@ pub fn run() {
             take_settings_target,
             main_window_inner_size,
             open_link,
-            restart_for_account,
+            switch_account_workspace,
             quit_app
         ];
             handler(invoke)
@@ -440,7 +457,7 @@ pub fn run() {
                     let child = state.0.lock().unwrap_or_else(|error| error.into_inner()).take();
                     state.0.clear_poison();
                     if let Some(mut child) = child {
-                        let backend = handle.state::<BackendInfo>();
+                        let backend = handle.state::<CurrentBackend>().0.lock().unwrap().clone();
                         if let Err(error) = stop_backend(&mut child, &backend) { eprintln!("{error}"); }
                     }
                     EXIT_CLEANUP_RUNNING.store(false, Ordering::SeqCst);

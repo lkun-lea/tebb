@@ -1,20 +1,20 @@
 /* UI_DEVELOPMENT.md: tokens shared by workbench, previews and pet chat. */
 :root {
-  --background: 60 9.09% 95.69%; /* #f5f5f3 */
-  --card: 60 14.29% 98.63%; /* #fcfcfb */
+  --background: 220 25% 98%;
+  --card: 0 0% 100%;
   --popover: var(--card);
-  --foreground: 60 3% 15%;
+  --foreground: 216 18% 18%;
   --card-foreground: var(--foreground);
   --popover-foreground: var(--foreground);
-  --primary: 43 44% 32%;
+  --primary: 221 78% 48%;
   --primary-foreground: 60 20% 98%;
-  --secondary: 60 6% 93%;
+  --secondary: 216 24% 95%;
   --secondary-foreground: var(--foreground);
   --muted: var(--secondary);
-  --muted-foreground: 60 3% 42%;
+  --muted-foreground: 217 12% 40%;
   --accent: var(--secondary);
   --accent-foreground: var(--foreground);
-  --border: 60 4% 87%;
+  --border: 216 18% 87%;
   --input: var(--secondary);
   --ring: var(--primary);
   --destructive: 0 61% 42%;
@@ -27,6 +27,12 @@
   --ui-space-sm: 8px;
   --ui-space-md: 12px;
   --ui-radius: 10px;
+  --ui-font-sans: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  --ui-leading-body: 1.55;
+  --ui-leading-heading: 1.3;
+  --ui-text-title: clamp(22px, 2.2vw, 30px);
+  --ui-text-section: 16px;
+  --ui-fact-label: clamp(6.5em, 26%, 9em);
   --ui-text-sm: 12px;
   --ui-text-body: 14px;
   --ui-status-success: 151 30% 31%;
@@ -57,7 +63,7 @@
   --ui-surface-hover: 60 2% 10.5%;
   --popover: var(--ui-surface-raised);
   --foreground: 60 10% 91%;
-  --primary: 45 62% 64%;
+  --primary: 217 90% 75%;
   --primary-foreground: 60 5% 10%;
   --muted-foreground: 60 4% 67%;
   --border: 60 3% 20%;
@@ -71,10 +77,10 @@
   --ui-field-focus-shadow: inset 0 0 0 1px hsl(var(--foreground) / .38), 0 0 0 3px hsl(var(--foreground) / .14);
 }
 body {
-  font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-family: var(--ui-font-sans);
   font-size: var(--ui-text-body);
   font-weight: var(--ui-weight-400);
-  line-height: 1.6;
+  line-height: var(--ui-leading-body);
   font-variant-numeric: tabular-nums;
 }
 button, input, textarea, select { font-weight: inherit; }
@@ -133,3 +139,44 @@ pre, code, .terminal-screen { text-wrap: initial; }
   }
   :root :is(input, textarea, select)[aria-invalid=true] { border-style: dashed; }
 }
+
+/* All three React entry points share the same text metrics. Keep code editors monospace. */
+:root :where(button, select, input, textarea):where(:not(.font-mono)) {
+  font-family: inherit;
+  font-variant-numeric: inherit;
+}
+:where(h1, h2, h3, h4) { line-height: var(--ui-leading-heading); }
+:where(label, summary, dd, td, th) { overflow-wrap: break-word; }
+
+dl.ui-facts {
+  display: grid;
+  grid-template-columns: var(--ui-fact-label) minmax(0, 1fr);
+  gap: 0 12px;
+  align-items: baseline;
+  font-size: var(--ui-text-body);
+  line-height: var(--ui-leading-body);
+}
+.ui-facts > div {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+dl.ui-facts :is(dt, dd) {
+  min-width: 0;
+  margin: 0;
+  padding: 9px 0;
+  overflow-wrap: anywhere;
+}
+.ui-facts dt { color: hsl(var(--muted-foreground)); }
+.ui-facts dd { color: hsl(var(--foreground)); }
+.ui-action-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
+
+.ui-toast-region{position:fixed;z-index:120;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);max-width:min(90vw,42rem);pointer-events:none}
+.ui-toast-region>span{display:block;border-radius:10px;padding:10px 16px;background:hsl(var(--foreground));color:hsl(var(--background));font:var(--ui-weight-500) var(--ui-text-body)/1.5 var(--ui-font-sans);box-shadow:0 4px 18px hsl(var(--foreground)/.14);overflow-wrap:anywhere}
+
+.ui-toast-region>span{animation:ui-notice-in var(--ui-duration) ease-out}
+@keyframes ui-notice-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.loading-text.is-loading::before{content:"";display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-inline-end:.45em;vertical-align:-.05em;border:1.5px solid currentColor;border-inline-end-color:transparent;animation:ui-wait-spin .9s linear infinite}
+@keyframes ui-wait-spin{to{transform:rotate(1turn)}}
+@media(prefers-reduced-motion:reduce){.ui-toast-region>span,.loading-text.is-loading::before{animation:none}}

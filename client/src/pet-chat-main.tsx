@@ -1,3 +1,4 @@
+import {ToastHost} from "./client/toast";
 import { createRoot } from 'react-dom/client';
 import 'reend-components/styles.css';
 import './client/index.css';
@@ -16,4 +17,4 @@ function AccountPetChat(){
   },[]);
   return <PetChat/>;
 }
-createRoot(document.getElementById('root')!).render(<AccountBootstrap><AccountPetChat/></AccountBootstrap>);
+createRoot(document.getElementById('root')!).render(<><ToastHost/><AccountBootstrap><AccountPetChat/></AccountBootstrap></>);

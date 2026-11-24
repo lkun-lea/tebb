@@ -13,6 +13,7 @@ try {
     }
     Object.assign(process.env, env);
     console.log(`[tebb] Pi Node ${node}`);
+    if (process.platform === "win32") console.log("[tebb] Vite 就绪后 Cargo 会编译并链接桌面程序；看到 Running target 后才进入应用启动阶段。");
   }
   // Use the official CLI in this process so its native cancellation/exit handling stays intact.
   const {run} = createRequire(import.meta.url)('@tauri-apps/cli');

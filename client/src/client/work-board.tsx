@@ -1,3 +1,4 @@
+import {ReceiptNotice} from './toast';
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin, rectIntersection,
   useDraggable, useDroppable, useSensor, useSensors, type CollisionDetection, type KeyboardCoordinateGetter, type Modifier } from '@dnd-kit/core';
@@ -165,7 +166,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
         {visible.filter(item=>item.state===state).map(item=><ItemCard key={item.id} item={item} controller={controller} onSchedule={openSchedule} onSelect={()=>guardDraft(()=>{setSelected(item.id);setDraft(null);setFormError('');})}/>)}</Column>)}</div>
       <DragOverlay modifiers={keyboardDragging.current?[keepKeyboardOverlayVisible]:undefined} dropAnimation={reduce?null:DRAG_DROP}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
     </DndContext>
-    <footer className="wb-footer"><span>{visible.length} 件{archived?'已归档':''}事项 · 四阶段工作流</span><span role="status" aria-live="polite">{controller.notice}</span></footer>
+    <footer className="wb-footer"><span>{visible.length} 件{archived?'已归档':''}事项 · 四阶段工作流</span><ReceiptNotice text={controller.notice}/></footer>
     {drawer&&<><div className="wb-shade" onClick={close}/><aside className="wb-detail" role="dialog" aria-modal="true" aria-label={draft?'编辑事项':'事项详情'} ref={formRoot}
       onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();if(leaveWork)setLeaveWork(null);else close();}if(event.key==='Tab'){const nodes=[...(leaveRoot.current||event.currentTarget).querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]')];const first=nodes[0],last=nodes[nodes.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}}}>
       <header className="wb-detail-header"><span>{draft?'编辑事项':item?.archived?'已归档事项':'事项详情'}</span><button type="button" aria-label="关闭事项详情" onClick={close}>×</button></header>

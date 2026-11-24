@@ -1,3 +1,4 @@
+import {ReceiptNotice} from './toast';
 import { CopyButton } from './copy-button';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, ViewportPortal, Background, Controls, Handle, Position, addEdge, useEdgesState, useNodesState, useNodesInitialized, useReactFlow, type Node, type Edge, type NodeChange, type NodeProps } from '@xyflow/react';
@@ -133,7 +134,7 @@ function Editor({info,debug=false}:{info:BackendInfo|null;debug?:boolean}){
     {run&&<section className="workflow-run" aria-label="节点执行结果"><header><strong>{runLabels[run.state]||run.state}</strong><span>执行 {run.id.slice(0,8)} · 版本 {run.version.slice(0,8)}</span>{editableRun(run)&&<button disabled={busy||!!confirmation} onClick={()=>void action(()=>advance())}>{run.state==='waiting_approval'?'确认下一步':'继续原执行'}</button>}{['queued','running'].includes(run.state)&&<button disabled={busy} onClick={()=>void action(async()=>{const value=await call('cancel',{run_id:run.id});setRun(value.run!);})}>停止执行</button>}</header><TaskBudgetView budget={run.task_budget}/>{run.error&&<p role="alert">{run.error}</p>}<div className="workflow-node-receipts">{run.graph.nodes.map(node=><button key={node.id} aria-pressed={selected===node.id} onClick={()=>setSelected(node.id)}>{catalog.find(c=>c.kind===node.kind)?.label||node.kind} · {runLabels[run.receipts[node.id]?.state]||'尚未执行'}</button>)}</div>{receipt&&<details open><summary>{selected} · 输入与实际输出</summary><pre>{JSON.stringify({input:receipt.input,output:receipt.output,error:receipt.error},null,2)}</pre>{receipt.state==='unknown'&&<div><label>原文档／消息 ID（表格可留空精确核对）<input value={remoteId} onChange={e=>setRemoteId(e.target.value)}/></label><button disabled={busy} onClick={()=>void action(async()=>{const value=await call('reconcile',{run_id:run.id,node_id:selected,remote_id:remoteId});setRun(value.run!);})}>只读核对原写入</button><p>没有匹配时继续保留未知，不会重新创建。</p></div>}</details>}</section>}
     </section>
     {run&&<ExecutionEntry info={info} root={'workflow:'+run.id}/>}
-    {notice&&<p role="status">{notice}</p>}{error&&<p className="workflow-error" role="alert">{error}</p>}
+    <ReceiptNotice text={notice}/>{error&&<p className="workflow-error" role="alert">{error}</p>}
   </div></WorkflowSurface>}</div>
     <section hidden={view!=='schedules'} className="workflow-plans-page"><button disabled={changesBlocked} onClick={()=>setView('home')}><ArrowLeft size={15}/>返回工作流</button>
     {error&&<p role="alert" className="workflow-error">{error}</p>}

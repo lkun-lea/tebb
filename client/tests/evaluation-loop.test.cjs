@@ -4,9 +4,14 @@ const info={port:1,token:'fixture'};
 const button=(view,text)=>view.root.findAllByType('button').find(n=>n.children.join('')===text);
 
 test('coverage exposes missing entry evidence and selects immutable suite versions',async()=>{
- let selected;const {EvaluationCoverage}=load('evaluation-evidence.tsx',{'./api':{rpc:async()=>({canonical_cases:64,splits:{regression:60,holdout:4},areas:[],suites:{timeout:['frozen-1','frozen-2']},uncovered_entries:[{entry:'知识库',reason:'缺少端到端样本'}]})}});
+ let selected;const {EvaluationCoverage}=load('evaluation-evidence.tsx',{'./api':{rpc:async()=>({canonical_cases:64,splits:{regression:60,holdout:4},areas:[{id:'read',label:'读取',level:'component',cases:[],missing:[]}],suites:{timeout:['frozen-1','frozen-2']},uncovered_entries:[{entry:'知识库',reason:'缺少端到端样本'}]})}});
  let view;await act(async()=>view=create(React.createElement(EvaluationCoverage,{info,onSelect:v=>selected=v})));
  assert(JSON.stringify(view.toJSON()).includes('缺少端到端样本'));
+ act(()=>button(view,'读取').props.onClick());
+ const detail=view.root.findByType('dialog');
+ assert.equal(detail.props['aria-label'],'读取');
+ act(()=>detail.findByType('button').props.onClick());
+ assert.equal(view.root.findAllByType('dialog').length,0);
  act(()=>button(view,'选择超时专项（2）').props.onClick());assert.deepEqual(selected,['frozen-1','frozen-2']);
  act(()=>view.unmount());
 });
@@ -25,7 +30,9 @@ test('real model evaluation requires explicit cost authorization and clears it w
  const selects=()=>view.root.findAllByType('select');
  await act(async()=>selects().find(n=>n.props.value==='fixture').props.onChange({target:{value:'live'}}));
  const checks=()=>view.root.findAllByType('input').filter(n=>n.props.type==='checkbox');
+ act(()=>view.root.findAllByType('button').find(n=>n.children.join('').includes('选择固定用例')).props.onClick());
  act(()=>checks()[0].props.onChange({target:{checked:true}}));
+ act(()=>view.root.findAllByType('button').find(n=>n.children.join('').includes('完成选择')).props.onClick());
  assert(button(view,'启动真实模型评测').props.disabled);
  act(()=>checks().at(-1).props.onChange({target:{checked:true}}));
  assert(!button(view,'启动真实模型评测').props.disabled);

@@ -18,7 +18,7 @@ export class RenderBoundary extends Component<{children: ReactNode}, {failed: bo
   }
   render() {
     if (!this.state.failed) return this.props.children;
-    return <main role="alert" aria-labelledby="render-failure-title" style={{padding:32,color:'#f4f1ea',background:'#101216',minHeight:'100vh',fontFamily:'Segoe UI, Microsoft YaHei, sans-serif'}}>
+    return <main role="alert" aria-labelledby="render-failure-title" style={{padding:32,color:'#f4f1ea',background:'#101216',minHeight:'100vh',fontFamily:'var(--ui-font-sans, "Microsoft YaHei UI", sans-serif)'}}>
       <h1 id="render-failure-title">界面渲染失败</h1>
       <p>本地助手可能仍在工作。可尝试重新加载界面；不会自动重新发送消息或重跑任务。</p>
       <p>诊断编号：<code>render_failed</code></p>

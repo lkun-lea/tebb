@@ -24,5 +24,10 @@ export function PerformanceView({timing,chain}:{timing?:CallTiming|null;chain?:T
   </div>;
 }
 export function PerformanceStats({value}:{value:PerformanceSummary}){
-  return <div className="border-b border-border p-3 text-[11px] leading-6 text-muted-foreground" aria-label="模型调用性能统计"><p>最近 {value.completed} 个已结束请求（含失败） · P50 {duration(value.duration_ms.p50)} · P95 {value.duration_ms.p95==null?'样本不足20':duration(value.duration_ms.p95)} · P99 {value.duration_ms.p99==null?'样本不足100':duration(value.duration_ms.p99)}</p><p>失败 {value.failed} · 超时 {value.timeouts} · 失败率 {value.failure_rate==null?'未测得':`${(value.failure_rate*100).toFixed(1)}%`} · 首段文字样本 {value.first_text_ms.n}</p><p>统计为 HTTP 请求耗时；任务排队与进程准备见所选调用的「耗时分析」。</p></div>;
+  return <div className="call-statistics" aria-label="模型调用性能统计">{[
+    ['已结束请求',value.completed],['失败',value.failed],['超时',value.timeouts],
+    ['P50',duration(value.duration_ms.p50)],['P95',value.duration_ms.p95==null?'样本不足20':duration(value.duration_ms.p95)],
+    ['P99',value.duration_ms.p99==null?'样本不足100':duration(value.duration_ms.p99)]
+  ].map(([label,number])=><div key={label}><small>{label}</small><strong>{number}</strong></div>)}
+  <p>HTTP 请求耗时 · 失败率 {value.failure_rate==null?'未测得':(value.failure_rate*100).toFixed(1)+'%'} · 首段文字样本 {value.first_text_ms.n}</p></div>;
 }

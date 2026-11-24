@@ -62,8 +62,9 @@ export function WikiConnectionSettings({ info, debug = false, onSaved }: {
 }
 
 type LoginState = { platform: string; state: "missing" | "saved" | "expired" | "error"; saved_at?: number; error?: string };
-export function VideoLogin({ info, debug = false, url = "" }: { info: BackendInfo | null; debug?: boolean; url?: string }) {
+export function VideoLogin({ info, debug = false, url = "", platformFilter }: { info: BackendInfo | null; debug?: boolean; url?: string; platformFilter?:string }) {
   const [items, setItems] = useState<LoginState[]>([]);
+  const [checked,setChecked]=useState(0);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -71,7 +72,7 @@ export function VideoLogin({ info, debug = false, url = "" }: { info: BackendInf
   useEffect(() => {
     live.current = true;
     if (info && !debug) rpc<{ items: LoginState[] }>(info, "load_video_login").then(result => {
-      if (live.current) { setItems(result.items); setLoaded(true); }
+      if (live.current) { setItems(result.items); setLoaded(true);setChecked(Date.now()); }
     }).catch(err => { if (live.current) setMessage(String(err)); });
     return () => { live.current = false; };
   }, [info, debug]);
@@ -93,7 +94,7 @@ export function VideoLogin({ info, debug = false, url = "" }: { info: BackendInf
           result = await rpc(info, "clear_video_login", { platform });
         }
         if (live.current) {
-          setItems(result.items);
+          setItems(result.items);setChecked(Date.now());
           setMessage(kind === "save" ? "登录态已加密保存在本机，视频页、桌面对话和飞书任务下次读取即可复用。可在原任务追问「重新获取这个视频」。" : "已清除该平台的读取登录态与专用窗口浏览数据。");
         }
       }
@@ -104,11 +105,12 @@ export function VideoLogin({ info, debug = false, url = "" }: { info: BackendInf
     <h2 className="font-medium">平台登录与视频浏览</h2>
     <p className="mt-2 text-sm text-muted-foreground">先点击「登录 / 扫码」→ 在官方账号页登录 → 返回点击「使用此登录态」。再点击「查看视频」浏览原链接。专用窗口保持登录，重启后仍可使用。</p>
     <p className="mt-1 text-xs text-muted-foreground">B 站短信人机验证一直等待时，建议切换手机 App 扫码；也可再次点击「登录 / 扫码」重开官方页面，不需要清除登录数据。</p>
-    <div className="mt-4 grid gap-3 md:grid-cols-2">{["Bilibili", "YouTube"].map(platform => {
+    <div className="mt-4 grid gap-3 md:grid-cols-2">{(platformFilter ? [platformFilter] : ["Bilibili", "YouTube"]).map(platform => {
       const item = items.find(row => row.platform === platform);
       const state = item?.state;
       return <div key={platform} className="rounded-lg border border-border p-4">
         <p className="text-sm font-medium">{platform} · {!loaded ? "读取状态中…" : state === "saved" ? "已保存登录态" : state === "expired" ? "登录态已过期" : state === "error" ? "登录态不可用" : "尚未保存登录态"}</p>
+        {checked>0&&<small>本机登录态检查于 {new Date(checked).toLocaleTimeString()}</small>}
         {item?.saved_at && <p className="mt-1 text-xs text-muted-foreground">保存于 {new Date(item.saved_at * 1000).toLocaleString()}，有效性以平台读取结果为准。</p>}
         {item?.error && <p className="mt-1 text-sm text-destructive">{item.error}</p>}
         <div className="mt-3 flex flex-wrap gap-2">{([
@@ -134,6 +136,7 @@ export function VideoSettings({ info, debug = false, expanded = false }: { info:
     if (!info || debug) return;
     let live = true;
     rpc<{ settings: Settings }>(info, "load_video_settings").then(value => {
+      if (!value.settings) throw new Error("视频配置未返回，请重新检查连接。");
       if (live) { setSettings(value.settings); setLoaded(true); }
     }).catch(err => { if (live) setMessage(String(err)); });
     return () => { live = false; };

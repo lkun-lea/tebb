@@ -17,7 +17,7 @@ export default {
         bold: "var(--ui-weight-700)", extrabold: "var(--ui-weight-800)", black: "var(--ui-weight-900)",
       },
       fontFamily: {
-        sans: ["Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei", "Noto Sans SC", "sans-serif"],
+        sans: ["var(--ui-font-sans)"],
       },
     },
   },

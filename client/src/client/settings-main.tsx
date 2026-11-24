@@ -1,3 +1,4 @@
+import {ToastHost} from "./toast";
 import { createRoot } from "react-dom/client";
 import { lazy, Suspense } from "react";
 import { RenderBoundary, renderDiagnostics } from './render-boundary';
@@ -13,4 +14,4 @@ if (!root) {
 const SettingsApp = lazy(() => import("./settings-app").then(module => ({ default: module.SettingsApp })));
 // 独立设置窗口：与主窗口共用同一本地后端，自身管理模型/人设/连接与外观状态。
 Object.defineProperty(window, '__DESK_UI_DIAGNOSTICS__', { value: renderDiagnostics, configurable: true });
-createRoot(root).render(<RenderBoundary><Suspense fallback={<p className="p-6">正在载入设置…</p>}><AccountBootstrap><SettingsApp /></AccountBootstrap></Suspense></RenderBoundary>);
+createRoot(root).render(<><ToastHost/><RenderBoundary><Suspense fallback={<p className="p-6">正在载入设置…</p>}><AccountBootstrap><SettingsApp /></AccountBootstrap></Suspense></RenderBoundary></>);

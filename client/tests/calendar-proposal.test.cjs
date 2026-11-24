@@ -49,3 +49,15 @@ test('consumed or unknown proposals do not reopen a new draft or submit a write'
   try{await act(async()=>button(view,'打开日程草稿').props.onClick());assert.equal(calls,1);assert.equal(opened,0);assert.equal(button(view,state==='consumed'?'此提案已使用':'核对原保存结果').props.disabled,state==='consumed');}finally{act(()=>view.unmount());}
  }
 });
+
+test('a committed result immediately offers 查看日程 and reads the saved record on click',async()=>{
+ const saved={...proposal,saved:true};
+ const proposals=protocol.proposalsFromEvents([proposal,saved].map(p=>({kind:'calendar_proposal',data:{proposal:p}})));
+ assert.deepEqual(proposals,[saved]);
+ const opens=[];
+ const {CalendarProposalCards}=load('calendar-proposal.tsx',{'./api':{rpc:async()=>({ok:true,state:'saved'})},
+   './calendar-proposal-state':protocol,'./calendar-proposal-navigation':{openCalendarProposal:async(...args)=>opens.push(args)},'./calendar-proposal.css':{}});
+ let view;await act(async()=>{view=create(React.createElement(CalendarProposalCards,{info:{port:1,token:'test'},proposals}));});
+ try{await act(async()=>button(view,'查看日程').props.onClick());assert.deepEqual(opens,[[proposal.source.task_id,proposal.id]]);}
+ finally{act(()=>view.unmount());}
+});

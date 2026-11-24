@@ -117,6 +117,8 @@ test('debug dialog shows complete payloads and explicitly requests read-only int
   await act(async () => { renderer = create(React.createElement(AgentDebugDialog, { info: { port: 1, token: 'test' }, onClose: () => closed++ })); });
   const button = text => renderer.root.findAllByType('button').find(n => n.children.join('') === text);
   assert.equal(renderer.root.findByProps({ role: 'dialog' }).props['aria-modal'], 'true');
+  assert.equal(calls.some(([name])=>name==='get_debug_call'),false);
+  await act(async()=>renderer.root.findAllByType('button').find(n=>n.findAllByType('span').some(s=>s.children.join('')==='test')).props.onClick());
   assert.ok(renderer.root.findAllByType('pre').some(n => n.children.join('').includes(large)));
   assert.ok(calls.filter(c => c[0] === 'get_agent_task').every(c => c[1].focus === false));
   act(() => button('原始载荷').props.onClick());

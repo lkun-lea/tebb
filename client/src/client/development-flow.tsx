@@ -111,10 +111,10 @@ export function DevelopmentFlow({root,runs,agents,onStop,onOpen,busy=false}:{
     <button className="df-follow" onClick={()=>{select("");setAttempt("");}}>跟随当前节点</button>
     {attempts.length>1&&<label>执行轮次 <select aria-label="执行轮次" value={run?.id||""} onChange={e=>setAttempt(e.target.value)}>
      {attempts.map((r,i)=><option key={r.id} value={r.id}>第 {i+1} 次 · {labels[r.state]}</option>)}</select></label>}
-    <dl><dt>执行者</dt><dd>{run?agents.find(a=>a.id===run.agent)?.name||run.agent:node.role}</dd>
+    <dl className="ui-facts"><dt>执行者</dt><dd>{run?agents.find(a=>a.id===run.agent)?.name||run.agent:node.role}</dd>
      <dt>正在做什么</dt><dd>{node.summary}</dd><dt>任务输入</dt><dd>{run?.title||"尚未派发"}</dd>
      <dt>模型</dt><dd>{run?.model||"未记录"}</dd></dl>
-    {input&&<dl><dt>操作目标</dt><dd>{input.query||"未记录"}</dd>
+    {input&&<dl className="ui-facts"><dt>操作目标</dt><dd>{input.query||"未记录"}</dd>
      {input.symbol&&<><dt>函数</dt><dd>{input.symbol}</dd></>}
      {input.revision&&<><dt>文件版本</dt><dd>{input.revision}</dd></>}</dl>}
     {run?.error&&<p className="df-error" role="alert">{run.error}</p>}

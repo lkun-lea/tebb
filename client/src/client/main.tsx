@@ -1,3 +1,4 @@
+import {ToastHost} from "./toast";
 import { createRoot } from "react-dom/client";
 import { lazy, Suspense } from "react";
 import { RenderBoundary, renderDiagnostics } from './render-boundary';
@@ -22,4 +23,4 @@ const preview = new URLSearchParams(window.location.search).get("preview") === "
 // The standalone preview never mounts App: no backend startup, credentials, or real chat requests.
 const live = preview && new URLSearchParams(window.location.search).get("live") === "1";
 Object.defineProperty(window, '__DESK_UI_DIAGNOSTICS__', { value: renderDiagnostics, configurable: true });
-createRoot(root).render(<RenderBoundary><Suspense fallback={<p>正在载入界面…</p>}>{motionPreview && ChatMotionDebug ? <ChatMotionDebug/> : live ? <LiveCollaboration standalone /> : preview ? <ChatPreview standalone /> : <AccountBootstrap><App /></AccountBootstrap>}</Suspense>{uiCheck&&UiCheckTools&&<Suspense fallback={null}><UiCheckTools/></Suspense>}</RenderBoundary>);
+createRoot(root).render(<><ToastHost/><RenderBoundary><Suspense fallback={<p>正在载入界面…</p>}>{motionPreview && ChatMotionDebug ? <ChatMotionDebug/> : live ? <LiveCollaboration standalone /> : preview ? <ChatPreview standalone /> : <AccountBootstrap><App /></AccountBootstrap>}</Suspense>{uiCheck&&UiCheckTools&&<Suspense fallback={null}><UiCheckTools/></Suspense>}</RenderBoundary></>);
