@@ -1,5 +1,6 @@
 package dev.tebb.mobile
 
+import android.content.res.Configuration
 import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -22,6 +23,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -31,15 +34,15 @@ import androidx.compose.ui.unit.sp
 /** 登录完成后恢复用户刚才选择的入口。首次启动登录成功时直接显示主聊。 */
 internal enum class LoginDestination { Cloud, Computer }
 
-private val suffixes = listOf("qq.com", "163.com", "gmail.com", "outlook.com")
-private val fieldShape = RoundedCornerShape(16.dp)
+private val suffixes = listOf("gmail.com", "qq.com", "163.com", "outlook.com")
+private val fieldShape = RoundedCornerShape(20.dp)
 private val accent = Color(0xFFBDCEA9)
 private val field = Color(0xFF252828)
 
 /** 桌宠沿用主聊的呼吸、眨眼和点按反馈。光晕与地面投影随布局尺寸绘制。 */
 @Composable
-private fun LoginPet() {
-    Box(Modifier.size(width = 210.dp, height = 152.dp), contentAlignment = Alignment.Center) {
+private fun LoginPet(diameter: Dp) {
+    Box(Modifier.size(width = diameter * 1.85f, height = diameter * 1.55f), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = .16f), Color.Transparent),
                 center, size.height * .49f), radius = size.height * .49f)
@@ -47,9 +50,9 @@ private fun LoginPet() {
             drawOval(accent.copy(alpha = .21f), Offset(center.x - orbit.width / 2, size.height * .74f),
                 orbit, style = Stroke(1.dp.toPx()))
         }
-        Box(Modifier.size(86.dp)) {
-            val half = with(LocalDensity.current) { 43.dp.toPx() }
-            ChatPet(Offset(half, half), 86.dp, waiting = false, listening = false, location = "登录页", pendingCount = 0)
+        Box(Modifier.size(diameter)) {
+            val half = with(LocalDensity.current) { diameter.toPx() / 2 }
+            ChatPet(Offset(half, half), diameter, waiting = false, listening = false, location = "登录页", pendingCount = 0)
         }
     }
 }
@@ -60,7 +63,7 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
     var email by rememberSaveable { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     val busy = state == PairingState.Connecting
-    var suffix by rememberSaveable { mutableStateOf("") }
+    var suffix by rememberSaveable { mutableStateOf("gmail.com") }
     var menuOpen by remember { mutableStateOf(false) }
     val input = email.trim()
     val address = if (input.isNotEmpty() && '@' !in input && suffix.isNotEmpty()) "$input@$suffix" else input
@@ -72,29 +75,31 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
     MaterialTheme(colors = darkColors(primary = accent, background = Color(0xFF141617))) {
         Surface(color = MaterialTheme.colors.background, contentColor = Color(0xFFF2F1EB)) {
             BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
-                val wide = maxWidth >= 600.dp && maxWidth > maxHeight
+                val wide = maxWidth >= 600.dp && LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val diameter = (maxWidth * .29f).coerceIn(112.dp, 174.dp)
                 val height = maxHeight
                 Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = height)
                     .padding(horizontal = 24.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.widthIn(max = 740.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    Row(Modifier.widthIn(max = 920.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("tebb.", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        TextButton(skip, enabled = !busy) { Text("跳过登录") }
+                        Text("tebb.", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        TextButton(skip, enabled = !busy) { Text("跳过登录", fontSize = 16.sp) }
                     }
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.weight(.75f))
                     val form: @Composable () -> Unit = {
-                        Column(Modifier.widthIn(max = 400.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text("邮箱登录", fontSize = 29.sp, fontWeight = FontWeight.SemiBold)
                             val colors = TextFieldDefaults.textFieldColors(backgroundColor = field,
                                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
                                 disabledIndicatorColor = Color.Transparent)
-                            TextField(email, editEmail, Modifier.fillMaxWidth(), enabled = !busy, shape = fieldShape,
-                                colors = colors, singleLine = true, label = { Text("邮箱") },
+                            TextField(email, editEmail, Modifier.fillMaxWidth().heightIn(min = 70.dp), enabled = !busy, shape = fieldShape,
+                                colors = colors, textStyle = MaterialTheme.typography.h6.copy(fontSize = 20.sp), singleLine = true, label = { Text("邮箱") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                 trailingIcon = {
                                     Box {
                                         TextButton({ menuOpen = true }, enabled = !busy,
-                                            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "选择邮箱后缀" }) {
-                                            Text(if ('@' !in email && suffix.isNotEmpty()) "@$suffix" else "后缀")
+                                            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "选择邮箱域名" }) {
+                                            if ('@' !in email) Text("@$suffix", fontSize = 17.sp)
                                             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
                                         }
                                         DropdownMenu(menuOpen && !busy, onDismissRequest = { menuOpen = false }) {
@@ -113,25 +118,27 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
                                         }
                                     }
                                 })
-                            TextField(code, { code = it }, Modifier.fillMaxWidth(), enabled = !busy, shape = fieldShape,
-                                colors = colors, singleLine = true, label = { Text("验证码") },
+                            TextField(code, { code = it }, Modifier.fillMaxWidth().heightIn(min = 70.dp), enabled = !busy, shape = fieldShape,
+                                colors = colors, textStyle = MaterialTheme.typography.h6.copy(fontSize = 20.sp), singleLine = true, label = { Text("验证码") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                trailingIcon = { TextButton({ authenticate(address, "") }, enabled = !busy && valid) { Text("获取验证码") } })
+                                trailingIcon = { TextButton({ authenticate(address, "") }, enabled = !busy && valid) { Text("获取验证码", fontSize = 16.sp) } })
                             (state as? PairingState.Notice)?.let { Text(it.message, fontSize = 14.sp) }
                             Spacer(Modifier.height(4.dp))
-                            Button({ authenticate(address, code) }, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = fieldShape,
-                                enabled = !busy && valid && code.isNotBlank()) { Text(if (busy) "请稍候…" else "登录") }
+                            Button({ authenticate(address, code) }, Modifier.fillMaxWidth().heightIn(min = 64.dp), shape = fieldShape,
+                                colors = ButtonDefaults.buttonColors(disabledBackgroundColor = Color(0xFF373D36),
+                                    disabledContentColor = Color(0xFFB2BAAE)),
+                                enabled = !busy && valid && code.isNotBlank()) { Text(if (busy) "请稍候…" else "登录", fontSize = 19.sp) }
                         }
                     }
                     if (wide) {
-                        Row(Modifier.widthIn(max = 740.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        Row(Modifier.widthIn(max = 920.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
-                            LoginPet()
+                            LoginPet(diameter)
                             Box(Modifier.weight(1f).padding(start = 24.dp), contentAlignment = Alignment.CenterEnd) { form() }
                         }
                     } else {
-                        LoginPet()
-                        Spacer(Modifier.height(16.dp))
+                        LoginPet(diameter)
+                        Spacer(Modifier.height(26.dp))
                         form()
                     }
                     Spacer(Modifier.weight(1f))
