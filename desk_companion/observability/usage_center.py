@@ -23,7 +23,7 @@ def _summary(rows):
         network_unobserved_calls=sum(not r.get('network_attempts')for r in models),model_states=dict(Counter(r['state']for r in models)),
         tool_states=dict(Counter(r['state']for r in tools)),cost_cny_known=round(sum(r['cost_cny']for r in models if number(r.get('cost_cny'))is not None),8),
         cost_unknown_calls=sum(number(r.get('cost_cny'))is None for r in models))
-    for field in ('input_tokens','output_tokens','cached_tokens','reasoning_tokens'):
+    for field in ('input_tokens','output_tokens','cached_tokens','uncached_tokens','reasoning_tokens'):
         values=[(r.get('usage')or{}).get(field)for r in models]
         result[field+'_known']=sum(v for v in values if tokens(v)is not None)
         result[field+'_unknown_calls']=sum(tokens(v)is None for v in values)

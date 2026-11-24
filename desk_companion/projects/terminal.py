@@ -293,13 +293,15 @@ class TerminalManager:
 
     def list(self, session=None):
         with self.lock:
-            jobs = {k: dict(v) for k, v in self.jobs.items()}
+            jobs = {k: dict(v) for k, v in self.jobs.items() if not (root() / "jobs" / k / "dismissed").exists()}
             folder = root() / "jobs"
             if folder.exists():
                 # Limit frontend history; raw records and complete bounded output stay on disk.
                 for file in sorted(folder.glob("*/meta.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-                    if len(jobs) >= 100:
+                    if len(jobs) >= 100 and session is None:
                         break
+                    if file.parent.name in jobs or (file.parent / "dismissed").exists():
+                        continue
                     try:
                         value = json.loads(file.read_text("utf-8"))
                         if value["id"] not in jobs:
@@ -364,6 +366,14 @@ class TerminalManager:
                 else:
                     job['state'] = 'stopping'; self._save(job)
             return {"ok": True, "job": self.get(job_id)}
+
+    def dismiss(self, job_id):
+        with self.lock:
+            job = self.get(job_id)
+            if job['state'] in ACTIVE:
+                raise ValueError('请先停止命令，等待进程退出后再移除。')
+            (root() / 'jobs' / job_id / 'dismissed').touch()
+            return {'ok': True}
 
     def cancel_task(self, task_id):
         with self.lock:

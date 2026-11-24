@@ -7,21 +7,21 @@ import os
 import shutil
 import subprocess
 import sys
-import winreg
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CREATE_NO_WINDOW = 0x08000000
-AUTH_HINT = "请到设置 → 连接与网络 → 飞书连接账户。需要日历、待办和云文档权限：lark-cli auth login --domain calendar,task,docs"
+AUTH_HINT = "请到设置 → 外部连接 → 飞书连接账户。需要日历、待办和云文档权限：lark-cli auth login --domain calendar,task,docs"
 _PATH_MERGED = False
 
 
 def _merge_user_path() -> None:
     """Cursor 等宿主启动时 PATH 可能不含用户目录里的 lark-cli。"""
     global _PATH_MERGED
-    if _PATH_MERGED:
+    if sys.platform != "win32" or _PATH_MERGED:
         return
     extra: list[str] = []
+    import winreg
     hives = (
         (winreg.HKEY_CURRENT_USER, r"Environment"),
         (

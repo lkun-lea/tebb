@@ -27,7 +27,7 @@ class ExecutionCenterTests(unittest.TestCase):
     def test_stable_versions_append_order_restore_and_revocation(self):
         specs=[spec('web_fetch'),spec('project_read')]
         a=ToolLoading(specs,session='s',root='r',store=self.tools)
-        self.assertEqual([s['name']for s in a.specs()],[SEARCH,LOAD])
+        self.assertEqual([s['name']for s in a.specs()],[SEARCH])
         self.assertEqual([t['name']for t in a.execute(SEARCH,dict(query='project'),'search-1')['tools']],['project_read'])
         a.execute(LOAD,dict(names=['project_read']),'load-1')
         prefix=a.specs();a.execute(LOAD,dict(names=['web_fetch']),'load-2')

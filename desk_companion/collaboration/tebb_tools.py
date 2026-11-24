@@ -40,14 +40,19 @@ def specs(request):
 
     from desk_companion.planning.work_items import STATES
     string=dict(type='string')
+    service = dict(type='string', enum=['feishu','github','Bilibili','YouTube'])
     out=[
+        spec('connection_status','查询飞书、GitHub、哔哩哔哩或 YouTube 账号的当前连接状态及已知权限。',
+             dict(service=service),['service'],lambda args:product('connection_status',args)),
+        spec('connection_authorize','用户明确要求连接外部服务时，发起飞书授权，或返回对应平台的人机授权入口与操作。取得最终状态前不得宣称授权成功。',
+             dict(service=service),['service'],lambda args:product('connection_authorize',args),False),
         spec('work_item_query', '读取当前项目（未选项目时为未归属）的事项状态。可按标题、事项ID或原操作编号查，最多50项。重名先确认。回执为空表示结果仍待核对。',
              dict(query=string,item_id=string,request_id=string),[],lambda args:work_item('work_item_query',args)),
         spec('work_item_move', '用户明确要求时修改一件事项的状态。先用 work_item_query 获取唯一ID和当前版本。版本冲突先读最新状态，结果未知按原编号核对，勿重放。待办=todo、进行中=doing、待验收=review、已完成=done。',
              dict(item_id=string,version=dict(type='integer',minimum=1),state=dict(type='string',enum=list(STATES))),
              ['item_id','version','state'],lambda args:work_item('work_item_move',args),False),
         spec('calendar_query','查询指定北京时间日期或月份的本地及飞书日程。month=true读取该月；query可按标题过滤。先查再按准确身份修改，重名或意图不明先询问用户。',dict(day=string,month=dict(type='boolean'),query=string,request_id=string),['day'],lambda args:product('calendar_query',args)),
-        spec('calendar_change','修改已保存日程，action.type=update/sync/retime/delete/resolve_delete。新建必须使用calendar_propose，由用户在界面明确保存。更新传local_id/version；改期传calendar_id/event_id/day/original_start/original_end/start/end，改标题同时传summary和original_summary（已同步必须用此入口）；删除传calendar_id/event_id与原时间（本地另传version）。操作编号由本轮call_id自动登记，失败先核对，不自动重做。',dict(action=dict(type='object')),['action'],lambda args:product('calendar_change',args),False),
+        spec('calendar_change','修改已保存日程，action.type=update/sync/retime/delete/resolve_delete。创建日程用calendar_create；仅明确要求先看草稿时用calendar_propose。更新传local_id/version；改期传calendar_id/event_id/day/original_start/original_end/start/end，改标题同时传summary和original_summary（已同步必须用此入口）；删除传calendar_id/event_id与原时间（本地另传version）。操作编号由本轮call_id自动登记，失败先核对，不自动重做。',dict(action=dict(type='object')),['action'],lambda args:product('calendar_change',args),False),
         spec('automation_list','读取本地自动化规则、状态及上次执行。',{},[],lambda args:product('automation_list',args)),
         spec('automation_save','只维护原有tebb_task目标规则；可视化工作流用workflow_save保存草稿，不能经此工具启用工作流发布或定时。payload含name/action=tebb_task/goal/project_id/agent_id默认tebb/enabled/cadence=once|daily|weekly/hour/minute/weekdays(周一0至周日6)/date(一次时YYYY-MM-DD)/doc空；修改已有规则须带id。缺目标或时间先问，不得擅自扩大目标。后台运行时触发。',dict(payload=dict(type='object')),['payload'],lambda args:product('automation_save',args),False),
         spec('automation_manage','明确删除或立即执行原有规则（工作流计划须在界面管理）：action=delete|run|check,job_id。先读取精确规则身份。',dict(action=dict(type='string',enum=['delete','run','check']),job_id=string),['action','job_id'],lambda args:product('automation_manage',args),False),

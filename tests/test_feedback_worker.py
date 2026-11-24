@@ -51,6 +51,102 @@ class FeedbackWorkerTests(unittest.TestCase):
         _,bad,_=assess(self.request,'已生成',[],None,receipts)
         self.assertEqual(next(c for c in bad if c['id']=='calendar_proposal_handoff')['status'],'fail')
 
+    def test_local_file_body_satisfies_repository_check_through_handoff(self):
+        from desk_companion.projects import project_workspace
+        from desk_companion.collaboration.delivery_feedback import assess
+
+        root = Path(self.temp.name) / 'test'
+        root.mkdir()
+        (root / 'test.py').write_text('print(42)', encoding='utf8')
+        (root / 'README.md').touch()
+        self.request.update(role=dict(id='coder', name='coder', role='read', tools=['工作区读取']),
+                            workspace=project_workspace.save(str(root), project_id='test-project')['workspace'], required_sources=['repository'],
+                            text='看看目录里有什么，正在做什么？', stage='collect', parent_run='parent')
+        def call(tool, path):
+            return dict(id=uuid.uuid4().hex, function=dict(name=tool, arguments=json.dumps(dict(root='main', path=path))))
+        model = ScriptedModel([dict(tool_calls=[call('workspace_list', ''), call('workspace_read', 'README.md'),
+                                                call('workspace_read', 'missing.py'), call('workspace_read', 'test.py')]),
+                               'test.py 打印 42。'])
+        self.run_model(model)
+        evidence = [data for kind, data in self.events if kind == 'evidence']
+        self.assertEqual([item['path'] for item in evidence], ['test.py'])
+        self.assertEqual(self.events[-1][0], 'result')
+        for inherited, expected in [(evidence, {'web'}), ([], {'web', 'repository'})]:
+            request = dict(self.request, source_evidence=inherited, required_sources=['web', 'repository'])
+            _, checks, _ = assess(request, 'test.py 打印 42。', [], None, [])
+            self.assertEqual({c['id'].removeprefix('required_source_') for c in checks
+                              if c['id'].startswith('required_source_') and c['status'] == 'fail'}, expected)
+
+    def test_workspace_question_reads_without_review_but_execution_is_reviewed(self):
+        from desk_companion.projects import project_workspace
+        root = Path(self.temp.name) / 'test'
+        root.mkdir()
+        (root / 'src').mkdir()
+        (root / 'test.py').write_text('print(42)', encoding='utf8')
+        self.request.update(workspace=project_workspace.save(str(root), edit=True, commands=True,
+                            project_id='test-project')['workspace'],
+                            role=dict(id='coder', name='coder', role='code', tools=['工作区读取','文件编辑','终端','联网搜索']))
+        action = dict(tool_calls=[dict(id='list', function=dict(name='workspace_list', arguments='{}'))])
+        for mode, question in [('workspace_question','帮我看看test文件夹下有什么，正在做什么？'),
+                               ('execution','运行测试，验证功能是否正常。')]:
+            self.events.clear()
+            self.request.update(task_type=mode,text=question)
+            model = ScriptedModel([action, '目录有 test.py 和 src。'])
+            self.run_model(model)
+            self.assertEqual(sum(k == 'llm_start' and d.get('phase') == 'feedback_review'
+                                 for k,d in self.events), int(mode == 'execution'))
+            self.assertTrue(any(k == 'tool_end' and d['status'] == 'success' for k,d in self.events))
+            if mode == 'workspace_question':
+                self.assertEqual({t['function']['name'] for t in model.calls[0]['tools']}, project_workspace.READ_TOOLS)
+                receipt = next(m for m in model.calls[1]['messages'] if m.get('role') == 'tool')
+                directory = next(e for e in json.loads(receipt['content'])['entries'] if e['directory'])
+                self.assertNotIn('size', directory)
+        self.request.update(task_type='workspace_question',text='看看文件夹内容')
+        with self.assertRaisesRegex(PublicFailure, '未取得成功的工作区读取回执'):
+            self.run_model(ScriptedModel(['没有读取文件。', '没有读取文件。']))
+
+    def test_oversized_read_batch_returns_every_receipt_without_resubmission(self):
+        from desk_companion.projects import project_workspace
+
+        root = Path(self.temp.name) / 'test'
+        root.mkdir()
+        files = [f'file{i}.py' for i in range(9)]
+        for path in files:
+            (root / path).write_text('print(42)', encoding='utf8')
+        self.request.update(role=dict(id='coder', name='coder', role='read', tools=['工作区读取']),
+                            workspace=project_workspace.save(str(root), project_id='test-project')['workspace'],
+                            text='查看目录内容')
+        def read(ident, path):
+            return dict(id=ident, function=dict(name='workspace_read', arguments=json.dumps(dict(path=path))))
+        calls = [read(str(i), path) for i, path in enumerate(files)]
+        model = ScriptedModel([dict(tool_calls=calls), '已读九个文件。'])
+        self.run_model(model)
+        replies = [m for m in model.calls[1]['messages'] if m.get('role') == 'tool']
+        self.assertEqual([m['tool_call_id'] for m in replies], [c['id'] for c in calls])
+        self.assertEqual([json.loads(m['content'])['text'] for m in replies], ['print(42)'] * 9)
+        self.assertEqual([d['path'] for k, d in self.events if k == 'tool_end'], files)
+        self.assertEqual(self.events[-1][0], 'result')
+
+        self.events.clear()
+        self.request['role']['tools'].append('文件编辑')
+        self.request['workspace'] = project_workspace.save(str(root), edit=True, project_id='test-project')['workspace']
+        write = dict(id='write', function=dict(name='workspace_write', arguments=json.dumps(
+            dict(path='unexpected.py', revision='new', text='unexpected'))))
+        with self.assertRaisesRegex(PublicFailure, '本批全部未执行'):
+            self.run_model(ScriptedModel([dict(tool_calls=[*calls[:8], write])]))
+        self.assertFalse(any(kind == 'tool_start' for kind, _ in self.events))
+        self.assertFalse((root / 'unexpected.py').exists())
+
+    def test_delegated_snapshot_keeps_partial_answer_until_synthesis(self):
+        from desk_companion.collaboration.execution_flow import chain_view
+        parent = dict(id='root', kind='task', state='waiting', stage='deliver', answer='')
+        child = dict(id='coder', parent='root', state='running', stage='collect', answer='目录内容')
+        for root_state, child_state in [('waiting', 'running'), ('pending', 'succeeded'), ('cancelled', 'failed')]:
+            parent['state'], child['state'] = root_state, child_state
+            self.assertEqual(chain_view(parent, [parent, child])['answer'], '目录内容')
+        parent.update(state='succeeded', answer='最终交付')
+        self.assertEqual(chain_view(parent, [parent, child])['answer'], '最终交付')
+
     def test_explicit_resume_correction_only_offers_actual_control_actions(self):
         self.request.update(kind='route',require_execution=True,supplemented_at=123,
             text='补充7和11，最终只返回JSON。',budget=2)
@@ -328,6 +424,52 @@ class FeedbackWorkerTests(unittest.TestCase):
         self.assertEqual(json.loads(self.events[-1][1]),json.loads(candidate))
         self.assertTrue(any(k=='feedback_review_repair'for k,d in self.events))
         self.assertTrue(json.loads(model.calls[-1]['messages'][1]['content'])['previous_protocol_issues'])
+
+    def test_protocol_repair_after_candidate_repair_uses_workspace_snapshot(self):
+        workspace = dict(primary=self.temp.name, commands=False, edit=False, revision='private-field')
+        self.request.update(text='说明工作目录，以及是否能运行命令。', workspace=workspace,
+                            role=dict(id='coder', name='coder', role='read', tools=['工作区读取']), budget=5)
+        class Reviewer(ScriptedModel):
+            reviews = 0
+            def chat(inner, messages, tools=None, on_delta=None):
+                response = super().chat(messages, tools, on_delta)
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    inner.reviews += 1
+                    payload = json.loads(messages[1]['content'])
+                    source = next(row for row in payload['materials'] if row['id'] == 'workspace')
+                    excerpt = source['excerpts'][0]
+                    self.assertEqual(json.loads(excerpt['text']), dict(primary=self.temp.name, commands=False, edit=False))
+                    result = json.loads(response['message']['content'])
+                    item = result['requirements'][0]
+                    item['evidence'] = [excerpt['id']]
+                    if inner.reviews == 2:
+                        result['requirements'] = [item] * 7
+                    elif inner.reviews == 3:
+                        self.assertEqual(payload['previous_protocol_issues'][0]['protocol_errors'][0]['constraint'], 6)
+                    response['message']['content'] = json.dumps(result)
+                return response
+        model = Reviewer(['原稿', '已修订'], ['unverified', 'supported', 'supported'])
+        self.run_model(model)
+        self.assertEqual(self.events[-1], ('result', '已修订'))
+        self.assertEqual([d['answer'] for k,d in self.events if k == 'feedback_draft'], ['原稿', '已修订'])
+        self.assertEqual(model.reviews, 3)
+        self.assertFalse(any(k == 'tool_start' for k,d in self.events))
+
+    def test_repeated_review_format_error_preserves_draft_and_explains_limit(self):
+        self.request.update(text='给出答复', require_execution=True, budget=6)
+        class InvalidReviewer(ScriptedModel):
+            def chat(inner, messages, tools=None, on_delta=None):
+                response = super().chat(messages, tools, on_delta)
+                if messages[0]['content'].startswith('反馈审阅协议'):
+                    value = json.loads(response['message']['content'])
+                    value['requirements'] *= 7
+                    response['message']['content'] = json.dumps(value)
+                return response
+        model = InvalidReviewer(['原稿'])
+        with self.assertRaisesRegex(PublicFailure, '7项核验结论，协议最多接受6项'):
+            self.run_model(model)
+        self.assertEqual(len(model.calls), 3)
+        self.assertEqual(self.events[-1], ('token', '原稿'))
 
     def test_review_timeout_retains_candidate_without_reexecuting_tools_or_rewriting(self):
         from desk_companion.collaboration.review_limits import ReviewTimeout

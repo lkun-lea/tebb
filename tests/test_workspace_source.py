@@ -21,6 +21,33 @@ class SourceToolTests(unittest.TestCase):
         self.assertFalse(narrowed['limited']);self.assertTrue(narrowed['coverage']['complete'])
         self.assertEqual(narrowed['matches'][0]['path'],'f39.txt.md')
 
+    def test_code_search_prefers_implementation_and_preserves_doc_scope(self):
+        (self.main/'README.md').write_text('while (true) {}\n' * 32, 'utf-8')
+        (self.main/'docs').mkdir()
+        (self.main/'docs'/'guide.ts').write_text('while (true) {}\n', 'utf-8')
+        (self.main/'runtime').mkdir()
+        (self.main/'runtime'/'loop.ts').write_text('while (true) {}\n', 'utf-8')
+        def search(path):
+            return workspace_source.search('main', path, 'while (true)', 'text', config=self.config)
+        result = search('')
+        self.assertEqual(result['matches'][0]['path'], 'runtime/loop.ts')
+        self.assertTrue(result['limited'])
+        self.assertEqual(search('README.md')['matches'][0]['path'], 'README.md')
+        self.assertEqual(search('docs')['matches'][0]['path'], 'docs/guide.ts')
+
+    def test_missing_field_offers_local_lines_without_claiming_a_match(self):
+        (self.main/'loop.ts').write_text('// steering input\nawait config.getSteeringMessages();\n', 'utf-8')
+        result = workspace_source.search('main', 'loop.ts', 'steeringQueue', 'text', config=self.config)
+        self.assertEqual(result['matches'], [])
+        self.assertEqual(result['hit_count'], 0)
+        self.assertEqual(result['related_lines'], [dict(path='loop.ts', start_line=2,
+                                                     text='await config.getSteeringMessages();')])
+        (self.main/'wrapper.ts').write_text('/** Owns state. */\nexport class Wrapper {}', 'utf-8')
+        hits = workspace_source.search('main', 'wrapper.ts', 'Wrapper', 'symbol', config=self.config)
+        view = workspace_source.overview_receipt('workspace_search', {}, hits, set())
+        self.assertEqual(view['matches'][0]['declaration_doc']['citation'], 'wrapper.ts:L1-L1')
+        self.assertIn('text', hits['matches'][0]['declaration_doc'])
+
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -33,6 +60,156 @@ class SourceToolTests(unittest.TestCase):
         self.file = self.main/'mod.py'
         self.raw = b'class Box:\r\n    @staticmethod\r\n    async def value():\r\n        return 1\r\n# after\r\n'
         self.file.write_bytes(self.raw)
+
+    def test_source_windows_reach_eof_and_keep_navigation(self):
+        lines = ['// package'] * 42 + ['// Drain pending work', 'while (active) {', '  break;', '}']
+        (self.main/'run.ts').write_text('\n'.join(lines), 'utf-8')
+        page = workspace_source.read_symbol('main', 'run.ts', start_line=1, end_line=120, config=self.config)
+        self.assertEqual(page['end_line'], len(lines))
+        preview = workspace_source.excerpt_for_question(page)
+        self.assertEqual(preview['next_line'], 41)
+        self.assertEqual(preview['locations'], [dict(line=44, text='while (active) {', comment=lines[42])])
+        with self.assertRaises(ValueError):
+            workspace_source.read_symbol('main', 'run.ts', start_line=47, config=self.config)
+        from desk_companion.projects.workspace_feedback import read_error
+        with self.assertRaises(ValueError) as exc:
+            project_workspace.resolve('project', '', self.config)
+        self.assertEqual(read_error(exc.exception)['reason'], 'invalid_root')
+
+    def test_distant_loop_exit_preserves_line_numbers(self):
+        lines = ['while (running) {'] + ['    process();'] * 52 + ['    break;', '}']
+        (self.main/'loop.js').write_text('\n'.join(lines), 'utf-8')
+        page = workspace_source.read_symbol('main', 'loop.js', start_line=1, end_line=100, config=self.config)
+        preview = workspace_source.excerpt_for_question(page)
+        tail = preview['closing_excerpt']
+        self.assertGreater(tail['start_line'], preview['end_line'])
+        self.assertEqual(tail['text'].splitlines(), lines[tail['start_line']-1:tail['end_line']])
+        nearby = workspace_source.read_symbol('main', 'loop.js', start_line=1, end_line=45, config=self.config)
+        self.assertEqual(nearby['end_line'], 45)
+        self.assertEqual(nearby['closing_excerpt']['end_line'], len(lines))
+        self.assertEqual(nearby['closing_excerpt']['text'].splitlines()[-2:], ['    break;', '}'])
+        short = workspace_source.read_symbol('main', 'loop.js', start_line=1, end_line=10, config=self.config)
+        self.assertNotIn('closing_excerpt', short)
+
+    def test_path_only_read_pages_and_typescript_declaration_locations(self):
+        path = self.main/'core.mts'
+        path.write_text('export async function runLoop() {}\n' + 'const item = 1;\n' * 48
+                        + 'export interface Client {}\n', 'utf-8')
+        page = workspace_source.read_symbol('main', path.name, config=self.config)
+        self.assertEqual((page['start_line'], page['end_line'], page['next_line']), (1, 40, 41))
+        last = workspace_source.read_symbol('main', path.name, start_line=41, config=self.config)
+        self.assertEqual((last['end_line'], last['next_line']), (50, None))
+        result = workspace_source.search('main', '', 'runLoop', 'symbol', config=self.config)
+        self.assertEqual(result['matches'], [dict(path=path.name, symbol='runLoop', start_line=1, end_line=1)])
+        for phrase in ('interface Client', 'export interface'):
+            found = workspace_source.search('main', path.name, phrase, 'symbol', config=self.config)
+            self.assertEqual([m['symbol'] for m in found['matches']], ['Client'])
+        call = workspace_source.search('main', path.name, 'interface Client', 'text', config=self.config)
+        self.assertEqual(call['matches'][0]['start_line'], 50)
+        call = workspace_source.search('main', path.name, 'runLoop(', 'symbol', config=self.config)
+        self.assertEqual((call['effective_mode'], call['matches'][0]['start_line']), ('text', 1))
+
+    def test_ts_class_hit_supplies_only_its_own_adjacent_documentation(self):
+        (self.main/'wrapper.ts').write_text('/** Owns the queue. */\nexport class Wrapper {}\n'
+                                           '\nexport class Other {}\n', 'utf-8', newline='\n')
+        found = workspace_source.search('main', 'wrapper.ts', 'class', 'symbol', config=self.config)
+        wrapper, other = found['matches']
+        self.assertEqual(wrapper['declaration_doc'], dict(start_line=1, end_line=1, text='/** Owns the queue. */\n'))
+        self.assertNotIn('declaration_doc', other)
+
+    def test_overview_numbers_body_and_noncontiguous_tail_independently(self):
+        receipt = dict(ok=True, path='a.ts', start_line=17, end_line=19, text='first\r\n\r\nlast',
+                       closing_excerpt=dict(start_line=208, end_line=209, text='break;\n}'))
+        view = workspace_source.overview_receipt('workspace_read_symbol', {}, receipt, set())
+        self.assertEqual(view['citation'], 'a.ts:L17-L19')
+        self.assertEqual(view['closing_excerpt']['citation'], 'a.ts:L208-L209')
+        self.assertEqual(view['numbered_text'], '17|first\r\n18|\r\n19|last')
+        self.assertEqual(view['closing_excerpt']['numbered_text'], '208|break;\n209|}')
+        self.assertIn('a.ts:L17-L19、a.ts:L208-L209', view['next_action'])
+        self.assertIn('解释 break 时引 a.ts:L208；', view['next_action'])
+        self.assertNotIn('a.ts:L17-L209', view['next_action'])
+        self.assertEqual(receipt['closing_excerpt']['text'], 'break;\n}')
+        self.assertNotIn('text', view)
+
+    def test_overview_evidence_depends_on_returned_source(self):
+        def guide(path, lines, *, implementation=False):
+            receipt = dict(ok=True, path=path, start_line=30, end_line=29+len(lines),
+                           text='\n'.join(lines))
+            return workspace_source.overview_receipt('workspace_read_symbol', {}, receipt, set(),
+                                                    implementation=implementation)['next_action']
+
+        self.assertNotIn('符号词 State', guide('README.md', ['# Static site'], implementation=True))
+        self.assertNotIn('符号词 State', guide('README.md', ['Stateful engine']))
+        self.assertIn('符号词 State', guide('README.md', ['Stateful engine'], implementation=True))
+        ordinary = guide('prices.py', ['def total(items):', '    return sum(items)'])
+        self.assertNotIn('循环', ordinary)
+        self.assertNotIn('setter', ordinary)
+        accessors = guide('collection.ts', ['get items() { return this.data.slice(); }',
+                                             'set items(next) { this.data = next; }'])
+        self.assertIn('getter 实际 return 哪个对象', accessors)
+        self.assertNotIn('getter 直接返回原数组', accessors)
+
+    def test_tail_identifies_two_different_loop_scopes(self):
+        lines = ['while (running) {', '  while (active) {'] + ['    tick();'] * 50
+        lines += ['    const a = await input.next();', '  }', '  const b = await tasks.next();',
+                  '  if (b) continue;', '  break;', '}']
+        path = self.main / 'consumer.ts'
+        path.write_text('\n'.join(lines), encoding='utf8')
+        page = workspace_source.read_symbol('main', path.name, start_line=1, end_line=43, config=self.config)
+        view = workspace_source.overview_receipt('workspace_read_symbol', {}, page, set())
+        self.assertIn('L53 的 next 在 L2 循环体内', view['next_action'])
+        self.assertIn('L55 的 next 在 L1 循环体内', view['next_action'])
+        self.assertIn('consumer.ts:L57', view['next_action'])
+
+    def test_initializer_context_is_opt_in_and_from_same_file(self):
+        path = self.main / 'invoice.ts'
+        factory = ['function createLines() {', '    return [];', '}']
+        lines = factory + [''] * 60 + ['this.lines = createLines();'] + [''] * 50
+        path.write_text('\n'.join(lines), encoding='utf8')
+        def read(**kwargs):
+            return workspace_source.read_symbol('main', path.name, start_line=62, end_line=110,
+                                                config=self.config, **kwargs)
+        self.assertNotIn('initializer_excerpt', read())
+        page = read(include_initializer=True)
+        self.assertEqual(page['initializer_excerpt']['text'].splitlines(), factory)
+        self.assertEqual(page['initializer_excerpt']['start_line'], 1)
+        result = workspace_source.overview_receipt('workspace_read_symbol', {}, page, set(), implementation=True)
+        self.assertEqual(result['initializer_excerpt']['citation'], 'invoice.ts:L1-L3')
+
+    def test_overview_compacts_navigation_without_losing_source(self):
+        seen = set()
+        receipt = dict(ok=True, path='module.ts', revision='a', text='body', locations=[{'line': 1}])
+        def view(args, source):
+            return workspace_source.overview_receipt('workspace_read_symbol', args, source, seen)
+        self.assertIn('locations', view({}, receipt))
+        explicit = view({'start_line': 1, 'end_line': 30}, receipt)
+        self.assertNotIn('locations', explicit)
+        self.assertEqual(explicit['text'], 'body')
+        again = view({'root':'main'}, receipt)
+        self.assertEqual(again['text'], 'body')
+        self.assertNotIn('locations', again)
+        self.assertIn('locations', view({}, {**receipt, 'revision':'b'}))
+        self.assertIn('locations', view({'root':'ref-0'}, receipt))
+        self.assertIn('locations', receipt)
+        hits = dict(ok=True, matches=list(range(10)), hit_count=10)
+        compact = workspace_source.overview_receipt('workspace_search', {}, hits, seen)
+        self.assertEqual(compact['matches'], hits['matches'][:6])
+        self.assertTrue(compact['more_matches'])
+        self.assertEqual(compact['hit_count'], 10)
+
+    def test_empty_results_identify_coverage_and_path_type(self):
+        from desk_companion.projects.workspace_feedback import read_error
+        cfg = self.config
+        self.assertEqual(project_workspace.tree('ref-0', '', cfg)['reason'], 'empty_directory')
+        (self.ref/'empty.md').touch()
+        self.assertEqual(project_workspace.read('ref-0', 'empty.md', cfg)['reason'], 'empty_file')
+        self.assertEqual(workspace_source.search('main', '', 'absent', 'text', config=cfg)['reason'], 'no_matches')
+        (self.main/'opaque.bin').touch()
+        self.assertEqual(workspace_source.search('main', '', 'absent', 'text', config=cfg)['reason'], 'incomplete_search')
+        for path, reason in [('missing', 'path_not_found'), ('', 'wrong_path_type'), ('../x', 'access_denied')]:
+            with self.assertRaises(ValueError) as exc:
+                project_workspace.read('main', path, cfg)
+            self.assertEqual(read_error(exc.exception)['reason'], reason)
 
     def test_search_slice_patch_round_trip_and_stale(self):
         hits = workspace_source.search('main','','value','symbol',config=self.config)

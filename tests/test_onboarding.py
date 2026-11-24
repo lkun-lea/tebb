@@ -31,7 +31,10 @@ class OnboardingTests(unittest.TestCase):
         self.assertTrue(onboarding.save_progress('feishu')['ok'])
         self.assertEqual(onboarding.status()['step'], 'feishu')
         self.assertTrue(onboarding.status()['show'])
-        self.assertEqual(set(json.loads((self.root / 'onboarding.json').read_text())), {'version', 'completed', 'step'})
+        self.assertTrue(onboarding.save_progress('feishu', paused=True)['ok'])
+        self.assertFalse(onboarding.status()['show'])
+        self.assertEqual(onboarding.status()['step'], 'feishu')
+        self.assertEqual(set(json.loads((self.root / 'onboarding.json').read_text())), {'version', 'completed', 'step', 'paused'})
         self.assertTrue(onboarding.complete()['ok'])
         self.assertFalse(onboarding.status()['show'])
 

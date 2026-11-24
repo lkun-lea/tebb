@@ -70,6 +70,22 @@ class TerminalTests(unittest.TestCase):
         self.assertTrue((folder/'stop').exists())
         self.assertEqual(self.manager.get(ident)['state'],'stopping')
 
+    def test_dismiss_requires_finished_command_and_survives_restart(self):
+        ident = uuid.uuid4().hex
+        folder = terminal.root() / 'jobs' / ident
+        folder.mkdir(parents=True)
+        job = dict(id=ident, state='running', session='s', created=1)
+        (folder / 'meta.json').write_text(json.dumps(job))
+        (folder / 'lease').touch()
+        with self.assertRaises(ValueError):
+            self.manager.dismiss(ident)
+        job['state'] = 'cancelled'
+        (folder / 'meta.json').write_text(json.dumps(job))
+        self.manager.dismiss(ident)
+        reopened = terminal.TerminalManager()
+        self.assertEqual(reopened.list()['jobs'], [])
+        self.assertEqual(reopened.get(ident)['state'], 'cancelled')
+
     def test_retry_receipt_does_not_reexecute_a_job_outside_recent_history(self):
         ident, request_id = uuid.uuid4().hex, uuid.uuid4().hex
         directory = terminal.root() / "jobs" / ident; directory.mkdir(parents=True)

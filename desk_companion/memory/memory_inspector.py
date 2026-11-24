@@ -298,6 +298,10 @@ def cleanup_apply(collaboration,conversation,action):
                     results.append(dict(id=call,part=file['suffix'],state='deleted'))
                 except OSError as exc:
                     results.append(dict(id=call,part=file['suffix'],state='failed',reason=type(exc).__name__))
+            try:
+                agent_debug.reindex_call(call)
+            except (OSError,sqlite3.Error) as exc:
+                results.append(dict(id=call,part='index',state='failed',reason=type(exc).__name__))
         if action.get('delete_source'):
             try:
                 facts.erase_checked(preview['memory']['id'],preview['memory'].get('version',1))

@@ -44,7 +44,18 @@ def coverage(cases,batches=()):
         ('judge',[k for k in catalog if k.startswith('judge_')and not k.startswith('judge_holdout_')]),
         ('holdout',[k for k in catalog if k.startswith('judge_holdout_')])]}
     areas.append(dict(id='charts',label='图表与产物',level='end_to_end',cases=[dict(id=c['id'],version=c['version'],fixture=attempts.get((c['id'],'fixture')),live=attempts.get((c['id'],'live')))for c in catalog.values()if c.get('origin')=='existing_product_acceptance'and c['spec']['category']=='charts'],missing=[]))
+    # A saved draft is visible immediately. Only matching execution evidence counts as a run.
+    for area in areas:
+        registered = {item['id'] for item in area['cases']}
+        for case in catalog.values():
+            if case.get('origin') != 'edited_draft' or case['spec']['category'] != area['id'] or case['id'] in registered:
+                continue
+            key = case['id']
+            area['cases'].append(dict(id=key, version=case['version'],
+                                      fixture=attempts.get((key, 'fixture')), live=attempts.get((key, 'live'))))
+    gaps = [dict(gap, drafts=[c['id'] for c in catalog.values() if c.get('origin') == 'edited_draft'
+                              and c['spec']['category'] == gap['entry']]) for gap in GAPS]
     return dict(ok=True,version=1,canonical_cases=len(catalog),splits=dict(Counter(c['split']for c in catalog.values())),
         unmapped_cases=sorted(set(catalog)-{c['id']for a in areas for c in a['cases']}),
-        areas=areas,suites=suites,uncovered_entries=GAPS,complete=False,
+        areas=areas,suites=suites,uncovered_entries=gaps,complete=False,
         scope='case_presence_is_not_model_quality; missing/live/prerequisite states remain explicit')

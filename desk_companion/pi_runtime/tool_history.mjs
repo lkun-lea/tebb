@@ -11,11 +11,16 @@ export function replayToolHistory(rows, messages, {catalog,versions,baseNames}) 
     const row=rows[index];
     result.push(messages[index]);
     for(const call of row.tool_calls||[])names.set(call.id,call.function.name);
-    if(row.role!=='tool'||names.get(row.tool_call_id)!=='tebb_tools_load')continue;
+    if(row.role!=='tool'||!['tebb_tools_search','tebb_tools_load'].includes(names.get(row.tool_call_id)))continue;
     let receipt;try{receipt=JSON.parse(row.content);}catch{continue;}
-    if(receipt.ok!==true||!Array.isArray(receipt.loaded))continue;
+    if(receipt.ok!==true)continue;
+    const isLoad=names.get(row.tool_call_id)==='tebb_tools_load';
+    if(isLoad&&!Array.isArray(receipt.loaded))continue;
     const added=[];
-    for(const name of receipt.loaded){
+    if(!loaded.has('tebb_tools_load') && byName.has('tebb_tools_load')){
+      loaded.add('tebb_tools_load');added.push(declaration('tebb_tools_load'));
+    }
+    for(const name of isLoad ? receipt.loaded : []){
       if(typeof name!=='string'||loaded.has(name)||!versions[name]||receipt.versions?.[name]!==versions[name])continue;
       const tool=declaration(name);if(tool){loaded.add(name);added.push(tool);}
     }

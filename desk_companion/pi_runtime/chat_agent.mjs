@@ -32,11 +32,12 @@ export async function runProductAgent({ id, data, model, common, ask, emit, acti
       if (active.abort.signal.aborted) throw new Error('cancelled');
       const receipt=await ask(id,'tool_call',{ name:tool.name, call_id:callId, arguments:args });
       if (!receipt.ok || active.abort.signal.aborted) throw new Error('Product tool gate stopped');
-      if (tool.name==='tebb_tools_load' && receipt.result?.ok===true) {
+      if (['tebb_tools_search','tebb_tools_load'].includes(tool.name) && receipt.result?.ok===true) {
         // Public SDK state setter; the SDK records tool changes before the next
         // request. The product gate still checks that request's offered list.
-        const names=['tebb_tools_search','tebb_tools_load',...receipt.result.loaded];
-        agent.state.tools=names.map(name=>catalog.find(item=>item.name===name)).filter(Boolean);
+        const loaded=tool.name==='tebb_tools_load' ? receipt.result.loaded : agent.state.tools.map(t=>t.name);
+        const names=data.stable_discovery ? new Set(['tebb_tools_search','tebb_tools_call']) : new Set(['tebb_tools_search','tebb_tools_load',...loaded]);
+        agent.state.tools=Array.from(names).map(name=>catalog.find(item=>item.name===name)).filter(Boolean);
       }
       return { content:[{ type:'text', text:typeof receipt.result==='string' ? receipt.result : JSON.stringify(receipt.result) }],
         details:receipt.result };
@@ -46,8 +47,8 @@ export async function runProductAgent({ id, data, model, common, ask, emit, acti
   const tools=initial.map(name=>catalog.find(tool=>tool.name===name)).filter(Boolean);
   let messages=history(data.messages,model);
   if (messages[0]?.role !== 'system') throw new Error('Missing product system message');
-  messages=data.base_tools ? replayToolHistory(data.messages,messages,{catalog,versions:data.tool_versions||{},baseNames:data.base_tools}) : messages;
-  if(!data.base_tools)messages[0].toolsAdded=tools.map(({ name,description,parameters })=>({ name,description,parameters }));
+  messages=data.base_tools && !data.stable_discovery ? replayToolHistory(data.messages,messages,{catalog,versions:data.tool_versions||{},baseNames:data.base_tools}) : messages;
+  if(!data.base_tools || data.stable_discovery)messages[0].toolsAdded=tools.map(({ name,description,parameters })=>({ name,description,parameters }));
   agent=new Agent({ initialState:{ model,messages,tools,thinkingLevel:data.thinking_level || 'low' },
     toolExecution:'sequential', streamFn:(current,context,options)=>stream(current,context,{ ...options,...common }),
     prepareNextTurnWithContext:({context})=>({context:{...context,tools:agent.state.tools}}),

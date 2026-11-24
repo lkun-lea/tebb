@@ -54,3 +54,17 @@ class RealTokenizerTests(unittest.TestCase):
         self.tokenizer.save_pretrained(self.temp.name);config=mt.binding(self.temp.name)
         self.assertIsNone(mt.count({**self.request,'tools':[{'name':'tool'}]},config)['tokens'])
         with self.assertRaises((ValueError,OSError,FileNotFoundError)):mt.binding(str(Path(self.temp.name)/'missing'))
+
+
+class FlashTokenizerTests(unittest.TestCase):
+    def test_bundled_chat_template_counts_wire_tool_history_and_chinese(self):
+        from desk_companion.models.model_capacity import for_call
+        cfg=for_call('test-flash','deepseek-flash','https://example.test/v1/chat/completions')
+        definition=dict(type='function',function=dict(name='lookup',description='查找',parameters=dict(type='object')))
+        turns=[dict(role='user',content='源码在哪里？')]
+        initial=mt.count(dict(messages=turns,tools=[definition]),cfg)
+        self.assertEqual(initial['source'],'tokenizer')
+        turns.extend([dict(role='assistant',content=None,tool_calls=[dict(id='x',type='function',function=dict(name='lookup',arguments='{}'))]),
+                      dict(role='tool',tool_call_id='x',content='第八行')])
+        self.assertGreater(mt.count(dict(messages=turns,tools=[definition]),cfg)['tokens'], initial['tokens'])
+        self.assertEqual(turns[1]['tool_calls'][0]['function']['arguments'],'{}')

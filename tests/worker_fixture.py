@@ -53,9 +53,9 @@ def build(host):
     agent = original(host)
     def query(messages, tools):
         (data_root() / "seen.json").write_text(__import__('json').dumps(messages, ensure_ascii=False), "utf-8")
-        if "日程锁测试" in messages[-1].get("content", ""):
+        if any(label in messages[-1].get("content", "") for label in ("日程锁测试","直接创建日程测试")):
             return {"role": "assistant", "content": "", "tool_calls": [{"id": "call_calendar", "type": "function",
-                "function": {"name": "calendar_propose", "arguments": __import__('json').dumps(dict(
+                "function": {"name": "calendar_create" if "直接创建日程测试" in messages[-1]["content"] else "calendar_propose", "arguments": __import__('json').dumps(dict(
                     summary='calendar fixture', start='2040-01-02T09:00:00+08:00', end='2040-01-02T10:00:00+08:00'))}}]}
         if "视频归档测试" in messages[-1].get("content", ""):
             return {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function",

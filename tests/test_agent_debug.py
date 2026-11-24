@@ -71,6 +71,21 @@ class DebugTests(unittest.TestCase):
         self.assertEqual(d["response"]["usage"]["prompt_tokens"], 25)
         self.assertEqual(d["call"]["state"], "complete")
 
+    def test_history_backfill_keeps_list_independent_of_call_files(self):
+        import uuid
+        ident = uuid.uuid4().hex
+        with debug.database() as db:
+            db.execute("INSERT INTO calls (id,created,state,error) VALUES (?,1,'failed','Timeout')",(ident,))
+        (debug.root()/(ident+'.timing.json')).write_text(json.dumps(dict(
+            marks={}, spans=[dict(phase='start_tls',state='failed')])),encoding='utf-8')
+        self.assertEqual(debug.backfill_summaries(),1)
+        self.assertEqual(debug.backfill_summaries(),0)
+        with patch.object(debug,'load_timing',side_effect=AssertionError('list read timings')), patch.object(
+                type(debug.root()),'read_text',side_effect=AssertionError('list opened recording')):
+            row=debug.listing()['items'][0]
+        self.assertEqual(row['failure_phase'],'start_tls')
+        self.assertTrue(row['files_missing'])
+
     def test_pause_and_non_llm_requests_are_not_recorded(self):
         def handle(req): return httpx.Response(200, json={"ok": True})
         with httpx.Client(transport=httpx.MockTransport(handle)) as client:

@@ -33,10 +33,11 @@ def save(model_id,window=None,output_reserve=0,tokenizer_dir=None):
 
 def for_call(model_id,model,endpoint):
     value=load(model_id)
+    builtin = {'tokenizer_profile':'deepseek-flash-1017'} if model in ('deepseek-flash','deepseek-v4.1-flash-1017') else {}
     base=value.get('base_url','').rstrip('/')
     if value.get('model')!=model or not base or not endpoint.startswith(base+'/'):
-        return dict(window=None,output_reserve=0,source='unknown')
-    return {k:v for k,v in value.items() if k in {'window','output_reserve'} or k.startswith('tokenizer_')}|dict(source='user_config')
+        return dict(window=None,output_reserve=0,source='unknown',**builtin)
+    return builtin | {k:v for k,v in value.items() if k in {'window','output_reserve'} or k.startswith('tokenizer_')}|dict(source='user_config')
 
 
 def current():

@@ -28,7 +28,7 @@ def status() -> dict:
     models = public_catalog()
     return {
         "ok": True,
-        "show": not models["items"] or (bool(saved) and not saved.get("completed")),
+        "show": not saved.get("paused") and (not models["items"] or (bool(saved) and not saved.get("completed"))),
         "data_dir": str(root),
         "assets_dir": str(asset_root()),
         "configured": bool(models["items"]),
@@ -52,9 +52,9 @@ def complete() -> dict:
     return {"ok": True}
 
 
-def save_progress(step) -> dict:
-    if type(step) is not str or step not in STEPS:
+def save_progress(step, paused=False) -> dict:
+    if type(paused) is not bool or type(step) is not str or step not in STEPS:
         return {'ok': False, 'error': '未知引导步骤。'}
     with LOCK:
-        storage.atomic_write(data_root() / 'onboarding.json', {'version': 2, 'completed': False, 'step': step})
+        storage.atomic_write(data_root() / 'onboarding.json', {'version': 2, 'completed': False, 'step': step, 'paused': paused})
     return {'ok': True}

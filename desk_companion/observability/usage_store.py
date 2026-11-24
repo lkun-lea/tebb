@@ -24,12 +24,21 @@ def normalized_usage(usage):
     out = tokens(usage.get('completion_tokens', usage.get('output_tokens')))
     details = usage.get('prompt_tokens_details') or usage.get('input_tokens_details') or {}
     cached = tokens(details.get('cached_tokens')) if isinstance(details, dict) else None
+    explicit_hit = tokens(usage.get('prompt_cache_hit_tokens'))
+    miss = tokens(usage.get('prompt_cache_miss_tokens'))
+    conflict = cached is not None and explicit_hit is not None and cached != explicit_hit
+    if cached is None: cached = explicit_hit
+    if miss is None and inn is not None and cached is not None: miss = inn - cached
+    if cached is None and inn is not None and miss is not None: cached = inn - miss
+    if inn is not None and cached is not None and miss is not None:
+        conflict = conflict or min(cached,miss)<0 or cached+miss!=inn
+    if conflict: cached = miss = None
     completion = usage.get('completion_tokens_details') or usage.get('output_tokens_details') or {}
     reasoning = tokens(completion.get('reasoning_tokens')) if isinstance(completion, dict) else None
-    invalid = cached is not None and inn is not None and cached > inn or reasoning is not None and out is not None and reasoning > out
+    invalid = conflict or cached is not None and inn is not None and cached > inn or reasoning is not None and out is not None and reasoning > out
     if cached is not None and inn is not None and cached > inn: cached = None
     if reasoning is not None and out is not None and reasoning > out: reasoning = None
-    return dict(input_tokens=inn, output_tokens=out, cached_tokens=cached, reasoning_tokens=reasoning,
+    return dict(input_tokens=inn, output_tokens=out, cached_tokens=cached, uncached_tokens=miss, reasoning_tokens=reasoning,
                 cache_write_tokens=tokens(usage.get('cache_creation_input_tokens')),
                 total_tokens=inn+out if inn is not None and out is not None else None,
                 usage_quality='invalid_details' if invalid else 'complete' if inn is not None and out is not None else 'partial' if inn is not None or out is not None else 'unknown')
@@ -92,7 +101,7 @@ class UsageStore:
         allowed = {'state','ended','error_kind','finish_reason','usage','cost_cny','network_attempts','result_kind','debug_call','debug_calls','first_token_ms','first_text_ms','first_output_ms','prompt_version','tools_version','input_version','request_configuration_version','stream_progress'}
         if set(changes)-allowed: raise ValueError('不允许修改用量身份或归属。')
         if 'state'in changes and changes['state']not in{'running','returned','failed','timed_out','cancelled','unknown','rejected','cached','replayed'}:raise ValueError('用量状态无效。')
-        if 'usage'in changes and(not isinstance(changes['usage'],dict)or set(changes['usage'])-{'input_tokens','output_tokens','cached_tokens','cache_write_tokens','reasoning_tokens','total_tokens','usage_quality'}):raise ValueError('用量只允许计数元数据。')
+        if 'usage'in changes and(not isinstance(changes['usage'],dict)or set(changes['usage'])-{'input_tokens','output_tokens','cached_tokens','uncached_tokens','cache_write_tokens','reasoning_tokens','total_tokens','usage_quality'}):raise ValueError('用量只允许计数元数据。')
         if 'stream_progress'in changes:
             from desk_companion.observability.stream_progress import validate
             validate(changes['stream_progress'])

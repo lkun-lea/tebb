@@ -6,7 +6,6 @@ import os
 import shutil
 import subprocess
 import sys
-import winreg
 from datetime import datetime, timedelta, timezone
 
 CREATE_NO_WINDOW = 0x08000000
@@ -84,9 +83,10 @@ def resolve_repo(name: str) -> str:
 def _merge_user_path() -> None:
     """Cursor 等宿主启动时 PATH 可能不含用户目录里的 gh。"""
     global _PATH_MERGED
-    if _PATH_MERGED:
+    if sys.platform != "win32" or _PATH_MERGED:
         return
     extra: list[str] = []
+    import winreg
     hives = (
         (winreg.HKEY_CURRENT_USER, r"Environment"),
         (
@@ -155,6 +155,20 @@ def _run_gh_json(args: list[str], timeout: int = 60):
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"gh {' '.join(args)} 不是合法 JSON。") from exc
+
+
+def open_account_dialog(action: str) -> dict:
+    """Launch the installed interactive CLI in its own native terminal."""
+    if action not in {'login', 'logout'}:
+        raise ValueError('未知的 GitHub 授权操作。')
+    if sys.platform != 'win32':
+        raise RuntimeError(f'请在本机终端运行 gh auth {action}。')
+    command = [_gh_bin(), 'auth', action, '--hostname', 'github.com']
+    if action == 'login':
+        command.append('--web')
+    subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE)
+    return dict(ok=True, state='needs_confirmation', service='github',
+                next_step='请在 GitHub CLI 窗口完成操作，再检查账号。')
 
 
 def auth_account() -> dict:

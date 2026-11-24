@@ -32,6 +32,7 @@ class PiAgentLimit(RuntimeError):
 
 class PiChatAgent:
     pi_runtime=True
+    stable_discovery=True
 
     def __init__(self, *, llm, tools, system_prompt, journal=None, max_steps=10, compact_threshold=None, tool_loading=None):
         tool_loading=tool_loading or os.environ.get('TEBB_TOOL_LOADING','demand')
@@ -107,7 +108,32 @@ class PiChatAgent:
         if hook:hook()
         started=time.monotonic()
         self.partial=dict(message=dict(role='assistant',content=None),usage=None,duration_ms=0)
-        manager=self.llm.admitted_call(body['messages'],body.get('tools'),options=ChatOptions(sampling=self.llm.sampling,stream=True))
+        wire_tools=body.get('tools')
+        from desk_companion.tasks.task_budgets import current
+        from desk_companion.pi_runtime.tool_loading import CALL
+        scope=current()
+        can_finish=self.loading.stable and 'submit_deliverable' in self.loading.loaded
+        from desk_companion.projects.project_workspace import READ_TOOLS
+        messages = body['messages']
+        if self.source_evidence:
+            after_call = SimpleNamespace(**{**vars(self.context), 'step_count': self.context.step_count + 1})
+            closing_turn = self.loading.catalog.keys() <= READ_TOOLS and self.terminator.should_stop(after_call)[0]
+            if closing_turn:
+                wire_tools = None
+                note = '这是交付回合。直接用自然语言回答用户，引用已有回执并交代缺失依据。勿输出工具调用或调用标记。'
+            else:
+                note = ('根据原问题和已读材料核对主要职责：区分已有实现正文、仅见文档或调用点、与问题无关。'
+                        '已定位但还未核实的核心职责，先定点补读相应实现；缺口补齐后立即引用回执作答。'
+                        '架构概览可以一条真实路径说明。避免为旁支、例子或穷举目录继续读取。')
+            messages = [*messages, dict(role='system', content=note)]
+        if can_finish and scope and scope.phase()=='finish':
+            from copy import deepcopy
+            wire_tools=deepcopy(wire_tools)
+            for entry in wire_tools or []:
+                fn=entry['function']
+                if fn['name']==CALL:
+                    fn['parameters']['properties']['name']['enum']=['submit_deliverable']
+        manager=self.llm.admitted_call(messages,wire_tools,options=ChatOptions(sampling=self.llm.sampling,stream=True))
         try:call=manager.__enter__()
         except BaseException:
             hook=getattr(self.llm,'on_call_end',None)
@@ -122,6 +148,13 @@ class PiChatAgent:
         else:
             actual.pop('tool_choice',None)
             actual.pop('parallel_tool_calls',None)
+        self.discovered_for_turn = frozenset(self.loading.loaded)
+        for entry in call.tools or []:
+            fn=entry['function']
+            if fn['name']==CALL:
+                allowed=fn['parameters']['properties']['name'].get('enum')
+                if allowed is not None:
+                    self.discovered_for_turn=self.discovered_for_turn.intersection(allowed)
         self.allowed_tools={tool['function']['name']for tool in call.tools or []}
         if call.options:actual.update(call.options.extra_body or {})
         observer.sending(actual)
@@ -153,14 +186,25 @@ class PiChatAgent:
 
     def _tool(self, name, arguments, call_id):
         from desk_companion.observability.tool_monitor import ToolRequest
+        from desk_companion.pi_runtime.tool_loading import CALL
+        via_search = self.loading.stable and name == CALL and name in self.allowed_tools
+        if via_search:
+            target = arguments.get('name')
+            if isinstance(target,str) and target in self.discovered_for_turn:
+                name,arguments = target,arguments['arguments']
+            else:
+                result=dict(ok=False,reason='tool_not_discovered',next_action='请先按需搜索该工具。')
+                self.memory.add_tool(json.dumps(result,ensure_ascii=False),call_id)
+                self.completed.add((self.turn,call_id))
+                return result
         metadata={**self.loading.owner,'model':self.llm.model,'definition_version':self.loading.catalog.get(name,{}).get('version')}
         with ToolRequest(name,ident=f'{self.run_id}:{self.turn}:{call_id}',metadata=metadata) as request:
-            return self._admitted_tool(name,arguments,call_id,request)
+            return self._admitted_tool(name,arguments,call_id,request,via_search=via_search)
 
-    def _admitted_tool(self, name, arguments, call_id, request):
+    def _admitted_tool(self, name, arguments, call_id, request, *, via_search=False):
         if self._cancelled():raise ChatCancelledError(dict(message={},usage=None,duration_ms=0))
         if (self.turn,call_id) in self.completed:raise RuntimeError('本轮工具调用编号重复，未重复执行。')
-        if name not in self.allowed_tools:
+        if name not in self.allowed_tools and not via_search:
             request.reject('not_allowed')
             raise ValueError('该工具不在本轮模型请求的授权清单中。')
         from desk_companion.pi_runtime.tool_loading import SEARCH,LOAD
@@ -169,23 +213,76 @@ class PiChatAgent:
             if current():current().tool(True,name)
             before=set(self.loading.loaded)
             result=self.loading.execute(name,arguments,request.id)
-            if current() and name==LOAD:
+            if current() and (name==LOAD or self.loading.stable):
                 for loaded in self.loading.loaded:
                     if loaded not in before:current().progress('tool_definition',loaded,self.loading.catalog[loaded]['version'])
             self.completed.add((self.turn,call_id))
             self.memory.add_tool(json.dumps(result,ensure_ascii=False),call_id)
             return result
         tool=self.tools.get(name)
-        tool.validate_input(arguments)
+        from jsonschema import ValidationError
+        try:
+            tool.validate_input(arguments)
+        except ValidationError as exc:
+            if not via_search: raise
+            request.reject('invalid_arguments')
+            result=dict(ok=False,reason='invalid_arguments',tool=name,field=list(exc.absolute_path),
+                        constraint=exc.validator,next_action='按搜索结果中的参数定义修正后重试。')
+            self.completed.add((self.turn,call_id))
+            self.memory.add_tool(json.dumps(result,ensure_ascii=False),call_id)
+            return result
         from desk_companion.tasks.task_budgets import current
         scope=current()
         if scope is not None and not self.tool_budget_managed:scope.tool(tool.isReadOnly,name)
         step_id=f'pi:{self.turn}:{call_id}'
         self._emit('tool_before_call',step_id=step_id,tool_name=name,input=arguments)
         started=time.monotonic();status='success'
-        try:result=self.tools.execute(name,arguments)
+        root_listing = (self.loading.source_overview and name == 'workspace_list'
+                        and arguments.get('path', '') in ('', '.'))
+        root_id = arguments.get('root', 'main') if root_listing else None
+        if not tool.isReadOnly:
+            self.overview_root_receipts.clear()
+        try:
+            if root_listing and root_id in self.overview_root_receipts:
+                result = dict(ok=True, reused_call=self.overview_root_receipts[root_id],
+                              next_action='本轮任务已列出该根目录，请复用先前回执。可直接按路径读取 README.md。')
+            else:
+                result = self.tools.execute(name, arguments)
+                if root_listing and isinstance(result, dict) and result.get('ok') and 'entries' in result:
+                    self.overview_root_receipts[root_id] = call_id
         except Exception as exc:
-            status='failed';result=dict(ok=False,error='工具执行未完成（'+type(exc).__name__+'），请核对原操作回执。')
+            status='failed';result=dict(ok=False,reason='adapter_error',error='工具执行未完成（'+type(exc).__name__+'），请核对原操作回执。')
+            from desk_companion.projects.project_workspace import READ_TOOLS
+            if name in READ_TOOLS and isinstance(exc,(OSError,ValueError)):
+                from desk_companion.projects.workspace_feedback import read_error
+                result.update(read_error(exc))
+        if (name=='workspace_read' and self.loading.prefer_workspace and isinstance(result,dict)
+                and 'workspace_read_symbol' in self.loading.catalog):
+            from desk_companion.projects.workspace_source import discovery_preview
+            result=discovery_preview(result)
+        if name=='workspace_read_symbol' and self.loading.prefer_workspace and isinstance(result,dict):
+            from desk_companion.projects.workspace_source import excerpt_for_question
+            explicit_range = 'start_line' in arguments and 'end_line' in arguments
+            if not (self.loading.source_overview and explicit_range):
+                result = excerpt_for_question(result)
+            if (self.loading.source_overview and result.get('closing_excerpt')
+                    and result['end_line'] >= result['closing_excerpt']['end_line']):
+                loops = result['closing_excerpt'].get('enclosing_loops')
+                result = {k: v for k, v in result.items() if k != 'closing_excerpt'}
+                if loops:
+                    result['enclosing_loops'] = loops
+        if self.loading.source_overview:
+            from desk_companion.projects.workspace_source import overview_receipt
+            result = overview_receipt(name, arguments, result, self.seen_source_locations,
+                                      implementation=self.loading.implementation_overview)
+            if isinstance(result, dict) and result.get('ok'):
+                if (name in {'workspace_read', 'workspace_read_symbol'}
+                        and (result.get('numbered_text') or result.get('text'))
+                        and result.get('path') and not result['path'].lower().endswith(('.md', '.rst', '.txt'))):
+                    self.source_evidence = True
+        if result is None or isinstance(result,str) and not result.strip():
+            result = dict(ok=False, state='unknown', reason='missing_receipt',
+                          next_action='未收到执行回执；先核对操作状态，勿重复提交写入。')
         from desk_companion.observability.tool_monitor import tool_result_state
         if tool_result_state(result)in{'failed','unknown','timed_out','cancelled','rejected'}:status='failed'
         self.completed.add((self.turn,call_id))
@@ -200,6 +297,9 @@ class PiChatAgent:
         self.run_id=run_id or uuid.uuid4().hex;self.turn=0
         self.context=SimpleNamespace(step_count=0,start_time=time.time()*1000,total_tokens=0,cost_usd=0,recent_outputs=[])
         self.cancel_check=None;self.completed=set()
+        self.source_evidence = False
+        self.seen_source_locations=set()
+        self.overview_root_receipts = {}
         self.partial=dict(message=dict(role='assistant',content=None),usage=None,duration_ms=0)
         self.usage_by_run[self.run_id]=dict(input_tokens=0,output_tokens=0)
         self.memory.add_user(user_input)
@@ -213,15 +313,16 @@ class PiChatAgent:
         from desk_companion.observability.agent_debug import metadata
         owner=_metadata()
         self.loading=ToolLoading(self.tools.to_openai_tools(),session=metadata().get('session') or self.run_id,
-            root=owner.get('root',''),task=owner.get('task',''))
+            root=owner.get('root',''),task=owner.get('task',''),user_input=user_input,
+            stable=self.tool_loading=='demand' and self.stable_discovery)
         if self.tool_loading=='eager' and self.loading.catalog:
             names=list(self.loading.catalog)
             for offset in range(0,len(names),20):self.loading.execute('tebb_tools_load',dict(names=names[offset:offset+20]),'eager_baseline')
-        payload.update(product_gate=True,messages=self.memory.messages,
+        payload.update(stable_discovery=self.loading.stable,product_gate=True,messages=self.memory.messages,
             tools=self.loading.specs(all_tools=True),initial_tools=[t['name']for t in self.loading.specs()],
             thinking_level=sampling.get('reasoning_effort','low'),call_timeout_ms=round((client.timeout.read or 90)*1000))
-        from desk_companion.pi_runtime.tool_loading import BASIC,SEARCH,LOAD
-        payload.update(base_tools=[t['name']for t in self.loading.specs()]if self.tool_loading=='eager'else[SEARCH,LOAD]+[n for n in self.loading.catalog if n in BASIC],
+        from desk_companion.pi_runtime.tool_loading import SEARCH
+        payload.update(base_tools=[t['name']for t in self.loading.specs()]if self.tool_loading=='eager'else[SEARCH],
             tool_versions={n:d['version']for n,d in self.loading.catalog.items()})
         error=None
         self.running=True

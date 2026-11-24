@@ -38,6 +38,8 @@ def _load(directory, signature):
 
 def observed_signature(config):
     directory=config.get('tokenizer_dir')
+    if not directory and config.get('tokenizer_profile')=='deepseek-flash-1017':
+        directory=Path(__file__).with_name('deepseek_flash')
     if not directory:return None
     try:
         path=Path(directory)
@@ -49,13 +51,16 @@ def observed_signature(config):
 def count(request, config):
     result = dict(tokens=None, source='unavailable', note='未绑定匹配模型的 tokenizer。')
     directory = config.get('tokenizer_dir')
+    builtin = not directory and config.get('tokenizer_profile')=='deepseek-flash-1017'
+    if builtin:
+        directory = str(Path(__file__).with_name('deepseek_flash'))
     if not directory:
         return result
     try:
         path = Path(directory)
         signature = [(name, p.stat().st_size, p.stat().st_mtime_ns)
                      for name in _FILES if (p := path / name).is_file()]
-        if json.dumps(signature) != json.dumps(config.get('tokenizer_signature')):
+        if not builtin and json.dumps(signature) != json.dumps(config.get('tokenizer_signature')):
             raise ValueError('tokenizer 文件发生变化，请重新确认绑定。')
         messages = request.get('messages')
         if not isinstance(messages, list) or not messages:
@@ -76,6 +81,17 @@ def count(request, config):
             for key in ('enable_thinking', 'reasoning_effort'):
                 if key in request:
                     args[key] = request[key]
+            if builtin:
+                from copy import deepcopy
+                messages=deepcopy(messages)
+                for message in messages:
+                    for call in message.get('tool_calls') or []:
+                        fn=call['function']
+                        if isinstance(fn.get('arguments'),str):
+                            fn['arguments']=json.loads(fn['arguments'])
+                thinking=request.get('thinking')
+                if isinstance(thinking,dict) and thinking.get('type') in ('enabled','disabled'):
+                    args['thinking_mode']='thinking' if thinking['type']=='enabled' else 'chat'
             tokens = tokenizer.apply_chat_template(messages, **args)
         return dict(tokens=len(tokens), source='tokenizer', note='绑定的 tokenizer 与聊天模板实算；服务端模板不同可能产生差异。')
     except Exception as exc:

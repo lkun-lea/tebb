@@ -18,6 +18,24 @@ def execute(host,run_id,tool,args):
             project_id=run.get('workspace',{}).get('project_id','')
         args=copy.deepcopy(args)
         call_id=str(args.pop('_call_id',''))
+        if tool=='connection_status':
+            return host.bridge.connection_status(args['service'])
+        if tool=='connection_authorize':
+            service = args['service']
+            if service == 'feishu':
+                try:
+                    result = host.bridge.feishu_login()
+                except Exception:
+                    return dict(ok=False,service=service,error='飞书授权未启动，请在设置的外部连接中检查状态。')
+                return dict(ok=result.get('ok', False), service=service,
+                            next_step='在官方授权页确认后，用 connection_status 核对账号状态。')
+            if service == 'github':
+                return host.bridge.github_account_dialog('login')
+            directions = {'Bilibili':'设置 → 外部连接 → 哔哩哔哩，点击登录 / 扫码，完成后点击使用此登录态。',
+                          'YouTube':'设置 → 外部连接 → YouTube，登录后点击使用此登录态。'}
+            if service not in directions:
+                raise ValueError('未知的外部服务')
+            return dict(ok=True, service=service, state='needs_confirmation', next_step=directions[service])
         if tool=='work_item_query':
             return host.work_board.query_status(project_id, query=args.get('query', ''),
                                                 item_id=args.get('item_id', ''), request_id=args.get('request_id', ''))
@@ -36,7 +54,7 @@ def execute(host,run_id,tool,args):
         if tool=='calendar_change':
             action=args['action'];action['request_id']='tebb-'+hashlib.sha256((run_id+':'+call_id).encode()).hexdigest()[:50]
             kind=action.get('type')
-            if kind=='create':raise ValueError('新建安排请使用calendar_propose生成提案，由用户打开日程草稿并明确保存。')
+            if kind=='create':raise ValueError('创建安排请使用calendar_create；明确要求先预览时使用calendar_propose。')
             if kind in {'update','sync','resolve_delete'}:return host.scheduling.local.change(action)
             return host.scheduling.change(action)
         if tool=='automation_list':return host.automation.list_automation_jobs()

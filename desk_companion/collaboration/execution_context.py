@@ -179,7 +179,12 @@ class ExecutionLLM(LLM):
         from desk_companion.tasks.task_budgets import current
         scope=current()
         if scope and scope.phase()=='finish':
-            tools=[tool for tool in tools or[]if tool.get('function',{}).get('name')=='submit_deliverable']
+            def finish_tool(tool):
+                fn=tool.get('function',{})
+                if fn.get('name')=='submit_deliverable': return True
+                selector=fn.get('parameters',{}).get('properties',{}).get('name',{})
+                return fn.get('name')=='tebb_tools_call' and selector.get('enum')==['submit_deliverable']
+            tools=[tool for tool in tools or [] if finish_tool(tool)]
             messages=[*messages,dict(role='system',content='任务预算进入收尾：仅依据已经取得的材料整理结果，明确未完成和未知部分；不再开始新的外部工作或假报完成。保持用户要求的最终格式。')]
         endpoint=str(self.client.base_url).rstrip('/')+'/chat/completions'
         capacity=model_capacity.for_call(self.context_model_id,self.model,endpoint)if self.context_model_id else dict(source='unknown')

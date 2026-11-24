@@ -55,6 +55,15 @@ class ExecutionFlowTests(unittest.TestCase):
         self.assertEqual(run['artifact'],'hello')
         self.assertEqual([m['sender'] for m in self.state()['messages'][-2:]],['user','tebb'])
 
+    def test_workspace_question_defaults_to_direct_even_when_router_suggests_delegate(self):
+        root=self.send('看看本地目录里的代码有没有bug')
+        run,_,_=self.finish(root['id'],[self.control('start_background_task',instructions='静态分析代码',
+                               strategy='delegate',task_type='workspace_question')])
+        self.assertEqual((run['kind'],run['task_type']),('task','workspace_question'))
+        self.service.tick()
+        self.assertEqual(self.work.requests[self.service.execution_status(root['id'])['task']]['task_type'],
+                         'workspace_question')
+
     def test_clear_simple_goal_runs_directly_without_plan_or_self_child(self):
         root=self.send('把 Hello 改成小写')
         self.finish(root['id'],[self.control('start_background_task',instructions='仅返回hello',strategy='direct')])

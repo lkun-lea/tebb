@@ -18,10 +18,10 @@ def specs(request):
         'capability_instantiate':(dict(id=string,version=string,arguments=dict(type='object',additionalProperties=string),node_id=string,position=position),['id','arguments']),
     }
     descriptions={
-        'workflow_catalog':'发现工作流原子适配器、输入默认值/输出/写入标记、用户声明式能力和示例。先发现再配置，不猜节点类型。',
+        'workflow_catalog':'查找已保存的自定义工具、工作流原子适配器、输入输出和示例。先发现再配置，不猜节点类型。',
         'workflow_load':'按id读取已保存工作流图和revision/version；修改前读取，结果不明先核对原ID。',
         'workflow_save':'保存可视化工作流草稿。payload含name、graph(nodes/edges)，更新须id/revision。需要恰有一个trigger、有效上游引用和完整固定目标；不启用定时、不执行节点或飞书写入。返回真实id/version后才可称搭建完成。',
-        'capability_save':'创建/修改声明式原子能力。payload含name、kind(已注册适配器，非trigger)、template、parameters(参数名:文字默认值)，模板用{{input.参数}}；外部目标/模型身份须固定。更新带id/revision。只保存能力，不执行代码或外部写入。',
+        'capability_save':'创建自定义工具（声明式原子能力），供之后按名称查找、组合和复用。payload含name、kind(已注册适配器，非trigger)、template、parameters(参数名:文字默认值)，模板用{{input.参数}}；外部目标/模型身份须固定。更新带id/revision。只保存能力，不执行代码或外部写入。',
         'capability_load':'按id、可选version读取可复用能力定义。旧版本不随编辑变化。',
         'capability_instantiate':'按能力id/version及arguments生成普通节点，可选node_id和position。将返回节点放入workflow_save的graph；不执行能力。实际配置将冻结到图版本。',
     }

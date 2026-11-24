@@ -34,4 +34,4 @@ def save(value):
 
 def require_connection():
     if not connected():
-        raise NotConnected('此 tebb 数据目录尚未连接飞书。请到设置 → 连接与网络 → 飞书，明确连接本机账户；未读取外部资料。')
+        raise NotConnected('此 tebb 数据目录尚未连接飞书。请到设置 → 外部连接 → 飞书，明确连接本机账户；未读取外部资料。')

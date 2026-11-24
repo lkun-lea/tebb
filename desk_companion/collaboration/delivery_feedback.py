@@ -35,6 +35,10 @@ def assess(request,text,sources,delivery,receipts,*,goal=None):
         if request.get('requires_charts'):checks.append(feedback.check('required_charts','artifact','pass','明确要求的真实图表资产已核对。'))
     except (ValueError,OSError):checks.append(feedback.check('required_charts','artifact','fail','图表交付未确认：缺少真实图表或资产核对失败。'))
     present=set()
+    local_reads = [e for key in ('source_evidence', 'evidence') for e in request.get(key, [])
+                   if e.get('kind') == 'workspace_body' and e.get('path') and e.get('revision')]
+    if local_reads:
+        present.add('repository')
     if any(s.get('kind')=='github'and s.get('level')=='body'and '/blob/'in s.get('url','')for s in sources):present.add('repository')
     if any(s.get('kind')=='page'and s.get('level')=='body'for s in sources):present.add('web')
     for missing in sorted(set(request.get('required_sources',[]))-present):

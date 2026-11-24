@@ -187,11 +187,11 @@ class Fixture(BaseHTTPRequestHandler):
         # Fixture-only model behavior: discover and load a needed authorized
         # definition before asking the real SDK to call it. Discovery receipts
         # are not business tool receipts used by the case's original judge.
-        if delta.get('tool_calls') and 'tebb_tools_load' in available:
+        if delta.get('tool_calls') and 'tebb_tools_search' in available:
             target=delta['tool_calls'][0]['function']['name']
             if target not in available:
                 searched=any(name=='tebb_tools_search'for name in call_names.values())
-                delta=tool('tebb_tools_load',dict(names=[target])) if searched else tool('tebb_tools_search',dict(query=target))
+                delta=tool('tebb_tools_load',dict(names=[target])) if searched and 'tebb_tools_load' in available else tool('tebb_tools_search',dict(query=target))
         self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
         if executor=='lifecycle' and spec['scenario']=='cancel':
             try:

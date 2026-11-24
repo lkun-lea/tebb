@@ -16,18 +16,16 @@ class PiChatTests(PiInferenceFixture):
         agent=self.agent('discover-tool');agent.tool_loading='demand'
         self.assertEqual(agent.run('Discover and use the calculator.'),'40')
         names=lambda r:[t['function']['name']for t in r.get('tools',[])]
-        self.assertEqual(names(self.requests[0]),['tebb_tools_search','tebb_tools_load'])
-        self.assertEqual(names(self.requests[1]),names(self.requests[0]))
-        self.assertEqual(names(self.requests[2]),names(self.requests[0])+['probe_add'])
+        self.assertEqual(names(self.requests[0]),['tebb_tools_search'])
+        self.assertEqual(names(self.requests[1]),['tebb_tools_search','tebb_tools_call'])
+        self.assertEqual(self.requests[2]['tools'],self.requests[1]['tools'])
+        messages=self.requests[1]['messages']
+        self.assertEqual(self.requests[2]['messages'][:len(messages)],messages)
         self.assertEqual(self.writes,[dict(a=17,b=23)])
-        self.assertEqual(len(self.requests),4)
-        from desk_companion.observability.tool_monitor import ToolMonitor
-        effective=[e for e in ToolMonitor().events()if e['phase']=='definition_effective'and e['tool']=='probe_add']
-        self.assertTrue(effective);self.assertGreater(effective[0]['position'],0)
-        # A new private Node process replays the same owned loading receipt.
+        self.assertEqual(len(self.requests),3)
+        # A fresh run must discover again before executing, even with conversation history.
         self.assertEqual(agent.run('Use the established result.'),'40')
-        self.assertEqual(len(self.requests),5);self.assertEqual(len(self.writes),1)
-        self.assertEqual(names(self.requests[4]),names(self.requests[3]))
+        self.assertEqual(names(self.requests[3]),['tebb_tools_search'])
 
     def agent(self, scenario='normal', *, max_steps=8):
         llm=self.llm(scenario)
@@ -37,6 +35,73 @@ class PiChatTests(PiInferenceFixture):
         tools.register(name='probe_add',description='Read-only fixture calculator',parameters=dict(type='object',
             properties=dict(a=dict(type='integer'),b=dict(type='integer')),required=['a','b']),func=add,isReadOnly=True)
         return PiChatAgent(llm=llm,tools=tools,system_prompt='Use the registered calculator. Return exactly 40.',max_steps=max_steps,tool_loading='eager')
+
+    def test_overview_reuses_only_successful_listings_of_the_same_root(self):
+        agent = self.agent()
+        calls = []
+
+        def list_root(args):
+            calls.append(args)
+            return dict(ok=len(calls) > 1, entries=[])
+
+        agent.tools.register(name='workspace_list', description='List the workspace',
+                             parameters=dict(type='object'), func=list_root, isReadOnly=True)
+        agent.run('Return 40.')
+        agent.loading.source_overview = True
+
+        def execute(tool, args):
+            return agent._admitted_tool(tool, args, str(len(agent.completed)), None, via_search=True)
+
+        self.assertFalse(execute('workspace_list', {})['ok'])
+        first = execute('workspace_list', {})
+        self.assertTrue(first['ok'])
+        self.assertIn('reused_call', execute('workspace_list', {'root': 'main', 'path': '.'}))
+        self.assertNotIn('reused_call', execute('workspace_list', {'root': 'ref-0'}))
+        self.assertNotIn('reused_call', execute('workspace_list', {'path': 'packages'}))
+        self.assertEqual(len(calls), 4)
+
+    def test_explicit_overview_range_keeps_loop_body_and_exit(self):
+        agent = self.agent()
+        lines = [f'line {n}\n' for n in range(1, 91)]
+        receipt = dict(ok=True, path='loop.ts', start_line=1, end_line=90, text=''.join(lines),
+                       closing_excerpt=dict(start_line=80, end_line=90, text=''.join(lines[79:])))
+        agent.tools.register(name='workspace_read_symbol', description='Read source',
+                             parameters=dict(type='object'), func=lambda _: receipt, isReadOnly=True)
+        agent.run('Return 40.')
+        agent.loading.source_overview = agent.loading.prefer_workspace = True
+        args = dict(path='loop.ts', start_line=1, end_line=90)
+        result = agent._admitted_tool('workspace_read_symbol', args, 'window', None, via_search=True)
+        self.assertEqual(result['citation'], 'loop.ts:L1-L90')
+        self.assertIn('90|line 90', result['numbered_text'])
+        self.assertNotIn('closing_excerpt', result)
+        self.assertIn('closing_excerpt', receipt)
+        self.assertTrue(agent.source_evidence)
+        agent.run('Return 40.')
+        self.assertFalse(agent.source_evidence)
+
+    def test_last_source_review_turn_reserves_the_answer_for_read_only_catalog(self):
+        agent = self.agent(max_steps=1)
+        tools = Toolkit()
+        tools.register(name='workspace_list', description='List files',
+                       parameters=dict(type='object'), func=lambda _: {}, isReadOnly=True)
+        agent.tools = tools
+        original = agent._model
+
+        def after_evidence(data):
+            if data['event'] != 'model_end':
+                agent.source_evidence = True
+            return original(data)
+
+        with patch.object(agent, '_model', after_evidence):
+            self.assertEqual(agent.run('解读项目架构'), '40')
+        self.assertNotIn('tools', self.requests[-1])
+        self.assertIn('交付回合', self.requests[-1]['messages'][-1]['content'])
+        tools.register(name='submit_deliverable', description='Submit the result',
+                       parameters=dict(type='object'), func=lambda _: {}, retry_max=0)
+        with patch.object(agent, '_model', after_evidence):
+            self.assertEqual(agent.run('解读项目架构'), '40')
+        self.assertIn('submit_deliverable', [t['function']['name'] for t in self.requests[-1]['tools']])
+
 
     def test_official_loop_receipt_usage_and_actual_second_request(self):
         agent=self.agent('tool')

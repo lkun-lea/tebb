@@ -39,6 +39,18 @@ class UsageRecords(unittest.TestCase):
         invalid=normalized_usage({'prompt_tokens':10,'completion_tokens':0,'prompt_tokens_details':{'cached_tokens':11}})
         self.assertIsNone(invalid['cached_tokens']);self.assertEqual(invalid['usage_quality'],'invalid_details')
 
+    def test_cache_counts_and_inconsistent_receipts(self):
+        for fields, expected in [
+            ({'prompt_cache_hit_tokens':6,'prompt_cache_miss_tokens':4}, (6,4)),
+            ({'prompt_tokens_details':{'cached_tokens':0}}, (0,10)),
+            ({'prompt_cache_miss_tokens':10}, (0,10)),
+            ({}, (None,None)),
+            ({'prompt_cache_hit_tokens':11}, (None,None)),
+            ({'prompt_cache_hit_tokens':2,'prompt_cache_miss_tokens':1}, (None,None)),
+        ]:
+            usage=normalized_usage(dict(prompt_tokens=10,completion_tokens=2,**fields))
+            self.assertEqual((usage['cached_tokens'],usage['uncached_tokens']),expected)
+
     def test_same_identity_is_idempotent_and_rebinding_or_payload_is_rejected(self):
         self.assertTrue(self.store.begin('a','model',{'root':'r','task':'t'},now=1))
         self.assertFalse(self.store.begin('a','model',{'root':'r','task':'t'},now=2))

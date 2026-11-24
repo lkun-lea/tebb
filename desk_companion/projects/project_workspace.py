@@ -127,7 +127,10 @@ def resolve(root_id='main', relative='', config=None):
     from desk_companion.projects.terminal import inside
     cfg = config or load()
     roots = {'main': cfg['primary'], **{f'ref-{i}': p for i, p in enumerate(cfg['references'])}}
-    if root_id not in roots or not roots[root_id]: raise ValueError('工作目录尚未配置')
+    if root_id not in roots:
+        raise ValueError('未知的工作区根标识')
+    if not roots[root_id]:
+        raise ValueError('工作目录尚未配置')
     if not isinstance(relative, str) or len(relative) > 1000: raise ValueError('文件路径无效')
     rel = PurePosixPath(relative.replace('\\', '/'))
     if rel.is_absolute() or '..' in rel.parts or any(':' in p or p in SKIP or p.startswith('.env') for p in rel.parts):
@@ -141,6 +144,7 @@ def resolve(root_id='main', relative='', config=None):
 
 def tree(root_id='main', relative='', config=None):
     path, cfg = resolve(root_id, relative, config)
+    if path.is_file(): raise ValueError('目标是文件，请读取文件或列出父目录')
     if not path.is_dir(): raise ValueError('目录不存在')
     rows = []
     from itertools import islice
@@ -153,11 +157,16 @@ def tree(root_id='main', relative='', config=None):
             rows.append(dict(name=child.name, path=rel, directory=safe.is_dir(), size=0 if safe.is_dir() else safe.stat().st_size))
         except (ValueError, OSError): continue
         if len(rows) >= 400: break
-    return dict(ok=True, entries=rows, limited=len(rows) >= 400 or len(candidates) >= 2000)
+    limited = len(rows) >= 400 or len(candidates) >= 2000
+    result = dict(ok=True, entries=rows, limited=limited)
+    if not rows:
+        result['reason'] = 'no_visible_entries' if candidates else 'empty_directory'
+    return result
 
 
 def read(root_id, relative, config=None, *, utf8_only=False):
     path, cfg = resolve(root_id, relative, config)
+    if path.is_dir(): raise ValueError('目标是目录，请列出目录后选择文件')
     if not path.is_file(): raise ValueError('文件不存在')
     if path.stat().st_size > MAX_FILE: raise ValueError('预览上限1 MiB，请使用附件提取或本地应用打开')
     raw = path.read_bytes()
@@ -176,6 +185,7 @@ def read(root_id, relative, config=None, *, utf8_only=False):
             result['editable'] = False
         if '\0' in text: raise ValueError('此二进制格式不支持预览')
         result.update(kind='text', text=text)
+        if not text: result['reason'] = 'empty_file'
     return result
 
 
@@ -274,17 +284,21 @@ def run(command, snapshot, run_id, timeout=90):
         if job['state'] in {'starting','running','stopping'}: service.cancel(ident)
 
 
+READ_TOOLS = frozenset({'workspace_list', 'workspace_read', 'workspace_search', 'workspace_read_symbol'})
+
+
 def tool_specs(*, development=False):
     def spec(name, description, properties, required):
-        return dict(type='function', function=dict(name=name, description=description, parameters=dict(type='object', properties=properties, required=required)),read_only=name in {'workspace_list','workspace_read','workspace_search','workspace_read_symbol'})
+        return dict(type='function', function=dict(name=name, description=description, parameters=dict(type='object', properties=properties, required=required)),read_only=name in READ_TOOLS)
     string = {'type':'string'}
+    root = dict(type='string', description='主目录省略此参数；仅使用已授权的 main 或 ref-N，不填路径或项目名。')
     return [
-        spec('workspace_list', '列出授权工作目录，参考目录只读。root为main或ref-0等。', {'root':string,'path':string}, []),
-        spec('workspace_read', '读取工作区文本，返回revision；创建新文件时revision用new。', {'root':string,'path':string}, ['path']),
+        spec('workspace_list', '列出授权工作目录，参考目录只读。root为main或ref-0等。', {'root':root,'path':string}, []),
+        spec('workspace_read', '读取工作区文本，返回revision；创建新文件时revision用new。', {'root':root,'path':string}, ['path']),
         spec('workspace_write', '编辑主目录UTF-8文件，必须带上读取时的revision；新文件用new。', {'path':string,'text':string,'revision':string}, ['path','text','revision']),
         spec('workspace_run', '在主目录WSL无网络沙箱运行命令。开启失败立即退出和pipefail，直接执行构建或测试，不用echo或||true掩盖退出码。/references/N只读。', {'command':string,'timeout':{'type':'integer'}}, ['command']),
     ] + ([
-        spec('workspace_search', 'symbol 按名称搜索 Python 定义；text 按单个字面子串搜索，不支持正则或 | 备选。指定文件并唯一精确命中函数时，返回 text、symbol 和 revision；其余返回候选行号。', {'root':string,'path':string,'query':string,'mode':{'type':'string','enum':['symbol','text']}}, ['query']),
-        spec('workspace_read_symbol', '按 Python 限定名或行号读取局部源码；next_line 为续读位置。返回文件 revision。', {'root':string,'path':string,'symbol':string,'start_line':{'type':'integer'},'end_line':{'type':'integer'}}, ['path']),
+        spec('workspace_search', 'symbol 按名称定位 Python 定义和 TypeScript 声明行候选；TypeScript 调用点或方法用 text。text 按单个字面子串搜索，不支持正则或 | 备选。指定文件并唯一精确命中函数时，返回 text、symbol 和 revision；其余返回候选行号。', {'root':root,'path':string,'query':string,'mode':{'type':'string','enum':['symbol','text']}}, ['query']),
+        spec('workspace_read_symbol', '只传 path 即读前 40 行；start_line、end_line 是从 1 开始的闭区间，支持从指定起点续读。TypeScript 按行读，Python 也可用 symbol。next_line 指向续读位置。', {'root':root,'path':string,'symbol':string,'start_line':{'type':'integer'},'end_line':{'type':'integer'}}, ['path']),
         spec('workspace_patch', '将唯一 old 替换为 new。传读取时的 revision；有 symbol 时传回其限定名，只在该 Python 定义内匹配。失败按回执重读或补上下文。', {'path':string,'revision':string,'symbol':string,'old':string,'new':string}, ['path','revision','old','new']),
     ] if development else [])

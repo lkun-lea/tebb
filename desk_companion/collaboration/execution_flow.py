@@ -60,6 +60,11 @@ def chain_view(run, runs):
     state = (failed['state'] if failed else 'needs_input' if awaiting else 'running' if unfinished
              else 'cancelled' if any(r['state'] == 'cancelled' for r in chain) else run['state'])
     final = run if run['state']=='succeeded' and run.get('artifact') else next((r for r in reversed(chain) if r.get('stage') == 'deliver' and r['state'] == 'succeeded'), run)
+    # A delegated collection streams into the root bubble before synthesis starts.
+    # Polls and terminal snapshots must retain that same partial answer.
+    if final is run and (not run.get('answer') or run['state'] in {'waiting', 'pending'}):
+        final = next((child for child in reversed(chain)
+                      if child is not run and child.get('answer')), run)
     elapsed = None if unfinished or awaiting or any(not r.get('finished') for r in chain) else int(
         max(r['finished'] for r in chain) * 1000 - run.get('created',time.time()) * 1000)
     return dict(state=state, calls=sum(r.get('calls', 0) for r in chain),

@@ -26,7 +26,7 @@ python -m unittest tests.test_tasks -v
 
 两个 reader 屏障用例在真实 SQLite 连接持有期间触发任务超时：检查 shutdown 不提前成功，以及等待上限后明确报告 pending，释放屏障后真正收尾。它们不访问模型、飞书或 Docker。修复前独立复现记录在工作区 `output/task-reader-shutdown-repro/report.json`；主线 CI 41144139310 的原始 WinError32 保留，验证分支单次通过不抹去该失败。
 
-连续点击左侧 tebb. 下方的版本号5次切换开发者模式，再从「设置 → 版本与诊断 → 调用调试」打开 Agent 调试。Esc、关闭按钮或点击遮罩可关闭。关闭窗口不会取消后台任务。导航、日程和笔记的界面验收入口见 [工作区布局](WORKSPACE_UI.md)。
+从「设置 → 调试与评测 → 模型调用」打开调用记录，选中记录后读取完整请求和响应。「设置 → 运行监控」按任务展示时间线，默认选中首个失败的模型或工具调用，可查看网络阶段和工具回执，也可切换依赖图。聊天中的「查看运行详情」定位同一任务。Esc、关闭按钮或点击遮罩可关闭。关闭窗口不会取消后台任务。导航、日程和笔记的界面验收入口见 [工作区布局](WORKSPACE_UI.md)。
 
 ## 能查看什么
 
@@ -254,7 +254,7 @@ pnpm build
 
 服务入口为 `BoardService().load_board(refresh=False)`、`create_agenda(summary,start,end)`、`delete_agenda(event_id)`、`delete_task(guid)`；RPC 沿用同名参数、外层派发和内层业务两层 `ok`。调试时指定临时 `DESK_COMPANION_DATA_DIR`，替换 `board_data._run_lark/fetch_board`，不能直接运行真实飞书修改。时间沿用带时区的 ISO 字符串及东八区今日规则。新建写当前用户的主日历；删除日程仍真实删除并通知参会人，删除待办仍真实删除，均非隐藏或标记完成。创建不要求已有今日缓存；无缓存时正常返回 `snapshot=null`，非今日日程仍可创建并提示今日页可能不显示。远端可提供的 event_id 会保留，但不要求 CLI 一定返回该字段。
 
-当天缓存命中立即可读；刷新、缺少当天缓存的加载、创建与删除共同取得跨进程看板操作资源，冲突即 `stage=admission`，不排队。共享助手回复、笔记生成、压缩及其他任务仍可继续，看板不修改 conversation.running。飞书等待不持 HOST.turn_lock、WRITES 或缓存存储锁；Agent 日程安排改用只读 calendar_propose；提案只写入原任务事件，明确保存由现有日程表单与回执接续，详见 CALENDAR_PROPOSALS。其他写工具的全局保护不变。桌宠、自动化首次/跨日加载也可能立即返回看板忙碌；当天缓存命中不受影响。
+当天缓存命中立即可读；刷新、缺少当天缓存的加载、创建与删除共同取得跨进程看板操作资源，冲突即 `stage=admission`，不排队。共享助手回复、笔记生成、压缩及其他任务仍可继续，看板不修改 conversation.running。飞书等待不持 HOST.turn_lock、WRITES 或缓存存储锁；Agent 直接创建本地日程用 calendar_create，确认保存回执后可从原消息查看。明确要求先预览时用只读 calendar_propose，详见 CALENDAR_PROPOSALS。其他写工具的全局保护不变。桌宠、自动化首次/跨日加载也可能立即返回看板忙碌；当天缓存命中不受影响。
 
 today.json 所有读改写复用 ResourceLock 与原子替换。刷新仅合并日程/待办，日程变更仅合并日程，待办变更仅合并待办；提交时读取最新摘要、摘要时间、文档链接和无关分区。save_today_fields 只占短时存储锁，可与远端等待并行。单侧查询失败保留该侧明确错误，另一侧照常保留；失败不会被当成“没有安排”，也不拿旧列表冒充新查询。换日创建新快照不继承昨天的摘要/链接；跨午夜旧响应不落盘，远端修改已完成仍明确报告，重新加载核对。共同保护仅约束这些应用入口，不承诺串行化用户在飞书或其他应用中独立进行的修改。
 
@@ -581,3 +581,49 @@ python -m unittest tests.test_tasks tests.test_execution_flow tests.test_collabo
 ## 日程提案验收（#213）
 
 只读工具 calendar_propose 返回的规范协议必须出现在原任务 calendar_proposal 事件中。认证 read_calendar_proposal(task_id,proposal_id) 重读该任务、来源事项与固定 save_request_id；proposed/saved/consumed/unconfirmed/blocked 各自明确。打开与核对都无日程写入，只有共享表单明确保存才走原本地日程入口。统一 eval 的 calendar_proposal 用例核对真实工具及确认前日程/关联/事项不变；它单独标注未执行UI确认，必须另外操作同一份实际提案及共用表单。协议、调试步骤与真实样本边界见 CALENDAR_PROPOSALS。
+
+### 核对本地目录委派
+
+在调用检查台按编码伙伴的任务编号查看 `workspace_read`、`feedback_check` 和预算停止原因。目录清单、空文件和失败读取不算文件正文。成功读取的非空正文以相对路径和版本摘要记录为 `workspace_body`，可供后续交付阶段核对 repository 来源。工具事件的 `query` 是展示摘要，所选模型调用的完整参数见解析后响应的 `tool_calls`。
+
+在仓库根目录运行 `uv run --locked python -m unittest discover -s tests -p test_feedback_worker.py`，可用临时只读目录和模拟模型验证取证与交接，以及委派期间和失败后聊天快照保留部分正文。
+
+独立审阅的材料列表中，`workspace` 包含本任务绑定的主目录和编辑、命令权限。它可用于核对权限说明；Git 状态仍需实际回执。若出现 `feedback_review_repair`，表示系统在剩余调用预算和审阅时限内让审阅器重新提交结论，沿用同一候选与证据。业务答案修订与审阅格式纠正分别最多一次。可在上述测试中复现先修订答案、再纠正超出 6 项的审阅，以及连续两次协议错误后保留原稿的情况。
+
+对已打开目录的问答，路由选择 `task_type=workspace_question`。查看目录、解释源码和静态排查 bug 默认由当前助手读取后回答。任务事件保留 `tool_end` 和确定性 `feedback_check`；普通只读问答没有独立的 `feedback_review` 模型调用。要求复现、运行测试、修复或验证时选择 `execution`，即使最终只读到文件，仍走原有验收流程。用户明确指定伙伴时保留委派。
+
+新会话采用按需加载时，首个模型请求只声明 `tebb_tools_search`。搜索已授权目录后提供 `tebb_tools_load`，指定名称并加载后，下一轮才提供对应定义。恢复会话时仅重放当前仍获授权且版本匹配的工具。可用本地模拟供应商验证实际请求顺序：
+
+```powershell
+$env:TEBB_PI_NODE = (Resolve-Path .runtime/node-v24.22.3-win-x64/node.exe).Path
+uv run --locked python -m unittest tests.test_pi_chat.PiChatTests.test_demand_loading_updates_actual_sdk_payload_before_execution
+```
+
+工具搜索在当前任务授权目录内本地排序。工具名精确命中直接返回该项，其他查询最多返回三个候选；空查询和无匹配查询返回空列表。搜索回执仅包含名称与短说明，加载后才提供完整参数。
+
+可从仓库根目录离线对比旧版子串匹配和轻量路由：
+
+```powershell
+uv run --no-project --with tiktoken python scripts/compare_tool_routing.py --memory memory
+```
+
+脚本只读本机任务与模型调用记录，仅输出汇总。用原任务文字和各次历史请求所带的工具目录重放；每种任务类型内相同原文仅保留第一条有实际工具调用的记录。business 检查业务工具，dispatch 检查澄清、委派等控制工具，keyword_probe 从业务任务原文中按固定词表取最长关键词（并列取最先出现者），exact_name 使用同一批业务调用的实际工具名作为精确查找对照。命中指候选包含历史模型所选工具之一。token 为 o200k_base 对下一轮搜索回执 JSON 的计数，不能推导服务商计费或完整任务成本。
+
+需要用真实模型评估工具发现时，可以先把变更前的 `tool_routing.py` 存为独立文件，再做成对回放。以下命令调用已配置的模型，会产生用量：
+
+```powershell
+$env:TEBB_PI_NODE = (Resolve-Path .runtime/node-v24.22.3-win-x64/node.exe).Path
+uv run --locked python scripts/replay_tool_routing_live.py --live --memory memory --before path/to/router_before.py --arms before after keyword --output routing-results.jsonl
+```
+
+回放使用 Pi 的实际搜索、加载与调用循环，选择旧路由用完整问题未命中的业务任务。各组共享任务原文、当时的工具定义、会话背景与历史资料快照。业务适配器只返回隔离材料，未匹配历史输入的调用记录为缺少回执，外部写入不执行。输出包含实际搜索词、候选、业务调用顺序、结束状态与每轮供应商 usage。比较完整任务 token 时须使用各组都收到最终回答且每轮用量齐全的配对，单列轮数耗尽、供应商错误和重试。
+
+### DeepSeek Flash 的缓存与源码读取
+
+在按需模式下，新运行第一次请求只声明 `tebb_tools_search`。完成搜索后，后续请求固定声明搜索与 `tebb_tools_call`。搜索回执包含命中项的参数定义，执行入口逐轮核对本次运行已发现的工具，使用原工具校验参数并记录实际调用。检查真实请求时，可对比相邻请求的消息前缀与工具声明。上下文压缩、权限变化和供应商内部渲染都可能影响缓存命中。
+
+用量记录里的 `cached_tokens` 和 `uncached_tokens` 分别代表输入中命中和未命中的 token。整轮命中率按各请求命中之和除以输入之和。缺项保留未知，金额以所用网关的账单或余额差额为准。内置 DeepSeek-V4.1-Flash-1017 分词器在本机按模型聊天模板统计文本和工具参数，可用显式绑定覆盖。模型别名和网关模板变化可能导致与供应商计数不同。
+
+工作区提供源码导航工具时，长文件的首次整读返回带行号的定位信息；代码理解问题可用 `workspace_search` 的 text 模式检索关键字，并用 `workspace_read_symbol` 按行读取。回执标明实际范围及续读行。
+
+本地回归可运行 `python -m unittest tests.test_tool_routing tests.test_model_tokenizer tests.test_workspace_source tests.test_usage_center`。

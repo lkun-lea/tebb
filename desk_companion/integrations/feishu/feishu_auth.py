@@ -89,6 +89,7 @@ def feishu_status(*,timeout=None) -> dict:
         "ok": True,
         "installed": True,
         "system_logged_in": logged_in,
+        "token_expired": not logged_in and token_status == "expired",
         "connected": profile_connected,
         "logged_in": logged_in and profile_connected,
         "user_name": str(name),

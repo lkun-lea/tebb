@@ -13,7 +13,7 @@ from desk_companion.observability.tool_monitor import ToolMonitor
 
 
 def valid_filters(filters):
-    allowed={'root','task','session','tool','collection','model','agent','role','purpose','configuration_version','code_version','state','channel','since','until'}
+    allowed={'kind','root','task','session','tool','collection','model','agent','role','purpose','configuration_version','code_version','state','channel','since','until'}
     if not isinstance(filters,dict) or set(filters)-allowed: raise ValueError('执行筛选参数无效。')
     for key,value in filters.items():
         if key in {'since','until'}:
@@ -22,9 +22,13 @@ def valid_filters(filters):
     return filters
 
 
+class UnlinkedTask(ValueError):
+    """The physical task has no observed execution yet."""
+
+
 class ExecutionCenter:
     def __init__(self, usage=None, tools=None, sources=None, owner_source=None,checks_source=None):
-        self.usage=usage or UsageStore();self.tools=tools or ToolMonitor();self.sources=sources or task_metadata
+        self.usage=usage or UsageStore();self.tools=tools or ToolMonitor();self.sources=sources or (lambda:task_metadata(include_titles=True))
         from desk_companion.observability.execution_sources import owner_nodes
         self.owner_source=owner_source or owner_nodes
         from desk_companion.observability.execution_sources import task_checks
@@ -35,7 +39,9 @@ class ExecutionCenter:
         if not isinstance(payload,dict): raise ValueError('执行查询参数无效。')
         if operation=='list': return self.list(**payload)
         if operation=='trace': return self.trace(**payload)
-        if operation=='locate': return self.locate(**payload)
+        if operation=='locate':
+            try: return self.locate(**payload)
+            except UnlinkedTask: return dict(ok=True, state='unlinked')
         if operation=='tools': return self.tool_query(**payload)
         if operation=='capabilities':
             return dict(ok=True,version=1,sdk=dict(pi='1.5.2',node='24.22.3'),
@@ -53,7 +59,7 @@ class ExecutionCenter:
         root=next((r['root'] for r in sources['attempts'] if r['id']==task and r.get('root')),None)
         if root is None:root=next((r['id'] for r in sources['tasks'] if r.get('attempt')==task),None)
         if root is None:root=next((r['root'] for r in self.usage.rows(task=task) if r.get('root')),None)
-        if root is None:raise ValueError('该任务尚无已关联的执行记录。')
+        if root is None:raise UnlinkedTask('该任务尚无已关联的执行记录。')
         return self.trace(root)
 
     def list(self, filters=None, offset=0, limit=50):
@@ -64,9 +70,9 @@ class ExecutionCenter:
         for row in rows:
             root=row.get('root')
             if root and root not in roots:
-                roots[root]=dict(id=root,kind='task'if root.startswith(('task:','collab:','workflow:'))else'operation',state='unknown',created=row['started'],source=row.get('source'),channel=row.get('channel'),owner_missing=True)
+                roots[root]=dict(id=root,kind='task'if root.startswith(('task:','collab:','workflow:'))else'operation',state='unknown',created=row['started'],source=row.get('source'),channel=row.get('channel'),owner_missing=True,model=row.get('model'),purpose=row.get('purpose'))
         items=list(roots.values())
-        for key in ('state','channel'):
+        for key in ('state','channel','kind'):
             if filters.get(key): items=[r for r in items if r.get(key)==filters[key]]
         if filters.get('root'): items=[r for r in items if filters['root'] in r['id']]
         for key in ('model','tool','task','session','agent','role','purpose','configuration_version','code_version'):
@@ -93,6 +99,9 @@ class ExecutionCenter:
             after=page[-1]['seq']
             if len(events)>100000: raise ValueError('执行图超过单次范围，请用工具事件分页查询。')
         if owner is None and not records and not events: raise ValueError('未找到执行记录。')
+        if owner is None and records:
+            first=min(records,key=lambda row:row['started'])
+            owner=dict(state='unknown',owner_missing=True,created=first['started'],model=first.get('model'),purpose=first.get('purpose'))
         nodes={root:{'id':root,'kind':'task'if root.startswith(('task:','collab:','workflow:'))else'operation','label':root,**(owner or dict(state='unknown',owner_missing=True))}};edges=[]
         owned=self.owner_source(root)
         nodes.update({n['id']:n for n in owned['nodes']});edges.extend(owned['edges'])
@@ -109,6 +118,11 @@ class ExecutionCenter:
             state=r['state']
             task=next((a for a in attempts if a['id']==r.get('task')),None)
             if state=='running' and task and task['state'] in {'succeeded','failed','cancelled','timed_out','interrupted'}:state='unknown'
+            if r.get('kind') == 'model' and state in {'failed','timed_out'} and r.get('debug_call'):
+                from desk_companion.observability.agent_debug import load_timing
+                timing = load_timing(r['debug_call'], directory=self.usage.path.parent / 'agent_debug')
+                if timing:
+                    r = {**r, 'network_spans': timing.get('spans', [])}
             add({**r,'state':state,'observed_state':r['state'],'label':r.get('tool')or r.get('model')or r['id']},parent,'model_tool'if r.get('parent_call')==parent else'contains')
         for e in events:
             parent=e.get('attempt_id') or e.get('parent_call') or e.get('trigger_call') or 'physical:'+e.get('task','')
@@ -123,6 +137,10 @@ class ExecutionCenter:
     def tool_query(self, filters=None, after=0, limit=100):
         filters=valid_filters(filters or {})
         if set(filters)-{'root','task','session','tool','collection','model','state','since','until'}:raise ValueError('工具查询不支持该筛选维度。')
+        from desk_companion.planning.calendar_proposals import tool_spec, create_spec
+        from desk_companion.integrations.feishu.feishu_tools import AGENDA_SPEC, TASKS_SPEC
+        # 定义目录可在首次模型调用前浏览，调用记录仍按当前空间独立保存。
+        self.tools.register([AGENDA_SPEC, TASKS_SPEC, tool_spec(), create_spec()])
         definitions=self.tools.definitions();versions={d['version']:d for d in definitions}
         by_name={d['name']:d for d in definitions}
         # Stats use the same filtered sequence as details, independently of paging.
@@ -143,15 +161,28 @@ class ExecutionCenter:
         if type(after) is not int or after<0 or type(limit) is not int or not 1<=limit<=200:raise ValueError('工具分页无效。')
         page=[e for e in events if e['seq']>after][:limit]
         per_tool=defaultdict(Counter)
+        durations=defaultdict(list)
+        last_error={}
+        trend=defaultdict(lambda:[0]*12)
+        start=filters.get('since',min((e['ts'] for e in events),default=0))
+        end=filters.get('until',time.time())
         for e in events:
-            per_tool[e['tool']][e['phase']]+=1
+            name=e['tool']
+            per_tool[name][e['phase']]+=1
+            if e['phase']=='outcome':
+                bucket=min(11,max(0,int((e['ts']-start)*12/max(1,end-start))))
+                trend[name][bucket]+=1
+            duration=e.get('duration_ms')
+            if e['phase']=='outcome' and type(duration) in (int,float) and duration>=0:
+                durations[name].append(duration)
+            if e.get('error_kind'):
+                last_error[name]={k:e.get(k) for k in ('id','root','ts','state','error_kind','error_message')}
             if e['phase'] in {'outcome','intercept'}:per_tool[e['tool']][e.get('state','unknown')]+=1
         timings={};scope_status={}
         for name in per_tool:
-            values=sorted(e['duration_ms']for e in events if e['tool']==name and e['phase']=='outcome'and type(e.get('duration_ms'))in(int,float)and e['duration_ms']>=0)
-            failures=[e for e in events if e['tool']==name and e.get('error_kind')]
+            values=sorted(durations[name])
             timings[name]=dict(samples=len(values),p50_ms=values[(len(values)-1)//2]if values else None,p95_ms=values[math.ceil(len(values)*.95)-1]if len(values)>=20 else None,
-                latest_error={k:failures[-1].get(k)for k in ('id','ts','state','error_kind','error_message')}if failures else None)
+                latest_error=last_error.get(name),trend=trend[name])
         if filters.get('root')or filters.get('session'):
             for event in events:
                 if event['phase']in{'catalog','load','offer'}:
