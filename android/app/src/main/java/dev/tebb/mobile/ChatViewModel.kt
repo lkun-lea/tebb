@@ -30,7 +30,7 @@ internal data class ChatUiState(
 /** Android 主聊天的状态所有者。界面上报事件，所有输入、引用和消息变更都从 [state] 发出。 */
 internal class ChatViewModel(app: Application, private val saved: SavedStateHandle) : AndroidViewModel(app) {
     private val history = ChatHistory(app)
-    private val mutable = MutableStateFlow(ChatUiState(saved["composer"] ?: ComposerState(), cloud = saved["cloud"] ?: false))
+    private val mutable = MutableStateFlow(ChatUiState(saved["composer"] ?: ComposerState(), cloud = MobileAccount.owner.isNotEmpty() && saved.get<Boolean>("cloud") == true))
     val state = mutable.asStateFlow()
 
     /** 已确认回复的代数，用于丢弃发送前发出的迟到快照。 */

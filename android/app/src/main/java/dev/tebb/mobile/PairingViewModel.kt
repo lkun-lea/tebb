@@ -32,6 +32,15 @@ internal sealed interface PairingState {
  */
 internal class PairingViewModel(app: Application, private val saved: SavedStateHandle) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("windows_pairing", Context.MODE_PRIVATE)
+    private val guest = MutableStateFlow(prefs.getBoolean("skip_login", false))
+    val guestEntry = guest.asStateFlow()
+
+    /** 仅保存下次启动的入口选择。访客继续使用本机能力，账号和配对仍需正常鉴权。 */
+    fun rememberGuestEntry() {
+        prefs.edit().putBoolean("skip_login", true).apply()
+        guest.value = true
+    }
+
     private val mutable = MutableStateFlow<PairingState>(
         PairingState.Idle
     )

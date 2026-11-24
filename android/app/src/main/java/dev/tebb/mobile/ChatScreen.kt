@@ -68,6 +68,27 @@ internal fun ChatScreen(
     sync: (List<PendingQuestion>) -> Unit, retryHistory: () -> Unit, clearHistory: () -> Unit, chooseCloud: (Boolean) -> Unit
 ) {
     var sheet by rememberSaveable { mutableStateOf("") }
+    val owner by pairing.signedIn.collectAsState()
+    val guestEntry by pairing.guestEntry.collectAsState()
+    var loginFor by rememberSaveable { mutableStateOf<LoginDestination?>(null) }
+    LaunchedEffect(owner, loginFor) {
+        if (owner.isNotEmpty()) {
+            when (loginFor) {
+                LoginDestination.Cloud -> chooseCloud(true)
+                LoginDestination.Computer -> sheet = "device"
+                null -> Unit
+            }
+            loginFor = null
+        }
+    }
+    if (owner.isEmpty() && (!guestEntry || loginFor != null)) {
+        LoginScreen(device, pairing::authenticate) {
+            pairing.rememberGuestEntry()
+            loginFor = null
+            chooseCloud(false)
+        }
+        return
+    }
     var readingCode by remember { mutableStateOf(false) }
     val composer = state.composer
     val focus = LocalFocusManager.current
@@ -97,13 +118,17 @@ internal fun ChatScreen(
         Box(Modifier.fillMaxSize().background(Ink).imePadding().onGloballyPositioned { origin = it.positionInRoot() }) {
             Box(Modifier.fillMaxSize().blur(if (showLoading) 12.dp else 0.dp)) {
                 // 读图协程由设备页面持有。显示加载层时让页面留在组合中，以便完成解码。
-                if (sheet == "device") {
+                if (sheet == "device" && owner.isNotEmpty()) {
                     BackHandler(enabled = loading == null) { sheet = "" }
                     Column(Modifier.fillMaxSize().padding(20.dp)) {
                         TextButton(onClick = { sheet = "" }) { Text("返回聊天") }
                         Text("我的电脑", color = Paper, fontSize = 24.sp)
                         Spacer(Modifier.height(16.dp))
-                        PairingPanel(pairing, onDecode = { readingCode = it })
+                        PairingPanel(pairing, onSignOut = {
+                            chooseCloud(false)
+                            sheet = ""
+                            pairing.signOut()
+                        }, onDecode = { readingCode = it })
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {
@@ -120,7 +145,9 @@ internal fun ChatScreen(
                                 Box(Modifier.offset(x = (-52).dp)) { PetAnchor(40.dp) { header = it } }
                                 Wordmark()
                             }
-                            GlyphButton(Glyph.Device, (device as? PairingState.Paired)?.computer ?: "配对电脑", { if (!composer.dictating) sheet = "device" })
+                            GlyphButton(Glyph.Device, (device as? PairingState.Paired)?.computer ?: "配对电脑", { if (!composer.dictating) {
+                                if (owner.isEmpty()) loginFor = LoginDestination.Computer else sheet = "device"
+                            } })
                             if (!tasksOpen) ChatHistoryMenu(state.messages.isNotEmpty(), !composer.dictating && loading == null, clearHistory)
                         }
                         Conversation(state, select, Modifier.weight(1f), petQuestion, { welcome = it }, { questionCenter = it },
@@ -132,7 +159,9 @@ internal fun ChatScreen(
                             }
                         }
                         ComposerBar(composer, state.listening, dismiss, edit, send, voice, stop, cancel) {
-                            RuntimeMenu(state.cloud, composer.target != null, state.work == null && !composer.dictating, chooseCloud)
+                            RuntimeMenu(owner.isNotEmpty() && state.cloud, composer.target != null, state.work == null && !composer.dictating) { cloud ->
+                                if (cloud && owner.isEmpty()) loginFor = LoginDestination.Cloud else chooseCloud(cloud)
+                            }
                         }
                     }
                     if (tasksOpen) {
