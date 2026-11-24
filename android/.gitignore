@@ -1,0 +1,5 @@
+# 排除本地 SDK 路径、IDE 状态和构建产物。
+.gradle/
+.idea/
+local.properties
+**/build/

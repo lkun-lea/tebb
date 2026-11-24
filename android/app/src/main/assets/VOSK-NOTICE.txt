@@ -1,0 +1,3 @@
+The bundled Mandarin acoustic/language model vosk-model-small-cn-0.22 is provided by Alpha Cephei under the Apache License 2.0.
+Source: https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
+SHA-256: 3af8b0e7e0f835ae9d414ce5df580237a3cfb08d586c9fbbb0f7ff29ad5b14ba
