@@ -10,6 +10,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,6 +98,7 @@ internal fun ChatScreen(
     var origin by remember { mutableStateOf(Offset.Zero) }
     var header by remember { mutableStateOf<Offset?>(null) }
     var welcome by remember { mutableStateOf<Offset?>(null) }
+    val welcomeSize = (LocalConfiguration.current.screenWidthDp.dp * .29f).coerceIn(112.dp, 174.dp)
     val petQuestion = composer.target ?: composer.pending.firstOrNull()?.key
     var questionCenter by remember(petQuestion) { mutableStateOf<Offset?>(null) }
     val answerId = state.messages.lastOrNull { it.fromTebb }?.id
@@ -150,7 +154,7 @@ internal fun ChatScreen(
                             } })
                             if (!tasksOpen) ChatHistoryMenu(state.messages.isNotEmpty(), !composer.dictating && loading == null, clearHistory)
                         }
-                        Conversation(state, select, Modifier.weight(1f), petQuestion, { welcome = it }, { questionCenter = it },
+                        Conversation(state, select, Modifier.weight(1f), welcomeSize, petQuestion, { welcome = it }, { questionCenter = it },
                             answerId, { answerCenter = it }, { edit(it); send() })
                         (state.notice ?: state.connectionNotice)?.let { notice ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -179,7 +183,7 @@ internal fun ChatScreen(
                         atWelcome -> welcome
                         else -> header
                     }
-                    if (center != null && !showLoading) ChatPet(center - origin, if (atWelcome) 90.dp else 36.dp,
+                    if (center != null && !showLoading) ChatPet(center - origin, if (atWelcome) welcomeSize else 36.dp,
                         tasksOpen || composer.pending.isNotEmpty(), state.listening,
                         when { atAnswer -> "回答旁"; atQuestion -> "问题旁"; atWelcome -> "聊天中央"; else -> "顶部" }, pendingCount = composer.pending.size)
                 }
@@ -226,8 +230,8 @@ private fun ChatHistoryMenu(hasMessages: Boolean, available: Boolean, clear: () 
 @Composable
 private fun Wordmark() {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("tebb", color = Paper, fontWeight = FontWeight.Bold, fontSize = 24.sp, letterSpacing = (-1).sp)
-        Text(".", color = Accent, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("tebb", color = Paper, fontWeight = FontWeight.Bold, fontSize = 30.sp, letterSpacing = (-1).sp)
+        Text(".", color = Accent, fontSize = 30.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -254,7 +258,7 @@ private fun ThinkingOverlay(label: String) {
 /** 展示待答问题和本机消息。消息用稳定标识定位，新增消息后滚动到最新一条。 */
 @Composable
 private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, modifier: Modifier,
-                         petQuestion: QuestionKey?, welcome: (Offset?) -> Unit, questionCenter: (Offset?) -> Unit,
+                         welcomeSize: androidx.compose.ui.unit.Dp, petQuestion: QuestionKey?, welcome: (Offset?) -> Unit, questionCenter: (Offset?) -> Unit,
                          answerId: Long?, answerCenter: (Offset?) -> Unit, startChat: (String) -> Unit) {
     val list = rememberLazyListState()
     val pending = state.composer.pending
@@ -263,27 +267,37 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, modi
     LaunchedEffect(state.messages.lastOrNull()?.id) {
         if (state.messages.isNotEmpty()) list.scrollToItem(count - 1)
     }
-    LazyColumn(modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        if (count == 0) item {
-            Column(Modifier.fillParentMaxHeight().fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+    if (count == 0) {
+        BoxWithConstraints(modifier.fillMaxWidth()) {
+            val available = maxHeight
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = available)
+                .padding(horizontal = 24.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center) {
-                PetAnchor(90.dp, welcome)
-                Spacer(Modifier.height(20.dp))
+                PetAnchor(welcomeSize, welcome)
                 if (state.composer.draft.isBlank() && !state.composer.dictating) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(Modifier.height(28.dp))
+                    Column(Modifier.widthIn(max = 520.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         chatStarters.forEach { starter ->
-                            TextButton(onClick = { startChat(starter) }) { Text(starter, color = Accent) }
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)
+                                .clickable(role = Role.Button) { startChat(starter) }.heightIn(min = 58.dp)
+                                .padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(starter, Modifier.weight(1f), color = Paper, fontSize = 18.sp)
+                                Text("↗", color = Accent, fontSize = 19.sp)
+                            }
                         }
                     }
                 }
             }
         }
+        return
+    }
+    LazyColumn(modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (demo) item {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Text("电脑上现在有什么事在等我？", Modifier.align(Alignment.End)
                     .background(Color(0xFF232325), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp), color = Paper)
+                    .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 val summary = when (pending.singleOrNull()?.key?.runId) {
                     "demo-review" -> "周三的评审定在 14:00，还差会议时长。"
                     "demo-notes" -> "笔记已整理好，还需要确认资料来源。"
@@ -311,17 +325,17 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, modi
             if (message.fromTebb) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     if (message.id == answerId) PetAnchor(48.dp, answerCenter)
-                    Text(message.text, Modifier.widthIn(max = 310.dp)
+                    Text(message.text, Modifier.widthIn(max = 480.dp)
                         .background(Surface, RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp))
-                        .padding(horizontal = 16.dp, vertical = 10.dp), color = Paper)
+                        .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 }
                 return@items
             }
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
                 message.title?.let { Text("回复 · $it", color = Accent, fontSize = 12.sp) }
-                Text(message.text, Modifier.widthIn(max = 310.dp)
+                Text(message.text, Modifier.widthIn(max = 480.dp)
                     .background(Color(0xFF232325), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp), color = Paper, fontSize = 16.sp, lineHeight = 24.sp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 Text(if (message.windowsAccepted) "Windows 已接收" else "已保存到本机", color = Muted, fontSize = 12.sp)
             }
         }
@@ -338,9 +352,9 @@ private fun ComposerBar(
     val shape = RoundedCornerShape(28.dp)
     val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFF363638))
     val hint = if (target == null) "给 tebb 发消息…" else "输入回答…"
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
         .background(Brush.verticalGradient(listOf(Color(0xFF222224), Surface)), shape)
-        .border(1.dp, outline, shape).padding(6.dp)) {
+        .border(1.dp, outline, shape).padding(9.dp)) {
         if (target != null) Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.size(2.dp, 14.dp).background(Accent, CircleShape))
             Text("正在回复 · ${target.title}", Modifier.weight(1f).padding(start = 8.dp),
@@ -350,12 +364,12 @@ private fun ComposerBar(
         Row(verticalAlignment = Alignment.CenterVertically) {
             BasicTextField(
                 value = state.visibleDraft, onValueChange = edit, readOnly = state.dictating,
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp).semantics { contentDescription = hint },
-                maxLines = 5, textStyle = TextStyle(color = Paper, fontSize = 16.sp, lineHeight = 24.sp),
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp).semantics { contentDescription = hint },
+                maxLines = 5, textStyle = TextStyle(color = Paper, fontSize = 19.sp, lineHeight = 28.sp),
                 cursorBrush = SolidColor(Accent), decorationBox = { inner ->
                     Box {
                         if (state.visibleDraft.isEmpty()) Text(if (listening) "正在听写…" else hint,
-                            color = Muted, fontSize = 16.sp)
+                            color = Muted, fontSize = 19.sp)
                         inner()
                     }
                 }
@@ -383,7 +397,7 @@ private fun HoldToSpeak(listening: Boolean, start: () -> Unit, stop: () -> Unit,
     val active by rememberUpdatedState(listening)
     val face by animateColorAsState(if (listening) Accent else Paper)
     val scale by animateFloatAsState(if (listening) .93f else 1f)
-    Box(Modifier.size(48.dp).semantics {
+    Box(Modifier.size(56.dp).semantics {
         contentDescription = if (listening) "松开停止听写" else "按住说话"
         role = Role.Button
         onClick(label = if (listening) "停止听写" else "开始听写") {
@@ -401,7 +415,7 @@ private fun HoldToSpeak(listening: Boolean, start: () -> Unit, stop: () -> Unit,
             }
         })
     }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(44.dp).scale(scale).background(face, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(52.dp).scale(scale).background(face, CircleShape), contentAlignment = Alignment.Center) {
             Canvas(Modifier.size(24.dp)) {
                 val unit = size.width / 24f
                 listOf(3, 6, 9, 5, 3).forEachIndexed { i, half ->
@@ -494,7 +508,7 @@ private fun RuntimeMenu(cloud: Boolean, locked: Boolean, idle: Boolean, choose: 
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.textButtonColors(contentColor = Accent, disabledContentColor = Muted)
         ) {
-            Text(label, fontSize = 14.sp)
+            Text(label, fontSize = 17.sp)
             if (!locked) Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(18.dp))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
