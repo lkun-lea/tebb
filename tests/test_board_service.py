@@ -302,6 +302,26 @@ assert_no_gui()
         out, err = child.communicate(timeout=25)
         self.assertEqual(child.returncode, 0, out+err)
 
+    def test_desktop_worker_direct_create_emits_saved_calendar_entry(self):
+        from desk_companion.infrastructure import state
+        from desk_companion.planning.scheduling import SchedulingService
+        from desk_companion.planning.work_board import WorkBoardService
+
+        settings = state.load_state(0, 0)
+        settings.session_id = 'desktop'
+        settings.save()
+        request = dict(text='直接创建日程测试', session_id='calendar-worker', channel='desktop',
+                       sampling=dict(reasoning_effort='low', temperature=.5, top_p=1),
+                       limits=dict(call_timeout=30, task_timeout=60))
+        child = subprocess.run([sys.executable, '-u', 'tests/worker_fixture.py'],
+                               input=json.dumps(request)+'\n', capture_output=True, text=True,
+                               encoding='utf-8', timeout=45, env={**os.environ, 'PYTHONUTF8':'1'}, check=True)
+        events = [json.loads(line) for line in child.stdout.splitlines()]
+        saved = next(e['data']['proposal'] for e in events if e['kind']=='calendar_proposal')
+        self.assertTrue(saved['saved'])
+        calendar = SchedulingService(WorkBoardService()).local.load()
+        self.assertEqual([row['local_id'] for row in calendar['events']], [saved['id']])
+
     def test_actual_task_calendar_proposal_does_not_take_network_or_global_write_lease(self):
         from desk_companion.infrastructure.resource_lock import WRITES
         from desk_companion.infrastructure import state

@@ -100,6 +100,11 @@ def create_app(backend):
             return True
         raise HTTPException(401, '本地凭据无效或已过期，请重新连接当前账号。')
 
+    from desk_companion.local_api.cloud_chat import install_public
+    from desk_companion.local_api.desktop_cloud_chat import install_desktop
+    install_public(app, backend)
+    install_desktop(app, backend, authorize)
+
     def snapshot(run_id, after=0):
         if not re.fullmatch(r'[a-f0-9]{32}', run_id):
             raise HTTPException(404, '任务不存在。')

@@ -118,6 +118,8 @@ class PersonalizationCloud:
             response = self._client.request(method, self.config.url + path, headers=headers, json=body,
                                             follow_redirects=False, timeout=10)
         except httpx.RequestError:
+            if method == 'GET' and path == '/auth/v1/user':
+                raise CloudError('connection_failed', '无法连接 Supabase 核实登录状态，请检查网络或代理连接。') from None
             raise CloudError('connection_failed', '云端连接失败；若写入结果不明，请先查询原操作编号。') from None
         if response.status_code in (401, 403):
             self._owner = None
@@ -133,6 +135,18 @@ class PersonalizationCloud:
             return value
         except (ValueError, TypeError):
             raise CloudError('invalid_response', '云端返回格式无效，不能据此确认成功。') from None
+
+    def chat_authorization(self):
+        """Use only with the fixed personal chat server after identity verification."""
+        if not self._owner or self.config.url != 'https://xbniwpybzsfgoidvkdsh.supabase.co':
+            raise CloudError('project_mismatch', '当前登录项目与 tebb 云端聊天不匹配。')
+        return {"Authorization": "Bearer " + self._access_token}
+
+    def mobile_lease(self):
+        value = self._request('POST', '/rest/v1/rpc/tebb_mobile_lan_lease', {})
+        if value.get('user_id') != self.user_id or not re.fullmatch('[a-f0-9]{64}', str(value.get('key'))):
+            raise CloudError('invalid_response', '局域网凭据与当前账号不一致。')
+        return bytes.fromhex(value['key']), int(value['expires_at'])
 
     def check_auth_endpoint(self):
         """Read-only reachability check. It neither sends OTPs nor signs anyone in."""

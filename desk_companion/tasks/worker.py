@@ -44,6 +44,13 @@ def main():
             from desk_companion.tasks.notebook_worker import execute
             execute(request, emit)
             return
+        if request.get('workflow') == 'free_cloud_chat':
+            from desk_companion.local_api.free_cloud_model import answer
+            try:
+                answer(request, emit)
+            except Exception as exc:
+                emit('failure', {'type': type(exc).__name__, 'message': '免费 Qwen 暂时无法回答，请稍后重试。'})
+            return
         if request.get('workflow')=='budget_probe':
             from desk_companion.models.model_generation import verify
             try:verify(request,emit)
@@ -110,7 +117,7 @@ def main():
                     try:raw=json.loads(raw)
                     except (ValueError,TypeError):pass
                 actual_receipts.append(dict(tool=kw['tool_name'],call_id=str(kw['step_id']),arguments=kw['input'],result=raw,read_only=host.agent.tools.get(kw['tool_name']).isReadOnly,status=kw['status']))
-                if kw['tool_name']=='calendar_propose':
+                if kw['tool_name'] in {'calendar_propose','calendar_create'}:
                     from desk_companion.planning.calendar_proposals import task_event
                     proposal=task_event(raw,request['task_id'],kw['step_id'])
                     if proposal:emit('calendar_proposal',proposal)

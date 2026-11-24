@@ -160,7 +160,9 @@ class AccountTests(unittest.TestCase):
         self.configure();payload=dict(type='send_code',email='a@tebb.invalid',request_id=str(uuid4()),version=self.service.status()['version'])
         self.assertTrue(self.service.action(payload)['ok']);count=len(self.fixture.calls)
         restored=AccountService(self.service.runtime,store=self.store,auth=self.fixture.adapter(),env={})
-        self.assertTrue(restored.action(payload)['ok']);self.assertEqual(len(self.fixture.calls),count)
+        replay = restored.action(payload)
+        self.assertTrue(replay['ok']);self.assertEqual(len(self.fixture.calls),count)
+        self.assertEqual(replay['operation']['notice'], '验证码已发送，请查收邮箱。')
         self.assertEqual(self.act('send_code',email='a@tebb.invalid')['code'],'rate_limited')
 
     def test_stale_versions_invalid_keys_and_unknown_challenges_do_not_send(self):

@@ -145,6 +145,17 @@ class CloudClientTests(unittest.TestCase):
         with self.assertRaises(CloudError):cloud.pull()
         self.assertEqual(len(seen),count)
 
+    def test_identity_lookup_connection_error_has_no_write_recovery_prompt(self):
+        def offline(request):
+            raise httpx.ConnectError(TOKEN, request=request)
+        cloud, seen, _ = self.client(handler=offline)
+        with self.assertRaises(CloudError) as error:
+            cloud.verify_session()
+        self.assertIn('Supabase', str(error.exception))
+        self.assertNotIn('操作编号', str(error.exception))
+        self.assertNotIn(TOKEN, str(error.exception))
+        self.assertEqual(len(seen), 1)
+
     def test_timeout_never_retries_a_write_and_caller_can_query_the_same_operation_id(self):
         def serve(request):
             if request.url.path.endswith('/user'):return httpx.Response(200,json={'id':A})

@@ -67,15 +67,52 @@ def tool_spec(workspace_path=None):
         if not board.get('ok'):raise ValueError('事项状态尚未读取，未生成提案。')
         return build(arguments,task_id=task_id,run_id=source.get('collab_run',''),items=board['items'])
     return dict(type='function',function=dict(name='calendar_propose',
-        description='生成可由用户打开并确认的日程提案。仅校验本地事项、标题和明确起止时间，默认北京时间；不创建日程、不建立关联、不同步飞书。缺标题或时段先询问。返回结构化proposal后提示用户点击“打开日程草稿”，不能声称已保存。',
+        description='仅当用户明确要求草稿、先看看或确认后再保存时生成日程提案。仅校验本地事项、标题和明确起止时间，默认北京时间；不创建日程、不建立关联、不同步飞书。缺标题或时段先询问。返回结构化proposal后提示用户点击“打开日程草稿”，不能声称已保存。',
         parameters=dict(type='object',properties=dict(summary=dict(type='string'),start=dict(type='string',description='含时区的ISO开始时间'),
             end=dict(type='string',description='含时区的ISO结束时间'),item_id=dict(type='string',description='已知来源事项ID，可空；不能按标题猜测'),
             timezone=dict(type='string',enum=[ZONE])),required=['summary','start','end'],additionalProperties=False)),implementation=propose,read_only=True)
 
 
+CREATE_GUIDANCE = ('用户要求创建或安排日程时，按北京时间结合前文确定标题、日期、开始时间及结束时间或时长。'
+                   '只追问仍缺少或有歧义的信息，得到回答后直接调用 calendar_create。默认保存到 tebb 本地日历。'
+                   '只有明确要求先看看、拟草稿或确认后再保存才使用 calendar_propose。'
+                   '仅在保存回执成功后报告已创建；如指定飞书，另核对同步回执。')
+
+
+def create_spec(workspace_path=None):
+    from desk_companion.planning.scheduling import SchedulingService
+    from desk_companion.planning.work_board import WorkBoardService
+
+    draft = tool_spec(workspace_path)
+
+    def create(arguments):
+        labels = {'summary': '日程内容', 'start': '开始日期和时间', 'end': '结束时间或时长'}
+        missing = [label for key, label in labels.items() if not arguments.get(key)]
+        if missing:
+            return dict(ok=False, change_state='not_changed', state='needs_clarification',
+                        missing=missing, error='请在当前对话补充' + '、'.join(missing) + '。')
+        result = draft['implementation'](arguments)
+        proposal = result['proposal']
+        action = {key: proposal[key] for key in ('summary', 'start', 'end', 'item_id')}
+        action.update(type='create', request_id=proposal['save_request_id'], local_id=proposal['id'])
+        local = SchedulingService(WorkBoardService(path=workspace_path)).local
+        receipt = local.change(action)
+        if receipt.get('ok') and receipt.get('operation', {}).get('state') == 'saved':
+            return dict(ok=True, change_state='committed', proposal=proposal, event=receipt['event'],
+                        request_id=proposal['save_request_id'])
+        return receipt
+
+    return dict(type='function', function=dict(name='calendar_create', description=CREATE_GUIDANCE,
+                parameters=draft['function']['parameters']), implementation=create, read_only=False)
+
+
 def task_event(result,task_id,call_id):
     if not isinstance(result,dict)or result.get('ok')is not True or 'proposal'not in result:return None
-    return dict(proposal=validate(result['proposal'],task_id=task_id),call_id=str(call_id))
+    proposal=validate(result['proposal'],task_id=task_id)
+    if result.get('change_state')=='committed':
+        if (result.get('event') or {}).get('local_id')!=proposal['id']:return None
+        proposal['saved']=True
+    return dict(proposal=proposal,call_id=str(call_id))
 
 
 def handoff_checks(receipts,task_id):
@@ -97,6 +134,22 @@ def handoff_checks(receipts,task_id):
         return [check('calendar_proposal_handoff','artifact','pass','提案字段、任务归属与稳定保存编号已核对；用户可下一步打开草稿确认。',delivery_contract=contract)]
     except (ValueError,KeyError,TypeError)as exc:
         return [check('calendar_proposal_handoff','artifact','fail',str(exc))]
+
+
+def proposal_task(task_id):
+    """Read the original proposal event from desktop or collaboration task history."""
+    from desk_companion.infrastructure.paths import data_root
+    from desk_companion.collaboration.store import workspace_path
+    from desk_companion.observability.usage_store import read_rows
+
+    collaboration = workspace_path().parent
+    paths = (data_root() / 'memory' / 'tasks.sqlite3',
+             collaboration / 'work' / 'tasks.sqlite3', collaboration / 'chat' / 'tasks.sqlite3')
+    for path in paths:
+        rows = read_rows(path, 'SELECT data FROM events WHERE task=? AND kind=? ORDER BY seq', (task_id, KIND))
+        if rows:
+            return dict(id=task_id, events=[dict(kind=KIND, data=json.loads(row['data'])) for row in rows])
+    return None
 
 
 class CalendarProposalService:

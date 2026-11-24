@@ -1,0 +1,25 @@
+[Unit]
+Description=tebb personal task server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=tebb
+StateDirectoryMode=0700
+WorkingDirectory=/opt/tebb
+Environment=DESK_COMPANION_DATA_DIR=/var/lib/tebb
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=rpc-token:/etc/tebb/rpc-token
+ExecStart=/opt/tebb/.venv/bin/python -m desk_companion.local_api.server --port 8765 --token-file ${CREDENTIALS_DIRECTORY}/rpc-token --resume-collaboration
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

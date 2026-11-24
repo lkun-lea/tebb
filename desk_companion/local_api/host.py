@@ -62,14 +62,27 @@ class HeadlessApp:
         self.scheduling = SchedulingService(self.work_board)
         self.calendar_reminders=CalendarReminderService.for_work_board(self.work_board)
         self.task_completion=FeishuTaskCompletionService()
-        from desk_companion.planning.calendar_proposals import CalendarProposalService
-        self.calendar_proposals=CalendarProposalService(self.work_board,self.scheduling,lambda ident:self.tasks.get(ident))
+        from desk_companion.planning.calendar_proposals import CalendarProposalService, proposal_task
+        self.calendar_proposals=CalendarProposalService(self.work_board,self.scheduling,proposal_task)
         from desk_companion.integrations.feishu.feishu_agent import FeishuAgent
         self.feishu_agent = FeishuAgent(self, task_backed=True)
         self._collaboration = None
         self._collaboration_lock = threading.Lock()
         self._project_environments = None
         self._project_environments_lock = threading.Lock()
+        self._mobile_pairing = None
+        self._mobile_pairing_lock = threading.Lock()
+
+    @property
+    def mobile_pairing(self):
+        with self._mobile_pairing_lock:
+            if self._mobile_pairing is None:
+                from desk_companion.infrastructure.paths import data_root
+                from desk_companion.local_api.mobile_pairing import MobilePairing
+                account = self.accounts.runtime.key
+                self._mobile_pairing = MobilePairing(data_root() / 'memory' / 'pairing' / account, account,
+                    self.accounts.mobile_active, lambda: self.collaboration, self.accounts.mobile_lease)
+            return self._mobile_pairing
 
     @property
     def project_environments(self):

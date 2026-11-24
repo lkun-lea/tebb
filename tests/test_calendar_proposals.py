@@ -19,6 +19,25 @@ class CalendarProposalTests(unittest.TestCase):
             SimpleNamespace(local=SimpleNamespace(load=self.load)),lambda ident:self.task)
     def load(self,**args):self.calls.append(args);return copy.deepcopy(self.page)
 
+    def test_collaboration_draft_resolves_from_its_own_task_queue(self):
+        import json
+        import sqlite3
+        from contextlib import closing
+        from pathlib import Path
+        from desk_companion.planning.calendar_proposals import proposal_task
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, DESK_COMPANION_DATA_DIR=directory):
+            path = Path(directory) / 'memory/collaboration/work/tasks.sqlite3'
+            path.parent.mkdir(parents=True)
+            with closing(sqlite3.connect(path)) as db:
+                db.execute('CREATE TABLE events (task TEXT, kind TEXT, data TEXT, seq INTEGER)')
+                db.execute('INSERT INTO events VALUES (?, ?, ?, 1)',
+                           ('task-one', 'calendar_proposal', json.dumps(self.task['events'][0]['data'])))
+                db.commit()
+            self.service.task_lookup = proposal_task
+            self.assertEqual(self.service.read('task-one', self.proposal['id'])['state'], 'proposed')
+            self.assertFalse(self.service.read('other-task', self.proposal['id'])['ok'])
+
     def test_normalized_fields_and_actual_source_determine_stable_proposal_and_save_ids(self):
         result=build({**FIELDS,'start':'2040-01-02T01:00:00+00:00'},task_id='task-one',run_id='run-one',items=self.items)['proposal']
         self.assertEqual(result,self.proposal);self.assertEqual(validate(result,task_id='task-one'),self.proposal)
@@ -73,6 +92,36 @@ class CalendarProposalTests(unittest.TestCase):
             with context(task_id='actual-task',collab_run='actual-run'):result=spec['implementation']({**FIELDS,'item_id':item['id']})
             event=task_event(result,'actual-task','actual-call');self.assertEqual(event['proposal']['source'],dict(task_id='actual-task',run_id='actual-run'))
             with self.assertRaises(ValueError):task_event(result,'different-task','actual-call')
+
+    def test_direct_creation_reuses_saved_event_and_draft_remains_optional(self):
+        from desk_companion.observability.agent_debug import context
+        from desk_companion.planning.calendar_proposals import create_spec
+        from desk_companion.planning.scheduling import SchedulingService
+        from desk_companion.planning.work_board import WorkBoardService
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, DESK_COMPANION_DATA_DIR=directory), context(task_id='source-task', collab_run='source-run'):
+            board = WorkBoardService()
+            scheduling = SchedulingService(board)
+            create = create_spec()
+            self.assertFalse(create['read_only'])
+            fields = {**FIELDS, 'item_id': ''}
+            missing = create['implementation']({**fields, 'end': ''})
+            self.assertEqual(missing['missing'], ['结束时间或时长'])
+            self.assertEqual(missing['change_state'], 'not_changed')
+            draft = tool_spec()['implementation'](fields)
+            self.assertEqual(scheduling.local.load()['events'], [])
+            result = create['implementation'](fields)
+            self.assertTrue(result['ok'], result)
+            self.assertEqual(result['event']['local_id'], draft['proposal']['id'])
+            repeated = create['implementation'](fields)
+            self.assertEqual(result['request_id'], repeated['request_id'])
+            self.assertEqual(len(scheduling.local.load()['events']), 1)
+            event = task_event(result, 'source-task', 'call')
+            self.assertTrue(event['proposal']['saved'])
+            service = CalendarProposalService(board, scheduling, lambda ident: dict(id=ident, events=[dict(kind='calendar_proposal', data=event)]))
+            resolved = service.read('source-task', event['proposal']['id'])
+            self.assertEqual(resolved['state'], 'saved')
+            self.assertEqual(resolved['event']['event_id'], result['event']['event_id'])
 
     def test_executor_respects_the_selected_proposal_capability_even_for_tebb(self):
         from desk_companion.collaboration.collaboration_worker import execute

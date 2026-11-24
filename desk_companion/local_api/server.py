@@ -17,7 +17,7 @@ from desk_companion.local_api.host import HeadlessApp
 # 白名单：bridge 上可无头调用的数据方法。窗口/UI 类（close_bubble/fit_card/
 # open_url/ask_today/ask_logs/close_board/send_chat）与流式（send_board_chat）不在此。
 RPC_METHODS = frozenset({
-    'account_session', 'account_action',
+    'account_session', 'account_action', 'mobile_pairing',
     'personalization_status', 'personalization_action',
     "development_team",
     "execution_inspect", "agent_evaluation", "agent_self_test",
@@ -28,7 +28,7 @@ RPC_METHODS = frozenset({
     "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event",
     "load_local_calendar", "change_local_calendar", "calendar_sync_step",
     "load_collaboration", "collaboration_action", "project_workspace", "save_collaboration_note", "prepare_notebook_source", "get_report_chart",
-    "terminal_status", "terminal_start", "terminal_list", "terminal_read", "terminal_input", "terminal_cancel",
+    "terminal_status", "terminal_start", "terminal_list", "terminal_read", "terminal_input", "terminal_cancel", "terminal_dismiss",
     "terminal_files", "terminal_import_files", "terminal_preview_file",
     "load_video_login", "save_video_login", "clear_video_login",
     "list_video_tasks", "start_video_task", "continue_video_task",
@@ -45,7 +45,7 @@ RPC_METHODS = frozenset({
     "load_models", "save_model_entry", "delete_model_entry", "use_model",
     "load_usage", "load_personal_usage", "load_chat_log", "load_memory", "compress_context",
     "add_fact", "update_fact", "delete_fact", "delete_memory_turn",
-    "load_feishu", "feishu_login", "feishu_logout",
+    "connection_status", "github_account_dialog", "load_feishu", "feishu_login", "feishu_logout",
     "load_feishu_agent", "start_feishu_agent", "stop_feishu_agent",
     "list_feishu_agent_profiles", "save_feishu_agent_settings",
     "update_feishu_agent_credentials", "check_feishu_agent_connection",
@@ -163,6 +163,13 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
     # 按白名单派发到 Bridge。不在白名单直接失败，不静默兜底。
     if method not in RPC_METHODS:
         return {"ok": False, "error": f"方法不允许或不存在：{method}"}
+    if method == 'mobile_pairing':
+        if preview:
+            return {"ok": False, "error": "配对需要桌面授权"}
+        try:
+            return {"ok": True, "result": HOST.bridge.mobile_pairing(**args)}
+        except (ValueError, OSError, RuntimeError) as exc:
+            return {"ok": False, "error": str(exc)}
     if method == 'collaboration_action' and preview:
         try: return {'ok': True, 'result': HOST.collaboration.action(args.get('action'), readonly=True)}
         except Exception as exc: return {'ok': False, 'error': str(exc)}
@@ -175,7 +182,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             from desk_companion.observability.agent_debug import context
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
-        if method.startswith(("account_","personalization_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
+        if method.startswith(("account_","personalization_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"connection_status", "github_account_dialog", "load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
                       "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
                       "export_notebook_markdown", "export_notebook_feishu", "open_notebook_file",
                       "reveal_notebook_file", "delete_notebook_file",
@@ -452,7 +459,7 @@ async def _handle_notebook(ws, msg: dict) -> None:
         connected.clear()
 
 
-async def scheduled_jobs(host, shutdown):
+async def scheduled_jobs(host, shutdown, pairing=None):
     """无头客户端也驱动本地定时器，不依赖旧宠物窗口 tick。"""
     async def periodic(action):
         while not shutdown.is_set():
@@ -462,19 +469,45 @@ async def scheduled_jobs(host, shutdown):
                 logging.getLogger(__name__).warning('后台定时扫描未完成：%s',type(exc).__name__)
             try:await asyncio.wait_for(shutdown.wait(),5)
             except asyncio.TimeoutError:pass
-    await asyncio.gather(periodic(host.automation.tick),periodic(host.calendar_reminders.tick),periodic(host.personalization.tick))
+    actions = [host.automation.tick, host.calendar_reminders.tick, host.personalization.tick]
+    if pairing is not None:
+        actions.append(pairing.restore)
+    await asyncio.gather(*(periodic(action) for action in actions))
+
+
+async def index_historical_calls(shutdown):
+    from desk_companion.observability.agent_debug import backfill_summaries
+    while not shutdown.is_set():
+        try:
+            if await asyncio.to_thread(backfill_summaries) < 100:
+                return
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception('历史调用索引将在下次启动时继续')
+            return
+        await asyncio.sleep(0.1)
 
 
 async def main() -> None:
     global TOKEN, HOST, SHUTDOWN
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--token", type=str, default="")
+    auth = parser.add_mutually_exclusive_group()
+    auth.add_argument("--token", default="")
+    auth.add_argument("--token-file", help="Read the private RPC token from a service credential file")
+    parser.add_argument("--resume-collaboration", action="store_true",
+                        help="Start the persistent task scheduler without waiting for a desktop client")
     args = parser.parse_args()
     from desk_companion.observability.agent_debug import configure_process
     configure_process({"channel": "backend"})
     import secrets
-    TOKEN = args.token or secrets.token_urlsafe(32)
+    if args.token_file:
+        from pathlib import Path
+        TOKEN = Path(args.token_file).read_text(encoding='ascii').strip()
+        if len(TOKEN) < 32 or not TOKEN.isprintable() or any(c.isspace() for c in TOKEN):
+            parser.error("invalid RPC token file")
+    else:
+        TOKEN = args.token or secrets.token_urlsafe(32)
     os.environ["DESK_TERMINAL_PORT"] = str(args.port)
     os.environ["DESK_TERMINAL_TOKEN"] = TOKEN
     from desk_companion.infrastructure.runtime_instance import acquire_runtime
@@ -482,7 +515,8 @@ async def main() -> None:
     HOST = HeadlessApp()
     SHUTDOWN = asyncio.Event()
     asyncio.create_task(asyncio.to_thread(HOST.feishu_agent.autostart))
-    scheduler = asyncio.create_task(scheduled_jobs(HOST, SHUTDOWN))
+    indexing = asyncio.create_task(index_historical_calls(SHUTDOWN))
+    scheduler = asyncio.create_task(scheduled_jobs(HOST, SHUTDOWN, HOST.mobile_pairing))
     project_cleanup=None
     try:
         from types import SimpleNamespace
@@ -490,10 +524,16 @@ async def main() -> None:
         backend = SimpleNamespace(TOKEN=TOKEN, HOST=HOST, SHUTDOWN=SHUTDOWN,
                                   _dispatch=_dispatch, _pet_asset=_pet_asset, _news_cover=_news_cover, _handler=_handler)
         async with listening(backend, args.port, legacy=True):
+            if args.resume_collaboration:
+                # 云端重启后主动恢复调度，手机和电脑都可以保持离线。
+                _ = HOST.collaboration
             print(f'local_api ready on 127.0.0.1:{args.port}', flush=True)
             await SHUTDOWN.wait()
     finally:
         SHUTDOWN.set()
+        if HOST._mobile_pairing is not None:
+            HOST._mobile_pairing.discovery.close()
+            HOST._mobile_pairing.close()
         evaluation_cleanup=asyncio.create_task(asyncio.to_thread(HOST.bridge.shutdown_evaluations))
         HOST.personalization.request_stop()
         profile_cleanup=asyncio.create_task(asyncio.to_thread(HOST.personalization.shutdown))
@@ -504,7 +544,7 @@ async def main() -> None:
         HOST.automation.stop()
         from desk_companion.knowledge.local_sources import cancel_all
         cancel_all()
-        await scheduler
+        await asyncio.gather(scheduler, indexing)
         if HOST._tasks is not None:
             HOST._tasks.shutdown()
         if HOST._collaboration is not None:

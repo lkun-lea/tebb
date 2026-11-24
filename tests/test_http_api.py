@@ -85,6 +85,49 @@ class HttpApiTests(unittest.IsolatedAsyncioTestCase):
             denied = await self.client.post('/v1/runs', json=self.command(), headers={'Authorization': 'Bearer preview'})
             self.assertEqual(denied.status_code, 401)
 
+    async def test_cloud_chat_owner_receipt_and_reconnect(self):
+        subject = '298f6350-ef97-4880-92aa-ec278adbb532'
+        body = dict(request_id='9e721147-2cf4-48d3-af79-c6ff013a2f59', text='fixture')
+        with patch.dict(os.environ, TEBB_CHAT_OWNER=subject, TEBB_CLOUD_URL='https://test.invalid',
+                        TEBB_CLOUD_PUBLISHABLE_KEY='sb_publishable_' + 'a'*20), patch(
+                'desk_companion.accounts.personalization_cloud.PersonalizationCloud.verify_session') as verify:
+            verify.return_value = 'other'
+            self.assertEqual((await self.client.post('/cloud/v1/messages', json=body)).status_code, 403)
+            verify.return_value = subject
+            receipts = [await self.client.post('/cloud/v1/messages', json=body) for _ in range(2)]
+            self.assertEqual(receipts[0].status_code, 200, receipts[0].text)
+            self.assertEqual(receipts[0].json(), receipts[1].json())
+            run = receipts[0].json()['run_id']
+            self.assertEqual((await self.client.post('/cloud/v1/messages', json={**body,'text':'other'})).status_code,409)
+            await self.wait(run)
+            from desk_companion.local_api.cloud_chat import recent
+            self.assertEqual(recent(self.host.tasks, subject, 'different-chat'), [])
+            self.assertTrue((await self.client.get('/cloud/v1/tools')).json()['tools'])
+            for _ in range(2):
+                async with self.client.stream('GET','/cloud/v1/events') as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith('data: ') and (event := json.loads(line[6:]))['type'] == 'turn':
+                            self.assertEqual(event['data']['id'], run)
+                            self.assertEqual(event['data']['answer'], '隔离片段完成')
+                            break
+                    else:
+                        self.fail('缺少持久化回复')
+            with patch('desk_companion.local_api.desktop_cloud_chat.ORIGIN', f'http://127.0.0.1:{self.port}'), patch.object(
+                    self.host.accounts, 'cloud_client') as lease:
+                lease.return_value.__enter__.return_value.chat_authorization.return_value = {'Authorization':'Bearer test-user'}
+                relay = await self.client.post('/desktop/cloud/messages', json=body)
+                self.assertEqual(relay.json(), receipts[0].json())
+                async with self.client.stream('GET','/desktop/cloud/events') as response:
+                    self.assertEqual(response.status_code, 200)
+                    async for line in response.aiter_lines():
+                        if line.startswith('data: ') and (event := json.loads(line[6:]))['type'] == 'turn':
+                            self.assertEqual(event['data']['answer'], '隔离片段完成')
+                            break
+                    else:
+                        self.fail('PC 未收到云端回复')
+            verify.return_value = 'other'
+            self.assertEqual((await self.client.get('/cloud/v1/events')).status_code, 403)
+
     async def test_atomic_dedup_conflict_replay_and_snapshot_watermark(self):
         ids = await asyncio.gather(*[self.submit() for _ in range(5)])
         self.assertEqual(len(set(ids)), 1)

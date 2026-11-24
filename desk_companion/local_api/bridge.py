@@ -7,6 +7,9 @@ from desk_companion.local_api import workbench_queries
 
 
 class Bridge:
+    def mobile_pairing(self, action='status', request_id='', address=''):
+        return self._host.mobile_pairing.desktop(action, request_id, address)
+
     def account_session(self, operation_id=''):
         return self._host.accounts.status(operation_id)
 
@@ -229,6 +232,10 @@ class Bridge:
         from desk_companion.projects.terminal import manager
         return manager().input(job_id, text, cols, rows)
 
+    def terminal_dismiss(self, job_id):
+        from desk_companion.projects.terminal import manager
+        return manager().dismiss(job_id)
+
     def terminal_cancel(self, job_id):
         from desk_companion.projects.terminal import manager
         return manager().cancel(job_id)
@@ -253,9 +260,9 @@ class Bridge:
         from desk_companion.bootstrap.onboarding import complete
         return complete()
 
-    def save_onboarding_progress(self, step) -> dict:
+    def save_onboarding_progress(self, step, paused=False) -> dict:
         from desk_companion.bootstrap.onboarding import save_progress
-        return save_progress(step)
+        return save_progress(step, paused)
 
     def report_pet_status(self, ready: bool, message: str = "") -> dict:
         from desk_companion.observability.logutil import log
@@ -754,6 +761,32 @@ class Bridge:
 
         return feishu_logout()
 
+
+    def github_account_dialog(self, action: str) -> dict:
+        from desk_companion.integrations.github.client import open_account_dialog
+        return open_account_dialog(action)
+
+    def connection_status(self, service: str) -> dict:
+        """Return only connection facts suitable for display and model receipts."""
+        import time
+        result = dict(service=service, checked_at=time.time())
+        if service == 'feishu':
+            status = self.load_feishu()
+            for key in ('ok','logged_in','user_name','has_calendar','has_task','has_docs','login_busy'):
+                result[key] = status.get(key)
+        elif service == 'github':
+            from desk_companion.integrations.github.client import auth_account
+            try:
+                result.update(ok=True, **auth_account())
+            except (OSError, RuntimeError):
+                result.update(ok=False, error='GitHub 账号检查失败，请检查网络与 gh auth status。')
+        elif service in ('Bilibili','YouTube'):
+            items = self.load_video_login()['items']
+            row = next((item for item in items if item['platform'] == service), {})
+            result.update(ok=True, state=row.get('state','missing'), saved_at=row.get('saved_at'))
+        else:
+            raise ValueError('未知的外部服务')
+        return result
 
     def load_github(self) -> dict:
         return workbench_queries.load_github()

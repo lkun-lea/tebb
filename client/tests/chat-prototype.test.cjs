@@ -134,7 +134,7 @@ test('a frontend hot reload stays compatible with the previous backend without h
   await assert.rejects(()=>broken.loadCollaboration(info,''),/database unavailable/);
 });
 
-test('normal chat shows one root task with expandable real child progress',()=>{
+test('normal chat links one root task to the shared monitor',()=>{
   environment();const state=initialDemo();state.selected='dm-tebb';state.revision=1;
   state.runs=[{id:'route',conversation:state.selected,agent:'tebb',state:'succeeded',kind:'route',events:[],updates:[],applied:0,title:'路由',step:0},
     {id:'task',parent:'route',conversation:state.selected,agent:'tebb',state:'running',kind:'task',title:'研究',answer:'正在整理来源。',step:0,updates:[],applied:0,status:'正在调用：web_search',events:['正在思考与组织回答。','tool_start: web_search Agent docs','tool_end: web_search success']}];
@@ -144,10 +144,9 @@ test('normal chat shows one root task with expandable real child progress',()=>{
   act(()=>{view=create(React.createElement(ChatPrototype,{developerMode:false,live:{state,act:async()=>true,busy:false,error:''}}));});
   const chat=view.root.findByProps({'aria-label':'协作聊天记录'});
   assert.equal(chat.findAll(node=>node.type==='article').length,1);act(()=>view.root.findByProps({'aria-label':'当前任务'}).props.onClick());const tasks=view.root.findAll(node=>node.props.className?.includes?.('cp-task')&&node.type==='article');assert.equal(tasks.length,1);
-  act(()=>tasks[0].findAllByType('button').find(node=>text(node).startsWith('执行过程')).props.onClick());
-  act(()=>tasks[0].findAllByType('button').find(node=>node.props['aria-expanded']===false&&text(node).includes('联网搜索')).props.onClick());
-  assert(text(view.root).includes('正在思考与组织回答。'));assert(text(view.root).includes('联网搜索 · 开始'));assert(text(view.root).includes('联网搜索 · 结束'));
-  assert(text(view.root).includes('正在整理来源。'));act(()=>view.unmount());
+  assert(tasks[0].findAllByType('button').some(node=>text(node)==='查看运行详情'));
+  assert(chat.findAllByType('button').some(node=>text(node)==='查看运行详情'));
+  act(()=>view.unmount());
 });
 
 test('chat stays available during work; task supplements are scoped and applied at the next step', () => {
@@ -303,6 +302,7 @@ test('standalone preview loads no real App; normal startup still loads the real 
     mod.require = id => {
       if (id.endsWith('.css')) return {};
       if (id === 'react-dom/client') return { createRoot: () => ({ render(value) { element = value; } }) };
+      if (id === './toast') return load('toast');
       if (id === './render-boundary') return load('render-boundary');
       if (id === './account-bootstrap') return {AccountBootstrap:({children})=>children};
       if (id === './ui-chat-debug') { motionLoads++; return {ChatMotionDebug:()=>React.createElement('div',{'data-motion-preview':''})}; }
@@ -573,7 +573,7 @@ test('migration preview separates evidence categories and makes no move until ex
 });
 
 
-test('normal App starts in core chat and keeps its draft mounted while settings opens in its own window', async () => {
+test('normal App starts in core chat and keeps its draft mounted while settings opens in the main workspace', async () => {
   environment(); global.window.addEventListener = () => {}; global.window.removeEventListener = () => {}; global.window.dispatchEvent = () => true;
   const opened=[]; global.window.open=(url)=>{opened.push(url);return null;};
   let sideProps, liveProps, mounts = 0, unmounts = 0;
@@ -599,6 +599,7 @@ test('normal App starts in core chat and keeps its draft mounted while settings 
     './slash-menu': { slashQuery: () => null, filterSlash: items => items, SLASH_PARENTS: [], NEED_REPO: new Set() },
     './api': { backendInfo: () => new Promise(() => {}) },
     './board-actions': load('board-actions', { './api': { rpc: async () => ({ ok: true }) } }),
+    './settings-app': { SettingsApp: ({onBack}) => React.createElement('button', {onClick:onBack}, '返回工作台') },
     './side-workspace': { SideWorkspace: props => { sideProps = props; return React.createElement('div', null, props.children); } },
     './startup': { startupStatus() {}, startupReady() {}, startupFailed() {} },
     'reend-components': { Button: props => React.createElement('button', props), GlitchText: props => React.createElement('span', null, props.children) },
@@ -623,13 +624,13 @@ test('normal App starts in core chat and keeps its draft mounted while settings 
   await act(async () => sideProps.onTerminalDraft('可引用的终端输出'));
   assert.equal(liveProps.composeRequest.text, '可引用的终端输出');
   assert.equal(root().props['data-pane'], 'collaboration');
-  // 设置改为独立窗口：主窗口停留在当前页，草稿与协作页保持挂载。
   await act(async () => button(view, '设置').props.onClick());
-  assert.deepEqual(opened, ['settings.html']);
-  assert.equal(root().props['data-pane'], 'collaboration');
+  assert.deepEqual(opened, []);
+  assert.equal(root().props['data-pane'], 'settings');
   assert.equal(draft().props.value, '跨页保留的草稿'); assert.equal(unmounts, 0);
+  assert.equal(view.root.findAllByProps({'aria-label':'工作区快捷栏'}).length,0);
+  await act(async()=>button(view,'返回工作台').props.onClick());
   const rail = view.root.findByProps({'aria-label':'工作区快捷栏'});
-  await act(async () => rail.findAllByType('button').find(n => n.props['aria-label'] === '伙伴聊天').props.onClick());
   assert.equal(root().props['data-pane'], 'collaboration'); assert.equal(draft().props.value, '跨页保留的草稿');
   assert.equal(mounts, 1);
   await act(async()=>rail.findAllByType('button').find(n=>n.props['aria-label']==='笔记').props.onClick());
@@ -771,4 +772,74 @@ test('global inbox shows a foreign waiting task and answers it without replacing
   act(()=>view.root.findByProps({'aria-label':'待你处理'}).props.onClick());assert(text(view.root).includes('全部会话 · 待你处理'));assert(text(view.root).includes('需求评审会'));
   const card=view.root.findByProps({'aria-label':'补充信息选项'});act(()=>card.findAllByType('input').find(i=>i.props.value==='hour').props.onChange());
   await act(async()=>card.findAllByType('button').find(b=>text(b)==='继续执行').props.onClick());assert.equal(actions[0].conversation,'dm-tebb');assert.equal(actions[0].id,'choice-root');assert.equal(view.root.findByProps({'aria-label':'协作消息'}).props.value,'保留写作草稿');act(()=>view.unmount());
+});
+
+test('最近按最近活动归类，保留无日期的旧会话', async () => {
+  const { ChatSidebar } = load('chat-sidebar');
+  const state = initialDemo();
+  const base = state.conversations[0];
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  state.conversations = ['message', 'cloud', 'legacy'].map(id => ({ ...base, id, title: id }));
+  state.conversations[1].cloud_activity = +yesterday / 1000;
+  state.messages = [{ conversation: 'message', created: +now / 1000 }];
+  state.runs = [];
+  let view;
+  await act(async () => {
+    view = create(React.createElement(ChatSidebar, { state, listView: 'history', collapsed: {}, onListView() {} }));
+  });
+  await act(async () => button(view, '最近').props.onClick());
+  const sections = view.root.findAllByType('section')
+    .filter(section => section.findAllByProps({className: 'cp-list-heading'}).length === 1);
+  assert.deepEqual(sections.map(section => [
+    text(section.findByProps({className: 'cp-list-heading'})),
+    section.findByProps({'aria-pressed': false}).props['data-conversation'],
+  ]), [['今天','message'], ['昨天','cloud'], ['暂无活动时间','legacy']]);
+  await act(async () => view.unmount());
+});
+
+test('cloud composer and recent chats share cached history, preserve drafts and respect directory restrictions', async () => {
+  const {saved} = environment();
+  const seed = initialDemo();
+  const first = seed.selected;
+  const other = seed.conversations.find(chat => chat.id !== first).id;
+  const cached = {id:'cached-run',text:'已有云端问题',answer:'已有云端回答',state:'succeeded',error:'',created:1};
+  saved.set('tebb.cloud.history.'+first,JSON.stringify([cached]));
+  seed.conversations.find(c=>c.id===first).cloud_activity=1;
+  let active = seed;
+  let view;
+  const backend = {port:1234,token:'fixture'};
+  const {ChatPrototype} = load('chat-prototype',{'./api':{
+    readEvents: (_,path,onEvent,signal) => new Promise(resolve=>signal.addEventListener('abort',resolve)),
+    rpc: async()=>({})
+  }});
+  const render = () => React.createElement(ChatPrototype,{backend,live:{
+    state:active,busy:false,error:'',act:async action=>{
+      active=reduce(active,action);view.update(render());return true;
+    }
+  }});
+  await act(async()=>{view=create(render());});
+  const history = () => text(view.root.findByProps({'aria-label':'协作聊天记录'}));
+  assert.match(history(),/已有云端回答/);
+  assert.doesNotMatch(text(view.root),/正在连接云端/);
+  await act(async()=>view.root.findByProps({'aria-label':'云端消息'}).props.onChange({target:{value:'保留云草稿'}}));
+  await act(async()=>view.root.findByProps({'data-conversation':other}).props.onClick());
+  assert.doesNotMatch(history(),/已有云端回答/);
+  await act(async()=>view.root.findByProps({'data-conversation':first}).props.onClick());
+  assert.match(history(),/已有云端回答/);
+  assert.equal(view.root.findByProps({'aria-label':'云端消息'}).props.value,'保留云草稿');
+  await act(async()=>button(view,'新对话').props.onClick());
+  await act(async()=>view.root.findByProps({'aria-label':'执行位置'}).props.onChange({target:{value:'cloud'}}));
+  assert.doesNotMatch(history(),/已有云端回答/);
+  await act(async()=>view.root.findByProps({'data-conversation':first}).props.onClick());
+  const project_id='project-fixture';
+  active={...active,conversations:active.conversations.map(c=>c.id===first?{...c,project_id}:c),
+    workspace:{project_id,primary:'E:/project',references:[]}};
+  await act(async()=>view.update(render()));
+  assert.equal(view.root.findByProps({'aria-label':'执行位置'}).props.disabled,true);
+  assert.equal(view.root.findByProps({'aria-label':'执行位置'}).props.value,'local');
+  assert.equal(view.root.findByProps({'aria-label':'协作消息'}).props.value,'保留云草稿');
+  await act(async()=>view.unmount());
 });

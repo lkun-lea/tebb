@@ -20,6 +20,18 @@ class AccountService:
         self.env = os.environ if env is None else env
         self._cloud_factory = cloud_factory or PersonalizationCloud
 
+    def mobile_active(self):
+        if self.runtime.key == LOCAL:
+            return False
+        state = self.store.read()
+        account = state['accounts'].get(self.runtime.key, {})
+        return bool(state['selected'] == self.runtime.key and account.get('session')
+                    and account.get('refresh_state') not in {'pending', 'reauth_required'})
+
+    def mobile_lease(self):
+        with self.cloud_client() as cloud:
+            return cloud.mobile_lease()
+
     @contextmanager
     def cloud_client(self):
         """Backend-only lease; no caller reads the registry or refreshes alone."""
@@ -248,6 +260,8 @@ class AccountService:
                 operation.update(code=error.code,error=str(error))
             if kind=='send_code':
                 state['challenges'][op_id]['state'] = 'unconfirmed' if error else 'sent'
+                if not error:
+                    operation['notice'] = '验证码已发送，请查收邮箱。'
             elif kind=='verify_code':
                 state['challenges'][context['challenge_id']]['state'] = 'sent' if error and error.code=='invalid_otp' else 'unconfirmed' if error else 'used'
                 if not error:
@@ -257,6 +271,7 @@ class AccountService:
                                                 session=session,refresh_state='ready')
                     state['selected'] = key
                     operation['account_id'] = key
+                    operation['notice'] = '登录成功。'
             elif kind in {'activate','check_session'}:
                 if context.get('local'):
                     state['selected'] = LOCAL
@@ -269,7 +284,7 @@ class AccountService:
                         state['selected'] = context['key']
             elif kind=='logout':
                 operation.update(state='complete',remote_status='unconfirmed' if error else 'confirmed' if context['session'] else 'not_requested')
-                operation['notice'] = '本机登录已移除。'+('远端注销未确认。' if error else '')+'重启后返回本机空间。'
+                operation['notice'] = '本机登录已移除。'+('远端注销未确认。' if error else '')
         result = self.status(op_id)
         if error and kind!='logout':
             result.update(ok=False,code=error.code,error=str(error))

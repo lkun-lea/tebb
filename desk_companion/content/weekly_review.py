@@ -19,7 +19,7 @@ class WeeklyReviewService:
     def __init__(self, chat_sessions, *, start_guard=nullcontext, open_document=None):
         self.sessions = chat_sessions
         self._start_guard = start_guard
-        self._open_document = open_document or os.startfile
+        self._open_document = open_document or getattr(os, 'startfile', None)
 
     def _run(self, action):
         conversation = self.sessions.conversation
@@ -186,6 +186,8 @@ class WeeklyReviewService:
                 details['steps']['cache_save'] = 'confirmed'
             if not scheduled and not doc:
                 details['stage'] = 'open'
+                if self._open_document is None:
+                    raise RuntimeError('当前后端没有桌面窗口，请在客户端打开文档链接。')
                 self._open_document(details['url'])
                 details['steps']['open'] = 'requested'
             message = ('复盘已覆盖写入所选飞书文档。' if doc

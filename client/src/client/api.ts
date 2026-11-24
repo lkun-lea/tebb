@@ -81,6 +81,18 @@ async function response(info: BackendInfo, path: string, init: RequestInit = {})
   return result;
 }
 
+export async function fetchCloudTools(info: BackendInfo): Promise<{available:number;loaded:number}> {
+  return (await response(info, '/desktop/cloud/tools',{method:'POST'})).json();
+}
+
+export async function cloudMessage(info: BackendInfo, message: {request_id: string; text: string; conversation?:string; project_id?:string}) {
+  const reply = await response(info, '/desktop/cloud/messages', {method: 'POST', body: JSON.stringify(message)});
+  const receipt = await reply.json();
+  if (receipt.request_id !== message.request_id || !/^[a-f0-9]{32}$/.test(receipt.run_id))
+    throw new Error('云端回执无效，请重试原消息。');
+  return receipt.run_id as string;
+}
+
 export async function rpc<T>(info: BackendInfo, method: string, args: Record<string, unknown> = {},
   options: { timeoutMs?: number } = {}): Promise<T> {
   const controller = new AbortController();

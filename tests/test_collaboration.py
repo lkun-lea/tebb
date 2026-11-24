@@ -154,7 +154,7 @@ class CollaborationTests(unittest.TestCase):
     def state(self): return self.service.snapshot()["state"]
 
     def action(self, **values):
-        result=self.service.action(dict(request_id=uuid.uuid4().hex, conversation="group-research", **values))["state"]
+        result=self.service.action({"request_id":uuid.uuid4().hex, "conversation":"group-research", **values})["state"]
         # Execution-layer fixtures begin after readiness. End-to-end readiness and
         # the same-root transition are covered separately in test_execution_flow.
         if values.get('type')=='send' and values.get('mode')=='task' and not values.get('run'):
@@ -356,6 +356,21 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(self.action(type='open_dm', agent_id='research', project_id=project)['selected'], project_dm)
         state = self.action(type='new_chat', project_id='')
         self.assertEqual(state['conversations'][-1]['project_id'], '')
+
+    def test_cloud_route_allows_new_chat_and_blocks_folder_conversation(self):
+        ident = 'dm-' + 'a'*32
+        state = self.action(type='cloud_conversation', conversation=ident, text='云端问候')
+        chat = next(c for c in state['conversations'] if c['id'] == ident)
+        self.assertGreater(chat['cloud_activity'], 0)
+        self.assertEqual(chat['title'], '云端问候')
+        folder = Path(self.temp.name)/'local-only'
+        folder.mkdir()
+        state = self.action(type='open_folder_project', primary=str(folder))
+        with self.assertRaisesRegex(ValueError, '仅限本地'):
+            self.action(type='cloud_conversation', conversation=state['selected'], text='保留在本地')
+        with self.assertRaisesRegex(ValueError, '仅限本地'):
+            self.action(type='cloud_conversation', conversation='dm-' + 'b'*32,
+                        project_id=state['projects'][-1]['id'], text='新建的目录会话')
 
     def test_folder_projects_reuse_paths_keep_separate_grants_and_pin_running_workspace(self):
         from desk_companion.projects import project_workspace as project

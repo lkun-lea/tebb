@@ -31,10 +31,11 @@ class AccountAuth:
             # SDK errors can carry request bodies/emails. Expose only our fixed text.
             code = getattr(exc,'code','')
             safe = {'otp_expired':'验证码已过期或无效，请重新获取。',
-                    'over_email_send_rate_limit':'请求过于频繁，请稍后再获取验证码。',
                     'email_not_confirmed':'邮箱尚未确认，请先完成账号准备。',
                     'refresh_token_not_found':'登录已失效，请重新登录。',
                     'refresh_token_already_used':'刷新结果需要核对，请重新登录。'}
+            if getattr(exc, 'status', 0) == 429 or code == 'over_email_send_rate_limit':
+                raise CloudError('rate_limited', '账号服务请求已达频率上限，请稍后重试。') from None
             category = 'invalid_otp' if code=='otp_expired' else 'needs_login' if getattr(exc,'status',0) in {401,403} or code in {'refresh_token_not_found','refresh_token_already_used','bad_jwt','session_not_found'} else 'auth_failed'
             raise CloudError(category,safe.get(code,'认证请求未确认，请读取原操作状态；必要时重新登录。')) from None
         finally:

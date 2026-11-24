@@ -1,5 +1,6 @@
+import { CloudComposer, CloudTurn, useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
-import {ExecutionEntry,executionRoot} from './execution-entry';
+import {ConnectionEntry,ExecutionEntry,executionRoot} from './execution-entry';
 import {accountStorage} from './account-storage';
 import { ClarificationCard } from './clarification-card';
 import { openProjectRuntime } from './project-runtime-events';
@@ -21,7 +22,7 @@ import { StreamText } from "./stream-text";
 import{CalendarProposalCards}from'./calendar-proposal';
 import{proposalTree}from'./calendar-proposal-state';
 import { useAutoGrowInput } from './auto-grow-input';
-import { DraftNotice, ExecutionTree, executionMessage, visibleChatMessage, hasCalendarContext } from './run-progress';
+import { DraftNotice, ExecutionTree, runProgressText, executionMessage, visibleChatMessage, hasCalendarContext } from './run-progress';
 import { Markdown } from "./Markdown";
 import { ProjectMigration } from './project-migration';
 import { ChatSidebar } from './chat-sidebar';
@@ -146,13 +147,30 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   const input = useRef<HTMLTextAreaElement>(null);
   const editingDraft=newConversation.active?newConversation.draft:null;
   const draftLocked=!!editingDraft?.attempt;
-  const conversation=editingDraft?draftConversation(editingDraft):state.conversations.find(item=>item.id===state.selected)!;
+  const [selecting, setSelecting] = useState('');
+  const conversation=editingDraft?draftConversation(editingDraft):state.conversations.find(item=>item.id===selecting) || state.conversations.find(item=>item.id===state.selected)!;
   const projects = state.projects || [];
   const currentProject = projects.find(p => p.id === conversation.project_id);
   const projectNameError = projectForm && projects.some(p => p.id !== projectForm.id && p.name.toLowerCase() === projectForm.name.trim().toLowerCase()) ? '项目名称已存在。' : '';
   const members = state.agents.filter(agent => conversation.members.includes(agent.id));
   const runs = state.runs.filter(run => run.conversation === conversation.id);
   const messages = state.messages.filter(message => message.conversation === conversation.id && visibleChatMessage(message, runs));
+  const rootByRun=new Map(runs.map(run=>[run.id,executionRoot(run.id,runs)]));
+  const lastMessage=new Map<string,string>();
+  for(const message of messages){
+    const root=message.run && rootByRun.get(message.run);
+    if(root && message.sender!=='user' && message.kind!=='notice')lastMessage.set(root,message.id);
+  }
+  const servicesByRoot=new Map<string,Set<string>>();
+  for(const run of runs){
+    const root=rootByRun.get(run.id)!;
+    for(const event of run.flow_events||[]){
+      const service=event.data.service;
+      if(event.kind!=='tool_end'||event.data.tool!=='connection_authorize'||!service)continue;
+      if(!servicesByRoot.has(root))servicesByRoot.set(root,new Set());
+      servicesByRoot.get(root)!.add(service);
+    }
+  }
   const active = state.runs.filter(runActive);
   // 推送正文增长时保持跟随到底部，不必等下一次轮询。
   const streamed = active.reduce((total, run) => total + (run.answer?.length || 0) + (run.chain?.answer?.length || 0), 0);
@@ -169,6 +187,31 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   const attachments = attachmentMap[conversation.id] || [];
   useEffect(() => { if (providedAttachments.length&&!draftLocked) setAttachmentMap(old => ({ ...old, [conversation.id]: [...new Map([...(old[conversation.id] || []), ...providedAttachments].map(a => [a.id,a])).values()] })); }, [providedAttachments]);
   const removeAttachment = (id: string) => { if(draftLocked)return;setAttachmentMap(old => ({ ...old, [conversation.id]: attachments.filter(a => a.id!==id) })); onDetach?.(id); };
+  const [cloudChoices,setCloudChoices]=useState<Record<string,boolean>>({});
+  const localOnly=Boolean(((state.workspace?.primary || state.workspace?.references?.length) && state.workspace && state.workspace.project_id === conversation.project_id) || providedAttachments.length || currentProject?.primary || currentProject?.sources?.length || attachments.length || updateRun || draftLocked);
+  const cloudAvailable=Boolean(real && backend && !backend.scope);
+  const prefersCloud=cloudAvailable && !localOnly && (cloudChoices[conversation.id]??Boolean(conversation.cloud_activity));
+  const cloud = useCloudChat(backend, conversation.id, cloudAvailable && !localOnly && (prefersCloud || !!conversation.cloud_activity));
+  const showCloud = prefersCloud || (cloudAvailable && !localOnly && !!cloud.pending);
+  const cloudSubmit = () => cloud.send(draft, conversation.project_id, sent => {
+    setDrafts(old => old[conversation.id]?.trim() === sent ? {...old, [conversation.id]: ''} : old);
+  });
+  const timeline = [
+    ...messages.map(message => ({created: message.created ?? 0, message})),
+    ...cloud.turns.map(turn => ({created: turn.created ?? Infinity, turn}))
+  ].sort((a,b) => a.created - b.created);
+  const executionPicker = cloudAvailable && (
+    <label title={localOnly ? '当前上下文仅限本地执行' : '选择这段会话的执行位置'}>
+      <select aria-label="执行位置" disabled={localOnly || !!cloud.pending || cloud.sending} value={showCloud ? 'cloud' : 'local'}
+        onChange={event => {
+          const cloud = event.target.value === 'cloud';
+          setCloudChoices(previous => ({ ...previous, [conversation.id]: cloud }));
+        }}>
+        <option value="local">本地</option>
+        <option value="cloud">云端</option>
+      </select>
+    </label>
+  );
   const modelPick = modelChoices[conversation.id] || "";
   const setModelPick = (id: string) => {if(!draftLocked)setModelChoices(old => ({ ...old, [conversation.id]: id }));};
   const skills = selectedSkills[conversation.id] || [];
@@ -178,6 +221,12 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   const recipient = mentioned.length === 1 ? members.find(a => (a.name === mentioned[0]||a.id===mentioned[0])) || member(conversation.coordinator) : member(conversation.coordinator);
   const recipientModel = state.models?.find(model => model.id === (recipient?.model || state.active_model))?.model || '默认模型';
 
+  useEffect(()=>{
+    if(editingDraft && state.conversations.some(c=>c.id===editingDraft.id && c.cloud_activity)){
+      if(state.selected===editingDraft.id) newConversation.finish();
+      else if (!live?.busy) dispatch({type:'select',id:editingDraft.id});
+    }
+  },[editingDraft?.id,state.conversations,state.selected]);
   useEffect(()=>{
     const pending=newConversation.draft;
     if(!pending?.attempt||live?.busy||!state.conversations.some(c=>c.id===pending.id)||!state.messages.some(m=>m.conversation===pending.id&&m.sender==='user'))return;
@@ -202,8 +251,8 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
     return () => window.clearInterval(timer);
   }, [automatic, real]);
   useEffect(() => { if (!active.length) setAutomatic(false); }, [active.length]);
-  useEffect(() => { following.current=true; }, [state.selected]);
-  useEffect(() => { if(following.current && messageList.current)messageList.current.scrollTop=messageList.current.scrollHeight; }, [state.selected,state.revision,streamed,messages.length]);
+  useEffect(() => { following.current=true; }, [conversation.id]);
+  useEffect(() => { if(following.current && messageList.current)messageList.current.scrollTop=messageList.current.scrollHeight; }, [conversation.id,state.revision,streamed,messages.length,cloud.turns]);
   useEffect(() => { if (tab === "tasks" && inspector && focusedRun) document.getElementById(`cp-run-${focusedRun}`)?.scrollIntoView?.({ block: "nearest" }); }, [focusedRun, tab, inspector]);
 
   useEffect(() => {
@@ -259,8 +308,11 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) openMenu(id, event);
   }
   function select(id: string) {
-    newConversation.hide();
-    dispatch({ type: "select", id }); setTarget(""); setUpdateRun(""); setFocusedRun(""); setMobileList(false); setPicker("");
+    if(newConversation.draft && state.conversations.some(c=>c.id===newConversation.draft?.id))newConversation.finish();
+    else newConversation.hide();
+    setSelecting(id);
+    void sendAction({type:'select',id}).finally(() => setSelecting(current => current === id ? '' : current));
+    setTarget(""); setUpdateRun(""); setFocusedRun(""); setMobileList(false); setPicker("");
   }
   async function supplement(run: DemoRun) {
     if(live){if(!await sendAction({type:'select',id:run.conversation}))return;newConversation.hide();}else select(run.conversation); setUpdateRun(run.id); setFocusedRun(run.id); setInspector(true); setTab("tasks");
@@ -326,7 +378,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
       <div className="cp-task-actions">{(runActive(run)||run.state==='needs_input') ? <>{run.kind !== "chat" && <button onClick={() => supplement(run)} disabled={run.state === "cancelling"}>{run.state==='needs_input'?'补充目标':'补充要求'}</button>}<button onClick={() => dispatch({ type: "cancel", id: run.id })} disabled={run.state === "cancelling"}>停止</button></> :
         run.artifact ? <button onClick={() => setArtifactId(run.id)}>查看成果 ↗</button> : <span className="cp-muted">未生成成果</span>}</div>
       {real && run.kind === "plan" && state.runs.some(child => child.parent === run.id && runActive(child)) && <button className="cp-text-button" onClick={() => dispatch({ type: "cancel", id: run.id })}>停止整条协作链</button>}
-      <ExecutionTree run={run} runs={runs} agents={state.agents} />
+      {real?<ExecutionEntry info={backend||null} root={"collab:"+executionRoot(run.id,runs)}/>:<ExecutionTree run={run} runs={runs} agents={state.agents} />}
       {!!run.project_receipts?.length && <InspectorDisclosure className="cp-tool-result" label={<> 项目操作回执 · {run.project_receipts.length}</>}> {run.project_receipts.map((receipt,index)=><div key={`${receipt.call_id}:${index}`}>
         <p>{receipt.operation.stage || receipt.tool} · {receipt.ok ? "操作已确认" : "未完成"}{receipt.error ? ` · ${receipt.error}` : ""}</p>
         {receipt.environment.id && <button className="cp-text-button" onClick={()=>openProjectRuntime(receipt.environment.id,receipt.log_id || receipt.service.log_id || receipt.operation.id)}>打开项目、预览与日志</button>}
@@ -343,7 +395,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
     {standalone && <header className="tebb-standalone-toolbar"><span>伙伴聊天 · {real ? '本地连接' : '交互演示'}</span><div><button onClick={() => { const next = !dark; setDark(next); document.documentElement.classList.toggle('dark', next); document.documentElement.classList.toggle('light', !next); }}>切换主题</button></div></header>}
     <div className={`cp-layout ${inspector ? "has-inspector" : ""}`}>
       {standalone && <WorkspaceRail developer={developer} onToggle={toggleDeveloper}><RailButton icon="chat" label="伙伴聊天" active onClick={() => {}} /></WorkspaceRail>}
-      <ChatSidebar state={state} selected={state.selected} draftActive={!!editingDraft} mobile={mobileList} listView={listView} onListView={setListView}
+      <ChatSidebar state={state} selected={selecting || state.selected} draftActive={!!editingDraft} mobile={mobileList} listView={listView} onListView={setListView}
         collapsed={collapsedProjects} onToggle={id=>setCollapsedProjects(old=>({...old,[id]:!old[id]}))} onNew={()=>beginNewConversation()} onSelect={select}
         onMenu={openMenu} onKeys={menuKeys} onProject={setProjectForm} onFolder={()=>void chooseProjectFolder()} onMigrate={()=>setMigrationOpen(true)}
         onAgent={setEditingAgent} onPick={agent=>{beginNewConversation(agent.id);setListView('history');}} onAdd={addAgent}
@@ -357,23 +409,32 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
           onChange={newConversation.change} onGroup={()=>newGroup(editingDraft.project_id)} onHide={()=>newConversation.hide()} onDiscard={()=>setDiscardDraft(true)}/>}
         {conversation.kind === "group" && <details className="cp-goal"><summary><span>共同目标</span><span>{conversation.goal || "为这个群确定一个目标，开始协作。"}</span></summary><p>{conversation.goal || "可在伙伴侧栏中调整协作群目标。"}</p></details>}
         <div className="cp-message-list" ref={messageList} onScroll={event=>{const el=event.currentTarget;following.current=el.scrollHeight-el.scrollTop-el.clientHeight<48;}} aria-label={real ? "协作聊天记录" : "原型聊天记录"}>
-          {!messages.length && <div className="cp-empty-chat"><Avatar agent={member(conversation.coordinator)} /><h2>暂无消息</h2><p>直接聊天，或者将目标交给 Agent。<br />私聊与协作群分别保留各自的消息。</p><button className="cp-button" disabled={draftLocked} onClick={() => { setDraft("帮我整理这周的研究方向"); setMode("auto"); input.current?.focus(); }}>填入示例任务</button></div>}
-          {messages.map(item => item.kind === "notice" ? <p key={item.id} className="cp-system-message">{item.text}</p> : <article key={item.id} className={`cp-message ${item.sender === "user" ? "cp-message-user" : ""}`}>
+          {!messages.length && !cloud.turns.length && !showCloud && <div className="cp-empty-chat"><Avatar agent={member(conversation.coordinator)} /><h2>暂无消息</h2><p>直接聊天，或者将目标交给 Agent。<br />私聊与协作群分别保留各自的消息。</p><button className="cp-button" disabled={draftLocked} onClick={() => { setDraft("帮我整理这周的研究方向"); setMode("auto"); input.current?.focus(); }}>填入示例任务</button></div>}
+          {timeline.map(entry => {
+            if ('turn' in entry) return <CloudTurn key={'cloud:'+entry.turn.id} turn={entry.turn}/>;
+            const item = entry.message;
+            return item.kind === "notice" ? <p key={item.id} className="cp-system-message">{item.text}</p> : <article key={item.id} className={`cp-message ${item.sender === "user" ? "cp-message-user" : ""}`}>
             {item.sender === "user" ? <span className="cp-user-avatar">你</span> : <Avatar agent={member(item.sender)} />}
-            <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
-              {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
+            <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>本地</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
+              {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{real&&runs.find(r=>r.id===item.run)&&<p className="cp-muted">{runProgressText(runs.find(r=>r.id===item.run)!)}</p>}{!real&&runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
               {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}
               {real&&item.sender!=='user'&&<CalendarProposalCards info={backend} proposals={proposalTree(runs.find(run=>run.id===item.run),runs)}/>}
-              {real&&item.sender!=='user'&&item.run&&<ExecutionEntry info={backend||null} root={'collab:'+executionRoot(item.run,runs)}/>}
+              {real && item.run && lastMessage.get(rootByRun.get(item.run)!)===item.id && <>
+                {Array.from(servicesByRoot.get(rootByRun.get(item.run)!)||[]).map(service=><ConnectionEntry key={service} service={service}/>)}
+                <ExecutionEntry info={backend||null} root={'collab:'+rootByRun.get(item.run)}/>
+              </>}
               {item.sender !== 'user' && item.run && <div className="cp-message-footer">{(developer || runs.find(run=>run.id===item.run)?.state==='needs_input' || !["chat","route","compress"].includes(runs.find(run => run.id===item.run)?.kind || "")) && <button className="cp-message-reference" onClick={() => { setFocusedRun(item.run!); setInspector(true); setTab("tasks"); }}>↗ 关联任务</button>}
               {real && <small className="cp-message-usage" title="本条消息的执行模型与输入／输出 token 用量">{runs.find(r => r.id===item.run)?.model} · ↑ {runs.find(r => r.id===item.run)?.input_tokens || 0} / ↓ {runs.find(r => r.id===item.run)?.output_tokens || 0}</small>}
               {real && backend && backend.scope!=='collaboration' && item.sender!=='user' && item.run && runs.some(r=>r.id===item.run && r.state==='succeeded' && ['task','chat','route'].includes(r.kind || '') && (r.kind==='task'||!runs.some(child=>child.parent===r.id))) && <button className="cp-message-reference" title={currentProject?'保存到知识库并共享为本项目资料':'保存到知识库'} onClick={async()=>{try { const result=await rpc<{ok:boolean;error?:string}>(backend,'save_collaboration_note',{run_id:item.run}); if(!result.ok) throw new Error(result.error || '收藏失败'); setStorageError(currentProject?`已收藏到知识库，并加入「${currentProject.name}」项目资料。`:'已收藏到知识库的「伙伴成果」笔记，可继续作为资料使用。'); window.dispatchEvent(new Event('tebb-notebooks-changed')); } catch(error){setStorageError(String(error));} }}>{currentProject?'收藏到项目笔记':'收藏到笔记'}</button>}
               {item.kind === "result" && runs.find(run => run.id === item.run)?.artifact && <button className="cp-artifact-link" onClick={() => setArtifactId(item.run!)} title="打开完整成果文档"><span>▤</span><strong>{real ? "成果文档" : "成果文档 · 演示"}</strong><span>↗</span></button>}</div>}
-            </div></article>)}
+            </div></article>;
+          })}
+          {cloud.cacheError && <p role="alert">{cloud.cacheError}</p>}
+          {cloud.connectionError && (!localOnly && (showCloud || !!conversation.cloud_activity)) && <p role="status">{cloud.connectionError} · 将自动重连</p>}
           <div ref={end} />
         </div>
-        <div className="cp-compose-area">
+        {showCloud ? <CloudComposer chat={cloud} executionPicker={executionPicker} draft={draft} setDraft={setDraft} submit={cloudSubmit}/> : <div className="cp-compose-area">
           {(active.length > 0 || !real) && <div className="cp-live-bar"><button type="button" className="cp-activity-link" aria-label="查看运行任务" onClick={() => { setInspector(true); setTab('tasks'); }}><i className={active.length ? "cp-live-dot" : "cp-idle-dot"} />{real ? `本会话 ${runs.filter(runActive).length} 项运行中${active.length > runs.filter(runActive).length ? ` · 其他会话 ${active.length - runs.filter(runActive).length} 项` : ''}` : active.length ? `${active.length} 项后台演示 · ${automatic ? "自动推进中" : "已暂停"}` : "没有进行中的后台演示"}</button>
             {!real && <div><button disabled={!active.length} onClick={() => setAutomatic(!automatic)}>{automatic ? "暂停" : "自动演示"}</button><button disabled={!active.length} onClick={() => dispatch({ type: "advance" })}>推进一步 →</button></div>}</div>}
           {selectedRun && <div className="cp-reply-context"><span>补充给：<strong>{selectedRun.title}</strong>{!runActive(selectedRun) && " · 已结束，请取消引用"}</span><button aria-label="取消补充要求" onClick={() => setUpdateRun("")}>×</button></div>}
@@ -388,7 +449,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
             {picker && <ComposerPicker anchor={input} className="cp-composer-picker" id="cp-composer-options" label={picker==='members' ? '选择成员' : '选择技能'} onClose={()=>setPicker('')}>{options.map((option,i) => <button type="button" role="option" id={`cp-option-${i}`} key={option.id} aria-selected={pickerIndex===i} onMouseDown={event => event.preventDefault()} onClick={() => chooseOption(i)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}{!options.length && <p>没有匹配项{picker==='skills' ? '，技能在桌面客户端加载' : ''}。按 Esc 关闭。</p>}</ComposerPicker>}
             <div className="cp-selection-chips">{skills.map(skill => <button type="button" disabled={draftLocked} key={skill} onClick={() => setSelectedSkills(old => ({ ...old, [conversation.id]: skills.filter(s => s!==skill) }))}>/{skill} ×</button>)}{attachments.map(file => <button type="button" disabled={draftLocked} key={file.id} onClick={() => removeAttachment(file.id)}>{file.name} ×</button>)}</div>
             <div className="cp-composer-bottom"><div className="cp-composer-controls"><button type="button" aria-label="添加附件" disabled={!onAttach||draftLocked} onClick={onAttach}>＋ 附件</button><button type="button" disabled={draftLocked} onClick={() => recipient && setEditingAgent(recipient)}>工具</button><button type="button" aria-label="选择技能" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'/'); input.current?.focus(); }}>/ Skill</button><button type="button" aria-label="选择成员" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'@'); input.current?.focus(); }}>@</button>
-              <label><select disabled={draftLocked} aria-label="本轮模型" title="本轮模型" value={modelPick} onChange={e => setModelPick(e.target.value)}><option value="">{recipientModel}（默认）</option>{state.models?.map(model => <option key={model.id} value={model.id}>{model.model}</option>)}</select></label></div>
+              <label><select disabled={draftLocked} aria-label="本轮模型" title="本轮模型" value={modelPick} onChange={e => setModelPick(e.target.value)}><option value="">{recipientModel}（默认）</option>{state.models?.map(model => <option key={model.id} value={model.id}>{model.model}</option>)}</select></label>{executionPicker}</div>
               <button type="submit" className="cp-send" disabled={live?.busy || !draft.trim() || (!!selectedRun && !runActive(selectedRun)&&selectedRun.state!=='needs_input')}>{draftLocked?'重试原发送':updateRun ? '提交补充' : '发送'}<span>↑</span></button></div>
             <ContextDebug key={conversation.id} info={backend} conversation={editingDraft?'':conversation.id} draft={draft} sendOptions={{target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})}} onSent={text=>{if(text===draft)submitted();}}>{developer&&<div className="cp-parameter-debug"><label>推理力度<select disabled={draftLocked} value={sampling.reasoning_effort} onChange={e => setSampling({ ...sampling, reasoning_effort:e.target.value })}>{['low','high','max'].map(v => <option key={v}>{v}</option>)}</select></label><label>温度<input disabled={draftLocked} type="number" min="0" max="1" step="0.1" value={sampling.temperature} onChange={e => setSampling({ ...sampling, temperature:Number(e.target.value) })} /></label><label>top_p<input disabled={draftLocked} type="number" min="0.01" max="1" step="0.01" value={sampling.top_p} onChange={e => setSampling({ ...sampling, top_p:Number(e.target.value) })} /></label><button type="button" disabled={!!editingDraft} onClick={() => dispatch({ type:'compress' })}>整理当前会话上下文</button></div>}</ContextDebug>
 
@@ -396,7 +457,9 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
           <div className="cp-composer-hint"><span>Enter 发送 · Shift + Enter 换行</span>{!real && <span>演示数据仅存于此设备</span>}</div>
 
           {(state.notice || storageError || live?.error) && <p className="cp-notice" role="status">{live?.error || storageError || state.notice}</p>}
-        </div>
+        </div>}
+
+
       </div>
 
       <aside className={`cp-inspector ${inspector ? "is-open" : ""}`} aria-hidden={!inspector} {...(!inspector ? { inert: "" } : {})} aria-label="协作详情"><header><span>{tab==='tasks' ? '任务' : tab==='members' ? '伙伴' : '待办'}</span><button className="cp-icon-button cp-inspector-close" onClick={() => setInspector(false)} aria-label="关闭协作详情">×</button></header>

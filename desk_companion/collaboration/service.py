@@ -51,6 +51,8 @@ def parse_route(text):
         raise ValueError('无效路由内容')
     if decision.get('strategy', 'direct') not in {'direct', 'delegate'}:
         raise ValueError('无效执行方式')
+    if decision.get('task_type', 'execution') not in ('workspace_question', 'execution'):
+        raise ValueError('无效任务类型')
     if 'requires_charts' in decision and type(decision['requires_charts']) is not bool:raise ValueError('图表交付要求须为布尔值。')
     if decision['mode']=='answer':
         from desk_companion.collaboration.execution_flow import claims_handoff
@@ -116,10 +118,11 @@ def migrate_companions(state):
 
 
 
-def usage_metadata(path=None,ident=''):
+def usage_metadata(path=None,ident='',*,include_titles=False):
     """Project only task metadata from the workspace; omit messages and content."""
     from desk_companion.observability.usage_store import read_rows
     fields=['id','parent','state','stage','kind','created','finished','task','usage_channel']
+    if include_titles:fields.append('title')
     selected=','.join("json_extract(j.value,'$."+key+"') AS "+key for key in fields)
     rows=read_rows(path or workspace_path(),"SELECT "+selected+",json_extract(j.value,'$.workspace.project_id') AS project_id "
         "FROM workspace,json_each(workspace.data,'$.runs') j WHERE workspace.id=1")
@@ -127,7 +130,7 @@ def usage_metadata(path=None,ident=''):
     for row in rows:
         if row.get('parent')or ident and row['id']!=ident:continue
         roots.append(dict(id='collab:'+row['id'],kind='task',created=row['created'],
-            state=chain_view(row,rows)['state'],raw_state=row['state'],project_id=row['project_id'],channel=row.get('usage_channel'),source='collaboration',attempt=row.get('task')or''))
+            state=chain_view(row,rows)['state'],raw_state=row['state'],project_id=row['project_id'],channel=row.get('usage_channel'),source='collaboration',attempt=row.get('task')or'', **({'title':str(row.get('title') or '')[:120]} if include_titles else {})))
     return roots
 
 
@@ -339,6 +342,14 @@ class Collaboration:
 
         return on_event
 
+    def mobile_questions(self):
+        """Return only pending human prompts; model inputs and workspace data stay on Windows."""
+        from desk_companion.collaboration.clarification import version
+        with self.lock, transaction(self.path) as (state, _):
+            return [dict(run=r['id'], conversation=r['conversation'], version=version(r),
+                         title=r['title'], prompt=r.get('clarification') or r.get('answer', ''))
+                    for r in state['runs'] if r['state'] == 'needs_input' and r['kind'] != 'chat']
+
     def snapshot(self, since=""):
         from desk_companion.models.model_catalog import public_catalog
         with self.lock, transaction(self.path) as (state, _):
@@ -395,7 +406,7 @@ class Collaboration:
         return uuid.uuid4().hex
 
     def _message(self, state, conversation, sender, text="", run=None, kind=None):
-        row = dict(id=self._id(), conversation=conversation, sender=sender, text=text)
+        row = dict(id=self._id(), conversation=conversation, sender=sender, text=text, created=time.time())
         if run: row["run"] = run
         if kind: row["kind"] = kind
         state["messages"].append(row)
@@ -476,6 +487,27 @@ class Collaboration:
         run['source']=copy.deepcopy(source)
         run['members']=[{k:a[k] for k in ('id','name','role','tools')} for a in state['agents'] if a['id']!=agent_id] if agent_id=='tebb' else []
         return run
+
+    def validate_cloud_conversation(self, ident, project_id=""):
+        """每次转发前读取当前目录授权，即使复用请求编号也重新校验。"""
+        with self.lock, transaction(self.path) as (state, _):
+            conversation = next((row for row in state['conversations'] if row['id'] == ident), None)
+            self._check_cloud_workspace(state, conversation, ident, project_id)
+
+    @staticmethod
+    def _check_cloud_workspace(state, conversation, ident, project_id):
+        if conversation is None:
+            if not isinstance(ident, str) or not re.fullmatch(r'dm-[a-f0-9]{32}', ident):
+                raise ValueError('云端会话标识无效')
+        else:
+            project_id = conversation.get('project_id') or ''
+        project = next((p for p in state['projects'] if p['id'] == project_id), {})
+        if project_id and not project:
+            raise ValueError('项目不存在，请刷新后重新选择')
+        from desk_companion.projects.project_workspace import load
+        workspace = load(project_id)
+        if workspace['primary'] or workspace['references'] or project.get('sources'):
+            raise ValueError('文件目录会话仅限本地执行')
 
     def action(self, action, readonly=False):
         if not isinstance(action, dict): raise ValueError("操作必须为对象")
@@ -602,6 +634,15 @@ class Collaboration:
                 state["conversations"].append(dict(id=self._id(), title=agent["name"], kind="dm", members=[agent["id"]], coordinator=agent["id"], goal=""))
             if state["selected"] == conversation["id"]:
                 state["selected"] = state["conversations"][0]["id"]
+        elif kind == "cloud_conversation":
+            ident = action.get('conversation')
+            draft_project = action.get('project_id', '')
+            self._check_cloud_workspace(state, conversation, ident, draft_project)
+            if not conversation:
+                conversation = dict(id=ident, title=action['text'][:40], kind='dm', members=['tebb'],
+                                    coordinator='tebb', goal='', project_id=draft_project)
+                state['conversations'].append(conversation)
+            conversation['cloud_activity'] = time.time()
         elif kind == "send":
             strategy=action.get('strategy','auto')
             if not isinstance(strategy,str)or strategy not in{'auto','delegate'}:raise ValueError('协作策略须为auto或delegate')
@@ -629,6 +670,10 @@ class Collaboration:
             if conversation["title"] == "新对话": conversation["title"] = text.replace("\n", " ")[:40]
             if action.get("run"):
                 run = next((r for r in state["runs"] if r["id"] == action["run"] and r["conversation"] == conversation["id"]), None)
+                if 'question_version' in action:
+                    from desk_companion.collaboration.clarification import version
+                    if not run or run['state'] != 'needs_input' or action['question_version'] != version(run):
+                        raise ValueError('问题已变化或已处理，请重新读取。')
                 if not run or run["state"] not in OPEN or run["kind"] == "chat": raise ValueError("此任务已结束或不支持补充")
                 if 'strategy'in action and strategy!=run.get('requested_strategy','auto'):raise ValueError('补充不能改变当前任务的协作策略，请先结束后新建任务')
                 if len(run["updates"]) >= 3 and run['state']!='needs_input': raise ValueError("本轮最多补充3次，请等待结束后创建新任务")
@@ -946,7 +991,7 @@ class Collaboration:
                     request = dict(workflow="collaboration", collab_path=str(self.path), collab_run=run["id"],conversation=run['conversation'],source_scope=run.get('parent') or run['id'],
                         role=run["agent_config"], kind=run["kind"], model_id=run["model_id"], context=run["context"], workspace=run.get("workspace"), selection=run.get("selection", {}), memory_snapshot=run.get('memory_snapshot'),configuration_revision=run.get('configuration_revision'),
                         reference_time=run.get("created",0), supplemented_at=run.get("supplemented_at"), members=run.get("members", []), requested_strategy=run.get('requested_strategy','auto'), requested_assignees=run.get('requested_assignees',[]), require_execution=run.get('require_execution',False), applied=run["applied"], draft=run.get("parent_draft", ""), budget=max(0, call_budget(run['agent'],run['kind'],run.get('agent_config',{}).get('tools',()))-phase_calls(run)),
-                        objective=run.get('objective',run['input']),parent_run=run.get('parent'),stage=run.get('stage','collect'),required_sources=run.get('required_sources',[]),requires_charts=run.get('requires_charts',False),
+                        task_type=run.get('task_type','execution'), objective=run.get('objective',run['input']),parent_run=run.get('parent'),stage=run.get('stage','collect'),required_sources=run.get('required_sources',[]),requires_charts=run.get('requires_charts',False),
                         search_budget=max(0, run.get('search_limit',2)-run.get("search_calls",0)),fetch_budget=max(0,run.get('fetch_limit',4)-run.get("fetch_calls",0)),
                         source_topics=run.get('source_topics',[]),dependencies=dependencies(run),execution_runtime=run.get('execution_runtime','legacy'),
                         source_evidence=run.get("source_evidence",[]),evidence=run.get("evidence",[]),handoffs=run.get('handoffs',[]))
@@ -968,7 +1013,7 @@ class Collaboration:
                     kind, data = event["kind"], event["data"]
                     if kind in {'tool_start','tool_end','file_change','verification','feedback_check','integration_failure'}:
                         # Only public tool summaries; never publish worker requests or credentials.
-                        record = {key:data[key] for key in ('tool','query','path','symbol','revision','status','error','state','exit_code','command')
+                        record = {key:data[key] for key in ('tool','service','query','path','symbol','revision','status','error','state','exit_code','command')
                                   if key in data and isinstance(data[key],(str,int,bool,type(None)))}
                         record = {key:value[:2000] if isinstance(value,str) else value for key,value in record.items()}
                         history = run.setdefault('flow_events',[])
@@ -1008,8 +1053,11 @@ class Collaboration:
                     elif kind == 'calendar_proposal':
                         from desk_companion.planning.calendar_proposals import validate
                         proposal=validate(data['proposal'],task_id=task['id'])
+                        if data['proposal'].get('saved') is True:proposal['saved']=True
                         proposals=run.setdefault('calendar_proposals',[])
-                        if not any(row['id']==proposal['id']for row in proposals):proposals.append(proposal)
+                        existing=next((row for row in proposals if row['id']==proposal['id']),None)
+                        if existing is None:proposals.append(proposal)
+                        elif proposal.get('saved'):existing['saved']=True
                         del proposals[:-40]
                     elif kind == 'chart_build':
                         builds=run.setdefault('chart_builds',{})
@@ -1067,7 +1115,11 @@ class Collaboration:
                         run['answer']=content
                         self._finish(state,run,'succeeded');continue
                     # Same root owns readiness, direct work and final delivery.
-                    delegate=run.get('requested_strategy')=='delegate'or decision.get('strategy')=='delegate'
+                    workspace_question = (decision.get('task_type') == 'workspace_question'
+                              and not run.get('development_task') and not decision.get('requires_charts')
+                              and not run.get('selection', {}).get('attachments'))
+                    run['task_type'] = 'workspace_question' if workspace_question else 'execution'
+                    delegate=run.get('requested_strategy')=='delegate' or (not workspace_question and decision.get('strategy')=='delegate')
                     if run.get('requested_strategy')=='delegate'and decision.get('strategy')!='delegate':run['events'].append('模型建议直接执行，已按用户明确的协作策略准备分工。')
                     if delegate and not run.get('members'):
                         self._finish(state,run,'failed','当前任务没有可委派的伙伴，未降级为直接执行；请先选择协作群成员。');continue
@@ -1119,7 +1171,7 @@ class Collaboration:
                         assigned=next(a for a in state['agents'] if a['id']==plan['agent_id'])
                         child = self._run(state, conversation, plan["agent_id"], plan["instructions"], parent=run["id"], dependency=dependency,
                             context=run["context"] + [dict(sender="user", text=run["input"]), *[dict(sender="user", text=t) for t in run["updates"]]],model_id='' if assigned.get('model') else run['model_id'])
-                        child.update(dependencies=deps,objective=run['input'],stage=stage,required_sources=plan.get('required_sources',[]),requires_charts=run.get('requires_charts',False) and stage=='deliver')
+                        child.update(task_type=run.get('task_type','execution'),dependencies=deps,objective=run['input'],stage=stage,required_sources=plan.get('required_sources',[]),requires_charts=run.get('requires_charts',False) and stage=='deliver')
                         if run.get('development_task'):
                             child['development_task'] = True
                             if plan.get('integration_verification'):
