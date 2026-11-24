@@ -3,27 +3,26 @@ package dev.tebb.mobile
 import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -36,12 +35,6 @@ private val suffixes = listOf("qq.com", "163.com", "gmail.com", "outlook.com")
 private val fieldShape = RoundedCornerShape(16.dp)
 private val accent = Color(0xFFBDCEA9)
 private val field = Color(0xFF252828)
-
-/** 保留邮箱用户名及别名，只替换域名。空用户名不会生成残缺地址。 */
-internal fun withEmailSuffix(email: String, suffix: String): String {
-    val user = email.substringBefore('@').trim()
-    return if (user.isEmpty()) email else "$user@$suffix"
-}
 
 /** 桌宠沿用主聊的呼吸、眨眼和点按反馈。光晕与地面投影随布局尺寸绘制。 */
 @Composable
@@ -67,7 +60,11 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
     var email by rememberSaveable { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     val busy = state == PairingState.Connecting
-    val valid = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
+    var suffix by rememberSaveable { mutableStateOf("") }
+    var menuOpen by remember { mutableStateOf(false) }
+    val input = email.trim()
+    val address = if (input.isNotEmpty() && '@' !in input && suffix.isNotEmpty()) "$input@$suffix" else input
+    val valid = Patterns.EMAIL_ADDRESS.matcher(address).matches()
     val editEmail: (String) -> Unit = { value ->
         if (email != value) { email = value; code = "" }
     }
@@ -92,26 +89,37 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
                                 disabledIndicatorColor = Color.Transparent)
                             TextField(email, editEmail, Modifier.fillMaxWidth(), enabled = !busy, shape = fieldShape,
                                 colors = colors, singleLine = true, label = { Text("邮箱") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                suffixes.forEach { suffix ->
-                                    val selected = email.substringAfter('@', "").equals(suffix, ignoreCase = true)
-                                    val enabled = !busy && email.substringBefore('@').isNotBlank()
-                                    Box(Modifier.heightIn(min = 48.dp).selectable(selected, enabled = enabled, role = Role.RadioButton,
-                                        onClick = { editEmail(withEmailSuffix(email, suffix)) }), contentAlignment = Alignment.Center) {
-                                        Text("@$suffix", Modifier.clip(fieldShape).background(if (selected) accent else field)
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                            color = if (selected) Color(0xFF171B16) else Color(0xFFC2C7BF), fontSize = 13.sp)
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                trailingIcon = {
+                                    Box {
+                                        TextButton({ menuOpen = true }, enabled = !busy,
+                                            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "选择邮箱后缀" }) {
+                                            Text(if ('@' !in email && suffix.isNotEmpty()) "@$suffix" else "后缀")
+                                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                                        }
+                                        DropdownMenu(menuOpen && !busy, onDismissRequest = { menuOpen = false }) {
+                                            val current = if ('@' in email) email.substringAfter('@').trim() else suffix
+                                            suffixes.forEach { domain ->
+                                                DropdownMenuItem(onClick = {
+                                                    if (!domain.equals(current, ignoreCase = true)) code = ""
+                                                    email = email.substringBefore('@')
+                                                    suffix = domain
+                                                    menuOpen = false
+                                                }) {
+                                                    Text("@$domain", Modifier.weight(1f))
+                                                    if (domain.equals(current, ignoreCase = true)) Text("✓", color = accent)
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                            }
+                                })
                             TextField(code, { code = it }, Modifier.fillMaxWidth(), enabled = !busy, shape = fieldShape,
                                 colors = colors, singleLine = true, label = { Text("验证码") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                trailingIcon = { TextButton({ authenticate(email, "") }, enabled = !busy && valid) { Text("获取验证码") } })
+                                trailingIcon = { TextButton({ authenticate(address, "") }, enabled = !busy && valid) { Text("获取验证码") } })
                             (state as? PairingState.Notice)?.let { Text(it.message, fontSize = 14.sp) }
                             Spacer(Modifier.height(4.dp))
-                            Button({ authenticate(email, code) }, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = fieldShape,
+                            Button({ authenticate(address, code) }, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = fieldShape,
                                 enabled = !busy && valid && code.isNotBlank()) { Text(if (busy) "请稍候…" else "登录") }
                         }
                     }
