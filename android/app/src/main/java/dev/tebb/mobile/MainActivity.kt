@@ -18,10 +18,11 @@ import androidx.compose.runtime.getValue
 
 /** Android 平台入口。负责权限、本地听写及识别器生命周期，任务归属和草稿只由 ViewModel 修改。 */
 class MainActivity : ComponentActivity() {
-    private val chat: ChatViewModel by viewModels()
+    private val chat: ChatViewModel get() = androidx.lifecycle.ViewModelProvider(this)
+        .get("chat:" + MobileAccount.owner, ChatViewModel::class.java)
     private val pairing: PairingViewModel by viewModels()
     private val voice by lazy {
-        LocalDictation(applicationContext, chat::preview, chat::finishDictation, ::message)
+        LocalDictation(applicationContext, { chat.preview(it) }, { chat.finishDictation(it) }, ::message)
     }
 
     /** 授权窗口会打断原手势，取得授权后由下一次按住动作启动录音。 */
@@ -39,35 +40,73 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 pairing.state.collectLatest { device ->
+                    val boundChat = chat
                     if (device !is PairingState.Paired) {
-                        chat.connectionNotice(null)
-                        if (chat.state.value.composer.pending.any { it.deviceId.isNotEmpty() }) chat.sync(emptyList())
+                        boundChat.sharedHistory("[]")
+                        boundChat.connectionNotice(null)
+                        if (boundChat.state.value.composer.pending.any { it.deviceId.isNotEmpty() }) boundChat.sync(emptyList())
                         return@collectLatest
                     }
                     val client = PairingClient.approved(applicationContext)
                     if (client == null) {
-                        chat.connectionNotice("旧配对缺少任务授权，请在两端解除并重新扫码")
+                        boundChat.connectionNotice("旧配对缺少任务授权，请在两端解除并重新扫码")
                         return@collectLatest
                     }
+                    var lastVerified = 0L
+                    var previous: DeviceSnapshot? = null
+                    client.cached(applicationContext)?.let { (time, rows, history) ->
+                        boundChat.sharedHistory(history)
+                        lastVerified = time
+                        boundChat.sync(rows)
+                        boundChat.connectionNotice("Windows 缓存 · " + android.text.format.DateFormat.format("MM-dd HH:mm", time))
+                    }
                     while (isActive) {
-                        val generation = chat.replyGeneration
-                        try { chat.remoteSnapshot(withContext(Dispatchers.IO) { client.questions() }, generation) }
+                        val generation = boundChat.replyGeneration
+                        try {
+                            val snapshot = withContext(Dispatchers.IO) { client.snapshot() }
+                            val rows = snapshot.rows
+                            if (generation == boundChat.replyGeneration) {
+                                val now = snapshot.time
+                                if (previous?.rows != rows || previous?.history != snapshot.history || now - lastVerified > 60_000) {
+                                    client.cache(applicationContext, snapshot)
+                                    lastVerified = now
+                                    previous = snapshot
+                                }
+                                boundChat.sharedHistory(snapshot.history)
+                                boundChat.remoteSnapshot(rows, generation)
+                            }
+                        }
                         catch (e: CancellationException) { throw e }
                         catch (e: PairingAuthorizationDenied) {
-                            chat.sync(emptyList())
-                            chat.connectionNotice(e.message)
+                            boundChat.sharedHistory("[]")
+                            client.clearCache(applicationContext)
+                            previous = null
+                            lastVerified = 0
+                            boundChat.sync(emptyList())
+                            boundChat.connectionNotice(e.message)
                         }
-                        catch (e: Exception) { chat.connectionNotice("未同步 Windows 待答任务：" + (e.localizedMessage ?: "请检查连接")) }
+                        catch (e: Exception) {
+                            if (lastVerified > 0 && System.currentTimeMillis() - lastVerified > 7L * 86400 * 1000) {
+                                client.clearCache(applicationContext)
+                                boundChat.sharedHistory("[]")
+                                boundChat.sync(emptyList())
+                                lastVerified = 0
+                                previous = null
+                            }
+                            boundChat.connectionNotice(if (lastVerified > 0) "Windows 缓存 · " +
+                            android.text.format.DateFormat.format("MM-dd HH:mm", lastVerified) else "等待电脑连接") }
                         delay(2500)
                     }
                 }
             }
         }
         setContent {
-            val state by chat.state.collectAsState()
+            val owner by pairing.signedIn.collectAsState()
+            val activeChat = androidx.compose.runtime.remember(owner) { chat }
+            val state by activeChat.state.collectAsState()
             val device by pairing.state.collectAsState()
             ChatScreen(state, device, pairing, chat::select, chat::dismiss, chat::edit, chat::send,
-                ::requestVoice, ::stopListening, ::cancelVoice, chat::sync, chat::readHistory, chat::clearHistory, chat::chooseCloud)
+                ::requestVoice, ::stopListening, ::cancelVoice, chat::sync, chat::readHistory, chat::clearHistory, chat::chooseCloud, chat::defer)
         }
     }
 

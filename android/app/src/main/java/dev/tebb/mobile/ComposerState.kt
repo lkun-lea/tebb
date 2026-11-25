@@ -12,7 +12,7 @@ data class QuestionKey(val runId: String, val version: String) : Serializable
 
 /** 聊天页展示的待答问题。[key] 标识问题，更新 [title] 或 [prompt] 后引用仍然有效。 */
 data class PendingQuestion(val key: QuestionKey, val title: String, val prompt: String,
-                           val conversation: String = "", val deviceId: String = "") : Serializable
+                           val conversation: String = "", val deviceId: String = "", val created: Long = 0, val items: String = "") : Serializable
 
 /**
  * 主聊天输入框在一次界面更新中使用的完整状态。
@@ -32,6 +32,7 @@ data class ComposerState(
     val dismissed: Set<QuestionKey> = emptySet(),
     val draft: String = "",
     val dictating: Boolean = false,
+    val unavailable: PendingQuestion? = null,
     val partial: String = ""
 ) : Serializable {
     /**
@@ -52,6 +53,16 @@ data class ComposerState(
         }
         return copy(pending = current, target = next, manuallySelected = kept && manuallySelected,
             dismissed = dismissed.intersect(keys))
+    }
+
+    /** 原问题已结束时撤下卡片，保留草稿的原引用，直到用户明确取消。 */
+    fun verifiedSnapshot(rows: List<PendingQuestion>): ComposerState {
+        val previous = pending.find { it.key == target } ?: unavailable
+        if (previous != null && previous.deviceId.isNotEmpty() && (draft.isNotBlank() || dictating) &&
+            rows.none { it.key == previous.key && it.deviceId == previous.deviceId }) {
+            return copy(pending = rows, target = previous.key, unavailable = previous)
+        }
+        return copy(unavailable = null).sync(rows)
     }
 
     /** 输入框展示原草稿与最新候选；临时结果只替换本轮片段。 */
@@ -81,12 +92,13 @@ data class ComposerState(
     /** 取消当前引用并记住本轮选择，使同一问题刷新后仍保持取消。用户可通过 [select] 重新选中。 */
     fun dismiss(): ComposerState {
         val key = target ?: return this
-        return copy(target = null, manuallySelected = false, dismissed = dismissed + key)
+        return copy(target = null, unavailable = null, manuallySelected = false, dismissed = dismissed + key)
     }
 
     /** 将 [key] 设为手动引用。如果点击时问题已经关闭，返回当前状态。 */
     fun select(key: QuestionKey): ComposerState {
         if (pending.none { it.key == key }) return this
-        return copy(target = key, manuallySelected = true, dismissed = dismissed - key)
+        if (target != null && target != key && draft.isNotBlank()) return this
+        return copy(target = key, unavailable = null, manuallySelected = true, dismissed = dismissed - key)
     }
 }

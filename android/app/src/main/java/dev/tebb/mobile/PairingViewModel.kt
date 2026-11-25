@@ -147,6 +147,7 @@ internal class PairingViewModel(app: Application, private val saved: SavedStateH
                             val endpoint = JSONObject(invite).apply {
                                 remove("token")
                                 put("access", decision.getString("access"))
+                                put("relay", decision.optBoolean("relay"))
                                 put("id", receipt.getString("id"))
                             }
                             prefs.edit().putString("endpoint", endpoint.toString()).putString("computer", computer).putString("id", receipt.getString("id")).apply()

@@ -25,6 +25,8 @@ internal class PairingAuthorizationDenied : IllegalStateException("Windows 授�
 
 /** 本轮配对的连接信息。二维码中的证书指纹只用于验证提供该二维码的 Windows 服务。 */
 internal class PairingClient(private val invite: JSONObject) {
+    private val relay = if (invite.optBoolean("relay")) PairedRelay(invite) else null
+    val usesRelay: Boolean get() = relay != null
     private val owner = invite.getString("owner")
     private val host = invite.getString("host")
     private val port = invite.getInt("port")
@@ -63,13 +65,58 @@ internal class PairingClient(private val invite: JSONObject) {
         request("/pairings/" + receipt.getString("id"), ticket = receipt.getString("ticket"))
 
     /** 读取当前设备经电脑批准可见的待答快照，保留原运行、会话和问题版本。 */
-    fun questions(): List<PendingQuestion> {
-        val rows = request("/questions", ticket = invite.getString("access")).getJSONArray("questions")
+    fun snapshot(): DeviceSnapshot {
+        val raw = relay?.snapshot() ?: request("/questions", ticket = invite.getString("access"))
+        return DeviceSnapshot(raw.optLong("time", System.currentTimeMillis()/1000) * 1000,
+            decodeQuestions(raw.getJSONArray("questions")), raw.optJSONArray("history")?.toString() ?: "[]")
+
+    }
+
+    private fun decodeQuestions(rows: org.json.JSONArray): List<PendingQuestion> {
         return List(rows.length()) { index ->
             val row = rows.getJSONObject(index)
             PendingQuestion(QuestionKey(row.getString("run"), row.getString("version")), row.getString("title"),
-                row.getString("prompt"), row.getString("conversation"), invite.getString("id"))
+                row.getString("prompt"), row.getString("conversation"), invite.getString("id"), row.optLong("created"),
+                row.optJSONArray("items")?.let { items -> (0 until items.length()).joinToString(" · ") { i ->
+                    val item = items.getJSONObject(i)
+                    listOf(item.optString("owner"),item.optString("due")).filter { it.isNotBlank() }.joinToString(" · ")
+                } } ?: row.optString("item_label"))
         }
+    }
+
+    /** 仅恢复当前账号与配对设备上次获准读取的快照；撤权后清理。 */
+    fun cached(context: Context): DeviceSnapshot? {
+        val raw = preferences(context).getString("question_cache", null) ?: return null
+        val saved = JSONObject(raw)
+        if (saved.optString("owner") != owner || saved.optString("device") != invite.getString("id")) return null
+        if (System.currentTimeMillis() - saved.getLong("time") > 7L * 86400 * 1000) {
+            clearCache(context)
+            return null
+        }
+        return DeviceSnapshot(saved.getLong("time"), decodeQuestions(saved.getJSONArray("rows")), saved.optString("history","[]"))
+    }
+
+    /** 把快照和来源时间作为一个值替换，避免跨设备混用旧行。 */
+    fun cache(context: Context, snapshot: DeviceSnapshot) {
+        val data = org.json.JSONArray()
+        snapshot.rows.forEach { data.put(JSONObject().put("run", it.key.runId).put("version", it.key.version)
+            .put("item_label", it.items).put("created", it.created).put("title", it.title).put("prompt", it.prompt).put("conversation", it.conversation)) }
+        preferences(context).edit().putString("question_cache", JSONObject().put("owner", owner)
+            .put("device", invite.getString("id")).put("time", snapshot.time).put("history",snapshot.history).put("rows", data).toString()).apply()
+    }
+
+    fun clearCache(context: Context) = preferences(context).edit().remove("question_cache").apply()
+
+    private fun preferences(context: Context) = context.getSharedPreferences("windows_pairing", Context.MODE_PRIVATE)
+
+    /** 延后同一版本的待答提醒，回执必须对应请求的时间与原运行。 */
+    fun defer(question: PendingQuestion, until: Long) {
+        check(question.deviceId == invite.getString("id"))
+        val body = JSONObject().put("conversation", question.conversation).put("run", question.key.runId)
+            .put("version", question.key.version).put("until", until)
+        val ack = relay?.submit("defer", body) ?: request("/defer", body, invite.getString("access"))
+        check(ack.getString("run") == question.key.runId && ack.getString("version") == question.key.version &&
+            ack.getLong("until") == until) { "改期回执不匹配" }
     }
 
     /** 将编辑后的文字送回配对时的电脑，并核对 Windows 返回的原任务回执。 */
@@ -77,7 +124,7 @@ internal class PairingClient(private val invite: JSONObject) {
         check(question.deviceId == invite.getString("id")) { "回复目标属于另一台已配对设备" }
         val body = JSONObject().put("run", question.key.runId).put("version", question.key.version)
             .put("conversation", question.conversation).put("text", text)
-        val receipt = request("/answers", body, invite.getString("access"))
+        val receipt = relay?.submit("answer", body) ?: request("/answers", body, invite.getString("access"))
         check(receipt.getBoolean("accepted") && receipt.getString("run") == question.key.runId &&
             receipt.getString("version") == question.key.version) { "电脑回执与当前问题不符" }
     }

@@ -10,7 +10,7 @@ internal class CloudTaskEnded(message: String) : Exception(message)
 /** 手机直接访问个人 ECS，原请求编号用于断线重试时找回同一任务。 */
 internal object CloudChatClient {
     /** 令牌仅发送给固定服务地址，禁止重定向到其他主机。 */
-    private fun connect(path: String, owner: String) =
+    internal fun connect(path: String, owner: String) =
         (URL("https://8.136.145.17/cloud/v1/$path").openConnection() as HttpsURLConnection).apply {
             instanceFollowRedirects = false
             connectTimeout = 8000

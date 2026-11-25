@@ -9,7 +9,8 @@ import android.database.sqlite.SQLiteOpenHelper
 internal data class ChatMessage(val id: Long, val text: String, val target: QuestionKey?, val title: String?, val fromTebb: Boolean, val windowsAccepted: Boolean)
 
 /** 主聊天的本地数据源。历史正文存放在应用私有数据库，避免随 Activity 保存大量文本。 */
-internal class ChatHistory(context: Context) : SQLiteOpenHelper(context, "chat.db", null, 3) {
+internal class ChatHistory(context: Context) : SQLiteOpenHelper(context, if (MobileAccount.owner.isBlank()) "chat.db" else
+    "chat-" + java.util.UUID.fromString(MobileAccount.owner) + ".db", null, 3) {
     /** 首次打开数据库时创建消息表，普通聊天的任务字段为空。 */
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE messages (id INTEGER PRIMARY KEY, body TEXT NOT NULL, run TEXT, version TEXT, title TEXT, from_tebb INTEGER NOT NULL DEFAULT 0, windows_accepted INTEGER NOT NULL DEFAULT 0)")

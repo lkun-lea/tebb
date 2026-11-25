@@ -20,6 +20,7 @@ internal data class ChatUiState(
     val composer: ComposerState,
     val messages: List<ChatMessage> = emptyList(),
     val work: ChatWork? = null,
+    val historySnapshot: String = "[]",
     val cloud: Boolean = false,
     val listening: Boolean = false,
     val historyReadFailed: Boolean = false,
@@ -32,6 +33,8 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
     private val history = ChatHistory(app)
     private val mutable = MutableStateFlow(ChatUiState(saved["composer"] ?: ComposerState(), cloud = MobileAccount.owner.isNotEmpty() && saved.get<Boolean>("cloud") == true))
     val state = mutable.asStateFlow()
+
+    private var verifiedQuestions = emptySet<QuestionKey>()
 
     /** 已确认回复的代数，用于丢弃发送前发出的迟到快照。 */
     var replyGeneration = 0L
@@ -65,23 +68,28 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
     }
 
     /** 应用完整问题快照；问题版本、手选优先级和取消记忆由 [ComposerState.sync] 解释。 */
-    fun sync(rows: List<PendingQuestion>) = update(mutable.value.composer.sync(rows))
+    fun sync(rows: List<PendingQuestion>) = update(mutable.value.composer.verifiedSnapshot(rows))
 
     /** 轮询不覆盖正在发送的快照；编辑中的旧引用保留，以免草稿意外改投其他任务。 */
     fun remoteSnapshot(rows: List<PendingQuestion>, generation: Long) {
         val current = mutable.value
         if (current.work == ChatWork.Saving || generation != replyGeneration) return
         val input = current.composer
-        val fixed = input.pending.find { it.key == input.target && it.deviceId.isNotEmpty() }
-        val keep = fixed != null && (input.draft.isNotBlank() || input.dictating) && rows.none { it.key == fixed.key }
-        val updated = input.sync(if (keep) rows + requireNotNull(fixed) else rows)
+        verifiedQuestions = rows.map { it.key }.toSet()
+        val updated = input.verifiedSnapshot(rows)
         if (updated != input) update(updated)
         connectionNotice(null)
     }
 
     /** 网络故障只更新连接提示，保留最后一次成功读取的问题和正在编辑的回答。 */
     fun connectionNotice(text: String?) {
+        if (text != null) verifiedQuestions = emptySet()
         mutable.value = mutable.value.copy(connectionNotice = text)
+    }
+
+    /** 当前配对账号持有的已授权原文。撤权或解除配对时以空快照替换。 */
+    fun sharedHistory(snapshot: String) {
+        if (mutable.value.historySnapshot != snapshot) mutable.value = mutable.value.copy(historySnapshot = snapshot)
     }
 
     /** 将当前草稿显式关联到用户选中的 [key]。 */
@@ -138,13 +146,37 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
         return id
     }
 
+    /** 用户主动延后一小时。取得原问题回执后撤卡，迟到的轮询不能重新展示旧卡。 */
+    fun defer(question: PendingQuestion) {
+        val current = mutable.value
+        if (current.work != null || current.composer.draft.isNotBlank() || current.composer.dictating) return
+        val client = PairingClient.approved(getApplication()) ?: return
+        mutable.value = current.copy(work = ChatWork.Saving)
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { client.defer(question, System.currentTimeMillis() / 1000 + 3600) }
+                replyGeneration++
+                val input = mutable.value.composer
+                update(input.sync(input.pending.filterNot { it.key == question.key }))
+                mutable.value = mutable.value.copy(notice = "已延后一小时")
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { mutable.value = mutable.value.copy(notice = "未确认改期，请刷新核对") }
+            finally { mutable.value = mutable.value.copy(work = null) }
+        }
+    }
+
     /** 冻结本次正文与任务版本，写入成功后清空草稿；失败时保留草稿及其目标。 */
     fun send() {
         val current = mutable.value
         val input = current.composer
         val text = input.draft.trim()
         if (text.isEmpty() || current.work != null || input.dictating) return
-        val question = input.pending.find { it.key == input.target }
+        val question = input.pending.find { it.key == input.target } ?: input.unavailable
+        if (question != null && question.deviceId.isNotEmpty() && question.key !in verifiedQuestions &&
+            (current.connectionNotice != null || PairingClient.approved(getApplication())?.usesRelay != true)) {
+            mutable.value = current.copy(notice = "草稿已保留，请等原问题重新确认后发送")
+            return
+        }
         val cloud = current.cloud && input.target == null
         val owner = MobileAccount.owner
         if (cloud && (owner.isBlank() || text.length > 4000)) {

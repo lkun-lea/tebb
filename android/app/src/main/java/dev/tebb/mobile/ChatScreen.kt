@@ -68,7 +68,7 @@ internal fun ChatScreen(
     state: ChatUiState, device: PairingState, pairing: PairingViewModel,
     select: (QuestionKey) -> Unit, dismiss: () -> Unit, edit: (String) -> Unit,
     send: () -> Unit, voice: () -> Unit, stop: () -> Unit, cancel: () -> Unit,
-    sync: (List<PendingQuestion>) -> Unit, retryHistory: () -> Unit, clearHistory: () -> Unit, chooseCloud: (Boolean) -> Unit
+    sync: (List<PendingQuestion>) -> Unit, retryHistory: () -> Unit, clearHistory: () -> Unit, chooseCloud: (Boolean) -> Unit, defer: (PendingQuestion) -> Unit
 ) {
     var sheet by rememberSaveable { mutableStateOf("") }
     val owner by pairing.signedIn.collectAsState()
@@ -154,7 +154,15 @@ internal fun ChatScreen(
                             } })
                             if (!tasksOpen) ChatHistoryMenu(state.messages.isNotEmpty(), !composer.dictating && loading == null, clearHistory)
                         }
-                        Conversation(state, select, Modifier.weight(1f), welcomeSize, petQuestion, { welcome = it }, { questionCenter = it },
+                        if (owner.isNotEmpty() && device is PairingState.Paired && !tasksOpen) {
+                            if (state.historySnapshot != "[]") {
+                                SharedPlanCard(owner, device.computer, state.historySnapshot, state.connectionNotice,
+                                    composer.draft.isBlank() && !composer.dictating && state.work == null) { text ->
+                                    dismiss(); chooseCloud(false); edit(text)
+                                }
+                            } else ContextSuggestion(owner, composer.pending, select)
+                        }
+                        Conversation(state, select, defer, Modifier.weight(1f), welcomeSize, petQuestion, { welcome = it }, { questionCenter = it },
                             answerId, { answerCenter = it }, { edit(it); send() })
                         (state.notice ?: state.connectionNotice)?.let { notice ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,7 +265,7 @@ private fun ThinkingOverlay(label: String) {
 
 /** 展示待答问题和本机消息。消息用稳定标识定位，新增消息后滚动到最新一条。 */
 @Composable
-private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, modifier: Modifier,
+private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defer: (PendingQuestion) -> Unit, modifier: Modifier,
                          welcomeSize: androidx.compose.ui.unit.Dp, petQuestion: QuestionKey?, welcome: (Offset?) -> Unit, questionCenter: (Offset?) -> Unit,
                          answerId: Long?, answerCenter: (Offset?) -> Unit, startChat: (String) -> Unit) {
     val list = rememberLazyListState()
@@ -315,8 +323,12 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, modi
                 }
                 Spacer(Modifier.size(2.dp, 40.dp).background(Accent))
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    if (question.items.isNotBlank()) Text(question.items, color = Muted, fontSize = 13.sp)
                     Text(question.title, color = Accent, fontSize = 13.sp)
                     Text(question.prompt, color = Paper, fontSize = 17.sp, lineHeight = 26.sp)
+                    if (question.deviceId.isNotEmpty()) TextButton(onClick = { defer(question) },
+                        enabled = state.work == null && state.composer.draft.isBlank() && !state.composer.dictating &&
+                            state.connectionNotice == null) { Text("一小时后提醒") }
                 }
                 Text("›", color = Muted, fontSize = 22.sp)
             }
@@ -348,7 +360,7 @@ private fun ComposerBar(
     state: ComposerState, listening: Boolean, dismiss: () -> Unit, edit: (String) -> Unit,
     send: () -> Unit, voice: () -> Unit, stop: () -> Unit, cancel: () -> Unit, runtime: @Composable () -> Unit
 ) {
-    val target = state.pending.firstOrNull { it.key == state.target }
+    val target = state.pending.firstOrNull { it.key == state.target } ?: state.unavailable
     val shape = RoundedCornerShape(28.dp)
     val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFF363638))
     val hint = if (target == null) "给 tebb 发消息…" else "输入回答…"
@@ -357,7 +369,7 @@ private fun ComposerBar(
         .border(1.dp, outline, shape).padding(9.dp)) {
         if (target != null) Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.size(2.dp, 14.dp).background(Accent, CircleShape))
-            Text("正在回复 · ${target.title}", Modifier.weight(1f).padding(start = 8.dp),
+            Text((if (state.unavailable != null) "原问题已结束 · " else "正在回复 · ") + target.title, Modifier.weight(1f).padding(start = 8.dp),
                 color = Accent, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (!state.dictating) GlyphButton(Glyph.Close, "取消任务引用", dismiss)
         }

@@ -8,6 +8,37 @@ class ComposerStateTest {
     private val a = PendingQuestion(QuestionKey("a", "1"), "评审", "多久？")
     private val b = PendingQuestion(QuestionKey("b", "1"), "笔记", "哪份？")
 
+    @Test fun desktopCiphertextBindsDeviceAndDirection() {
+        val encrypted = "718fda3e00ff1563c251630386ec04d079ca5e1ad355".chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        fun open(stream: String) = relayCipher(javax.crypto.Cipher.DECRYPT_MODE, "demo-only", "fixture",
+            ByteArray(12) { it.toByte() }, stream).doFinal(encrypted)
+        assertEquals("草稿",String(open("windows"),Charsets.UTF_8))
+        assertThrows(javax.crypto.AEADBadTagException::class.java) { open("phone") }
+    }
+
+    @Test fun recommendationUsesRecentSameConversationAndRespectsCorrections() {
+        val current = a.copy(deviceId = "pc", conversation = "c", created = 864000)
+        val related = b.copy(deviceId = "pc", conversation = "c", created = 863000)
+        val other = a.copy(key = QuestionKey("other", "1"), deviceId = "pc", conversation = "other", created = 862000)
+        val old = current.copy(key = QuestionKey("old", "1"), created = 1)
+        val rows = listOf(other, old, related, current)
+        assertEquals(listOf(current, related), suggestionSources(rows, 864000, emptySet()))
+        assertEquals(listOf(other), suggestionSources(rows, 864000, setOf(suggestionId(current), suggestionId(related))))
+        assertTrue(suggestionSources(rows, 864000 * 2L, emptySet()).isEmpty())
+    }
+
+    @Test fun completedQuestionWithdrawsCardWithoutReroutingItsDraft() {
+        val first = a.copy(deviceId="pc")
+        val next = b.copy(title=first.title,deviceId="pc")
+        val input = ComposerState().sync(listOf(first)).copy(draft="45 分钟")
+        val resolved = input.verifiedSnapshot(listOf(next))
+        assertEquals(listOf(next),resolved.pending)
+        assertEquals(first,resolved.unavailable)
+        assertEquals(first.key,resolved.select(next.key).target)
+        assertNull(resolved.dismiss().target)
+        assertEquals(input.draft,resolved.dismiss().draft)
+    }
+
     // 听写过程中出现第二项仍保留原引用；结果只追加一次，取消保留已有草稿。
     @Test fun speechAppendsOnceAndPreservesTask() {
         val listening = ComposerState().sync(listOf(a)).copy(draft = "已有文字", dictating = true)
