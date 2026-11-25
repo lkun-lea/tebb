@@ -871,3 +871,12 @@ test('最近按本地原文找回同名旧方案，更新或删除后按当前�
   assert.equal(text(view.root.findByProps({role:'status'})),'没有找到匹配的会话');
   await act(async () => view.unmount());
 });
+
+test('旧方案时间线绑定会话、版本、回执及未记录时间的来源', () => {
+  const { conversationTimeline } = load('conversation-timeline');
+  const state = {conversations:[{id:'old'}], messages:[{id:'decision',conversation:'old',created:20,text:'改期'}],
+    runs:[{id:'r',conversation:'old',flow_events:[{seq:2,ts:10,kind:'file_change',data:{path:'proposal.md',revision:'v2'}}],
+      project_receipts:[{call_id:'c',tool:'保存',ok:true}]},{conversation:'other',artifact:'其他会话'}]};
+  assert.deepEqual(conversationTimeline(state,'old').map(row=>row.text),['proposal.md · v2','改期','保存 · 已确认']);
+  assert.deepEqual(conversationTimeline(state,'other'),[]);
+});
