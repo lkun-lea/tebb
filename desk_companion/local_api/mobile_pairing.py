@@ -33,10 +33,17 @@ class Application(BaseModel):
     signature: str = Field(max_length=256)
 
 
-class TaskAnswer(BaseModel):
+class QuestionReference(BaseModel):
     conversation: str = Field(min_length=1, max_length=180)
     run: str = Field(min_length=1, max_length=180)
     version: str = Field(min_length=1, max_length=128)
+
+
+class QuestionDefer(QuestionReference):
+    until: int
+
+
+class TaskAnswer(QuestionReference):
     text: str = Field(min_length=1, max_length=4000)
 
 
@@ -68,10 +75,11 @@ def write_identity(path, address):
 
 
 class MobilePairing:
-    def __init__(self, directory, account, active, collaboration=None, lease=None):
+    def __init__(self, directory, account, active, collaboration=None, lease=None, relay_headers=None):
         self.directory = Path(directory)
         self.account = account
         self.active = active
+        self.relay_headers = relay_headers
         self.lease = lease
         self.cached_key = None
         self.expires = 0
@@ -123,19 +131,40 @@ class MobilePairing:
                 self.restore()
             if action == 'start':
                 self._start(address)
-            elif action in ('approve', 'reject'):
+            elif action in ('approve', 'approve_relay', 'reject'):
                 if self.state != 'pending' or request_id != self.ident:
                     raise ValueError('配对申请已变化，请刷新。')
-                if action == 'approve':
+                if action != 'reject':
                     self._key()
                     self.directory.mkdir(parents=True, exist_ok=True)
                     tmp = self.record.with_suffix('.tmp')
                     tmp.write_text(json.dumps(dict(protocol=2, account=self.account, public_key=self.key, name=self.name,
                                                    id=self.ident, computer=socket.gethostname(),
+                                                   relay_key=base64.b64encode(hashlib.sha256(('tebb-relay-v1:' + self.access).encode()).digest()).decode() if action == 'approve_relay' else '',
                                                    host=self.address, port=self.server.config.port,
                                                    credential=hashlib.sha256(self.access.encode()).hexdigest())), encoding='utf-8')
                     os.replace(tmp, self.record)
-                self.state = 'approved' if action == 'approve' else 'rejected'
+                self.state = 'rejected' if action == 'reject' else 'approved'
+            elif action in ('share_history', 'unshare_history'):
+                self._key()
+                if not self.record.exists():
+                    raise ValueError('请先配对手机并启用加密中转')
+                record = json.loads(self.record.read_text(encoding='utf-8'))
+                if record.get('account') != self.account or not record.get('relay_key'):
+                    raise ValueError('请重新配对并选择加密中转')
+                chats = set(record.get('shared_chats', []))
+                if action == 'share_history':
+                    if not self.collaboration().shared_history([request_id]):
+                        raise ValueError('会话已移除')
+                    chats.add(request_id)
+                    if len(chats) > 4:
+                        raise ValueError('最多同时共享四个会话')
+                else:
+                    chats.discard(request_id)
+                record['shared_chats'] = sorted(chats)
+                tmp = self.record.with_suffix('.tmp')
+                tmp.write_text(json.dumps(record), encoding='utf-8')
+                os.replace(tmp, self.record)
             elif action == 'forget':
                 self.record.unlink(missing_ok=True)
                 self.state = 'idle'
@@ -146,6 +175,7 @@ class MobilePairing:
             if self.record.exists():
                 record = json.loads(self.record.read_text(encoding='utf-8'))
                 view['paired'] = record['name']
+                view['shared_chats'] = record.get('shared_chats', [])
                 view['legacy'] = record.get('protocol') != 2
             if self.state == 'waiting':
                 view['qr'] = self.qr
@@ -189,6 +219,11 @@ class MobilePairing:
         with self.lock:
             if self.token == token and self.state != 'approved':
                 self.close()
+
+    def relay_tick(self):
+        if self.relay_headers and self.record.exists() and self.active():
+            from desk_companion.local_api.paired_workspace import exchange
+            exchange(self, self.relay_headers)
 
     def restore(self):
         """Rebind the approved endpoint after a backend restart, on its original LAN address only."""
@@ -278,7 +313,8 @@ class MobilePairing:
                 if (generation is None or generation != self.token or not self.active() or ident != getattr(self, 'ident', None)
                         or not hmac.compare_digest(authorization, 'Bearer ' + self.ticket)):
                     raise HTTPException(403)
-                return dict(state=self.state, **({'access': self.access} if self.state == 'approved' else {}))
+                return dict(state=self.state, **({'access': self.access, 'relay': bool(json.loads(self.record.read_text(encoding='utf-8')).get('relay_key'))}
+                                                 if self.state == 'approved' else {}))
 
         def authorize(header):
             if not self.active() or not self.record.exists() or not header.startswith('Bearer '):
@@ -294,6 +330,15 @@ class MobilePairing:
             with self.lock:
                 authorize(authorization)
                 return dict(questions=self.collaboration().mobile_questions())
+
+        @api.post('/mobile/v1/defer')
+        def defer(body: QuestionDefer, authorization: str = Header(default='')):
+            with self.lock:
+                authorize(authorization)
+                try:
+                    return self.collaboration().defer_question(body.conversation, body.run, body.version, body.until)
+                except ValueError as exc:
+                    raise HTTPException(409, str(exc)) from exc
 
         @api.post('/mobile/v1/answers')
         def submit(body: TaskAnswer, authorization: str = Header(default='')):

@@ -85,6 +85,25 @@ class HttpApiTests(unittest.IsolatedAsyncioTestCase):
             denied = await self.client.post('/v1/runs', json=self.command(), headers={'Authorization': 'Bearer preview'})
             self.assertEqual(denied.status_code, 401)
 
+    async def test_device_relay_separates_channels_and_rejects_other_accounts(self):
+        from desk_companion.local_api.paired_workspace import seal, unseal
+        from cryptography.exceptions import InvalidTag
+        device = '1' * 32
+        key = os.urandom(32)
+        params = dict(device=device, stream='windows')
+        blob = seal(key, device, 'windows', {'prompt': '私有材料'})
+        endpoint = '/cloud/v1/device-snapshot'
+        with patch('desk_companion.accounts.personalization_cloud.PersonalizationCloud.verify_session', return_value='user'), patch.dict(
+                os.environ, TEBB_CHAT_OWNER='user', TEBB_CLOUD_URL='https://test.invalid', TEBB_CLOUD_PUBLISHABLE_KEY='sb_publishable_'+'a'*20):
+            self.assertEqual((await self.client.post(endpoint, json={**params,'sealed':blob})).status_code, 200)
+            received = (await self.client.get(endpoint, params=params)).json()['sealed']
+            self.assertEqual(unseal(key, device, 'windows', received), {'prompt': '私有材料'})
+            with self.assertRaises(InvalidTag):
+                unseal(key,device,'phone',received)
+            self.assertIsNone((await self.client.get(endpoint, params={**params,'device':'2'*32})).json()['sealed'])
+            with patch.dict(os.environ,TEBB_CHAT_OWNER='another'):
+                self.assertEqual((await self.client.get(endpoint, params=params)).status_code,403)
+
     async def test_cloud_chat_owner_receipt_and_reconnect(self):
         subject = '298f6350-ef97-4880-92aa-ec278adbb532'
         body = dict(request_id='9e721147-2cf4-48d3-af79-c6ff013a2f59', text='fixture')

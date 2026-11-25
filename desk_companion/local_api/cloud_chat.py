@@ -54,6 +54,9 @@ def recent(tasks, subject, conversation=""):
 
 
 def install_public(app, backend):
+    from desk_companion.local_api.device_relay import install_relay
+    install_relay(app, lambda request: owner(request))
+
     @app.get('/cloud/v1/tools')
     def tools(request: Request):
         owner(request)

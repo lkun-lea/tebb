@@ -156,6 +156,18 @@ def seed():
     return state
 
 
+def message_time(message):
+    """保留旧会话行中的带时区时间；没有时间依据的材料继续标为未知。"""
+    created = message.get('created')
+    if isinstance(created, (float, int)) and not isinstance(created, bool):
+        return created
+    try:
+        stamp = datetime.fromisoformat(message.get('ts', ''))
+        return stamp.timestamp() if stamp.utcoffset() is not None else None
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
 def import_legacy(state):
     if state.get("legacy_imported"): return
     from desk_companion.memory.history import list_chat, list_sessions
@@ -342,18 +354,114 @@ class Collaboration:
 
         return on_event
 
-    def mobile_questions(self):
-        """Return only pending human prompts; model inputs and workspace data stay on Windows."""
+    def defer_question(self, conversation, run_id, version_id, until):
+        """把同一版待答问题延后到指定时刻，保留原运行及已有回答权限。"""
         from desk_companion.collaboration.clarification import version
         with self.lock, transaction(self.path) as (state, _):
-            return [dict(run=r['id'], conversation=r['conversation'], version=version(r),
-                         title=r['title'], prompt=r.get('clarification') or r.get('answer', ''))
-                    for r in state['runs'] if r['state'] == 'needs_input' and r['kind'] != 'chat']
+            run = next((row for row in state['runs'] if row['id'] == run_id and
+                        row['conversation'] == conversation and row['state'] == 'needs_input'), None)
+            if not run or version(run) != version_id or self._handled(self._question_items(state).get(run_id, [])):
+                raise ValueError('原问题已变化')
+            now = time.time()
+            if not now < until <= now + 86400:
+                raise ValueError('提醒时间不在未来一天内')
+            run['question_defer'] = dict(version=version_id, until=until)
+            return dict(run=run_id, version=version_id, until=until)
+
+    @staticmethod
+    def _deferred(run):
+        from desk_companion.collaboration.clarification import version
+        saved = run.get('question_defer', {})
+        return saved.get('until', 0) > time.time() and saved.get('version') == version(run)
+
+    def shared_history(self, allowed):
+        """只向已选会话投影近期留存的原文、版本和回执，保留缺失时间及截断信息。"""
+        with self.lock, transaction(self.path) as (state, _):
+            return self._shared_history(state, allowed)
+
+    def _shared_history(self, state, allowed):
+        if not allowed:
+            return []
+        result = []
+        linked = self._question_items(state)
+        for chat in state['conversations']:
+            cid = chat['id']
+            if cid not in allowed:
+                continue
+            rows = []
+            matters = set()
+            def add(source, stamp, kind, text):
+                rows.append(dict(source=source, time=int(stamp or 0), kind=kind,
+                                 text=text[:400], truncated=len(text) > 400))
+            for msg in state['messages']:
+                if msg['conversation'] == cid:
+                    add(msg['id'], message_time(msg), '原文', msg.get('text', ''))
+            for run in state['runs']:
+                if run['conversation'] != cid:
+                    continue
+                matters.update(item['id'] for item in linked.get(run['id'], []))
+                for event in run.get('flow_events', []):
+                    data = event['data']
+                    if event['kind'] == 'file_change' and data.get('path'):
+                        add(run['id'] + '/' + str(event['seq']), event.get('ts'), '文件',
+                            data['path'] + ' · ' + (data.get('revision') or '未记录版本'))
+                for receipt in run.get('project_receipts', []):
+                    add(run['id'] + '/' + receipt['call_id'], None, '回执',
+                        receipt['tool'] + (' · 已确认' if receipt['ok'] else ' · 未完成'))
+                if run.get('artifact'):
+                    add(run['id'], run.get('finished'), '成果', run['artifact'])
+            rows.sort(key=lambda r: r['time'] or float('inf'))
+            result.append(dict(id=cid, title=chat['title'], project=chat.get('project_id', ''),
+                               rows=rows[-16:], total=len(rows), matters=sorted(matters)))
+        return result
+
+    @staticmethod
+    def _question_items(state):
+        """事项的链接是原运行的稳定标识；同名标题不能用来合并。"""
+        items = {}
+        for item in state.get('work_items', []):
+            for link in item.get('links', []):
+                items.setdefault(link['id'], []).append(item)
+        return items
+
+    @staticmethod
+    def _handled(items):
+        return bool(items) and all(i['state'] == 'done' or i['archived'] for i in items)
+
+    def mobile_questions(self):
+        """Return only pending human prompts; model inputs and workspace data stay on Windows."""
+        with self.lock, transaction(self.path) as (state, _):
+            return self._mobile_questions(state)
+
+    def mobile_workspace(self, allowed):
+        """在同一次读取中核对待答状态与共享授权，避免两段快照采用不同版本。"""
+        with self.lock, transaction(self.path) as (state, _):
+            return dict(history=self._shared_history(state, allowed), questions=self._mobile_questions(state))
+
+    def _mobile_questions(self, state):
+        from desk_companion.collaboration.clarification import version
+        linked = self._question_items(state)
+        rows = []
+        for run in state['runs']:
+            items = linked.get(run['id'], [])
+            if run['state'] != 'needs_input' or run['kind'] == 'chat' or self._deferred(run) or self._handled(items):
+                continue
+            rows.append(dict(run=run['id'], conversation=run['conversation'], version=version(run),
+                             created=int(run.get('created') or 0), title=run['title'],
+                             prompt=run.get('clarification') or run.get('answer', ''),
+                             items=[dict(id=i['id'], owner=i.get('agent_id', 'tebb'), due=i.get('due', ''))
+                                    for i in items if not i['archived'] and i['state'] != 'done']))
+        return rows
+
 
     def snapshot(self, since=""):
         from desk_companion.models.model_catalog import public_catalog
         with self.lock, transaction(self.path) as (state, _):
             result = copy.deepcopy(state)
+        for message in result['messages']:
+            if message.get('ts') and not message.get('created'):
+                message['created'] = message_time(message)
+        question_items = self._question_items(result)
         # Business items and calendar receipts have their own authenticated services.
         for key in ("work_items", "schedule_links", "schedule_operations", "schedule_days", "schedule_weeks", "schedule_reads", "schedule_read_version", "local_calendar_events", "local_calendar_operations", "calendar_sync_batches"):
             result.pop(key, None)
@@ -364,6 +472,8 @@ class Collaboration:
                 run['task_budget']=Ledger().view(run['budget_id'])
             from desk_companion.collaboration.clarification import public_version
             public_version(run)
+            run['matter_ids'] = [i['id'] for i in question_items.get(run['id'], [])]
+            run['question_deferred'] = self._deferred(run) or self._handled(question_items.get(run['id'], []))
             if run.get('options_generation'):run['options_generation']={k:v for k,v in run['options_generation'].items() if k in {'state','error','calls'}}
             if not run.get('parent'):
                 run['chain'] = chain_view(run, result['runs'])
@@ -672,7 +782,7 @@ class Collaboration:
                 run = next((r for r in state["runs"] if r["id"] == action["run"] and r["conversation"] == conversation["id"]), None)
                 if 'question_version' in action:
                     from desk_companion.collaboration.clarification import version
-                    if not run or run['state'] != 'needs_input' or action['question_version'] != version(run):
+                    if not run or run['state'] != 'needs_input' or action['question_version'] != version(run) or self._handled(self._question_items(state).get(run['id'], [])):
                         raise ValueError('问题已变化或已处理，请重新读取。')
                 if not run or run["state"] not in OPEN or run["kind"] == "chat": raise ValueError("此任务已结束或不支持补充")
                 if 'strategy'in action and strategy!=run.get('requested_strategy','auto'):raise ValueError('补充不能改变当前任务的协作策略，请先结束后新建任务')

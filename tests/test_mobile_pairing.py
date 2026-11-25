@@ -72,6 +72,17 @@ class PairingTest(unittest.TestCase):
         question, = self.http.get('questions', headers=headers).json()['questions']
         self.assertEqual(question['run'], run['id'])
         body = {k:question[k] for k in ('conversation','version','run')}
+        until = int(time.time()) + 3600
+        defer = {**body, 'until': until}
+        self.assertEqual(self.http.post('defer', json=defer).status_code, 403)
+        self.assertEqual(self.http.post('defer', json={**defer, 'version':'old'}, headers=headers).status_code, 409)
+        for _ in range(2):
+            self.assertEqual(self.http.post('defer', json=defer, headers=headers).json()['until'], until)
+        self.assertEqual(self.http.get('questions', headers=headers).json()['questions'], [])
+        desktop = next(row for row in flow.service.snapshot()['state']['runs'] if row['id'] == run['id'])
+        self.assertTrue(desktop['question_deferred'])
+        with patch('desk_companion.collaboration.service.time.time', return_value=until + 1):
+            self.assertEqual(flow.service.mobile_questions(), [question])
         body['text'] = '把 Hello 转成小写'
         for changes in ({'version':'stale'}, {'conversation':'dm-writer'}):
             self.assertEqual(self.http.post('answers', json={**body, **changes}, headers=headers).status_code, 409)
@@ -84,6 +95,41 @@ class PairingTest(unittest.TestCase):
         flow.finish(run['id'], [flow.control('start_background_task', instructions=body['text'], strategy='direct')])
         final, _, _ = flow.finish(run['id'], [dict(content='hello')])
         self.assertEqual((final['id'], final['state'], final['artifact']), (run['id'], 'succeeded', 'hello'))
+
+    def test_relay_and_history_require_explicit_device_and_conversation_grants(self):
+        import hashlib
+        import json
+        from tests.test_execution_flow import ExecutionFlowTests
+        flow = ExecutionFlowTests()
+        flow.setUp()
+        self.addCleanup(flow.tearDown)
+        self.pair.collaboration = lambda: flow.service
+        run = flow.send('本地评审资料')
+        receipt = self.apply()
+        self.pair.desktop('approve_relay', receipt['id'])
+        ticket = {'Authorization': 'Bearer ' + receipt['ticket']}
+        approved = self.http.get('pairings/'+receipt['id'], headers=ticket).json()
+        self.assertTrue(approved['relay'])
+        stored = json.loads(self.pair.record.read_text('utf-8'))
+        key = hashlib.sha256(('tebb-relay-v1:' + approved['access']).encode()).digest()
+        self.assertEqual(base64.b64decode(stored['relay_key']),key)
+        from desk_companion.collaboration.store import transaction
+        with transaction(flow.service.path) as (state, _):
+            state['messages'].append(dict(id='archived', conversation=run['conversation'],sender='user',
+                                          text='夏天的旧方案',ts='2026-07-01T10:00:00+08:00'))
+        self.assertEqual(flow.service.shared_history([]),[])
+        view = self.pair.desktop('share_history',run['conversation'])
+        shared, = flow.service.shared_history(view['shared_chats'])
+        self.assertEqual(shared['id'],run['conversation'])
+        self.assertEqual(shared['rows'][0]['source'], 'archived')
+        self.assertGreater(shared['rows'][0]['time'], 0)
+        self.assertIn('本地评审资料', [row['text'] for row in shared['rows']])
+        with self.assertRaises(ValueError):
+            self.pair.desktop('share_history','missing-conversation')
+        view = self.pair.desktop('unshare_history',run['conversation'])
+        self.assertEqual(flow.service.shared_history(view['shared_chats']),[])
+        self.pair.desktop('forget')
+        self.assertFalse(self.pair.record.exists())
 
     def test_approved_endpoint_survives_restart_and_checks_account(self):
         from unittest.mock import Mock

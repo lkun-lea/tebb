@@ -471,7 +471,7 @@ async def scheduled_jobs(host, shutdown, pairing=None):
             except asyncio.TimeoutError:pass
     actions = [host.automation.tick, host.calendar_reminders.tick, host.personalization.tick]
     if pairing is not None:
-        actions.append(pairing.restore)
+        actions.extend([pairing.restore, pairing.relay_tick])
     await asyncio.gather(*(periodic(action) for action in actions))
 
 

@@ -49,3 +49,34 @@ class MobileStatusRelayDemo(unittest.TestCase):
                                      question_version=question['version'], text='45 分钟', request_id='relay-demo-answer'))
             publish()
             self.assertEqual(read(phone), [])
+
+    def test_same_name_items_after_a_month_remain_independent(self):
+        from desk_companion.collaboration.store import transaction
+        from desk_companion.planning.work_items import apply_change
+        import time
+        flow = fixtures.ExecutionFlowTests()
+        flow.setUp()
+        self.addCleanup(flow.tearDown)
+        roots = []
+        for _ in range(2):
+            run = flow.send('评审方案')
+            flow.finish(run['id'], [flow.control('request_clarification', question='何时评审？')])
+            roots.append(run['id'])
+        with transaction(flow.service.path) as (state, _):
+            for run in state['runs']:
+                run['created'] -= 30 * 86400
+            for run_id in roots:
+                item = apply_change(state, dict(type='create', fields=dict(title='评审方案',due='2026-12-01')))
+                apply_change(state, dict(type='link', id=item['id'], version=item['version'], run_id=run_id))
+        first, second = flow.service.mobile_questions()
+        self.assertNotEqual(first['items'][0]['id'], second['items'][0]['id'])
+        self.assertLess(first['created'], time.time() - 29 * 86400)
+        flow.service.defer_question(first['conversation'],first['run'],first['version'],int(time.time())+3600)
+        self.assertEqual(flow.service.mobile_questions(), [second])
+        with transaction(flow.service.path) as (state, _):
+            item = state['work_items'][1]
+            apply_change(state,dict(type='move',id=item['id'],version=item['version'],state='done'))
+        self.assertEqual(flow.service.mobile_questions(),[])
+        with self.assertRaises(ValueError):
+            flow.service.action(dict(type='send',conversation=second['conversation'],run=second['run'],
+                                     question_version=second['version'],text='迟到回复',request_id='stale-reply-test'))
