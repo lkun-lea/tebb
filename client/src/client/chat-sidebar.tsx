@@ -80,7 +80,7 @@ export function ChatSidebar({onShare,state,selected,draftActive,mobile,listView,
     return <div key={item.id}>{row(item)}
       <button className="cp-text-button" aria-expanded={timeline === item.id}
         onClick={() => setTimeline(timeline === item.id ? '' : item.id)}>查看时间线</button>
-      {timeline === item.id && <><ConversationTimeline state={state} conversation={item.id}/>
+      {timeline === item.id && <><ConversationTimeline state={state} conversation={item.id} onSelect={onSelect}/>
         {onShare && <div><button onClick={()=>void onShare(item.id,true)}>共享近期原文与回执到配对手机</button>
           <button onClick={()=>void onShare(item.id,false)}>撤销共享</button></div>}</>}
     </div>;

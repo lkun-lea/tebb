@@ -23,12 +23,16 @@ export function conversationTimeline(state: DemoState, conversation: string) {
   return entries.sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
 }
 
-export function ConversationTimeline({state, conversation}: {state: DemoState; conversation: string}) {
+export function ConversationTimeline({state, conversation, onSelect}: {state: DemoState; conversation: string; onSelect?:(id:string)=>void}) {
   const entries = conversationTimeline(state, conversation);
+  const matters = new Set(state.runs.filter(run => run.conversation === conversation).flatMap(run => run.matter_ids || []));
+  const linkedIds = new Set(state.runs.filter(run => run.matter_ids?.some(id => matters.has(id))).map(run => run.conversation));
+  const linkedChats = state.conversations.filter(chat => chat.id !== conversation && linkedIds.has(chat.id));
   return <section aria-label="留存的原文与回执">
     <p>按留存时间排列。未记录时间的材料列在末尾。</p>
     {entries.length ? <ol>{entries.map((entry, index) => <li key={index}>
       <small>{entry.time ? new Date(entry.time * 1000).toLocaleString() : '时间未知'} · {entry.source}</small>
       <p>{entry.text}</p></li>)}</ol> : <p>当前快照没有留存材料</p>}
+    {onSelect && linkedChats.map(chat => <button key={chat.id} onClick={()=>onSelect(chat.id)}>同一事项 · {chat.title}</button>)}
   </section>;
 }

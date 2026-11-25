@@ -34,6 +34,7 @@ export function MobilePairingPane({info}:{info:BackendInfo|null}) {
     {view?.paired ? <><p>{view.legacy?'旧版授权，请解除后重新配对':'已配对'} · {view.paired}</p><button className="desk-btn" disabled={busy} onClick={()=>void change('forget')}>解除配对</button></>
     : view?.state==='pending' ? <><p>{view.name} 正在申请配对。请核对手机上的校验码 <strong>{view.code}</strong>。</p>
       <button className="desk-btn" disabled={busy} onClick={()=>void change('approve')}>允许配对</button>
+      <button className="desk-btn" disabled={busy} onClick={()=>void change('approve_relay')}>配对并通过 ECS 加密接续</button>
       <button className="desk-btn" disabled={busy} onClick={()=>void change('reject')}>拒绝</button></>
     : <>{view?.qr && <figure><img src={view.qr} width={260} alt="Android 局域网配对二维码"/><figcaption>手机登录同一账号后可点选此电脑或扫码，邀请三分钟有效。</figcaption></figure>}
       {view?.state==='expired' && <p>二维码已过期。</p>}
@@ -67,7 +68,7 @@ export function MobilePairingNotice({info}:{info:BackendInfo|null}) {
   },[info]);
   if(!info||!pending?.id||pending.id===dismissed)return null;
   const requestId=pending.id;
-  async function decide(action:'approve'|'reject'){
+  async function decide(action:'approve'|'approve_relay'|'reject'){
     setBusy(true);setError('');
     try {
       await rpc(info!,'mobile_pairing',{action,request_id:requestId});
@@ -77,6 +78,7 @@ export function MobilePairingNotice({info}:{info:BackendInfo|null}) {
   return <WorkspaceDialog title="手机申请连接" onClose={()=>setDismissed(requestId)} closeDisabled={busy}>
     <p>{pending.name} 请求连接这台电脑。请与手机核对校验码 <strong>{pending.code}</strong>。</p>
     <button className="desk-btn" disabled={busy} onClick={()=>void decide('approve')}>允许配对</button>
+    <button className="desk-btn" disabled={busy} onClick={()=>void decide('approve_relay')}>配对并通过 ECS 加密接续</button>
     <button className="desk-btn" disabled={busy} onClick={()=>void decide('reject')}>拒绝</button>
     {error&&<p role="alert">{error}</p>}
   </WorkspaceDialog>;
