@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Bot, Users, FlaskConical, PenLine, CodeXml, ChartNoAxesCombined, ChevronRight, Folder, MoreHorizontal, SquarePen, FolderOpen, Folders, Settings2, Inbox, Plus, type LucideIcon } from 'lucide-react';
 import { runActive,type DemoState,type DemoConversation,type DemoAgent,type DemoProject } from './chat-prototype-state';
+import { UiField } from './ui-controls';
 import './chat-sidebar.css';
 
 const PARTNER_ICONS:Record<string,LucideIcon>={research:FlaskConical,writer:PenLine,coder:CodeXml,chart:ChartNoAxesCombined};
@@ -19,6 +20,19 @@ export function ChatSidebar({state,selected,draftActive,mobile,listView,onListVi
   const projects=state.projects||[];
   const [recent,setRecent]=useState(false);
   const visibleChats = useMemo(() => [...state.conversations].reverse(), [state.conversations]);
+  const [search, setSearch] = useState('');
+  const query = recent ? search.trim().toLowerCase() : '';
+  const excerpts = useMemo(() => {
+    const found = new Map<string, string>();
+    if (!query) return found;
+    for (const message of state.messages) {
+      const index = message.text.toLowerCase().indexOf(query);
+      if (index < 0) continue;
+      const start = Math.max(0, index - 12);
+      found.set(message.conversation, (start ? '…' : '') + message.text.slice(start, index + query.length + 24));
+    }
+    return found;
+  }, [state.messages, query]);
   const midnight = new Date();
   midnight.setHours(0, 0, 0, 0);
   const today = midnight.getTime();
@@ -38,6 +52,7 @@ export function ChatSidebar({state,selected,draftActive,mobile,listView,onListVi
     week.setDate(week.getDate() - 6);
     const sorted = [...visibleChats].sort((a, b) => activity.get(b.id)! - activity.get(a.id)!);
     for (const chat of sorted) {
+      if (query && !chat.title.toLowerCase().includes(query) && !excerpts.has(chat.id)) continue;
       const time = activity.get(chat.id)! * 1000;
       const label = time >= today ? '今天' : time >= +yesterday ? '昨天' : time >= +week ? '近七天' : time ? '更早' : '暂无活动时间';
       const group = groups.get(label);
@@ -45,7 +60,7 @@ export function ChatSidebar({state,selected,draftActive,mobile,listView,onListVi
       else groups.set(label, [chat]);
     }
     return groups;
-  }, [recent, visibleChats, state.messages, state.runs, today]);
+  }, [recent, visibleChats, state.messages, state.runs, today, query, excerpts]);
   function manage(callback:()=>void){if(management.current)management.current.open=false;callback();}
   function row(item:DemoConversation){
     const agent=state.agents.find(a=>a.id===item.coordinator),active=!draftActive&&item.id===selected;
@@ -53,7 +68,7 @@ export function ChatSidebar({state,selected,draftActive,mobile,listView,onListVi
       <button data-conversation={item.id} data-chat-partner={item.kind==='dm'?item.coordinator:undefined} className={'cp-conversation'+(active?' is-selected':'')} aria-pressed={active}
         aria-label={item.title+'，'+(item.kind==='group'?'协作群':agent?.name||'伙伴')} title={item.title+(item.kind==='group'?' · 协作群': ' · '+(agent?.name||''))}
         onContextMenu={event=>onMenu(item.id,event)} onKeyDown={event=>onKeys(item.id,event)} onClick={()=>onSelect(item.id)}>
-        <PartnerIcon group={item.kind==='group'} agent={item.coordinator}/><span><strong>{item.title}</strong></span>
+        <PartnerIcon group={item.kind==='group'} agent={item.coordinator}/><span><strong>{item.title}</strong>{excerpts.has(item.id) && <small>{excerpts.get(item.id)}</small>}</span>
         {item.kind==='group'&&<small className="cp-conversation-kind">群</small>}
         {state.runs.some(r=>r.conversation===item.id&&runActive(r))&&<i className="cp-live-dot"/>}
       </button><button className="cp-icon-button cp-history-more" aria-label={item.title+'的会话操作'} title="会话操作" onClick={event=>onMenu(item.id,event)}><MoreHorizontal size={16}/></button>
@@ -71,7 +86,7 @@ export function ChatSidebar({state,selected,draftActive,mobile,listView,onListVi
     <button className="cp-new-conversation" aria-pressed={draftActive} onClick={onNew}><SquarePen size={18}/>新对话</button>
     <div className="cp-list-switch" role="tablist" aria-label="聊天导航"><button role="tab" aria-selected={listView==='history'&&!recent} onClick={()=>{setRecent(false);onListView('history');}}>对话</button><button role="tab" aria-selected={listView==='history'&&recent} onClick={()=>{setRecent(true);onListView('history');}}>最近</button><button role="tab"  aria-selected={listView==='companions'} onClick={()=>onListView('companions')}>伙伴</button></div>
     {listView==='history'?<div className="cp-history-tree" role="tabpanel" aria-label="对话记录">
-      {recent ? <>{Array.from(groups,([label,chats])=><section key={label}><div className="cp-list-heading">{label}</div>{chats.map(row)}</section>)}{!groups.size&&<p>暂无对话</p>}</> : <>
+      {recent ? <><UiField label="搜索本地会话"><input type="search" placeholder="标题或原文" value={search} onChange={event=>setSearch(event.target.value)}/></UiField>{Array.from(groups,([label,chats])=><section key={label}><div className="cp-list-heading">{label}</div>{chats.map(row)}</section>)}{!groups.size&&<p role="status">{query ? '没有找到匹配的会话' : '暂无对话'}</p>}</> : <>
       <div className="cp-list-heading"><span>项目</span></div>
       {!projects.length&&<p className="cp-project-empty">还没有项目，可从右上角管理中打开文件夹。</p>}
       {projects.map(project=>{

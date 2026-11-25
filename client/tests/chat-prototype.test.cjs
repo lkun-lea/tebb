@@ -843,3 +843,31 @@ test('cloud composer and recent chats share cached history, preserve drafts and 
   assert.equal(view.root.findByProps({'aria-label':'协作消息'}).props.value,'保留云草稿');
   await act(async()=>view.unmount());
 });
+
+test('最近按本地原文找回同名旧方案，更新或删除后按当前快照显示', async () => {
+  const { ChatSidebar } = load('chat-sidebar');
+  const state = initialDemo();
+  state.conversations = ['old', 'other'].map(id => ({ ...state.conversations[0], id, title: '接续方案' }));
+  state.messages = [
+    {conversation:'old', text:'先讨论 Relay 中转'},
+    {conversation:'old', text:'决定保留 RELAY 中转'},
+    {conversation:'other', text:'备选局域网'},
+    {conversation:'hidden', text:'私有 Relay 资料'},
+  ];
+  let selected, view;
+  const render = () => React.createElement(ChatSidebar, {state, listView:'history', collapsed:{},
+    onListView(){}, onSelect(id){ selected=id; }});
+  await act(async () => { view=create(render()); });
+  await act(async () => button(view,'最近').props.onClick());
+  await act(async () => view.root.findByProps({type:'search'}).props.onChange({target:{value:' relay '}}));
+  const rows = () => view.root.findAll(node => !!node.props['data-conversation']);
+  assert.deepEqual(rows().map(node=>node.props['data-conversation']), ['old']);
+  assert.match(text(rows()[0]), /决定保留 RELAY/);
+  await act(async () => rows()[0].props.onClick());
+  assert.equal(selected,'old');
+  state.messages = state.messages.filter(message=>message.conversation !== 'old');
+  await act(async () => view.update(render()));
+  assert.equal(rows().length,0);
+  assert.equal(text(view.root.findByProps({role:'status'})),'没有找到匹配的会话');
+  await act(async () => view.unmount());
+});
