@@ -48,3 +48,9 @@ uv run --locked python -m unittest tests.test_mobile_status_relay_demo -v
 ```powershell
 node --test --test-name-pattern="最近按本地原文" tests/chat-prototype.test.cjs
 ```
+
+### 本地语义检索评测（#326）
+
+在安装项目 knowledge 扩展且已下载 bge-small-zh-v1.5 的 Python 环境运行 `python scripts/eval_plan_recall.py`。脚本使用八份合成方案，按原词、口语、模糊时间、同名线索和无答案五组输出 JSON。两种检索均在进程中运行，并在返回候选前按现存来源与当前授权过滤。测试还会在索引建好后删除和撤权，再用原词复查。
+
+本机本轮 SQLite FTS5 前五命中 2/4，本地 BGE 混合检索 3/4，首项误召均为 0。能提供最新决定原文的题数分别为 2 与 3；这是送入回答的证据覆盖率。无答案题均返回空。热查询五次的样本 P95 约 0.1 ms 与 57 ms，平均提供原文 11.8 与 17 字，计时不含建索引和加载模型。混合召回多找回「夏天讨论的手机离线读文件」，仍漏掉「手机怎么接着处理电脑上的工作」。样本规模不足以估算用户历史上的命中率或延迟分布，首版保持本机检索，无需部署专用向量数据库。这一脚本只运行检索和证据选择，未调用生成模型。
