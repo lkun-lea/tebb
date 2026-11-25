@@ -125,14 +125,16 @@ internal fun ChatScreen(
                 if (sheet == "device" && owner.isNotEmpty()) {
                     BackHandler(enabled = loading == null) { sheet = "" }
                     Column(Modifier.fillMaxSize().padding(20.dp)) {
-                        TextButton(onClick = { sheet = "" }) { Text("返回聊天") }
-                        Text("我的电脑", color = Paper, fontSize = 24.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            GlyphButton(Glyph.Back, "返回聊天", { sheet = "" })
+                            Text("我的电脑", color = Paper, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                        }
                         Spacer(Modifier.height(16.dp))
                         PairingPanel(pairing, onSignOut = {
                             chooseCloud(false)
                             sheet = ""
                             pairing.signOut()
-                        }, onDecode = { readingCode = it })
+                        }, onDecode = { readingCode = it }, connectionNotice = state.connectionNotice)
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {

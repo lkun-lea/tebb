@@ -42,6 +42,17 @@ def apply_request(service, device, request, now):
     return dict(run=fields['run'], version=fields['version'], accepted=True)
 
 
+def publish_presence(pair):
+    """首版每个账号一台电脑。在线标记与配对凭据分开，密文只含名称和时间。"""
+    import socket
+    with pair.lock:
+        key = pair._key()
+    device = '0' * 32
+    sealed = seal(key, device, 'presence', dict(computer=socket.gethostname(), time=int(time.time())))
+    httpx.post(ORIGIN + '/cloud/v1/device-snapshot', headers=pair.relay_headers(),
+               json=dict(device=device, stream='presence', sealed=sealed), timeout=6).raise_for_status()
+
+
 def exchange(pair, headers):
     with pair.lock:
         if not pair.active() or not pair.record.exists():

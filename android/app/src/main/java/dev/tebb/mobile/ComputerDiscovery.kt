@@ -44,3 +44,21 @@ internal fun discoverComputers(owner: String): List<JSONObject> {
     }
     return results.values.toList()
 }
+
+/** 通过账号 HTTPS 入口读取电脑心跳，用当前账号的发现密钥验证设备名称与更新时间。 */
+internal fun serverComputers(owner: String): List<JSONObject> {
+    val device = "0".repeat(32)
+    val connection = CloudChatClient.connect("device-snapshot?device=$device&stream=presence", owner)
+    try {
+        check(connection.responseCode == 200) { "暂时无法获取电脑状态" }
+        val result = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+        if (result.isNull("sealed")) return emptyList()
+        val raw = Base64.decode(result.getString("sealed"), Base64.DEFAULT)
+        require(raw.size >= 28)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(MobileAccount.lease(owner), "AES"), GCMParameterSpec(128, raw, 0, 12))
+        cipher.updateAAD("tebb-v1/$device/presence".toByteArray(Charsets.UTF_8))
+        val pc = JSONObject(String(cipher.doFinal(raw, 12, raw.size - 12), Charsets.UTF_8))
+        return if (System.currentTimeMillis() / 1000 - pc.getLong("time") in -5L..45L) listOf(pc) else emptyList()
+    } finally { connection.disconnect() }
+}

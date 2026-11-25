@@ -61,7 +61,7 @@ internal class PairingViewModel(app: Application, private val saved: SavedStateH
             try {
                 if (code.isBlank()) {
                     withContext(Dispatchers.IO) { MobileAccount.sendCode(email.trim()) }
-                    mutable.value = PairingState.Notice("请查看邮箱并填写验证码")
+                    mutable.value = PairingState.Notice("验证码已发送")
                 } else {
                     withContext(Dispatchers.IO) { MobileAccount.login(email.trim(), code.trim()) }
                     account.value = MobileAccount.owner
@@ -91,15 +91,15 @@ internal class PairingViewModel(app: Application, private val saved: SavedStateH
     }
 
     /** 登录后自动发现，刷新会取消上一轮结果；扫码或选中电脑时停止刷新。 */
-    fun discover() {
+    fun discover(local: Boolean = false) {
         discovery?.cancel()
         nearby.value = emptyList()
         mutable.value = PairingState.Notice("正在寻找同账号电脑…")
         val owner = account.value
         discovery = viewModelScope.launch {
             try {
-                nearby.value = withContext(Dispatchers.IO) { discoverComputers(owner) }
-                mutable.value = if (nearby.value.isEmpty()) PairingState.Notice("未找到电脑，请检查 Wi-Fi 和电脑当前账号")
+                nearby.value = withContext(Dispatchers.IO) { if (local) discoverComputers(owner) else serverComputers(owner) }
+                mutable.value = if (nearby.value.isEmpty()) PairingState.Notice("电脑暂未上线，请在 Windows 打开 tebb 并登录同一账号")
                     else PairingState.Idle
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { mutable.value = PairingState.Notice(e.localizedMessage ?: "发现失败") }

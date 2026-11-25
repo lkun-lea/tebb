@@ -98,6 +98,17 @@ class PersonalAgentAcceptance : Instrumentation() {
             tap("这不是当前工作")
             waitFor("继续 · 配对讨论")
             check(findText(uiAutomation.rootInActiveWindow,"继续 · 中转设计") == null)
+            runOnMainSync {
+                val pairing = PairingViewModel(screen.application, androidx.lifecycle.SavedStateHandle())
+                screen.setContent {
+                    androidx.compose.material.MaterialTheme(colors = androidx.compose.material.darkColors()) {
+                        PairingPanel(pairing, onSignOut = {}, onDecode = {})
+                    }
+                }
+            }
+            waitFor("刷新电脑状态")
+            waitFor("扫码配对 Windows")
+            waitFor("从图片识别配对码")
             if (live) {
                 val url = java.net.URL("https://8.136.145.17/cloud/v1/device-snapshot?device=" + "0".repeat(32) + "&stream=windows")
                 val http = url.openConnection() as javax.net.ssl.HttpsURLConnection

@@ -83,6 +83,7 @@ class MobilePairing:
         self.lease = lease
         self.cached_key = None
         self.expires = 0
+        self.next_presence = 0
         self.discovery = Discovery(self._offer)
         self.collaboration = collaboration
         self.token = None
@@ -221,7 +222,18 @@ class MobilePairing:
                 self.close()
 
     def relay_tick(self):
-        if self.relay_headers and self.record.exists() and self.active():
+        if not self.relay_headers or not self.active() or self.account == 'local':
+            return
+        from desk_companion.local_api.paired_workspace import publish_presence
+        if time.monotonic() >= self.next_presence:
+            self.next_presence = time.monotonic() + 15
+            try:
+                publish_presence(self)
+            except Exception:
+                if not self.record.exists():
+                    raise
+                # 在线标记单独过期，已批准的设备仍可继续收发快照。
+        if self.record.exists():
             from desk_companion.local_api.paired_workspace import exchange
             exchange(self, self.relay_headers)
 

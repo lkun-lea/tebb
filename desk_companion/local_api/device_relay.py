@@ -12,7 +12,7 @@ from typing import Literal
 class Envelope(BaseModel):
     model_config = ConfigDict(extra='forbid')
     device: str = Field(pattern='^[a-f0-9]{32}$')
-    stream: Literal['windows', 'phone']
+    stream: Literal['windows', 'phone', 'presence']
     sealed: str = Field(min_length=40, max_length=262144)
 
 
@@ -46,7 +46,7 @@ def install_relay(app, authorize):
         return {'stored': True}
 
     @app.get('/cloud/v1/device-snapshot')
-    def read(request: Request, device: str, stream: Literal['windows', 'phone']):
+    def read(request: Request, device: str, stream: Literal['windows', 'phone', 'presence']):
         key = (authorize(request), device, stream)
         with lock:
             entry = snapshots.get(key)

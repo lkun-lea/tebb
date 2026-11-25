@@ -8,7 +8,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Surface
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.*
@@ -48,7 +54,7 @@ private fun readQr(resolver: ContentResolver, uri: Uri): String {
  * 临时的图片读取错误属于当前界面，网络重试和申请回执由 ViewModel 管理。
  */
 @Composable
-internal fun PairingPanel(model: PairingViewModel, onSignOut: () -> Unit, onDecode: (Boolean) -> Unit) {
+internal fun PairingPanel(model: PairingViewModel, onSignOut: () -> Unit, onDecode: (Boolean) -> Unit, connectionNotice: String? = null) {
     val state by model.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -67,32 +73,63 @@ internal fun PairingPanel(model: PairingViewModel, onSignOut: () -> Unit, onDeco
     }
 
     val nearby by model.computers.collectAsState()
-    Column(Modifier.verticalScroll(rememberScrollState())) {
-        TextButton(onClick = onSignOut) { Text("退出账号") }
-        when (val current = state) {
-            PairingState.Connecting -> Text("正在验证电脑并提交申请…")
-            is PairingState.Pending -> Text("请在 ${current.computer} 核对并确认：${current.code}")
-            is PairingState.Paired -> {
-                Text("已配对 · ${current.computer}")
-                TextButton(onClick = model::forgetLocal) { Text("移除本机配对记录") }
-            }
-            else -> {
-                if (current is PairingState.Notice) {
-                    Text(current.message)
-                    if (current.canRetry) TextButton(onClick = model::retry) { Text("重试连接") }
+    LaunchedEffect(Unit) {
+        if (model.signedIn.value.isNotEmpty() && (state is PairingState.Idle || (state as? PairingState.Notice)?.canRetry == false))
+            model.discover()
+    }
+    LaunchedEffect(nearby) {
+        nearby.firstOrNull { it.has("time") && !it.has("pin") }?.let { pc ->
+            val expires = (pc.getLong("time") + 45) * 1000
+            kotlinx.coroutines.delay((expires - System.currentTimeMillis()).coerceAtLeast(1000))
+            model.discover()
+        }
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colors.surface,
+            contentColor = MaterialTheme.colors.onSurface) {
+            Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Windows", color = MaterialTheme.colors.primary, fontSize = 16.sp)
+                Text(when (val status = state) {
+                    is PairingState.Paired -> status.computer
+                    else -> nearby.firstOrNull()?.optString("computer") ?: "设备状态"
+                }, fontSize = 26.sp)
+                when (val current = state) {
+                    PairingState.Connecting -> Text("正在验证电脑并提交申请…")
+                    is PairingState.Pending -> Text("请在 ${current.computer} 核对并确认：${current.code}")
+                    is PairingState.Paired -> {
+                        Text(connectionNotice ?: "已配对")
+                        TextButton(onClick = model::forgetLocal) { Text("移除本机配对记录") }
+                    }
+                    else -> {
+                        if (current is PairingState.Notice) {
+                            Text(current.message)
+                            if (current.canRetry) TextButton(onClick = model::retry) { Text("重试连接") }
+                        }
+                        nearby.forEach { computer ->
+                            if (computer.has("pin")) TextButton(onClick = { model.scanned(computer.toString()) }) { Text("配对 " + computer.getString("computer")) }
+                            else Text("在线 · 通过服务器发现", color = MaterialTheme.colors.primary)
+                        }
+                        TextButton(onClick = { model.discover() }) { Text("刷新电脑状态") }
+                    }
                 }
-                nearby.forEach { computer ->
-                    TextButton(onClick = { model.scanned(computer.toString()) }) { Text(computer.getString("computer")) }
-                }
-                TextButton(onClick = model::discover) { Text("刷新附近电脑") }
-                TextButton(onClick = {
-                    imageError = false
-                    camera.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        .setPrompt("扫描 Windows 上的 tebb 配对码").setBeepEnabled(false))
-                }) { Text("扫码配对 Windows") }
-                TextButton(onClick = { imageError = false; image.launch("image/*") }) { Text("从图片识别配对码") }
-                if (imageError) Text("图片中未识别到配对二维码")
             }
         }
+        if (state !is PairingState.Paired && state !is PairingState.Pending && state != PairingState.Connecting) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colors.surface, contentColor = MaterialTheme.colors.onSurface) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("配对电脑", fontSize = 20.sp)
+                    Text("首次配对时，请在电脑上打开配对码。", fontSize = 15.sp)
+                    TextButton(onClick = { model.discover(local = true) }) { Text("查找局域网电脑") }
+                    Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
+                        imageError = false
+                        camera.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("扫描 Windows 上的 tebb 配对码").setBeepEnabled(false))
+                    }) { Text("扫码配对 Windows") }
+                    TextButton(onClick = { imageError = false; image.launch("image/*") }) { Text("从图片识别配对码") }
+                    if (imageError) Text("图片中未识别到配对二维码")
+                }
+            }
+        }
+        TextButton(onClick = onSignOut) { Text("退出账号") }
     }
 }
