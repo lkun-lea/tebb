@@ -63,16 +63,20 @@ def install_desktop(app, backend, authorize):
     async def submit(request: Request, message: DesktopMessage):
         import json
         authorize(request)
+        service = backend.HOST.collaboration if message.conversation else None
+        body = message.model_dump(mode='json', exclude={'project_id', 'local_history'})
         if message.conversation:
             try:
-                await asyncio.to_thread(backend.HOST.collaboration.validate_cloud_conversation, message.conversation, message.project_id)
+                body["local_history"] = await asyncio.to_thread(service.validate_cloud_conversation, message.conversation, message.project_id)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from None
-        client, result = await connect(request, 'messages', message.model_dump(mode='json', exclude={'project_id'}))
+        if len(json.dumps(body, ensure_ascii=False).encode()) > 32000 or len(body.get('local_history', [])) > 500:
+            raise HTTPException(413, '会话超过云端上下文容量，请在本地继续。')
+        client, result = await connect(request, 'messages', body)
         try:
             receipt = json.loads(await result.aread())
             if message.conversation:
-                await asyncio.to_thread(backend.HOST.collaboration.action, dict(type='cloud_conversation',
+                await asyncio.to_thread(service.action, dict(type='cloud_conversation',
                     request_id='cloud-'+str(message.request_id), conversation=message.conversation, text=message.text, project_id=message.project_id))
             return receipt
         finally:
@@ -80,9 +84,19 @@ def install_desktop(app, backend, authorize):
 
     @app.get('/desktop/cloud/events')
     async def events(request: Request, conversation: str = Query(default='', max_length=128, pattern=r'^[a-zA-Z0-9_-]*$')):
+        authorize(request)
+        service = backend.HOST.collaboration if conversation else None
         client, result = await connect(request, 'events' + ('?conversation=' + conversation if conversation else ''))
         if not result.headers.get('content-type','').startswith('text/event-stream'):
             await client.aclose()
             raise HTTPException(502, '云端事件流格式错误。')
-        return StreamingResponse(result.aiter_bytes(), media_type='text/event-stream',
+        async def replay():
+            import json
+            async for line in result.aiter_lines():
+                if conversation and line.startswith('data: '):
+                    event = json.loads(line[6:])
+                    if event['type'] == 'turn' and event['data']['state'] not in ('queued', 'running'):
+                        await asyncio.to_thread(service.record_cloud_turn, conversation, event['data'])
+                yield line + '\n'
+        return StreamingResponse(replay(), media_type='text/event-stream',
                                  background=BackgroundTask(client.aclose))

@@ -824,6 +824,12 @@ test('cloud composer and recent chats share cached history, preserve drafts and 
   const history = () => text(view.root.findByProps({'aria-label':'协作聊天记录'}));
   assert.match(history(),/已有云端回答/);
   assert.doesNotMatch(text(view.root),/正在连接云端/);
+  const composer = view.root.findByProps({'aria-label':'云端消息'});
+  assert.ok(view.root.findAllByProps({className:'cp-message cp-message-user'}).some(row => text(row).includes(cached.text)));
+  assert.doesNotMatch(history(), /cached-run/);
+  await act(async()=>view.root.findByProps({'aria-label':'执行位置'}).props.onChange({target:{value:'local'}}));
+  assert.equal(view.root.findByProps({'aria-label':'协作消息'}),composer);
+  await act(async()=>view.root.findByProps({'aria-label':'执行位置'}).props.onChange({target:{value:'cloud'}}));
   await act(async()=>view.root.findByProps({'aria-label':'云端消息'}).props.onChange({target:{value:'保留云草稿'}}));
   await act(async()=>view.root.findByProps({'data-conversation':other}).props.onClick());
   assert.doesNotMatch(history(),/已有云端回答/);

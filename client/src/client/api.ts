@@ -76,7 +76,7 @@ async function response(info: BackendInfo, path: string, init: RequestInit = {})
   if (!result.ok) {
     let message = `后台请求失败（${result.status}），请核对原操作结果。`;
     try { message = (await result.json()).detail || message; } catch { /* Keep the status on a non-JSON failure. */ }
-    throw new Error(String(message));
+    throw Object.assign(new Error(String(message)), {status:result.status});
   }
   return result;
 }

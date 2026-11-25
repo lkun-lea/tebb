@@ -4,7 +4,7 @@ import type { TaskBudget } from './task-budget';
 export type DemoAgent = { id: string; name: string; role: string; mark: string; tone: string; model: string; tools: string[]; memory: string; avatar?: string; personality?: string };
 export type DemoProject = { id: string; name: string; primary?: string; instructions?: string; sources?: {id:string;title:string;text:string;truncated?:boolean}[] };
 export type DemoConversation = { cloud_activity?:number; id: string; title: string; kind: "dm" | "group"; members: string[]; coordinator: string; goal: string; legacy?: boolean; summary?: string; project_id?: string };
-export type DemoMessage = { created?:number; id: string; conversation: string; sender: string; text: string; run?: string; kind?: "result" | "notice" };
+export type DemoMessage = { origin?:"cloud"; created?:number; id: string; conversation: string; sender: string; text: string; run?: string; kind?: "result" | "notice" };
 export type ChartDraftView={draft_id:string;title:string;stage:string;attempt:number;asset_id?:string;spec?:unknown;history:{stage:string;attempt:number;error?:string;issues?:{path:string;message:string;hint?:string}[]}[]};
 export type FeedbackReport={completion:'incomplete'|'unverified'|'assessed'|'checked';ok:boolean;scope:string;checks:{id:string;dimension:string;status:'pass'|'fail'|'unknown';message:string;basis:string}[];unknown_operations:{operation_id?:string;call_id:string;state:string}[]};
 export type DemoRun = { id: string; conversation: string; agent: string; title: string; state: "running" | "waiting" | "succeeded" | "cancelled" | "pending" | "queued" | "cancelling" | "failed" | "timed_out" | "interrupted" | "needs_input";

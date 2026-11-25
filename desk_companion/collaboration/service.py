@@ -603,6 +603,27 @@ class Collaboration:
         with self.lock, transaction(self.path) as (state, _):
             conversation = next((row for row in state['conversations'] if row['id'] == ident), None)
             self._check_cloud_workspace(state, conversation, ident, project_id)
+            children = {run['id'] for run in state['runs'] if run.get('parent')}
+            return [dict(role='user' if row['sender']=='user' else 'assistant', content=row['text'],
+                         created=message_time(row) or 0)
+                    for row in state['messages'] if row['conversation']==ident and row.get('text')
+                    and row.get('run') not in children and row.get('kind')!='notice' and row.get('origin')!='cloud']
+
+    def record_cloud_turn(self, ident, turn):
+        """把云端回放并入原会话，稳定标识同时用于重连去重和界面缓存合并。"""
+        with self.lock, transaction(self.path) as (state, _):
+            if not any(c['id'] == ident for c in state['conversations']):
+                return
+            for sender, text in [('user', turn['text']), ('tebb', turn['answer'])]:
+                if not text:
+                    continue
+                key = 'cloud:' + turn['id'] + ':' + sender
+                row = next((m for m in state['messages'] if m['id'] == key), None)
+                if row is None:
+                    state['messages'].append(dict(id=key, conversation=ident, sender=sender, text=text,
+                                                  origin='cloud', created=turn['created']))
+                else:
+                    row['text'] = text
 
     @staticmethod
     def _check_cloud_workspace(state, conversation, ident, project_id):
@@ -977,6 +998,7 @@ class Collaboration:
     @staticmethod
     def _history(state, conversation):
         rows = [m for m in state['messages'] if m['conversation']==conversation['id'] and m.get('text')]
+        rows.sort(key=lambda row: message_time(row) or 0)
         covered = set(conversation.get('summary_ids', []))
         history = [dict(sender=m['sender'],text=m['text']) for m in rows if m['id'] not in covered]
         if conversation.get('summary'): history.insert(0, dict(sender='conversation_summary',text=conversation['summary']))

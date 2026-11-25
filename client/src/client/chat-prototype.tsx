@@ -1,4 +1,4 @@
-import { CloudComposer, CloudTurn, useCloudChat } from './cloud-chat';
+import { useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
 import {ConnectionEntry,ExecutionEntry,executionRoot} from './execution-entry';
 import {accountStorage} from './account-storage';
@@ -188,23 +188,30 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   useEffect(() => { if (providedAttachments.length&&!draftLocked) setAttachmentMap(old => ({ ...old, [conversation.id]: [...new Map([...(old[conversation.id] || []), ...providedAttachments].map(a => [a.id,a])).values()] })); }, [providedAttachments]);
   const removeAttachment = (id: string) => { if(draftLocked)return;setAttachmentMap(old => ({ ...old, [conversation.id]: attachments.filter(a => a.id!==id) })); onDetach?.(id); };
   const [cloudChoices,setCloudChoices]=useState<Record<string,boolean>>({});
-  const localOnly=Boolean(((state.workspace?.primary || state.workspace?.references?.length) && state.workspace && state.workspace.project_id === conversation.project_id) || providedAttachments.length || currentProject?.primary || currentProject?.sources?.length || attachments.length || updateRun || draftLocked);
+  const skills = selectedSkills[conversation.id] || [];
+  const localOnly=Boolean(((state.workspace?.primary || state.workspace?.references?.length) && state.workspace && state.workspace.project_id === conversation.project_id) || providedAttachments.length || currentProject?.primary || currentProject?.sources?.length || attachments.length || skills.length || updateRun || draftLocked);
   const cloudAvailable=Boolean(real && backend && !backend.scope);
   const prefersCloud=cloudAvailable && !localOnly && (cloudChoices[conversation.id]??Boolean(conversation.cloud_activity));
-  const cloud = useCloudChat(backend, conversation.id, cloudAvailable && !localOnly && (prefersCloud || !!conversation.cloud_activity));
+  const cloud = useCloudChat(backend, conversation.id, cloudAvailable && (prefersCloud || !!conversation.cloud_activity));
   const showCloud = prefersCloud || (cloudAvailable && !localOnly && !!cloud.pending);
+  const waitingCloud = cloud.turns.some(row => row.state === "queued" || row.state === "running");
   const cloudSubmit = () => cloud.send(draft, conversation.project_id, sent => {
     setDrafts(old => old[conversation.id]?.trim() === sent ? {...old, [conversation.id]: ''} : old);
   });
   const timeline = [
-    ...messages.map(message => ({created: message.created ?? 0, message})),
-    ...cloud.turns.map(turn => ({created: turn.created ?? Infinity, turn}))
-  ].sort((a,b) => a.created - b.created);
+    ...messages.filter(message => message.origin !== 'cloud' || !cloud.turns.some(turn => message.id === 'cloud:'+turn.id+':'+message.sender)),
+    ...cloud.turns.flatMap(turn => [
+      {sender:'user', text:turn.text},
+      {sender:'tebb', text:turn.answer || turn.error || ({queued:'等待执行',running:'正在回答'}[turn.state] || turn.state)}
+    ].map(row => ({...row, origin:'cloud' as const, id:'cloud:'+turn.id+':'+row.sender, conversation:conversation.id, created:turn.created})))
+  ] as import('./chat-prototype-state').DemoMessage[];
+  timeline.sort((a,b) => (a.created ?? 0) - (b.created ?? 0));
   const executionPicker = cloudAvailable && (
     <label title={localOnly ? '当前上下文仅限本地执行' : '选择这段会话的执行位置'}>
       <select aria-label="执行位置" disabled={localOnly || !!cloud.pending || cloud.sending} value={showCloud ? 'cloud' : 'local'}
         onChange={event => {
           const cloud = event.target.value === 'cloud';
+          setPicker('');
           setCloudChoices(previous => ({ ...previous, [conversation.id]: cloud }));
         }}>
         <option value="local">本地</option>
@@ -214,7 +221,6 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   );
   const modelPick = modelChoices[conversation.id] || "";
   const setModelPick = (id: string) => {if(!draftLocked)setModelChoices(old => ({ ...old, [conversation.id]: id }));};
-  const skills = selectedSkills[conversation.id] || [];
   const options = picker === 'members' ? members.filter(a => a.name.toLowerCase().includes(pickerQuery.toLowerCase())).map(a => ({ id: a.id, name: a.name, detail: a.personality || a.role })) : (state.skills || []).filter(s => s.id.toLowerCase().includes(pickerQuery.toLowerCase())).map(s => ({ id: s.id, name: s.id, detail: s.description }));
   const member = (id: string) => state.agents.find(agent => agent.id === id);
   const mentioned = [...new Set((draft.match(/(?:^|\s)@[^\s@]+/g) || []).map(token => token.trim().slice(1)))];
@@ -319,7 +325,14 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
     input.current?.focus();
   }
   async function submit() {
+    if (showCloud) { await cloudSubmit(); return; }
     if(live?.busy)return;
+    if (waitingCloud) { setStorageError('上一轮云端回复仍在生成，完成后可接着发送。'); return; }
+    if (cloud.turns.some(turn => turn.answer && !messages.some(row =>
+      row.id === 'cloud:'+turn.id+':tebb' && row.text === turn.answer))) {
+      setStorageError('正在补齐本地会话记录，草稿已保留。');
+      return;
+    }
     if (!draft.trim()) return;
     const action:FirstMessage=editingDraft?.attempt||{type:'send',conversation:selectedRun?.conversation||conversation.id,
       ...(editingDraft?{new_chat:{agent_id:editingDraft.agent_id,project_id:editingDraft.project_id}}:{}),
@@ -414,13 +427,11 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
           onChange={newConversation.change} onGroup={()=>newGroup(editingDraft.project_id)} onHide={()=>newConversation.hide()} onDiscard={()=>setDiscardDraft(true)}/>}
         {conversation.kind === "group" && <details className="cp-goal"><summary><span>共同目标</span><span>{conversation.goal || "为这个群确定一个目标，开始协作。"}</span></summary><p>{conversation.goal || "可在伙伴侧栏中调整协作群目标。"}</p></details>}
         <div className="cp-message-list" ref={messageList} onScroll={event=>{const el=event.currentTarget;following.current=el.scrollHeight-el.scrollTop-el.clientHeight<48;}} aria-label={real ? "协作聊天记录" : "原型聊天记录"}>
-          {!messages.length && !cloud.turns.length && !showCloud && <div className="cp-empty-chat"><Avatar agent={member(conversation.coordinator)} /><h2>暂无消息</h2><p>直接聊天，或者将目标交给 Agent。<br />私聊与协作群分别保留各自的消息。</p><button className="cp-button" disabled={draftLocked} onClick={() => { setDraft("帮我整理这周的研究方向"); setMode("auto"); input.current?.focus(); }}>填入示例任务</button></div>}
-          {timeline.map(entry => {
-            if ('turn' in entry) return <CloudTurn key={'cloud:'+entry.turn.id} turn={entry.turn}/>;
-            const item = entry.message;
+          {!messages.length && !cloud.turns.length && <div className="cp-empty-chat"><Avatar agent={member(conversation.coordinator)} /><h2>暂无消息</h2><p>直接聊天，或者将目标交给 Agent。<br />私聊与协作群分别保留各自的消息。</p><button className="cp-button" disabled={draftLocked} onClick={() => { setDraft("帮我整理这周的研究方向"); setMode("auto"); input.current?.focus(); }}>填入示例任务</button></div>}
+          {timeline.map(item => {
             return item.kind === "notice" ? <p key={item.id} className="cp-system-message">{item.text}</p> : <article key={item.id} className={`cp-message ${item.sender === "user" ? "cp-message-user" : ""}`}>
             {item.sender === "user" ? <span className="cp-user-avatar">你</span> : <Avatar agent={member(item.sender)} />}
-            <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>本地</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
+            <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>{item.origin === 'cloud' ? '云端' : '本地'}</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
               {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&!runs.find(r=>r.id===item.run)?.question_deferred&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{real&&runs.find(r=>r.id===item.run)&&<p className="cp-muted">{runProgressText(runs.find(r=>r.id===item.run)!)}</p>}{!real&&runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
               {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}
@@ -439,30 +450,31 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
           {cloud.connectionError && (!localOnly && (showCloud || !!conversation.cloud_activity)) && <p role="status">{cloud.connectionError} · 将自动重连</p>}
           <div ref={end} />
         </div>
-        {showCloud ? <CloudComposer chat={cloud} executionPicker={executionPicker} draft={draft} setDraft={setDraft} submit={cloudSubmit}/> : <div className="cp-compose-area">
+        <div className="cp-compose-area">
+          {showCloud && cloud.sendError && <p role="alert">{cloud.sendError}</p>}
           {(active.length > 0 || !real) && <div className="cp-live-bar"><button type="button" className="cp-activity-link" aria-label="查看运行任务" onClick={() => { setInspector(true); setTab('tasks'); }}><i className={active.length ? "cp-live-dot" : "cp-idle-dot"} />{real ? `本会话 ${runs.filter(runActive).length} 项运行中${active.length > runs.filter(runActive).length ? ` · 其他会话 ${active.length - runs.filter(runActive).length} 项` : ''}` : active.length ? `${active.length} 项后台演示 · ${automatic ? "自动推进中" : "已暂停"}` : "没有进行中的后台演示"}</button>
             {!real && <div><button disabled={!active.length} onClick={() => setAutomatic(!automatic)}>{automatic ? "暂停" : "自动演示"}</button><button disabled={!active.length} onClick={() => dispatch({ type: "advance" })}>推进一步 →</button></div>}</div>}
           {selectedRun && <div className="cp-reply-context"><span>补充给：<strong>{selectedRun.title}</strong>{!runActive(selectedRun) && " · 已结束，请取消引用"}</span><button aria-label="取消补充要求" onClick={() => setUpdateRun("")}>×</button></div>}
           <form className="cp-composer" onSubmit={event => { event.preventDefault(); submit(); }}>
-            <textarea ref={input} value={draft} readOnly={draftLocked} maxLength={4000} aria-label={real ? "协作消息" : "原型消息"} rows={2} placeholder={updateRun ? "补充这项任务的要求…" : "发消息，@ 伙伴，/ 选择技能…"}
-              onChange={event => changeDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onSelect={event => { const position = event.currentTarget.selectionStart; setCursor(position); const match = /(?:^|\s)([@/])([^\s@/]*)$/.exec(draft.slice(0,position)); if (!match) setPicker(""); }} aria-autocomplete="list" aria-controls={picker ? "cp-composer-options" : undefined} aria-expanded={!!picker} aria-activedescendant={picker && options.length ? `cp-option-${pickerIndex}` : undefined} onKeyDown={event => {
+            <textarea ref={input} value={showCloud ? cloud.pending?.text ?? draft : draft} readOnly={draftLocked || (showCloud && (!!cloud.pending || cloud.sending))} maxLength={4000} aria-label={showCloud ? "云端消息" : real ? "协作消息" : "原型消息"} rows={2} placeholder={showCloud ? "给 tebb 发消息…" : updateRun ? "补充这项任务的要求…" : "发消息，@ 伙伴，/ 选择技能…"}
+              onChange={event => showCloud ? setDraft(event.target.value) : changeDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onSelect={event => { const position = event.currentTarget.selectionStart; setCursor(position); const match = /(?:^|\s)([@/])([^\s@/]*)$/.exec(draft.slice(0,position)); if (!match) setPicker(""); }} aria-autocomplete="list" aria-controls={picker ? "cp-composer-options" : undefined} aria-expanded={!!picker} aria-activedescendant={picker && options.length ? `cp-option-${pickerIndex}` : undefined} onKeyDown={event => {
                 if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-                if (picker && event.key === 'Escape') { event.preventDefault(); setPicker(''); return; }
-                if (picker && ['ArrowDown','ArrowUp'].includes(event.key)) { event.preventDefault(); setPickerIndex(old => (old + (event.key==='ArrowDown' ? 1 : options.length-1)) % Math.max(1,options.length)); return; }
-                if (picker && event.key === 'Enter') { event.preventDefault(); if (options.length) chooseOption(pickerIndex); return; }
+                if (!showCloud && picker && event.key === 'Escape') { event.preventDefault(); setPicker(''); return; }
+                if (!showCloud && picker && ['ArrowDown','ArrowUp'].includes(event.key)) { event.preventDefault(); setPickerIndex(old => (old + (event.key==='ArrowDown' ? 1 : options.length-1)) % Math.max(1,options.length)); return; }
+                if (!showCloud && picker && event.key === 'Enter') { event.preventDefault(); if (options.length) chooseOption(pickerIndex); return; }
                 if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); submit(); } }} />
-            {picker && <ComposerPicker anchor={input} className="cp-composer-picker" id="cp-composer-options" label={picker==='members' ? '选择成员' : '选择技能'} onClose={()=>setPicker('')}>{options.map((option,i) => <button type="button" role="option" id={`cp-option-${i}`} key={option.id} aria-selected={pickerIndex===i} onMouseDown={event => event.preventDefault()} onClick={() => chooseOption(i)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}{!options.length && <p>没有匹配项{picker==='skills' ? '，技能在桌面客户端加载' : ''}。按 Esc 关闭。</p>}</ComposerPicker>}
+            {!showCloud && picker && <ComposerPicker anchor={input} className="cp-composer-picker" id="cp-composer-options" label={picker==='members' ? '选择成员' : '选择技能'} onClose={()=>setPicker('')}>{options.map((option,i) => <button type="button" role="option" id={`cp-option-${i}`} key={option.id} aria-selected={pickerIndex===i} onMouseDown={event => event.preventDefault()} onClick={() => chooseOption(i)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}{!options.length && <p>没有匹配项{picker==='skills' ? '，技能在桌面客户端加载' : ''}。按 Esc 关闭。</p>}</ComposerPicker>}
             <div className="cp-selection-chips">{skills.map(skill => <button type="button" disabled={draftLocked} key={skill} onClick={() => setSelectedSkills(old => ({ ...old, [conversation.id]: skills.filter(s => s!==skill) }))}>/{skill} ×</button>)}{attachments.map(file => <button type="button" disabled={draftLocked} key={file.id} onClick={() => removeAttachment(file.id)}>{file.name} ×</button>)}</div>
-            <div className="cp-composer-bottom"><div className="cp-composer-controls"><button type="button" aria-label="添加附件" disabled={!onAttach||draftLocked} onClick={onAttach}>＋ 附件</button><button type="button" disabled={draftLocked} onClick={() => recipient && setEditingAgent(recipient)}>工具</button><button type="button" aria-label="选择技能" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'/'); input.current?.focus(); }}>/ Skill</button><button type="button" aria-label="选择成员" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'@'); input.current?.focus(); }}>@</button>
-              <label><select disabled={draftLocked} aria-label="本轮模型" title="本轮模型" value={modelPick} onChange={e => setModelPick(e.target.value)}><option value="">{recipientModel}（默认）</option>{state.models?.map(model => <option key={model.id} value={model.id}>{model.model}</option>)}</select></label>{executionPicker}</div>
-              <button type="submit" className="cp-send" disabled={live?.busy || !draft.trim() || (!!selectedRun && !runActive(selectedRun)&&selectedRun.state!=='needs_input')}>{draftLocked?'重试原发送':updateRun ? '提交补充' : '发送'}<span>↑</span></button></div>
-            <ContextDebug key={conversation.id} info={backend} conversation={editingDraft?'':conversation.id} draft={draft} sendOptions={{target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})}} onSent={text=>{if(text===draft)submitted();}}>{developer&&<div className="cp-parameter-debug"><label>推理力度<select disabled={draftLocked} value={sampling.reasoning_effort} onChange={e => setSampling({ ...sampling, reasoning_effort:e.target.value })}>{['low','high','max'].map(v => <option key={v}>{v}</option>)}</select></label><label>温度<input disabled={draftLocked} type="number" min="0" max="1" step="0.1" value={sampling.temperature} onChange={e => setSampling({ ...sampling, temperature:Number(e.target.value) })} /></label><label>top_p<input disabled={draftLocked} type="number" min="0.01" max="1" step="0.01" value={sampling.top_p} onChange={e => setSampling({ ...sampling, top_p:Number(e.target.value) })} /></label><button type="button" disabled={!!editingDraft} onClick={() => dispatch({ type:'compress' })}>整理当前会话上下文</button></div>}</ContextDebug>
+            <div className="cp-composer-bottom"><div className="cp-composer-controls">{showCloud ? <span>Qwen · 免费</span> : <><button type="button" aria-label="添加附件" disabled={!onAttach||draftLocked} onClick={onAttach}>＋ 附件</button><button type="button" disabled={draftLocked} onClick={() => recipient && setEditingAgent(recipient)}>工具</button><button type="button" aria-label="选择技能" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'/'); input.current?.focus(); }}>/ Skill</button><button type="button" aria-label="选择成员" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'@'); input.current?.focus(); }}>@</button>
+              <label><select disabled={draftLocked} aria-label="本轮模型" title="本轮模型" value={modelPick} onChange={e => setModelPick(e.target.value)}><option value="">{recipientModel}（默认）</option>{state.models?.map(model => <option key={model.id} value={model.id}>{model.model}</option>)}</select></label></>}{executionPicker}</div>
+              <button type="submit" className="cp-send" disabled={showCloud ? cloud.sending || !(cloud.pending?.text ?? draft).trim() : live?.busy || !draft.trim() || (!!selectedRun && !runActive(selectedRun)&&selectedRun.state!=='needs_input')}>{showCloud && cloud.pending ? '重试原消息' : draftLocked?'重试原发送':updateRun ? '提交补充' : '发送'}<span>↑</span></button></div>
+            {!showCloud && <ContextDebug key={conversation.id} info={backend} conversation={editingDraft?'':conversation.id} draft={draft} sendOptions={{target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})}} onSent={text=>{if(text===draft)submitted();}}>{developer&&<div className="cp-parameter-debug"><label>推理力度<select disabled={draftLocked} value={sampling.reasoning_effort} onChange={e => setSampling({ ...sampling, reasoning_effort:e.target.value })}>{['low','high','max'].map(v => <option key={v}>{v}</option>)}</select></label><label>温度<input disabled={draftLocked} type="number" min="0" max="1" step="0.1" value={sampling.temperature} onChange={e => setSampling({ ...sampling, temperature:Number(e.target.value) })} /></label><label>top_p<input disabled={draftLocked} type="number" min="0.01" max="1" step="0.01" value={sampling.top_p} onChange={e => setSampling({ ...sampling, top_p:Number(e.target.value) })} /></label><button type="button" disabled={!!editingDraft} onClick={() => dispatch({ type:'compress' })}>整理当前会话上下文</button></div>}</ContextDebug>}
 
           </form>
           <div className="cp-composer-hint"><span>Enter 发送 · Shift + Enter 换行</span>{!real && <span>演示数据仅存于此设备</span>}</div>
 
           {(state.notice || storageError || live?.error) && <p className="cp-notice" role="status">{live?.error || storageError || state.notice}</p>}
-        </div>}
+        </div>
 
 
       </div>

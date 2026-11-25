@@ -15,9 +15,19 @@ log = logging.getLogger('uvicorn.error.cloud_chat')
 log.setLevel(logging.INFO)
 
 
+from typing import Literal
+
+
+class HistoryLine(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=20000)
+    created: float = Field(allow_inf_nan=False)
+
+
 class Message(BaseModel):
     model_config = ConfigDict(extra='forbid')
     conversation: str = Field(default="", max_length=128, pattern=r"^[a-zA-Z0-9_-]*$")
+    local_history: list[HistoryLine] = Field(default_factory=list, max_length=500)
     request_id: UUID
     text: str = Field(min_length=1, max_length=4000)
 
@@ -46,10 +56,10 @@ def session_name(subject, conversation):
     return f"cloud-{subject}" + (f":{conversation}" if conversation else "")
 
 
-def recent(tasks, subject, conversation=""):
+def recent(tasks, subject, conversation="", *, full=False):
     with tasks.db() as db:
         rows = db.execute('SELECT id,text,answer,state,error,created FROM tasks WHERE session=? AND channel=? '
-                          'ORDER BY created DESC, id DESC LIMIT 20', (session_name(subject, conversation), 'desktop')).fetchall()
+                          'ORDER BY created DESC, id DESC' + ('' if full else ' LIMIT 20'), (session_name(subject, conversation), 'desktop')).fetchall()
     return [dict(row) for row in reversed(rows)]
 
 
@@ -67,10 +77,15 @@ def install_public(app, backend):
     def submit(request: Request, message: Message):
         subject = owner(request)
         rid = str(message.request_id)
+        history_file = None
         try:
+            if message.local_history:
+                # 生产服务的 /dev/shm 为 tmpfs。任务库仅保存随机引用，模型读取后立即移除。
+                from desk_companion.local_api.free_cloud_model import stage_history
+                history_file = stage_history([line.model_dump() for line in message.local_history])
             run = backend.HOST.tasks.submit(message.text, session_name(subject, message.conversation), channel='desktop',
                 source={'transport': 'cloud_chat', 'request_id': rid, 'model': 'qwen3:0.6b'},
-                workflow='free_cloud_chat',
+                workflow='free_cloud_chat', local_history_file=history_file,
                 submission_key=f'cloud:{subject}:{rid}')
         except (ValueError, RuntimeError) as exc:
             log.warning('cloud_chat submit_failed request_id=%s reason=%s', rid, type(exc).__name__)
@@ -86,7 +101,7 @@ def install_public(app, backend):
             states = {}
             # Each reconnect rechecks the login and replays the latest durable turns.
             for tick in range(60):
-                rows = await asyncio.to_thread(recent, backend.HOST.tasks, subject, conversation)
+                rows = await asyncio.to_thread(recent, backend.HOST.tasks, subject, conversation, full=tick == 0)
                 if tick == 0:
                     yield 'data: {"type":"history","data":null}\n\n'
                 for row in rows:

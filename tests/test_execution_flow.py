@@ -35,6 +35,20 @@ class ExecutionFlowTests(unittest.TestCase):
         self.service.tick()
         return self.service.execution_status(run_id),events,llm.names
 
+    def test_switch_execution_preserves_original_context_once(self):
+        self.send('来自本地的项目代号')
+        turn = dict(id='cloud-test', text='云端提问', answer='云端回答', created=time.time())
+        for _ in range(2):
+            self.service.record_cloud_turn('dm-tebb', turn)
+        local = self.send('接着云端继续')
+        self.service.tick()
+        run = self.service.execution_status(local['id'])
+        history = self.service._manager(run).requests[run['task']]['context']
+        self.assertEqual([m['text'] for m in history][-3:], ['来自本地的项目代号','云端提问','云端回答'])
+        self.assertEqual(sum(m['text']=='云端回答' for m in history), 1)
+        outbound = self.service.validate_cloud_conversation('dm-tebb')
+        self.assertEqual([line['content'] for line in outbound], ['来自本地的项目代号','接着云端继续'])
+
     def control(self,name,**arguments):
         return dict(role='assistant',tool_calls=[dict(id='control',type='function',function=dict(name=name,arguments=json.dumps(arguments)))])
 

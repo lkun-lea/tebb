@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { cloudMessage, readEvents, type BackendInfo } from './api';
 import { accountStorage, accountStorageKey } from './account-storage';
 
@@ -97,42 +97,14 @@ export function useCloudChat(info: BackendInfo | undefined | null, conversation:
       session.update({pending: null});
       accepted(message.text);
     } catch (e) {
-      session.update({sendError: (e instanceof Error ? e.message : '发送结果未知') + ' 请求编号 ' + message.request_id});
+      const status = (e as {status?:number})?.status;
+      if (status === 413 || status === 422) {
+        accountStorage().removeItem(session.pendingKey);
+        session.update({pending:null, sendError:e instanceof Error ? e.message : '消息未提交'});
+      } else {
+        session.update({sendError: (e instanceof Error ? e.message : '发送结果未知') + ' 请求编号 ' + message.request_id});
+      }
     } finally { session.update({sending: false}); }
   }
   return {...snapshot, send};
-}
-
-export function CloudTurn({turn}: {turn: Turn}) {
-  return <article className="cp-message">
-    <div className="cp-message-content">
-      <div className="cp-message-author"><strong>你 · 云端</strong></div>
-      <p className="whitespace-pre-wrap">{turn.text}</p>
-      <div className="cp-message-author"><strong>tebb · 云端</strong></div>
-      <p className="whitespace-pre-wrap">{turn.answer || turn.error || ({queued:'等待执行',running:'正在回答'}[turn.state] || turn.state)}</p>
-      {turn.error && turn.answer && <p role="alert">{turn.error}</p>}
-      <small>任务 {turn.id}</small>
-    </div>
-  </article>;
-}
-
-export function CloudComposer({chat, executionPicker, draft, setDraft, submit}: {
-  chat: ReturnType<typeof useCloudChat>; executionPicker: ReactNode; draft: string; setDraft:(text:string)=>void; submit:()=>void
-}) {
-  const text = chat.pending?.text ?? draft;
-  return <div className="cp-compose-area">
-    {chat.sendError && <p role="alert">{chat.sendError}</p>}
-    <form className="cp-composer" onSubmit={event => { event.preventDefault(); submit(); }}>
-      <textarea aria-label="云端消息" rows={2} maxLength={4000} readOnly={!!chat.pending || chat.sending} value={text}
-        onChange={event => setDraft(event.target.value)} placeholder="给云端 tebb 发消息" onKeyDown={event => {
-          if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
-            event.preventDefault(); submit();
-          }
-        }}/>
-      <div className="cp-composer-bottom">
-        <div className="cp-composer-controls"><span>Qwen · 免费</span>{executionPicker}</div>
-        <button className="cp-send" type="submit" disabled={chat.sending || !text.trim()}>{chat.pending && !chat.sending ? '重试原消息' : '发送'}<span>↑</span></button>
-      </div>
-    </form>
-  </div>;
 }
