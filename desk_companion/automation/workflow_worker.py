@@ -40,6 +40,10 @@ def execute(request, emit, *, store=None, adapter=None, check_target=None):
                 if current():current().ledger.waiting(current().member['id'],True)
                 emit('failure', '原节点回执待核对。')
                 return
+            from desk_companion.chat.tool_library import disabled
+            capability = node.get('capability')
+            if disabled('workflow_' + node['kind']) or (capability and disabled('cap-' + capability['id'])):
+                raise ValueError('此工具已在本机工具目录中停用。')
             if node['kind'] in WRITES and node['id'] not in run['approved']:
                 store.set_run(ident, attempt=attempt, require_running=True, state='waiting_approval', error='确认该节点的飞书目标和内容后才能执行。')
                 if current():current().ledger.waiting(current().member['id'],True)

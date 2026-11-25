@@ -275,6 +275,10 @@ class WorkflowService:
         if operation == 'catalog':
             from desk_companion.automation.workflow_capabilities import listing
             return dict(nodes=[dict(kind=k, label=v[0], defaults=v[1], outputs=v[2], writes=k in WRITES) for k, v in KINDS.items()],capabilities=listing(self.store))
+        if operation == 'capability_archive':
+            from desk_companion.automation.workflow_capabilities import archive
+            archive(self.store, payload)
+            return {}
         if operation in {'capability_save','capability_load','capability_instantiate'}:
             from desk_companion.automation import workflow_capabilities as caps
             if operation=='capability_save':return dict(capability=caps.save(self.store,payload))

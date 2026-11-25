@@ -128,7 +128,7 @@ class ToolMonitor:
     def definitions(self):
         if not self.path.exists(): return []
         with closing(self._db()) as db:
-            return [json.loads(r[0]) for r in db.execute('SELECT data FROM definitions ORDER BY collection,name,version')]
+            return [json.loads(r[0]) for r in db.execute('SELECT data FROM definitions ORDER BY collection,name,rowid')]
 
     def get_event(self,ident):
         if not isinstance(ident,str)or not 1<=len(ident)<=512:raise ValueError('工具事件编号无效。')

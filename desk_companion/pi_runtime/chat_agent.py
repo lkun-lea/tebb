@@ -204,6 +204,10 @@ class PiChatAgent:
     def _admitted_tool(self, name, arguments, call_id, request, *, via_search=False):
         if self._cancelled():raise ChatCancelledError(dict(message={},usage=None,duration_ms=0))
         if (self.turn,call_id) in self.completed:raise RuntimeError('本轮工具调用编号重复，未重复执行。')
+        from desk_companion.chat.tool_library import disabled
+        if disabled(name):
+            request.reject('not_allowed')
+            raise ValueError('此工具已在本机工具目录中停用。')
         if name not in self.allowed_tools and not via_search:
             request.reject('not_allowed')
             raise ValueError('该工具不在本轮模型请求的授权清单中。')

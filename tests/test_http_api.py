@@ -147,6 +147,37 @@ class HttpApiTests(unittest.IsolatedAsyncioTestCase):
             verify.return_value = 'other'
             self.assertEqual((await self.client.get('/cloud/v1/events')).status_code, 403)
 
+    async def test_tool_library_preview_and_local_policy(self):
+        from desk_companion.observability.tool_monitor import ToolMonitor
+        from desk_companion.observability.usage_observer import invoke_tool
+        from unittest.mock import Mock
+        subject = '298f6350-ef97-4880-92aa-ec278adbb532'
+        with patch.dict(os.environ, TEBB_CHAT_OWNER=subject, TEBB_CLOUD_URL='https://test.invalid',
+                        TEBB_CLOUD_PUBLISHABLE_KEY='sb_publishable_'+'a'*20), patch(
+                'desk_companion.accounts.personalization_cloud.PersonalizationCloud.verify_session',return_value=subject), patch(
+                'desk_companion.local_api.desktop_cloud_chat.ORIGIN',f'http://127.0.0.1:{self.port}'), patch.object(
+                self.host.accounts,'cloud_client') as lease:
+            lease.return_value.__enter__.return_value.chat_authorization.return_value={'Authorization':'Bearer fixture'}
+            url='/desktop/tools/library'
+            self.assertEqual((await self.client.get(url)).json()['entries'],[])
+            self.assertFalse(lease.called)
+            catalog=(await self.client.post('/desktop/cloud/tools')).json()['tools']
+            self.assertIn('github_recent',[tool['name'] for tool in catalog if tool['compatible']])
+            store=ToolMonitor()
+            self.assertEqual(store.definitions(),[])
+            for change in [dict(add=True),dict(title='项目近况'),dict(hidden=True),dict(disabled=True)]:
+                result=await self.client.post(url,json=dict(name='github_recent',**change))
+                self.assertEqual(result.status_code,200,result.text)
+            self.assertEqual(len(store.definitions()),1)
+            entry=(await self.client.get(url)).json()['entries'][0]
+            self.assertEqual((entry['title'],entry['hidden'],entry['disabled']),('项目近况',1,1))
+            adapter=Mock(return_value='ok')
+            with self.assertRaisesRegex(ValueError,'停用'):
+                invoke_tool('github_recent',adapter)
+            adapter.assert_not_called()
+            await self.client.post(url,json=dict(name='github_recent',disabled=False))
+            self.assertEqual(invoke_tool('github_recent',adapter),'ok')
+
     async def test_atomic_dedup_conflict_replay_and_snapshot_watermark(self):
         ids = await asyncio.gather(*[self.submit() for _ in range(5)])
         self.assertEqual(len(set(ids)), 1)

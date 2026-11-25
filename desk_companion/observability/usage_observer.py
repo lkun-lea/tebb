@@ -133,6 +133,9 @@ def http_returned(handle,status=None,error=None):
 
 def invoke_tool(name,function,*args,**kwargs):
     """Wrap only the real adapter invocation, after guards/cache/locks."""
+    from desk_companion.chat.tool_library import disabled
+    if disabled(name):
+        raise ValueError('此工具已在本机工具目录中停用。')
     store=UsageStore();ident=uuid.uuid4().hex;metadata=_safe(_metadata)or dict(root='',task='',project_id=None,channel='unknown',source='unknown')
     from desk_companion.observability.tool_monitor import ToolMonitor,current_request,tool_result_state
     from desk_companion.observability.agent_debug import metadata as debug_metadata

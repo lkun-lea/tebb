@@ -201,17 +201,15 @@ dialog.dependency-dialog .execution-canvas{height:75vh}
 
 /* Channel queues, collaboration inbox and the discoverable tool library. */
 .settings-window .channel-monitor {max-width:none;padding:0}
-.channel-heading,.catalog-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-block:18px}
-.channel-heading h2,.catalog-heading h3 {font-size:1.1rem;font-weight:650;margin:0}
-.channel-records,.collab-records,.catalog-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));align-items:start;gap:12px}
-.channel-records>button,.tebb-run-overview .collab-record,.tool-dashboard .catalog-card {display:grid;text-align:left;align-content:start;gap:8px;margin:0;padding:16px;border:1px solid var(--dash-line);border-radius:10px;background:hsl(var(--background));min-width:0;overflow-wrap:anywhere}
-.channel-records>button:hover,.collab-record:hover,.tool-dashboard .catalog-card:hover {background:var(--dash-select);border-color:hsl(var(--primary)/.45)}
+.channel-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-block:18px}
+.channel-heading h2 {font-size:1.1rem;font-weight:650;margin:0}
+.channel-records,.collab-records {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));align-items:start;gap:12px}
+.channel-records>button,.tebb-run-overview .collab-record {display:grid;text-align:left;align-content:start;gap:8px;margin:0;padding:16px;border:1px solid var(--dash-line);border-radius:10px;background:hsl(var(--background));min-width:0;overflow-wrap:anywhere}
+.channel-records>button:hover,.collab-record:hover {background:var(--dash-select);border-color:hsl(var(--primary)/.45)}
 .channel-policy {grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
 .channel-policy>label:has(input[type=checkbox]) {grid-column:1/-1}
-.channel-records>button,.collab-records>.collab-record,.catalog-grid>.catalog-card {align-self:stretch}
+.channel-records>button,.collab-records>.collab-record {align-self:stretch}
 .collab-records>.collab-record {grid-template-columns:1fr auto}
 .collab-record small {grid-column:1/-1}
-.collab-record span,.catalog-card small {color:hsl(var(--primary));font-size:.78rem}
-.collab-record span {white-space:nowrap}.collab-record small,.catalog-card span,.channel-heading small {color:hsl(var(--muted-foreground))}
-.catalog-heading {flex-wrap:wrap}.catalog-heading input {padding:8px 12px;border:1px solid var(--dash-line);border-radius:6px;max-width:100%}
-.catalog-grid>.catalog-card span {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-size:.85rem;line-height:1.55}
+.collab-record span {color:hsl(var(--primary));font-size:.78rem}
+.collab-record span {white-space:nowrap}.collab-record small,.channel-heading small {color:hsl(var(--muted-foreground))}

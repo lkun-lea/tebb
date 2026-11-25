@@ -12,6 +12,19 @@ from desk_companion.local_api.cloud_chat import Message
 ORIGIN = 'https://8.136.145.17'
 
 
+from pydantic import BaseModel, ConfigDict
+
+
+class LibraryChange(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,128}$')
+    title: str | None = Field(default=None, max_length=60)
+    summary: str | None = Field(default=None, max_length=160)
+    hidden: bool | None = None
+    disabled: bool | None = None
+    add: bool = False
+
+
 class DesktopMessage(Message):
     """本机项目只用于检查目录授权，转发前移除此字段。"""
     project_id: str = Field(default="", max_length=128)
@@ -43,18 +56,46 @@ def install_desktop(app, backend, authorize):
             await client.aclose()
             raise
 
+    @app.get('/desktop/tools/library')
+    def library(request: Request):
+        authorize(request)
+        from desk_companion.chat.tool_library import entries
+        return {'entries': entries()}
+
+    @app.post('/desktop/tools/library')
+    def edit_entry(request: Request, change: LibraryChange):
+        authorize(request)
+        from desk_companion.chat.assistant import build_toolkit
+        from desk_companion.chat.tool_library import update
+        from desk_companion.observability.tool_monitor import ToolMonitor
+        changes = change.model_dump(exclude={'name', 'add'}, exclude_none=True)
+        if change.add:
+            spec = next((s for s in build_toolkit().to_openai_tools() if s['function']['name']==change.name), None)
+            if not spec:
+                raise HTTPException(409, '当前版本没有这个本机工具')
+            ToolMonitor().register([spec])
+            changes['hidden'] = False
+        if not changes:
+            raise HTTPException(422, '请选择要修改的内容')
+        update(change.name, changes)
+        return {'ok': True}
+
     @app.post('/desktop/cloud/tools')
     async def catalog(request: Request):
         import json
         from desk_companion.chat.assistant import build_toolkit
-        from desk_companion.observability.tool_monitor import ToolMonitor
+        from desk_companion.observability.tool_monitor import collection
         client, result = await connect(request, 'tools', method='GET')
         try:
             remote = json.loads(await result.aread())['tools']
-            names = {item['function']['name'] for item in remote}
-            compatible = [spec for spec in build_toolkit().to_openai_tools() if spec['function']['name'] in names]
-            definitions = await asyncio.to_thread(ToolMonitor().register, compatible)
-            return {'available': len(names), 'loaded': len(definitions)}
+            local = {spec['function']['name'] for spec in build_toolkit().to_openai_tools()}
+            tools = []
+            for spec in remote:
+                fn = spec['function']
+                tools.append(dict(name=fn['name'], description=fn.get('description', ''),
+                                  parameters=fn.get('parameters', {}), collection=collection(fn['name']),
+                                  compatible=fn['name'] in local))
+            return {'tools': tools, 'available': len(tools), 'loaded': sum(tool['compatible'] for tool in tools)}
         finally:
             await result.aclose()
             await client.aclose()

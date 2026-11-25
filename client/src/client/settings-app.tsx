@@ -412,7 +412,12 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
 
 
           {section === "account" ? <><AccountsPane info={info} debug={debug} /><MobilePairingPane info={info} /></> : null}
-          {section === 'tools' ? <ToolMonitorPane info={info} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
+          {section === 'tools' ? <ToolMonitorPane info={info} onChat={async conversation=>{
+            if (!info) return;
+            await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
+            if(isTauri()) await emitTo('main','open-collaboration');
+            focusMainWindow();
+          }} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
           {section === 'monitor' && <>
             <nav className="design-tabs monitor-views" aria-label="运行监控视图">
               {([['history','运行记录'],['collaboration','协作任务'],['channels','渠道任务与执行设置']] as const).map(([id,label])=>

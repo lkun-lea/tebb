@@ -39,6 +39,15 @@ class AuthoringTests(unittest.TestCase):
         payload.update(changes)
         return payload,self.operation('capability_save',**payload)['capability']
 
+    def test_archived_capability_keeps_frozen_version_and_checks_revision(self):
+        _,cap=self.capability()
+        self.assertFalse(self.service.operation('capability_archive',dict(id=cap['id'],version='old'))['ok'])
+        for _ in range(2):
+            self.operation('capability_archive',id=cap['id'],version=cap['version'])
+        self.assertFalse(self.operation('catalog')['capabilities'])
+        self.assertEqual(self.operation('capability_load',id=cap['id'],version=cap['version'])['capability'],cap)
+        self.assertFalse(self.service.operation('capability_instantiate',dict(id=cap['id'],version=cap['version']))['ok'])
+
     def test_capability_save_is_idempotent_and_rejects_reused_identity_and_stale_edits(self):
         payload,cap=self.capability()
         self.assertEqual(self.operation('capability_save',**payload)['capability'],cap)

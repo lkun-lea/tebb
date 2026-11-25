@@ -163,6 +163,14 @@ class PiChatTests(PiInferenceFixture):
         self.assertNotIn('tools',body);self.assertNotIn('tool_choice',body)
         self.assertIn('预算进入收尾',body['messages'][-1]['content'])
 
+    def test_local_library_disable_blocks_previously_registered_tool(self):
+        from desk_companion.chat.tool_library import update
+        agent=self.agent('tool')
+        update('probe_add', {'disabled':True})
+        with installed('root'),self.assertRaisesRegex(ValueError,'停用'):
+            agent.run('Compute a sum.')
+        self.assertEqual(self.writes,[])
+
     def test_finish_phase_rejects_tool_not_offered_in_actual_request(self):
         agent=self.agent('tool')
         with self.ledger.change(self.root)as root:root['no_progress']=3

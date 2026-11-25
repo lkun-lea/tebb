@@ -59,6 +59,8 @@ def save(store,payload):
             if prior[0]!=fingerprint:raise ValueError('操作编号已用于不同能力，不会重放。')
             return json.loads(prior[1])
         old=db.execute('SELECT revision FROM capabilities WHERE id=?',(ident,)).fetchone()
+        if not old and db.execute('SELECT 1 FROM capability_versions WHERE id=? LIMIT 1',(ident,)).fetchone():
+            raise ValueError('这项能力已移除，请创建新能力。')
         if not old and payload.get('revision') not in {None,0}:raise ValueError('原能力不存在，未创建替代能力。')
         if old and payload.get('revision')!=old[0]:raise ValueError('能力已变化，请读取新版本；草稿保留。')
         body=dict(id=ident,name=name.strip(),kind=kind,template=template,parameters=parameters,revision=old[0]+1 if old else 1,writes=kind in WRITES)
@@ -70,8 +72,22 @@ def save(store,payload):
     return body
 
 
+def archive(store, payload):
+    """移除可复用的当前定义，已有图仍按冻结版本读取。"""
+    ident = payload.get('id')
+    version = payload.get('version')
+    with store.db(True) as db:
+        row = db.execute('SELECT version FROM capabilities WHERE id=?', (ident,)).fetchone()
+        if row and row[0] != version:
+            raise ValueError('能力版本已变化，请刷新后再移除。')
+        if not db.execute('SELECT 1 FROM capability_versions WHERE id=? AND version=?', (ident,version)).fetchone():
+            raise ValueError('能力版本不存在。')
+        db.execute('DELETE FROM capabilities WHERE id=? AND version=?', (ident,version))
+
+
 def instantiate(store,payload):
-    cap=load(store,payload['id'],payload.get('version',''))
+    current=load(store,payload['id'])
+    cap=load(store,payload['id'],payload['version']) if payload.get('version') else current
     args=payload.get('arguments',{})
     if not isinstance(args,dict) or set(args)-set(cap['parameters']) or any(not isinstance(v,str) or len(v)>50000 for v in args.values()):raise ValueError('能力参数无效。')
     return dict(id=payload.get('node_id') or 'n'+uuid.uuid4().hex[:12],kind=cap['kind'],config=_render(cap['template'],{**cap['parameters'],**args}),position=payload.get('position',dict(x=0,y=0)),capability={k:cap[k] for k in ('id','version','name')})

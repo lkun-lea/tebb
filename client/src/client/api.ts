@@ -81,8 +81,22 @@ async function response(info: BackendInfo, path: string, init: RequestInit = {})
   return result;
 }
 
-export async function fetchCloudTools(info: BackendInfo): Promise<{available:number;loaded:number}> {
-  return (await response(info, '/desktop/cloud/tools',{method:'POST'})).json();
+export type CatalogDefinition = {name:string; description:string; collection:string; parameters:unknown; source?:string; version?:string; compatible?:boolean; capabilityId?:string; revision?:number};
+export type LibraryEntry = {name:string; title?:string; summary?:string; hidden?:boolean; disabled?:boolean};
+export async function fetchToolLibrary(info: BackendInfo): Promise<{entries:LibraryEntry[]}> {
+  try { return await (await response(info, '/desktop/tools/library')).json(); }
+  catch (error) {
+    if ((error as {status?:number})?.status===404) throw Error('请重启 tebb 以加载新版工具目录服务。');
+    throw error;
+  }
+}
+export async function editToolLibrary(info: BackendInfo, change: LibraryEntry & {add?:boolean}) {
+  await response(info,'/desktop/tools/library',{method:'POST',body:JSON.stringify(change)});
+}
+export async function fetchCloudTools(info: BackendInfo): Promise<{tools:CatalogDefinition[]}> {
+  const value=await (await response(info, '/desktop/cloud/tools',{method:'POST'})).json();
+  if (!Array.isArray(value.tools)) throw Error('请重启 tebb 以加载新版云端工具列表。');
+  return value;
 }
 
 export async function cloudMessage(info: BackendInfo, message: {request_id: string; text: string; conversation?:string; project_id?:string}) {
