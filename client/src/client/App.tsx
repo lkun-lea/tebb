@@ -88,7 +88,8 @@ import {
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
 type SettingsTarget = {section?:string;profile?:string;service?:string;trace?:string};
 const EmbeddedSettings = lazy(() => import('./settings-app').then(module => ({default:module.SettingsApp})));
-type Pane = "settings" | "work" | "chat" | "board" | "automation" | "collaboration" | "pet" | "team";
+const TodayPane = lazy(() => import('./today-pane').then(module => ({default:module.TodayPane})));
+type Pane = "today" | "settings" | "work" | "chat" | "board" | "automation" | "collaboration" | "pet" | "team";
 
 const debugKind = debugPane();
 const boardDebug = debugKind === "board" || debugKind === "feishu" || debugKind === "automation" || debugKind === "video";
@@ -1451,6 +1452,7 @@ export function App() {
   function openCalendar(target:ScheduleTarget={}){setCalendarTarget({...target});void openBoard();}
   function openWorkItem(id:string){setWorkTarget({id,nonce:Date.now()});setPane('work');}
   const workspaceNavigation = <>
+    <RailButton icon="theme" label="今日" active={pane==="today"} onClick={()=>navigateWorkspace(()=>setPane("today"))}/>
     <span className="tebb-nav-group">协作</span>
     <RailButton icon="tasks" label="开发团队" active={pane === "team"} onClick={() => navigateWorkspace(()=>setPane("team"))} />
     <RailButton icon="chat" label="伙伴聊天" active={pane === "collaboration"} onClick={() => navigateWorkspace(()=>setPane("collaboration"))} />
@@ -1487,7 +1489,7 @@ export function App() {
       {pane!=="settings" && <WorkspaceRail developer={developerMode} onToggle={() => changeDeveloperMode(!developerMode)}>{workspaceNavigation}</WorkspaceRail>}
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         {pane!=="settings" && <TopToolbar title={pane === "chat" ? noteSessionId ? "笔记" : ({ thread: "对话", knowledge: "知识库", notebooks:"笔记" })[chatFace] :
-          ({ settings:"设置",team:"开发团队", work: "事项", board: "日程", automation: "自动化", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
+          ({ today:"今日",settings:"设置",team:"开发团队", work: "事项", board: "日程", automation: "自动化", collaboration: "伙伴聊天", pet: "桌宠" })[pane]}
           model={modelItems.find(m => m.id === activeModelId)?.model ? `默认：${modelItems.find(m => m.id === activeModelId)?.model}` : ""} connected={!!info || !!debugKind} busy={busy || noteBusy}
           onFile={() => setLocalDialog("file")} onFolder={openProjectFolder} onTerminal={openTerminal} sidebarOpen={sidebarState.open} sidebarAvailable={sidebarState.available} onSidebarToggle={togglePreview} />}
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
@@ -1502,13 +1504,18 @@ export function App() {
           onDetach={id => setPickedAttachments(prev => prev.filter(s => s.id !== id))}
           onLink={url => { if (noteSessionId && pane === "chat" && chatFace === "thread") setDraft(text => `${text}${text ? "\n" : ""}${url}`); else { setComposeRequest({ id: Date.now(), text: url }); setPane("collaboration"); } }}
           onRequest={() => {}}>
-        <div className="tebb-content-slot" data-content-slot>
-        <div className="tebb-core-chat" hidden={!coreChat} style={{ flexDirection: "column", display: coreChat ? "flex" : "none", flex: 1, minHeight: 0, minWidth: 0 }}>
+        <div className="tebb-content-slot" data-content-slot data-today-open={pane==="today" || undefined}>
+        <div className="tebb-core-chat" hidden={!coreChat && pane!=="today"} style={{ flexDirection: "column", display: pane==="today" ? undefined : coreChat ? "flex" : "none", flex: 1, minHeight: 0, minWidth: 0 }}>
           {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page" hidden={coreChat} style={{ display: coreChat ? "none" : "flex" }}>
         <PageStack active={coreChat ? "" : pane === "chat" ? chatFace : pane}>
-          {pane === "settings" ? <Suspense fallback={<p role="status"><LoadingText text="正在打开设置…"/></p>}><EmbeddedSettings onBack={()=>setPane(lastWorkspace.current)} target={settingsTarget} onOpenChat={()=>setPane("collaboration")}/></Suspense> : coreChat ? null : pane === "chat" && chatFace === "knowledge" ? (
+          {pane === "today" ? <section className="today-workspace" aria-label="今日">
+            <Suspense fallback={<LoadingText text="正在打开今日…"/>}><TodayPane info={info} onProfiles={()=>openSettings('personalization','records')} onOpen={async conversation=>{
+              if (!info) throw Error('本地助手尚未连接。');
+              await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
+              setPane('collaboration');
+            }}/></Suspense></section> : pane === "settings" ? <Suspense fallback={<p role="status"><LoadingText text="正在打开设置…"/></p>}><EmbeddedSettings onBack={()=>setPane(lastWorkspace.current)} target={settingsTarget} onOpenChat={()=>setPane("collaboration")}/></Suspense> : coreChat ? null : pane === "chat" && chatFace === "knowledge" ? (
             <section
               key="knowledge"
               data-chat-face="knowledge"

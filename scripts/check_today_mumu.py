@@ -1,6 +1,7 @@
 """MuMu 待答卡验收。用独立任务、临时配对和真实账号中转，标准输入确认配对码。"""
 import argparse
 import base64
+import json
 import sys
 import tempfile
 import time
@@ -11,6 +12,8 @@ from desk_companion.accounts.account_store import AccountRuntime, AccountStore, 
 from desk_companion.accounts.service import AccountService
 from desk_companion.local_api.mobile_pairing import MobilePairing
 from desk_companion.local_api.paired_workspace import exchange
+from desk_companion.planning.today import today_board, defaults
+from desk_companion.collaboration.store import transaction
 from tests.test_execution_flow import ExecutionFlowTests
 
 
@@ -19,6 +22,7 @@ def main():
     parser.add_argument('--live', required=True, action='store_true')
     parser.add_argument('--qr', type=Path, required=True, help='临时二维码 PNG，供 MuMu 图片选择器读取')
     parser.add_argument('--address', default='')
+    parser.add_argument('--observation', type=Path, help='将隔离任务的桌面投影和原会话写入新的验收目录')
     args = parser.parse_args()
     home = Path.cwd()
     key = AccountStore(home).read()['selected']
@@ -32,6 +36,21 @@ def main():
         root = flow.send('今日看板隔离验收')
         flow.finish(root['id'], [flow.control('request_clarification', question='今日验收：评审需要多少分钟？')])
         question, = flow.service.mobile_questions()
+        with transaction(flow.service.path) as (state, _):
+            state['projects'].append(dict(id='today-demo', name='今日看板验收'))
+            next(c for c in state['conversations'] if c['id'] == question['conversation'])['project_id'] = 'today-demo'
+        prefs = defaults()
+        prefs.update(project='today-demo', morning=dict(time='00:00', focus='both'))
+        today_board(flow.service, prefs)
+        if args.observation:
+            args.observation.mkdir(exist_ok=False)
+        def observe():
+            if args.observation:
+                state = dict(board=today_board(flow.service), history=flow.service.shared_history([question['conversation']]))
+                staged = args.observation / 'view.tmp'
+                staged.write_text(json.dumps(state, ensure_ascii=False), encoding='utf-8')
+                staged.replace(args.observation / 'view.json')
+        observe()
         print('Windows 待答卡：', question['prompt'], flush=True)
         with tempfile.TemporaryDirectory() as tmp:
             pair = MobilePairing(tmp, key, account.mobile_active, lambda: flow.service, account.mobile_lease, headers)
@@ -58,6 +77,7 @@ def main():
                     assert len(updates) == 1
                     rows = flow.service.shared_history([question['conversation']])[0]['rows']
                     assert sum(row['kind'] == '原文' and row['text'] == updates[0] for row in rows) == 1
+                    observe()
                     print('Windows 待答卡 0；原会话答复一次：', updates[0], flush=True)
                     for _ in range(10):
                         exchange(pair, headers)

@@ -20,6 +20,24 @@ from desk_companion.local_api.host import HeadlessApp
 
 
 class LocalApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_today_board_preferences_use_authenticated_desktop_rpc(self):
+        import httpx
+        self.addCleanup(self.host.collaboration.shutdown)
+        url = f'http://127.0.0.1:{self.port}/rpc'
+        async with httpx.AsyncClient(trust_env=False) as client:
+            request = dict(method='today_board', args={})
+            denied = await client.post(url, json=request)
+            self.assertIn(denied.status_code, (401, 403))
+            client.headers['Authorization'] = 'Bearer test-token'
+            first = (await client.post(url, json=request)).json()
+            self.assertTrue(first['ok'], first)
+            prefs = first['result']['preferences']
+            prefs['evening'] = dict(time='19:30', focus='both', keywords='评审', frequency='weekdays')
+            updated = (await client.post(url, json=dict(method='today_board', args=dict(preferences=prefs)))).json()
+            self.assertTrue(updated['ok'], updated)
+            after = (await client.post(url, json=request)).json()['result']
+            self.assertEqual(after['preferences']['evening'], prefs['evening'])
+
     async def test_reminder_and_completion_rpc_keep_authentication_and_bypass_model_turn_lock(self):
         from contextlib import nullcontext
         from datetime import datetime,timedelta

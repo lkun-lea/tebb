@@ -27,7 +27,7 @@ RPC_METHODS = frozenset({
     "load_work_board", "change_work_item", "tebb_operation", "workflow_authoring", "project_operation", "project_environments_ui", "check_automation_execution",
     "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event",
     "load_local_calendar", "change_local_calendar", "calendar_sync_step",
-    "load_collaboration", "collaboration_action", "project_workspace", "save_collaboration_note", "prepare_notebook_source", "get_report_chart",
+    "today_board", "load_collaboration", "collaboration_action", "project_workspace", "save_collaboration_note", "prepare_notebook_source", "get_report_chart",
     "terminal_status", "terminal_start", "terminal_list", "terminal_read", "terminal_input", "terminal_cancel", "terminal_dismiss",
     "terminal_files", "terminal_import_files", "terminal_preview_file",
     "load_video_login", "save_video_login", "clear_video_login",
@@ -170,6 +170,8 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             return {"ok": True, "result": HOST.bridge.mobile_pairing(**args)}
         except (ValueError, OSError, RuntimeError) as exc:
             return {"ok": False, "error": str(exc)}
+    if method == 'today_board' and preview:
+        return {"ok": False, "error": "个人看板需要桌面工作区"}
     if method == 'collaboration_action' and preview:
         try: return {'ok': True, 'result': HOST.collaboration.action(args.get('action'), readonly=True)}
         except Exception as exc: return {'ok': False, 'error': str(exc)}
@@ -192,7 +194,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
                       "load_board", "create_agenda", "delete_agenda", "delete_task", "read_calendar_proposal",
                       "generate_week_review", "write_today_summary_doc", "write_week_review_doc",
                       "list_automation_jobs", "save_automation_job", "delete_automation_job", "run_automation_job", "automation_workflow",
-                      "execution_inspect", "agent_evaluation", "agent_self_test", "development_team", "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
+                      "execution_inspect", "agent_evaluation", "agent_self_test", "development_team", "today_board", "load_collaboration", "collaboration_action", "get_report_chart", "project_workspace", "check_updates", "list_agent_tasks", "get_agent_task", "cancel_agent_task", "continue_agent_task", "save_agent_task_settings", "load_task_progress",
                       "list_debug_calls", "get_debug_call", "set_debug_recording", "explain_debug_call", "load_context_debug", "save_context_capacity", "memory_debug",
                       "load_model_network", "save_model_network", "load_search_settings", "save_search_settings", "test_search",
                       "load_video_settings", "save_video_settings", "list_task_videos", "export_task_video",

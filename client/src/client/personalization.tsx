@@ -13,13 +13,13 @@ import './personalization.css';
 const jobNames:Record<string,string>={queued:'等待开始',running:'正在同步',complete:'本轮已完成',paused:'本轮已暂停，可继续同步',needs_confirmation:'有资料需要处理',failed:'同步未完成',cancelled:'已取消',interrupted:'上次同步已中断'};
 type Draft={id?:string;version?:number;kind:string;category:string;text:string;scope:string;scope_id:string;resolve?:boolean};
 const blank=():Draft=>({kind:'preference',category:'communication',text:'',scope:'user',scope_id:''});
-export function PersonalizationPane({info,debug=false,target,onInspect,onAccount}:{onAccount?:()=>void;info:BackendInfo|null;debug?:boolean;target?:{id:string;nonce:number}|null;onInspect?:()=>void}){
+export function PersonalizationPane({info,debug=false,target,onInspect,onAccount,initialView='overview'}:{initialView?:'records'|'overview';onAccount?:()=>void;info:BackendInfo|null;debug?:boolean;target?:{id:string;nonce:number}|null;onInspect?:()=>void}){
   const controller=useMemo(()=>new PersonalizationController((method,args)=>{
     if(debug)return Promise.resolve(structuredClone(PERSONALIZATION_FIXTURE));
     if(!info)return Promise.reject(Error('本地助手尚未连接。'));
     return rpc(info,method,args,{timeoutMs:30000});
   },accountStorage()),[info?.port,info?.token,debug]);
-  const [,render]=useState(0),[filter,setFilter]=useState('all'),[draft,setDraft]=useState<Draft|null>(null),[view,setView]=useState<'overview'|'records'>('overview');
+  const [,render]=useState(0),[filter,setFilter]=useState('all'),[draft,setDraft]=useState<Draft|null>(null),[view,setView]=useState<'overview'|'records'>(initialView);
   useEffect(()=>controller.subscribe(()=>render(n=>n+1)),[controller]);
   useEffect(()=>{void controller.read(true);},[controller]);
   const page=controller.page,active=!!page?.job&&['queued','running'].includes(page.job.state);

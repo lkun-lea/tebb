@@ -436,7 +436,10 @@ class Collaboration:
     def mobile_workspace(self, allowed):
         """在同一次读取中核对待答状态与共享授权，避免两段快照采用不同版本。"""
         with self.lock, transaction(self.path) as (state, _):
-            return dict(history=self._shared_history(state, allowed), questions=self._mobile_questions(state))
+            from desk_companion.planning.today import attach_mobile_board
+            history = self._shared_history(state, allowed)
+            attach_mobile_board(state, history)
+            return dict(history=history, questions=self._mobile_questions(state))
 
     def _mobile_questions(self, state):
         from desk_companion.collaboration.clarification import version
@@ -465,6 +468,7 @@ class Collaboration:
         # Business items and calendar receipts have their own authenticated services.
         for key in ("work_items", "schedule_links", "schedule_operations", "schedule_days", "schedule_weeks", "schedule_reads", "schedule_read_version", "local_calendar_events", "local_calendar_operations", "calendar_sync_batches"):
             result.pop(key, None)
+        result.pop('today_board', None)
         # Internal snapshots/keys/worker requests never cross the browser boundary.
         for run in result["runs"]:
             if run.get('budget_id'):
@@ -1329,9 +1333,14 @@ class Collaboration:
                     plan['delivery_state']='running' if any(c['state'] in ACTIVE for c in children) else 'succeeded' if all(c['state']=='succeeded' for c in children) else 'failed'
 
     def _loop(self):
+        from desk_companion.planning.today import today_board
+        next_brief = 0
         while not self.stop.wait(.3):
             try:
                 self.tick()
+                if time.monotonic() >= next_brief:
+                    next_brief = time.monotonic() + 30
+                    today_board(self, scheduled=True)
             except Exception as exc:
                 from desk_companion.observability.logutil import log
                 log("collaboration scheduler: " + type(exc).__name__)

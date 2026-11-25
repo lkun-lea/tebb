@@ -39,6 +39,7 @@ import {ArrowLeft, Activity, BookOpen, ChartColumn, CircleUserRound, CodeXml, Da
 import "./settings-window.css";
 import "./settings-dashboard.css";
 
+const TodayPane = lazy(() => import('./today-pane').then(module => ({default:module.TodayPane})));
 const PersonalizationPane = lazy(() => import("./personalization").then(module => ({ default: module.PersonalizationPane })));
 
 type SettingsSection = "assistant" | "account" | "personalization" | "connections" | "appearance" | "usage" | "tools" | "evaluation" | "network" | "monitor" | "about";
@@ -57,7 +58,7 @@ const SETTINGS_NAV: { id: string; label: string; items: NavItem[] }[] = [
     { id: "usage", label: "个人使用", keywords: "用量 费用 统计 token 成本" },
   ] },
   { id: "preferences", label: "其他设置", items: [
-    { id: "personalization", label: "个人资料", keywords: "画像 个人资料 记忆 个性化" },
+    { id: "personalization", label: "今日", keywords: "今日 简报 时间线 画像 个人资料 记忆 个性化" },
     { id: "appearance", label: "外观与通知", keywords: "主题 深色 浅色 背景 壁纸 外观 通知 会前提醒" },
     { id: "network", label: "模型网络", keywords: "代理 网络 模型" },
     { id: "about", label: "版本与诊断", keywords: "版本 更新 诊断 调试 关于" },
@@ -67,7 +68,7 @@ const SETTINGS_NAV: { id: string; label: string; items: NavItem[] }[] = [
 const SECTION_META: Record<SettingsSection, { title: string; blurb: string }> = {
   assistant: { title: "模型与人设", blurb: "管理模型服务、系统提示词与会前提醒。" },
   account: { title: "账号与空间", blurb: "管理本机账号与数据目录。" },
-  personalization: { title: "个人资料", blurb: "查看和修正 tebb 对你的了解。" },
+  personalization: { title: "今日", blurb: "待答任务、项目进展与你的早晚报。" },
   monitor: {title:'运行监控',blurb:'按任务查找执行记录和失败步骤。'},
   network: {title:'模型网络',blurb:'管理模型请求的连接与代理。'},
   connections: { title: "外部连接", blurb: "管理飞书、GitHub、搜索与视频来源的连接。" },
@@ -101,6 +102,14 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
   const debug = !!debugKind;
   const [info, setInfo] = useState<BackendInfo | null>(null);
   const [section, setSection] = useState<SettingsSection>(() => (debugKind === "usage" ? "usage" : debugKind === "feishu" || debugKind === "video" ? "connections" : debugKind === "profile" ? "personalization" : initialSection()));
+  async function openTodayConversation(conversation:string){
+    if (!info) return;
+    await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
+    if(onOpenChat) onOpenChat();
+    else if(isTauri()) await emitTo('main','open-collaboration');
+    focusMainWindow();
+  }
+  const [showProfiles,setShowProfiles]=useState(false);
   const [profileTarget, setProfileTarget] = useState<{ id: string; nonce: number } | null>(() => {
     const id = new URLSearchParams(window.location.search).get("profile");
     return id ? { id, nonce: Date.now() } : null;
@@ -209,7 +218,8 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
     if(SECTIONS.includes(target.section as SettingsSection))setSection(target.section as SettingsSection);
     if(target.service && target.section==='connections')setService(target.service);
     if(target.section==='monitor'){lastRun.current=target.trace||'';setTrace(target.trace||'');setMonitorView('history');}
-    if(target.profile)setProfileTarget({id:target.profile,nonce:Date.now()});
+    if(target.section==="personalization") {setShowProfiles(!!target.profile);setProfileTarget(null);}
+    if(target.profile && target.profile!=="records")setProfileTarget({id:target.profile,nonce:Date.now()});
   },[target]);
 
 
@@ -412,12 +422,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
 
 
           {section === "account" ? <><AccountsPane info={info} debug={debug} /><MobilePairingPane info={info} /></> : null}
-          {section === 'tools' ? <ToolMonitorPane info={info} onChat={async conversation=>{
-            if (!info) return;
-            await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
-            if(isTauri()) await emitTo('main','open-collaboration');
-            focusMainWindow();
-          }} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
+          {section === 'tools' ? <ToolMonitorPane info={info} onChat={openTodayConversation} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
           {section === 'monitor' && <>
             <nav className="design-tabs monitor-views" aria-label="运行监控视图">
               {([['history','运行记录'],['collaboration','协作任务'],['channels','渠道任务与执行设置']] as const).map(([id,label])=>
@@ -431,8 +436,10 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
           </>}
           {section === 'evaluation' && <><div className="design-tabs"><button className="desk-btn" aria-pressed={evalTab==='debug'} onClick={()=>setEvalTab('debug')}>模型调用</button><button className="desk-btn" aria-pressed={evalTab==='evaluation'} onClick={()=>setEvalTab('evaluation')}>评测批次</button></div>{evalTab==='debug'?<AgentDebugDialog inline info={info} debug={debug} onClose={()=>{}}/>:<EvaluationPane info={info}/>}</>}
           {section === "personalization" ? (
-            <Suspense fallback={<p role="status"><LoadingText text="正在打开个人画像…"/></p>}>
-              <PersonalizationPane info={info} debug={debug} target={profileTarget} onAccount={()=>setSection("account")} onInspect={openModelCalls} />
+            <Suspense fallback={<p role="status"><LoadingText text="正在打开今日…"/></p>}>
+              {showProfiles || profileTarget ? <><button type="button" className="desk-btn" onClick={()=>{setShowProfiles(false);setProfileTarget(null);}}>返回今日</button>
+              <PersonalizationPane initialView="records" info={info} debug={debug} target={profileTarget} onAccount={()=>setSection("account")} onInspect={openModelCalls} /></> :
+              <TodayPane info={info} onProfiles={()=>setShowProfiles(true)} onOpen={openTodayConversation}/>}
             </Suspense>
           ) : null}
 

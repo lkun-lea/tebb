@@ -194,14 +194,17 @@ class PairingTest(unittest.TestCase):
         import socket
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         from cryptography.exceptions import InvalidTag
-        from desk_companion.local_api.mobile_discovery import PORT, proof
-        self.pair.discovery.start()
+        from desk_companion.local_api.mobile_discovery import proof
+        # 开发机上的真实桌面可能已在监听发现端口。使用系统分配的独立 UDP 端口。
+        with patch('desk_companion.local_api.mobile_discovery.PORT', 0):
+            self.pair.discovery.start()
+        port = self.pair.discovery.sock.getsockname()[1]
         self.addCleanup(self.pair.discovery.close)
         nonce = 'a'*32
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(2)
             sig = proof(bytes(32), 'discover:'+nonce)
-            sock.sendto(f'tebb2 {nonce} {sig}'.encode(), ('127.0.0.1', PORT))
+            sock.sendto(f'tebb2 {nonce} {sig}'.encode(), ('127.0.0.1', port))
             raw = base64.b64decode(sock.recv(2048))
         cipher = AESGCM(bytes(32))
         value = json.loads(cipher.decrypt(raw[:12], raw[12:], nonce.encode()))

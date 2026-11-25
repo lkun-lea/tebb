@@ -593,3 +593,8 @@
 [data-reduce-motion=true] :is(.tebb-stream-new,.tebb-stream-cursor){animation:none;filter:none}
 
 .tebb-run-progress.context-disclosure{border:0}.tebb-run-progress.context-disclosure>button{padding:3px 0;color:inherit;font-size:12px}.tebb-run-progress.context-disclosure>button>span{display:flex;align-items:center;gap:6px;min-width:0}.cp-tool-result.context-disclosure{border:0;font-size:12px}
+
+.tebb-content-slot[data-today-open] > .tebb-core-chat { display:none; }
+@container main-area (min-width: 1120px) {
+  .tebb-content-slot[data-today-open] > .tebb-core-chat { display:flex; border-inline-end:1px solid hsl(var(--border)); }
+}

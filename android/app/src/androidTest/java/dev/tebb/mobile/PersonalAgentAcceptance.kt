@@ -60,6 +60,8 @@ class PersonalAgentAcceptance : Instrumentation() {
             val archived = plan("archive", "夏季方案", "历史", now-100L*86400)
             val rows = JSONArray().put(archived).put(plan("a", "中转设计", "tebb", now)).put(plan("b", "配对讨论", "tebb", now-60))
                 .put(plan("c", "报销讨论", "费用", now-120))
+            rows.getJSONObject(1).put("today", JSONObject().put("date", "2026-11-26")
+                .put("sections", JSONObject().put("morning", JSONArray().put(JSONObject().put("title","复核中转设计")))))
             val invite = JSONObject().put("owner","fixture").put("host","192.168.1.1").put("port",1234)
                 .put("pin","0".repeat(64)).put("v",2).put("id","fixture-device")
             val isolated = object : android.content.ContextWrapper(targetContext) {
@@ -79,6 +81,11 @@ class PersonalAgentAcceptance : Instrumentation() {
             runOnMainSync {
                 screen.setContent { SharedPlanCard(owner, "测试电脑", saved.history, "Windows 缓存 · 已离线", true) { draft.set(it) } }
             }
+            tap("今日看板")
+            waitFor("早报")
+            tap("2026-11-26 · 复核中转设计")
+            waitFor("原文-中转设计")
+            tap("关闭")
             tap("已共享方案")
             tap("夏季方案")
             waitFor("Windows 缓存 · 已离线")

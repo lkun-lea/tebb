@@ -25,6 +25,7 @@ internal fun SharedPlanCard(owner: String, computer: String, raw: String, offlin
     val context = LocalContext.current
     val prefs = remember(owner,computer) { context.getSharedPreferences("plan_card_${owner}_$computer", Context.MODE_PRIVATE) }
     val plans = remember(raw) { JSONArray(raw).objects().sortedByDescending(::evidenceTime) }
+    var todayOpen by remember(prefs) { mutableStateOf(false) }
     var selected by remember(prefs) { mutableStateOf("") }
     var show by remember(prefs) { mutableStateOf(false) }
     var allowed by remember(prefs) { mutableStateOf(prefs.getBoolean("allowed", false)) }
@@ -43,6 +44,9 @@ internal fun SharedPlanCard(owner: String, computer: String, raw: String, offlin
             val quote = recent.getJSONArray("rows").objects().lastOrNull { it.optString("kind") == "原文" }
             if (quote != null) Text(quote.getString("text"), maxLines = 2, color = androidx.compose.ui.graphics.Color.White)
         }
+        if (plans.any { it.has("today") }) {
+            TextButton(onClick = { todayOpen = true }) { Text("今日看板") }
+        }
         Row {
             TextButton(onClick = { selected = ""; show = true }) { Text("已共享方案") }
             if (recent != null && !allowed) {
@@ -51,6 +55,13 @@ internal fun SharedPlanCard(owner: String, computer: String, raw: String, offlin
             } else if (recent != null) {
                 TextButton(onClick = { selected = recent.getString("id"); show = true }) { Text("继续 · " + recent.getString("title"), maxLines = 1) }
             }
+        }
+    }
+    if (todayOpen) {
+        SharedTodayDialog(plans, offline, { todayOpen = false }) { plan ->
+            selected = plan.getString("id")
+            todayOpen = false
+            show = true
         }
     }
     if (!show) return
@@ -92,3 +103,27 @@ internal fun SharedPlanCard(owner: String, computer: String, raw: String, offlin
         } }, confirmButton = { TextButton(onClick = { show = false }) { Text("关闭") } })
 }
 
+
+
+/** 随已授权会话查看 Windows 看板。点击条目进入原会话，离线时仍显示快照来源和日期。 */
+@Composable
+private fun SharedTodayDialog(plans: List<JSONObject>, offline: String?, onDismiss: () -> Unit, onSource: (JSONObject) -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("今日看板") }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            offline?.let { Text(it) }
+            for ((key, title) in listOf("morning" to "早报", "project" to "项目时间线", "evening" to "晚报")) {
+                val entries = plans.flatMap { plan ->
+                    plan.optJSONObject("today")?.getJSONObject("sections")?.optJSONArray(key)?.objects()
+                        .orEmpty().map { row -> plan to row }
+                }.sortedByDescending { it.second.optLong("time") }
+                if (entries.isNotEmpty()) Text(title, style = MaterialTheme.typography.h6)
+                entries.forEach { (plan, row) ->
+                    val time = row.optLong("time")
+                    val date = if (time > 0) java.text.DateFormat.getDateTimeInstance().format(java.util.Date(time * 1000))
+                        else plan.getJSONObject("today").getString("date")
+                    TextButton(onClick = { onSource(plan) }) { Text(date + " · " + row.getString("title")) }
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } })
+}
