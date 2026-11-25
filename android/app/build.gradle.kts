@@ -15,6 +15,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
     defaultConfig {
         applicationId = "dev.tebb.mobile"
+        testInstrumentationRunner = "dev.tebb.mobile.PersonalAgentAcceptance"
         // 只嵌入项目公开配置，账号令牌在登录后由手机单独领取。
         for ((field, env) in mapOf("ACCOUNT_URL" to "TEBB_CLOUD_URL", "ACCOUNT_PUBLIC_KEY" to "TEBB_CLOUD_PUBLISHABLE_KEY")) {
             val value = providers.environmentVariable(env).orElse("").get()

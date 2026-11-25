@@ -1,0 +1,121 @@
+package dev.tebb.mobile
+
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
+import android.os.Bundle
+import android.os.SystemClock
+import android.view.accessibility.AccessibilityNodeInfo
+import androidx.activity.compose.setContent
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** 在隔离安装的手机验收包中，用实际 Compose 页面核对来源、项目关联和纠正。 */
+class PersonalAgentAcceptance : Instrumentation() {
+    private var live = false
+
+    override fun onCreate(arguments: Bundle?) {
+        super.onCreate(arguments)
+        live = arguments?.getString("live") == "true"
+        start()
+    }
+
+    private fun findText(node: AccessibilityNodeInfo?, value: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.text?.toString() == value || node.contentDescription?.toString() == value) return node
+        for (i in 0 until node.childCount) findText(node.getChild(i), value)?.let { return it }
+        return null
+    }
+
+    private fun waitFor(value: String): AccessibilityNodeInfo {
+        val deadline = SystemClock.elapsedRealtime() + 8000
+        do {
+            findText(uiAutomation.rootInActiveWindow, value)?.let { return it }
+            SystemClock.sleep(100)
+        } while (SystemClock.elapsedRealtime() < deadline)
+        error("未找到控件：$value")
+    }
+
+    private fun tap(value: String) {
+        var node: AccessibilityNodeInfo? = waitFor(value)
+        while (node != null) {
+            if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return
+            node = node.parent
+        }
+        error("控件不可点击：$value")
+    }
+
+    override fun onStart() {
+        val report = Bundle()
+        var activity: Activity? = null
+        try {
+            val intent = Intent().setClassName(targetContext, "dev.tebb.mobile.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val screen = startActivitySync(intent) as MainActivity
+            activity = screen
+            val now = System.currentTimeMillis()/1000
+            fun plan(id: String, title: String, project: String, time: Long) =
+                JSONObject().put("id", id).put("title", title).put("project", project).put("total", 1)
+                    .put("rows", JSONArray().put(JSONObject().put("kind", "原文").put("source", "证据-$id")
+                        .put("time", time).put("text", "原文-$title")))
+            val archived = plan("archive", "夏季方案", "历史", now-100L*86400)
+            val rows = JSONArray().put(archived).put(plan("a", "中转设计", "tebb", now)).put(plan("b", "配对讨论", "tebb", now-60))
+                .put(plan("c", "报销讨论", "费用", now-120))
+            val invite = JSONObject().put("owner","fixture").put("host","192.168.1.1").put("port",1234)
+                .put("pin","0".repeat(64)).put("v",2).put("id","fixture-device")
+            val isolated = object : android.content.ContextWrapper(targetContext) {
+                override fun getSharedPreferences(name: String?, mode: Int) =
+                    super.getSharedPreferences("instrumentation-cache-" + name, mode)
+            }
+            val paired = PairingClient(invite)
+            val cachedAt = now * 1000 - 120_000
+            paired.cache(isolated,DeviceSnapshot(cachedAt,emptyList(),rows.toString()))
+            check(PairingClient(JSONObject(invite.toString()).put("owner","other")).cached(isolated) == null)
+            val saved = checkNotNull(paired.cached(isolated))
+            check(saved.time == cachedAt)
+            paired.clearCache(isolated)
+            check(paired.cached(isolated) == null)
+            val owner = "fixture-" + java.util.UUID.randomUUID()
+            val draft = java.util.concurrent.atomic.AtomicReference("")
+            runOnMainSync {
+                screen.setContent { SharedPlanCard(owner, "测试电脑", saved.history, "Windows 缓存 · 已离线", true) { draft.set(it) } }
+            }
+            tap("已共享方案")
+            tap("夏季方案")
+            waitFor("Windows 缓存 · 已离线")
+            waitFor("原文-夏季方案")
+            tap("关闭")
+            tap("用这些会话推荐下一步")
+            tap("继续 · 中转设计")
+            waitFor("原文-中转设计")
+            check(findText(uiAutomation.rootInActiveWindow,"同项目 · 报销讨论") == null)
+            tap("同项目 · 配对讨论")
+            waitFor("原文-配对讨论")
+            tap("引用到本地草稿")
+            waitFor("已共享方案")
+            waitForIdleSync()
+            check("证据-b" in draft.get() && "原文-配对讨论" in draft.get()) { "引用的原文与当前会话不一致" }
+            tap("继续 · 中转设计")
+            tap("这不是当前工作")
+            waitFor("继续 · 配对讨论")
+            check(findText(uiAutomation.rootInActiveWindow,"继续 · 中转设计") == null)
+            if (live) {
+                val url = java.net.URL("https://8.136.145.17/cloud/v1/device-snapshot?device=" + "0".repeat(32) + "&stream=windows")
+                val http = url.openConnection() as javax.net.ssl.HttpsURLConnection
+                try {
+                    http.connectTimeout = 10000
+                    http.readTimeout = 10000
+                    http.instanceFollowRedirects = false
+                    check(http.responseCode == 401) { "真实 ECS 未拒绝匿名读取" }
+                } finally { http.disconnect() }
+            }
+            report.putString("stream", "PASS 缓存时间、账号隔离、离线旧方案、来源、授权、同项目、排除干扰、引用、纠正\n")
+            finish(Activity.RESULT_OK, report)
+        } catch (e: Exception) {
+            report.putString("stream", "FAIL " + e.toString() + "\n")
+            finish(Activity.RESULT_CANCELED, report)
+        } finally {
+            activity?.let { runOnMainSync { it.finish() } }
+        }
+    }
+}
+
