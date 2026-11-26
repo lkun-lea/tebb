@@ -27,6 +27,8 @@ async function draftEditor(){
       await act(async()=>view.root.findByProps({'aria-label':'从示例创建'}).findAllByType('button').find(n=>textOf(n).includes(templates.find(t=>t.id===value).name)&&n.props.onClick).props.onClick());
     }else if(label==='已保存工作流')await act(async()=>view.root.findByProps({'aria-label':'打开工作流：'+definitions.find(d=>d.id===value).name}).props.onClick());
     else await act(async()=>view.root.findByProps({'aria-label':label}).props.onChange({target:{value}}));
+    const prompt=view.root.findAll(node=>node.type==='dialog' && node.props['aria-label']==='放弃工作流草稿？')[0];
+    if(prompt){confirms.push(prompt.props['aria-label']);await act(async()=>prompt.findAllByType('button').find(n=>textOf(n)==='取消').props.onClick());}
   }
   return {view,confirms,canvas:()=>view.root.findByType(flow.ReactFlow).props,choose,button:text=>view.root.findAllByType('button').find(n=>textOf(n)===text||n.children.includes(text)),close:()=>{act(()=>view.unmount());global.window=previous;}};
 }
@@ -145,7 +147,8 @@ test('clicking a builtin home card opens an unsaved draft and protects actual ed
     assert.match(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,/示例一/);assert.equal(ui.button('运行工作流').props.disabled,true);assert.equal(ui.confirms.length,0);
     await ui.choose('工作流名称','内置工作流中的未保存修改');await act(async()=>ui.button('工作流').props.onClick());
     await act(async()=>ui.view.root.findByProps({'aria-label':'配置内置工作流：示例二'}).props.onClick());
-    assert.equal(ui.confirms.length,1);assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'内置工作流中的未保存修改');
+    assert.equal(ui.view.root.findByType('dialog').props['aria-label'],'放弃工作流草稿？');
+    assert.equal(ui.view.root.findByProps({'aria-label':'工作流名称'}).props.value,'内置工作流中的未保存修改');
   }finally{ui.close();}
 });
 

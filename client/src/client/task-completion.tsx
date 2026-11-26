@@ -1,3 +1,4 @@
+import {useActionConfirmation} from './action-confirmation';
 import {useEffect,useState}from'react';
 import {rpc,type BackendInfo}from'./api';
 import type{BoardTask}from'./board';
@@ -10,6 +11,7 @@ type Props={info:BackendInfo|null;debug:boolean;tasks:BoardTask[];onRefresh:()=>
 
 export function TaskCompletionPanel(props:Props){
   const [active,setActive]=useState<CompletionReceipt|null>(null),[history,setHistory]=useState<CompletionReceipt[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const deletion = useActionConfirmation(JSON.stringify([props.info?.token,props.deleting,busy,props.tasks.map(task=>task.guid)]));
   const available=!!props.transport||!!props.info&&!props.debug;
   const call:CompletionTransport=props.transport||((method,args)=>rpc<CompletionReceipt>(props.info!,method,args,{timeoutMs:120000}));
   async function load(){
@@ -32,9 +34,10 @@ export function TaskCompletionPanel(props:Props){
   }
   const pending=active&&['client_unconfirmed','unconfirmed','calling','preparing'].includes(active.state||'');
   return <div>
+    {deletion.dialog}
     {props.tasks.map(task=><section className="sw-sync-row" key={task.guid||task.title}><strong>{task.title}</strong><span>{task.when}</span>
       {task.guid&&<><button type="button" disabled={!available||busy||props.deleting} onClick={()=>prepare(task.guid)}>完成待办</button>
-        <button type="button" disabled={busy||props.deleting} onClick={()=>{if(window.confirm('真实删除此飞书待办？这不是标记完成。'))props.onDeleteTask?.(task.guid);}}>删除待办</button></>}
+        <button type="button" disabled={busy||props.deleting} onClick={()=>{deletion.ask('删除飞书待办？',task.title,()=>props.onDeleteTask?.(task.guid));}}>删除待办</button></>}
       {props.taskErrors?.[task.guid]&&<p role="alert">{props.taskErrors[task.guid]}</p>}
     </section>)}
     {active&&<fieldset className="task-completion-confirm" disabled={busy}><legend>{active.state==='prepared'?'确认完成待办':'完成操作结果'}</legend>

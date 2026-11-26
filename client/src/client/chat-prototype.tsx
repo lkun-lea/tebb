@@ -1,3 +1,4 @@
+import {WorkspaceDialog} from './workspace-dialog';
 import { useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
 import {ConnectionEntry,ExecutionEntry,executionRoot} from './execution-entry';
@@ -31,22 +32,10 @@ import { useConversationDraft, draftConversation, type FirstMessage } from './co
 import { CompanionAvatar as Avatar, RailButton, AVATAR_NAMES, AppIcon, readDeveloperMode, saveDeveloperMode } from "./companion-ui";
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const prior = document.activeElement as HTMLElement | null;
-    box.current?.querySelector<HTMLElement>("input, textarea, button")?.focus();
-    return () => prior?.focus?.();
-  }, []);
-  return <div className="cp-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <div className="cp-modal" ref={box} role="dialog" aria-modal="true" aria-label={title} onKeyDown={event => {
-      if (event.key === "Escape") { event.stopPropagation(); onClose(); }
-      if (event.key !== "Tab") return;
-      const items = Array.from(box.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href]') || []);
-      const first = items[0], last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    }}><header><div><span className="cp-eyebrow">TEBB / YOUR AGENT CIRCLE</span><h2>{title}</h2></div><button className="cp-icon-button" onClick={onClose} aria-label="关闭弹窗">×</button></header>{children}</div>
-  </div>;
+  return <WorkspaceDialog title={title} onClose={onClose} hideHeader className="cp-modal" dismissOnBackdrop>
+    <header><h2>{title}</h2><button type="button" className="cp-icon-button" onClick={onClose} aria-label="关闭弹窗">×</button></header>
+    {children}
+  </WorkspaceDialog>;
 }
 
 function AgentForm({ agent, agents, onSave, onClose, real = false, models = [], actionError = "", busy = false, developer = false }: { agent: DemoAgent; agents: DemoAgent[]; onSave: (agent: DemoAgent) => void; onClose: () => void; real?: boolean; models?: { id: string; model: string }[]; actionError?: string; busy?: boolean; developer?: boolean }) {

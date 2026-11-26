@@ -8,7 +8,9 @@ class TodayJournal {
     this.fingerprint = '';
   }
   update(data) {
-    const fingerprint = JSON.stringify(data);
+    const hour = new Date().getHours();
+    const light = hour >= 6 && hour < 18 ? "sun" : "moon";
+    const fingerprint = light + JSON.stringify(data);
     if (fingerprint === this.fingerprint) return;
     this.fingerprint = fingerprint;
     this.data = data;
@@ -18,6 +20,7 @@ class TodayJournal {
     const previousKey = this.activeKey;
     root.replaceChildren();
     root.className = 'journal';
+    root.dataset.light = light;
     if (this.mode === 'mobile') root.dataset.reduceMotion = String(Boolean(data.reduceMotion));
     const make = (parent, tag, style, text) => {
       const node = document.createElement(tag);

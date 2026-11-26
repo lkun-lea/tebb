@@ -1,3 +1,4 @@
+import {useActionConfirmation} from './action-confirmation';
 import {ReceiptNotice} from './toast';
 import { CopyButton } from './copy-button';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -97,24 +98,26 @@ function Editor({info,debug=false}:{info:BackendInfo|null;debug?:boolean}){
   async function saveSchedule(confirmed=false){if(!info||debug)throw Error('设计预览不保存计划，请连接桌面客户端。');if(!definition||dirty)throw new Error('请先保存工作流版本。');if(confirmed)assertConfirmation();const writes=definition.graph.nodes.filter(n=>writeKinds.has(n.kind));if(writes.length&&!confirmed){await checkTargets(writes);setConfirmation({action:'schedule',nodes:writes,binding:binding(),inputText:triggerText});return;}const [hour,minute]=clock.split(':').map(Number);const value=await rpc<{ok:boolean;error?:string;job_id?:string}>(info!,'save_automation_job',{payload:{...(scheduleId?{id:scheduleId}:{}),name:scheduleName||name+' · 工作流定时',action:'workflow',enabled:scheduleEnabled,cadence,hour,minute,weekdays:cadence==='weekly'?days:[],date:cadence==='once'?date:'',doc:'',workflow_id:definition.id,workflow_version:definition.version,workflow_write_version:confirmed?definition.version:''}});if(!value.ok)throw new Error(value.error||'定时未保存。');setScheduleId(value.job_id||'');setConfirmation(null);await schedules.reload();setNotice((scheduleEnabled?'定时已启用':'定时已保存并停用')+'，绑定当前版本；修改画布不会改写该定时。');}
   const changesBlocked=busy||!!confirmation;
   function resetSession(){setRun(null);setSchedule(false);setScheduleId('');setScheduleName('');setScheduleEnabled(true);setConfirmation(null);setRemoteId('');setTriggerText('');pendingStart.current='';setFocusCanvas(false);setOpened(true);setView('editor');}
-  function create(template?:WorkflowTemplate){
-    if(changesBlocked)return;if(hasEdits&&!window.confirm(template?'放弃当前草稿并复制示例？':'放弃当前未保存的工作流草稿？'))return;
+  const discard=useActionConfirmation(JSON.stringify([info?.token,binding(),changesBlocked]));
+  function create(template?:WorkflowTemplate, confirmed=false){
+    if(changesBlocked)return;if(hasEdits&&!confirmed){discard.ask('放弃工作流草稿？',template?'复制示例将替换当前草稿。':'新建后当前草稿将被替换。',()=>create(template,true));return;}
     const nextName=template?template.name+' · '+crypto.randomUUID().slice(0,4):'新的自动化工作流';
     setDefinition(null);setName(nextName);loadGraph(template?.graph||initialGraph(),catalog,nextName);setRequiresSave(true);resetSession();setNotice(template?.description||'');setError('');
   }
   function home(){if(changesBlocked)return;setFocusCanvas(false);setView('home');void action(refresh);}
-  async function openDefinition(id:string){
+  async function openDefinition(id:string, confirmed=false){
     if(changesBlocked)return;
     if(definition?.id===id&&!run&&!requiresSave&&definition.version===definitions.find(d=>d.id===id)?.version){setView('editor');return;}
-    if(hasEdits&&!window.confirm('放弃当前未保存草稿并读取所选工作流？'))return;
+    if(hasEdits&&!confirmed){discard.ask('放弃工作流草稿？','打开所选工作流将替换当前未保存的内容。',()=>void openDefinition(id,true));return;}
     await action(async()=>{const value=await call('load',{id});const saved=value.definition!;setDefinition(saved);setName(saved.name);loadGraph(saved.graph,catalog,saved.name);setRequiresSave(false);resetSession();});
   }
-  async function openRun(id:string){
+  async function openRun(id:string, confirmed=false){
     if(changesBlocked||!id)return;if(run?.id===id){setView('editor');setShowDebug(true);return;}
-    if(hasEdits&&!window.confirm('放弃当前未保存草稿并读取执行快照？'))return;
+    if(hasEdits&&!confirmed){discard.ask('放弃工作流草稿？','打开执行快照将替换当前未保存的内容。',()=>void openRun(id,true));return;}
     await action(async()=>{const value=await call('get',{run_id:id});const saved=await call('load',{id:value.run!.workflow});setDefinition({...saved.definition!,version:value.run!.version,graph:value.run!.graph});setName(value.run!.name);loadGraph(value.run!.graph,catalog,value.run!.name);setRequiresSave(value.run!.version!==saved.definition!.version);resetSession();setRun(value.run!);setShowDebug(true);});
   }
   return <div className="workflow-workbench">
+    {discard.dialog}
     <div hidden={view!=='home'} className="workflow-home-surface"><WorkflowOverview definitions={definitions} templates={templates} onConfigure={create} history={history} catalog={catalog} schedules={schedules} loading={loading} loaded={loaded} error={error} disabled={changesBlocked} debug={debug} draft={opened?name+(hasEdits?' · 未保存修改':''):''} onOpen={id=>void openDefinition(id)} onResume={()=>setView('editor')} onNew={()=>create()} onTemplate={()=>setView('templates')} onRun={id=>void openRun(id)} onRefresh={()=>void action(refresh)} onSchedules={()=>setView('schedules')}/></div>
     {view==='templates'&&<WorkflowTemplates templates={templates} disabled={changesBlocked} onChoose={create} onClose={()=>setView('home')}/>}
     <div hidden={view!=='editor'} className="workflow-editor-surface">{opened&&<WorkflowSurface focused={focusCanvas&&active&&view==='editor'} onClose={()=>setFocusCanvas(false)}><div className={`workflow-editor ${focusCanvas?'workflow-focus':''} ${!showPalette?'workflow-no-palette':''} ${!showInspector?'workflow-no-inspector':''}`} data-testid="workflow-editor">
@@ -138,7 +141,7 @@ function Editor({info,debug=false}:{info:BackendInfo|null;debug?:boolean}){
   </div></WorkflowSurface>}</div>
     <section hidden={view!=='schedules'} className="workflow-plans-page"><button disabled={changesBlocked} onClick={()=>setView('home')}><ArrowLeft size={15}/>返回工作流</button>
     {error&&<p role="alert" className="workflow-error">{error}</p>}
-    <WorkflowSchedules state={schedules} debug={debug} disabled={changesBlocked} onEdit={job=>{if(changesBlocked)return;if(hasEdits&&!window.confirm('放弃当前草稿并载入此计划绑定的原版本？'))return;void action(async()=>{const value=await call('load',{id:job.workflow_id,version:job.workflow_version});setDefinition(value.definition!);setName(value.definition!.name);loadGraph(value.definition!.graph,catalog,value.definition!.name);setRequiresSave(false);resetSession();setScheduleId(job.id);setScheduleName(job.name);setScheduleEnabled(job.enabled);setCadence(job.cadence);setClock(String(job.hour).padStart(2,'0')+':'+String(job.minute).padStart(2,'0'));setDate(job.date||'');setDays(job.weekdays||[]);setSchedule(true);setOpened(true);setView('editor');setShowDebug(true);setNotice('正在编辑原计划，保留原编号及绑定版本。');});}}/>
+    <WorkflowSchedules state={schedules} debug={debug} disabled={changesBlocked} onEdit={job=>{if(changesBlocked)return;const loadVersion=()=>void action(async()=>{const value=await call('load',{id:job.workflow_id,version:job.workflow_version});setDefinition(value.definition!);setName(value.definition!.name);loadGraph(value.definition!.graph,catalog,value.definition!.name);setRequiresSave(false);resetSession();setScheduleId(job.id);setScheduleName(job.name);setScheduleEnabled(job.enabled);setCadence(job.cadence);setClock(String(job.hour).padStart(2,'0')+':'+String(job.minute).padStart(2,'0'));setDate(job.date||'');setDays(job.weekdays||[]);setSchedule(true);setOpened(true);setView('editor');setShowDebug(true);setNotice('正在编辑原计划，保留原编号及绑定版本。');});if(hasEdits){discard.ask('放弃工作流草稿？','载入计划绑定的版本将替换当前草稿。',loadVersion);}else loadVersion();}}/>
     </section>
   </div>;
 }

@@ -1,3 +1,4 @@
+import {useActionConfirmation} from './action-confirmation';
 import {accountStorage} from './account-storage';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -97,6 +98,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const viewStart=view==='week'?monday:view==='month'?day.slice(0,7)+'-01':day;
   useEffect(()=>{lastBlankClick.current=null;return()=>{if(blankDoubleTimer.current!==undefined)window.clearTimeout(blankDoubleTimer.current);};},[view,day]);
   const event=controller.event(selected),owner=controller.page.links.find(link=>calendarKey(link.event)===selected);
+  const decision=useActionConfirmation(JSON.stringify([info?.token,day,selected,event?.local_version,event?.start,event?.end,local.busy]));
   const item=controller.page.items.find(i=>i.id===owner?.item_id);
   const busy=controller.pending.has(selected),blocked=controller.blocked(selected),checking=controller.checking.has(selected);
   const initialForm=event&&event.start.includes('T')&&Number.isFinite(Date.parse(event.start))&&Number.isFinite(Date.parse(event.end))?{key:selected,start:beijingStamp(event.start),end:beijingStamp(event.end),summary:event.summary}:null;
@@ -337,8 +339,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     const event=source.event;
     if(event.calendar_id==='tebb-draft'){if(validTimeDraft(event,next)){setAnnouncement('此位置不符合时间规则，草稿未移动。');return;}setDraft(previous=>previous?{...previous,start:beijingStamp(next.start),end:beijingStamp(next.end)}:previous);pulse();return;}
     void apply(event,next);}
-  async function resolveSync(operationId:string,localId:string,resolution:'link'|'absent'){
-    if(resolution==='absent'&&!window.confirm('已核对原飞书身份，并确认没有创建出有效日程？不会自动重发。'))return;
+  async function resolveSync(operationId:string,localId:string,resolution:'link'|'absent', confirmed=false){
+    if(resolution==='absent'&&!confirmed){decision.ask('确认未创建有效日程？','请核对原飞书身份和日程记录。',()=>void resolveSync(operationId,localId,resolution,true));return;}
     await local.change({type:'resolve_sync',local_id:localId,operation_id:operationId,resolution,confirmed:resolution==='absent',event_id:resolveId});
     changes.current();await controller.read(day,true);
   }
@@ -402,7 +404,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     const marker=local.unknown,syncMarker=marker.type==='sync'&&!local.page.operations.some(operation=>operation.id===marker.request_id);
     const actions:SyncAction[]=[{label:'读取原编号',run:()=>void local.read()}];
     if(['create','update'].includes(marker.type))actions.push({label:'核对本地记录并结束等待',disabled:local.busy,
-      run:()=>{if(window.confirm('已核对当前本地日程，登记当前状态并结束原请求等待？'))void local.change({type:'resolve_save',local_id:marker.local_id!,operation_id:marker.request_id,confirmed:true});}});
+      run:()=>{decision.ask('登记当前本地状态？','确认后将结束原请求的等待。',()=>void local.change({type:'resolve_save',local_id:marker.local_id!,operation_id:marker.request_id,confirmed:true}));}});
     if(syncMarker&&marker.local_id)actions.push(
       {label:'核对并关联已创建日程',disabled:!resolveId||local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'link')},
       {label:'确认未创建并封存原编号',disabled:local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'absent')});
@@ -413,7 +415,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   for(const operation of local.page.operations.filter(row=>row.type==='delete'))confirmItems.push({id:'delete:'+operation.id,
     title:'删除结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}`,actions:[
       {label:'核对删除结果',disabled:local.busy,run:()=>void local.change({type:'resolve_delete',operation_id:operation.id}).then(()=>{changes.current();void controller.read(day,true);})},
-      {label:'保留当前记录并结束等待',disabled:local.busy,run:()=>{if(window.confirm('读取当前记录；若仍存在，明确保留它并结束原等待？不会重发删除。'))void local.change({type:'resolve_delete',operation_id:operation.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);});}}]});
+      {label:'保留当前记录并结束等待',disabled:local.busy,run:()=>{decision.ask('保留记录并结束等待？','将读取并核对当前记录。',()=>void local.change({type:'resolve_delete',operation_id:operation.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);}));}}]});
   for(const operation of local.page.operations.filter(row=>row.type==='sync'))confirmItems.push({id:'sync:'+operation.id,
     title:'飞书同步结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}${operation.error?' · '+operation.error:''}`,
     input:{label:'已创建的飞书事件 ID',value:resolveId,onChange:setResolveId,
@@ -432,6 +434,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       action:localItems.length?{label:`同步全部 ${localItems.length} 条`,run:openBulk}:undefined},
     {id:'recovered',label:'最近已恢复',items:recoveredItems,empty:'处理完成的条目会归入这里。',collapsed:true}];
   return <section className={`schedule-week${pointerCancelled?' sw-cancelled':''}${narrow?' sw-compact':''}`} ref={root} aria-label="周日程安排" onKeyDownCapture={keyboardMove} onDoubleClickCapture={doubleBlank} data-week-view data-week-version={version}>
+    {decision.dialog}
     <header className="sw-heading"><div className="sw-heading-main"><span className="wb-eyebrow">工作区 / 日程</span>
       <div className="sw-title-row"><h1>日程</h1><CalendarSyncStatus groups={syncGroups} open={syncOpen} onOpenChange={setSyncOpen}
         checking={controller.loading||local.loading} lastChecked={checkedAt} onRefresh={()=>{void controller.read(day,true);void local.read();}}/></div>
@@ -485,7 +488,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
           <details className="sw-detail-more"><summary>更多</summary><div className="sw-detail-menu">
             <button type="button" disabled={checking} onClick={()=>void controller.inspect(event)}>核对编辑资格</button>
             <button type="button" onClick={()=>guard(()=>onDay({day:safeDay(event,day),calendar_id:event.calendar_id,event_id:event.event_id,item_id:item?.id||target.item_id}))}>关联事项</button>
-            <button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{if(window.confirm('删除这场日程？已同步日程会同时删除飞书记录，事项和AI历史保留。'))void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);});}}>删除日程</button>
+            <button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{decision.ask('删除这场日程？',event.summary+' · 已同步的飞书记录也会被删除。',()=>void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);}));}}>删除日程</button>
           </div></details>
         </div>
       </>}

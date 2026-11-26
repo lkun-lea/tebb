@@ -86,8 +86,10 @@
   top:22%;
   width:106px;
   height:106px;
-  background:url(art/pet.svg) center/68% auto no-repeat,url(art/halo.svg) center/contain no-repeat
+  background:url(art/pet.svg) center/68% auto no-repeat,radial-gradient(closest-side,var(--jr-glow,#ffdf8aa6) 30%,transparent 100%)
 }
+
+.journal[data-light=moon] { --jr-glow: #ffffffda }
 
 .jr-card {
   position:relative;
