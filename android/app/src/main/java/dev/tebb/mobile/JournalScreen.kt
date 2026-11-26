@@ -7,7 +7,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.foundation.verticalScroll
@@ -114,7 +113,7 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
         update = { if (ready) it.evaluateJavascript("window.updateJournal(JSON.parse(" + JSONObject.quote(snapshot) + "))", null) })
     plans.firstOrNull { it.optString("id") == source }?.let { plan ->
         val rows = plan.optJSONArray("rows") ?: JSONArray()
-        AlertDialog(onDismissRequest = { source = "" }, title = { Text(plan.optString("title")) },
+        WorkspaceAlertDialog(onDismissRequest = { source = "" }, title = { Text(plan.optString("title")) },
             text = { Text((0 until rows.length()).joinToString("\n\n") { rows.getJSONObject(it).optString("text") }, Modifier.verticalScroll(rememberScrollState())) },
             confirmButton = { TextButton(onClick = { source = "" }) { Text("返回手记") } })
     }

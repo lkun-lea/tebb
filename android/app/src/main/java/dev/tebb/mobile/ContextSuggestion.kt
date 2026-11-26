@@ -55,7 +55,7 @@ internal fun ContextSuggestion(owner: String, rows: List<PendingQuestion>, selec
             }
         }
     }
-    if (details) AlertDialog(onDismissRequest = { details = false }, title = { Text("Windows 原任务") },
+    if (details) WorkspaceAlertDialog(onDismissRequest = { details = false }, title = { Text("Windows 原任务") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) { sources.forEach { row ->
             Text(row.title + "\n" + row.prompt)
             TextButton(onClick = { select(row.key); details = false }) { Text("引用这个问题") }

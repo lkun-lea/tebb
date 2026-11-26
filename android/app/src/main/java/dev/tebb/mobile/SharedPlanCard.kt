@@ -56,7 +56,7 @@ internal fun SharedPlanCard(owner: String, computer: String, raw: String, offlin
         }
     }
     if (!show) return
-    AlertDialog(onDismissRequest = { show = false }, title = { Text(current?.getString("title") ?: "已共享方案") },
+    WorkspaceAlertDialog(onDismissRequest = { show = false }, title = { Text(current?.getString("title") ?: "已共享方案") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             offline?.let { Text(it) }
             if (current == null) plans.forEach { plan ->

@@ -225,7 +225,7 @@ private fun ChatHistoryMenu(hasMessages: Boolean, available: Boolean, clear: () 
     val reduced = LocalReducedMotion.current
     Box {
         GlyphButton(Glyph.More, "更多选项", { if (available) expanded = true })
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        WorkspaceDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(onClick = {
                 preferences.edit().putBoolean("reduceMotion", !preferences.getBoolean("reduceMotion", false)).apply()
                 expanded = false
@@ -236,7 +236,7 @@ private fun ChatHistoryMenu(hasMessages: Boolean, available: Boolean, clear: () 
             }) { Text("清空对话记录") }
         }
     }
-    if (confirming) AlertDialog(
+    if (confirming) WorkspaceAlertDialog(
         onDismissRequest = { confirming = false },
         title = { Text("清空对话记录？") },
         text = { Text("这台设备上的全部聊天记录将被删除，无法恢复。草稿和待答任务会保留。") },
@@ -543,12 +543,12 @@ private fun RuntimeMenu(cloud: Boolean, locked: Boolean, idle: Boolean, choose: 
             Text(label, fontSize = 17.sp)
             if (!locked) Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(18.dp))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        WorkspaceDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             listOf(false to "本地", true to "云端 · 免费 Qwen").forEach { (value, name) ->
                 val selected = cloud == value
                 DropdownMenuItem(onClick = { open = false; choose(value) },
                     modifier = Modifier.semantics { stateDescription = if (selected) "已选中" else "未选中" }) {
-                    Text(name, Modifier.weight(1f), color = if (selected) Accent else Paper)
+                    Text(name, Modifier.weight(1f), color = if (selected) Accent else MaterialTheme.colors.onSurface)
                     if (selected) Text("✓", color = Accent)
                 }
             }

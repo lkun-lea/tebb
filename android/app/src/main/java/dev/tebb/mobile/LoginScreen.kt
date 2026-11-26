@@ -91,7 +91,7 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
                                             if ('@' !in email) Text("@$suffix", fontSize = 17.sp)
                                             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
                                         }
-                                        DropdownMenu(menuOpen && !busy, onDismissRequest = { menuOpen = false }) {
+                                        WorkspaceDropdownMenu(menuOpen && !busy, onDismissRequest = { menuOpen = false }) {
                                             val current = if ('@' in email) email.substringAfter('@').trim() else suffix
                                             suffixes.forEach { domain ->
                                                 DropdownMenuItem(onClick = {
