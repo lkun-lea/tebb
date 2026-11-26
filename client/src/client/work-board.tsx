@@ -1,3 +1,5 @@
+import {WorkspaceDialog} from './workspace-dialog';
+import {DraftLeaveDialog} from './action-confirmation';
 import {ReceiptNotice} from './toast';
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin, rectIntersection,
@@ -82,10 +84,9 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   const [dragging,setDragging]=useState<string|null>(null);
   const [scheduleTarget,setScheduleTarget]=useState<ScheduleTarget|null>(null),[leaveWork,setLeaveWork]=useState<null|(()=>void)>(null);
   const [weekTarget,setWeekTarget]=useState<ScheduleTarget|null>(null);
-  const leaveRoot=useRef<HTMLDivElement|null>(null);
   const draftRef=useRef(draft);draftRef.current=draft;
   const draftBase=useRef('');
-  const formRequest=useRef('');const formRoot=useRef<HTMLElement|null>(null);
+  const formRequest=useRef('');
   const moveFocus=useRef('');
   const keyboardDragging=useRef(false);
   useEffect(()=>{if(!moveFocus.current)return;const label=moveFocus.current;moveFocus.current='';[...document.querySelectorAll<HTMLElement>('.work-board .wb-grip')].find(node=>node.getAttribute('aria-label')===label)?.focus();});
@@ -103,9 +104,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   },[active,controller,info,debug]);
   const item=controller.items.find(i=>i.id===selected);
   const drawer=!weekTarget&&!scheduleTarget&&(!!draft||!!item);
-  useEffect(()=>{if(!drawer)return;const previous=document.activeElement as HTMLElement|null;formRoot.current?.querySelector<HTMLElement>('button,input')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[drawer,!!draft,selected]);
   useEffect(()=>{setRunId('');setLinking(false);setDetailError('');},[selected]);
-  useEffect(()=>{if(!leaveWork)return;const previous=document.activeElement as HTMLElement|null;leaveRoot.current?.querySelector<HTMLElement>('button')?.focus();return()=>{if(previous?.isConnected)previous.focus();};},[!!leaveWork]);
   const visible=controller.items.filter(item=>item.archived===archived&&(project==='all'||(project==='none'?!item.project_id:item.project_id===project))&&(!query||(item.title+' '+item.description).toLocaleLowerCase().includes(query.toLocaleLowerCase())));
   useEffect(()=>{if(controller.loaded&&project!=='all'&&project!=='none'&&!controller.page.projects.some(p=>p.id===project))setProject('none');},[controller.loaded,controller.page.projects,project]);
   function guardDraft(next:()=>void){if(draft&&JSON.stringify(draft)!==draftBase.current)setLeaveWork(()=>next);else next();}
@@ -167,8 +166,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
       <DragOverlay modifiers={keyboardDragging.current?[keepKeyboardOverlayVisible]:undefined} dropAnimation={reduce?null:DRAG_DROP}>{dragging&&controller.items.find(i=>i.id===dragging)?<ItemCard item={controller.items.find(i=>i.id===dragging)!} controller={controller} onSelect={()=>{}} onSchedule={openSchedule} overlay/>:null}</DragOverlay>
     </DndContext>
     <footer className="wb-footer"><span>{visible.length} 件{archived?'已归档':''}事项 · 四阶段工作流</span><ReceiptNotice text={controller.notice}/></footer>
-    {drawer&&<><div className="wb-shade" onClick={close}/><aside className="wb-detail" role="dialog" aria-modal="true" aria-label={draft?'编辑事项':'事项详情'} ref={formRoot}
-      onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();if(leaveWork)setLeaveWork(null);else close();}if(event.key==='Tab'){const nodes=[...(leaveRoot.current||event.currentTarget).querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]')];const first=nodes[0],last=nodes[nodes.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}}}>
+    {drawer&&<WorkspaceDialog className="wb-detail" title={draft?'编辑事项':'事项详情'} onClose={close} hideHeader dismissOnBackdrop>
       <header className="wb-detail-header"><span>{draft?'编辑事项':item?.archived?'已归档事项':'事项详情'}</span><button type="button" aria-label="关闭事项详情" onClick={close}>×</button></header>
       {draft?<form onSubmit={event=>void save(event)}><UiField label="事项标题" help="必填，最多120字。" error={formError&&!draft.title.trim()?formError:undefined}><input aria-label="事项标题" value={draft.title} maxLength={120} disabled={fieldBusy} onChange={e=>{setDraft({...draft,title:e.target.value});if(formError==='请输入事项标题。')setFormError('');}}/></UiField>
         <div className="wb-detail-fields"><label>所属项目<select aria-label="事项所属项目" disabled={fieldBusy} value={draft.project_id} onChange={e=>setDraft({...draft,project_id:e.target.value})}><option value="">未归属项目</option>{draft.project_id&&!controller.page.projects.some(p=>p.id===draft.project_id)&&<option value={draft.project_id}>原项目已移除，请重新选择</option>}{controller.page.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
@@ -178,7 +176,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
         <label>事项说明<textarea aria-label="事项说明" value={draft.description} maxLength={8000} rows={7} disabled={fieldBusy} onChange={e=>setDraft({...draft,description:e.target.value})}/></label>
         <p className="wb-detail-hint">截止日表示最晚完成日；实际工作的时间在事项详情中安排。</p>
         {formError&&!!draft.title.trim()&&<UiFeedback state={controller.uncertain.has(draft.id||'create')?'unconfirmed':'error'} title={formError} className="wb-error"/>}
-        <div className="wb-detail-actions"><UiButton variant="primary" busy={controller.pending.has(draft.id||'create')} disabled={fieldBusy} busyLabel="正在保存…" type="submit">{controller.uncertain.has(draft.id||'create')?'等待核对原操作':'保存事项'}</UiButton><UiButton onClick={()=>guardDraft(()=>setDraft(null))}>取消</UiButton></div>
+        <div className="wb-detail-actions"><UiButton onClick={()=>guardDraft(()=>setDraft(null))}>取消</UiButton><UiButton variant="primary" busy={controller.pending.has(draft.id||'create')} disabled={fieldBusy} busyLabel="正在保存…" type="submit">{controller.uncertain.has(draft.id||'create')?'等待核对原操作':'保存事项'}</UiButton></div>
       </form>:item&&<><h2>{item.title}</h2><div className="wb-detail-info"><span>状态</span><select aria-label="事项状态" value={item.state} disabled={item.archived||controller.uncertain.has(item.id)} onChange={e=>void controller.move(item.id,e.target.value as WorkState)}>{WORK_STATES.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select><span>所属项目</span><strong>{item.project_name||'未归属项目'}</strong><span>优先级</span><strong>{priorities[item.priority]}优先级</strong><span>截止日期</span><strong>{item.due||'未设置'}</strong></div>
         {item.removed_project&&<p className="wb-removed">原项目已移除：{item.removed_project}。可重新关联。</p>}
         <section className="wb-detail-section"><h3>事项说明</h3>{item.description?<Markdown text={item.description}/>:<p>暂未添加说明。</p>}</section>
@@ -196,8 +194,10 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
           <button type="button" disabled={controller.pending.has(item.id)||controller.uncertain.has(item.id)} onClick={()=>void controller.change({type:'archive',id:item.id,archived:!item.archived})}>{item.archived?'恢复事项':'归档事项'}</button></div>
         <p className="wb-detail-hint">业务进度由你确认。归档保留内容和关联，不停止 AI 执行。</p>
       </>}
-      {leaveWork&&<div className="sc-leave" role="alertdialog" aria-modal="true" aria-label="未保存的事项" ref={leaveRoot}><h3>事项有未保存修改</h3><button type="button" disabled={fieldBusy} onClick={()=>void save({preventDefault(){}} as React.FormEvent).then(ok=>{if(ok){const next=leaveWork;setLeaveWork(null);next();}})}>保存并继续</button><button type="button" disabled={controller.pending.has(draft?.id||'create')} onClick={()=>{const next=leaveWork;setDraft(null);setLeaveWork(null);next();}}>放弃修改并继续</button><button type="button" onClick={()=>setLeaveWork(null)}>继续编辑</button></div>}
-    </aside></>}
+      {leaveWork&&<DraftLeaveDialog title="事项有未保存修改" detail="可以继续编辑，保存当前事项，或放弃修改并继续。"
+      saveLabel="保存并继续" discardLabel="放弃修改并继续" saveDisabled={fieldBusy} discardDisabled={controller.pending.has(draft?.id||'create')}
+      onKeep={()=>setLeaveWork(null)} onDiscard={()=>{const next=leaveWork;setDraft(null);setLeaveWork(null);next();}} onSave={()=>void save({preventDefault(){}} as React.FormEvent).then(ok=>{if(ok){const next=leaveWork;setLeaveWork(null);next();}})}/>}
+    </WorkspaceDialog>}
     {schedulePane}
   </div>;
 }

@@ -3,6 +3,13 @@ import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, c
 
 export type WeekTransport=(method:string,args:Record<string,unknown>)=>Promise<unknown>;
 import type{CalendarDraft}from'./calendar-event-editor';
+export function defaultCalendarStart(day:string, now=Date.now()) {
+  const morning = day + 'T09:00:00+08:00';
+  if (day !== beijingDay(new Date(now).toISOString()) || Date.parse(morning) >= now) return morning;
+  const halfHour = 30 * 60_000;
+  return new Date(Math.ceil(now / halfHour) * halfHour).toISOString();
+}
+
 export function createCalendarDraft(start:string,end?:string,options:Partial<Pick<CalendarDraft,'id'|'summary'|'item_id'|'proposal'>>={}):CalendarDraft{
   const until=end||new Date(Date.parse(start)+3600000).toISOString();
   if(!Number.isFinite(Date.parse(start))||!Number.isFinite(Date.parse(until))||Date.parse(until)<=Date.parse(start))throw Error('草稿起止时间无效。');

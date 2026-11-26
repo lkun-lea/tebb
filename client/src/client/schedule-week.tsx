@@ -1,4 +1,4 @@
-import {useActionConfirmation} from './action-confirmation';
+import {DraftLeaveDialog,useActionConfirmation} from './action-confirmation';
 import {accountStorage} from './account-storage';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -16,7 +16,7 @@ import { DateTimeField } from './datetime-field';
 import { usePageActive } from './page-stack';
 import { absoluteTime, addCalendarDays, beijingDay, beijingStamp, calendarKey, calendarWeekStart, eventHealth, eventTime,
   type CalendarEvent } from './schedule-state';
-import { ScheduleWeekController, createCalendarDraft, dragTimeDraft, pointerTimeDraft, minutesInDay, overlappingEvents, timeEditable, validTimeDraft,
+import { ScheduleWeekController, createCalendarDraft, defaultCalendarStart, dragTimeDraft, pointerTimeDraft, minutesInDay, overlappingEvents, timeEditable, validTimeDraft,
   type TimeDraft, type WeekTransport } from './schedule-week-state';
 import type { ScheduleTarget } from './schedule';
 import { LocalCalendarController, type SyncBatch } from './local-calendar-state';
@@ -188,6 +188,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   function startPointer(){pointerGeneration.current++;controller.beginInteraction();cancelPointer.current=false;pointerActive.current=true;setPointerCancelled(false);setKeyboard(null);}
   function stopPointer(){const generation=pointerGeneration.current;controller.endInteraction();draggedRange.current=null;window.setTimeout(()=>{if(generation!==pointerGeneration.current)return;pointerActive.current=false;cancelPointer.current=false;setPointerCancelled(false);},0);}
   function keyboardMove(e:KeyboardEvent<HTMLElement>){
+    if ((e.target as HTMLElement | null)?.closest('dialog[open]')) return;
     if(e.key==='Escape'){
       // 「更多」菜单在最上层，Escape 先收起它并把焦点交还触发按钮
       if(moreOpen){setMoreOpen(false);setKeyboardHelpOpen(false);moreTrigger.current?.focus();e.preventDefault();e.stopPropagation();return;}
@@ -243,7 +244,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     setDraft(createCalendarDraft(start,end,{summary:source?.title||'',item_id:source?source.id:target.item_id||''}));pulse();});}
   function arrangeItem(source:CalendarItem){
     if(itemDraftBlocked||source.archived)return;
-    beginDraft(day+'T09:00:00+08:00',undefined,source);
+    beginDraft(defaultCalendarStart(day),undefined,source);
     setAnnouncement(`已为“${source.title}”打开草稿，保存后才会创建日程。`);
   }
   function doubleBlank(event:MouseEvent<HTMLElement>){
@@ -340,7 +341,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     if(event.calendar_id==='tebb-draft'){if(validTimeDraft(event,next)){setAnnouncement('此位置不符合时间规则，草稿未移动。');return;}setDraft(previous=>previous?{...previous,start:beijingStamp(next.start),end:beijingStamp(next.end)}:previous);pulse();return;}
     void apply(event,next);}
   async function resolveSync(operationId:string,localId:string,resolution:'link'|'absent', confirmed=false){
-    if(resolution==='absent'&&!confirmed){decision.ask('确认未创建有效日程？','请核对原飞书身份和日程记录。',()=>void resolveSync(operationId,localId,resolution,true));return;}
+    if(resolution==='absent'&&!confirmed){decision.ask('确认未创建有效日程？','请核对原飞书身份和日程记录。', {label:'确认未创建'}, ()=>void resolveSync(operationId,localId,resolution,true));return;}
     await local.change({type:'resolve_sync',local_id:localId,operation_id:operationId,resolution,confirmed:resolution==='absent',event_id:resolveId});
     changes.current();await controller.read(day,true);
   }
@@ -404,7 +405,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     const marker=local.unknown,syncMarker=marker.type==='sync'&&!local.page.operations.some(operation=>operation.id===marker.request_id);
     const actions:SyncAction[]=[{label:'读取原编号',run:()=>void local.read()}];
     if(['create','update'].includes(marker.type))actions.push({label:'核对本地记录并结束等待',disabled:local.busy,
-      run:()=>{decision.ask('登记当前本地状态？','确认后将结束原请求的等待。',()=>void local.change({type:'resolve_save',local_id:marker.local_id!,operation_id:marker.request_id,confirmed:true}));}});
+      run:()=>{decision.ask('登记当前本地状态？','确认后将结束原请求的等待。', {label:'确认登记'}, ()=>void local.change({type:'resolve_save',local_id:marker.local_id!,operation_id:marker.request_id,confirmed:true}));}});
     if(syncMarker&&marker.local_id)actions.push(
       {label:'核对并关联已创建日程',disabled:!resolveId||local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'link')},
       {label:'确认未创建并封存原编号',disabled:local.busy,run:()=>void resolveSync(marker.request_id,marker.local_id!,'absent')});
@@ -415,7 +416,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   for(const operation of local.page.operations.filter(row=>row.type==='delete'))confirmItems.push({id:'delete:'+operation.id,
     title:'删除结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}`,actions:[
       {label:'核对删除结果',disabled:local.busy,run:()=>void local.change({type:'resolve_delete',operation_id:operation.id}).then(()=>{changes.current();void controller.read(day,true);})},
-      {label:'保留当前记录并结束等待',disabled:local.busy,run:()=>{decision.ask('保留记录并结束等待？','将读取并核对当前记录。',()=>void local.change({type:'resolve_delete',operation_id:operation.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);}));}}]});
+      {label:'保留当前记录并结束等待',disabled:local.busy,run:()=>{decision.ask('保留记录并结束等待？','将读取并核对当前记录。', {label:'保留并结束'}, ()=>void local.change({type:'resolve_delete',operation_id:operation.id,resolution:'present',confirmed:true}).then(()=>{changes.current();void controller.read(day,true);}));}}]});
   for(const operation of local.page.operations.filter(row=>row.type==='sync'))confirmItems.push({id:'sync:'+operation.id,
     title:'飞书同步结果待核对',detail:`编号 ${operation.id} · 阶段 ${operation.stage}${operation.error?' · '+operation.error:''}`,
     input:{label:'已创建的飞书事件 ID',value:resolveId,onChange:setResolveId,
@@ -455,7 +456,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
             {extraActions}{closeLabel&&<button type="button" onClick={()=>guard(onClose)}>{closeLabel}</button>}
           </div>}
         </div>
-        <button type="button" className="wb-primary" onClick={()=>beginDraft(day+'T09:00:00+08:00')}>＋ 新建日程</button>
+        <button type="button" className="wb-primary" onClick={()=>beginDraft(defaultCalendarStart(day))}>＋ 新建日程</button>
       </div></header>
     <div className="sw-datenav"><div className="sw-datenav-controls">
       <button type="button" className="sw-step" aria-label={view==='month'?'上一月':view==='day'?'上一天':'上一周'} onClick={()=>guard(()=>setDay(view==='month'?new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7))-2,1)).toISOString().slice(0,10):addCalendarDays(day,view==='day'?-1:-7)))}>‹</button>
@@ -488,7 +489,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
           <details className="sw-detail-more"><summary>更多</summary><div className="sw-detail-menu">
             <button type="button" disabled={checking} onClick={()=>void controller.inspect(event)}>核对编辑资格</button>
             <button type="button" onClick={()=>guard(()=>onDay({day:safeDay(event,day),calendar_id:event.calendar_id,event_id:event.event_id,item_id:item?.id||target.item_id}))}>关联事项</button>
-            <button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{decision.ask('删除这场日程？',event.summary+' · 已同步的飞书记录也会被删除。',()=>void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);}));}}>删除日程</button>
+            <button type="button" disabled={!timeEditable(event)||Date.parse(event.end)<=Date.now()||blocked||local.busy} onClick={()=>{decision.ask('删除这场日程？',event.summary + (event.sync_state==='local' && !event.remote ? ' · 将删除这条本地日程。' : ' · 已同步的飞书记录也会被删除。'), {label:'删除日程', danger:true}, ()=>void local.change({type:'delete',calendar_id:event.calendar_id,event_id:event.event_id,version:event.local_version,original_start:event.start,original_end:event.end}).then(result=>{if(result.ok)setDetailsOpen(false);changes.current();void controller.read(day,true);}));}}>删除日程</button>
           </div></details>
         </div>
       </>}
@@ -509,6 +510,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       {(local.batch||batchChoice)&&<section aria-label="本轮同步结果"><h3>清单 {(local.batch||batchChoice)!.id}</h3>{(local.batch||batchChoice)!.entries.map(entry=><p key={entry.local_id}>{local.page.events.find(e=>e.local_id===entry.local_id)?.summary||entry.local_id} · {({queued:'尚未执行',synced:'已同步',failed:'未同步',unconfirmed:'待核对'})[entry.state]} {entry.error}</p>)}</section>}
       {local.page.batches.filter(b=>b.entries.some(e=>e.state==='queued')).map(batch=><div key={batch.id}><span>未完成清单 {batch.id}</span><button type="button" disabled={local.busy||!!local.unknown} onClick={()=>{setBatchChoice(batch);void local.continueBatch(batch).then(()=>{changes.current();void controller.read(day);});}}>明确继续尚未执行的条目</button></div>)}
     </WorkspaceDialog>}
-    {leave&&<div className="sc-leave" role="alertdialog" aria-label="未保存的日程时间"><h3>日程时间尚未保存</h3><button type="button" disabled={blocked} onClick={()=>void (draft?saveDraft():saveForm()).then(ok=>{if(ok){const next=leave;setLeave(null);next();}})}>保存并继续</button><button type="button" disabled={busy} onClick={()=>{const next=leave;setDraft(null);setForm(null);setPicker(null);setLeave(null);next();}}>放弃并继续</button><button type="button" onClick={()=>setLeave(null)}>继续编辑</button></div>}
+    {leave&&<DraftLeaveDialog title="日程时间尚未保存" detail="可以保存当前修改，也可以放弃修改并继续。"
+      saveLabel="保存并继续" discardLabel="放弃并继续" saveDisabled={blocked} discardDisabled={busy}
+      onKeep={()=>setLeave(null)} onDiscard={()=>{const next=leave;setDraft(null);setForm(null);setPicker(null);setLeave(null);next();}} onSave={()=>void (draft?saveDraft():saveForm()).then(ok=>{if(ok){const next=leave;setLeave(null);next();}})}/>}
   </section>;
 }

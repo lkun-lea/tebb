@@ -5,8 +5,27 @@
 
 .workspace-dialog[open] {animation:tebb-dialog-enter var(--tebb-enter) var(--tebb-ease)}
 @keyframes tebb-dialog-enter {from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.workspace-dialog.cp-modal {width:min(540px,calc(100% - 32px));padding:0}
-.workspace-confirmation {width:min(420px,calc(100% - 32px))}
+.workspace-dialog.cp-modal {
+  --cp-accent: var(--tebb-action);
+  width: min(478px, calc(100% - 32px));
+  border-radius: 18px;
+  padding: 0;
+}
+.workspace-dialog.cp-modal > header { margin: 0; padding: 20px 22px 12px; }
+.workspace-dialog.cp-modal > header h2 { margin: 0; font-size: 22px; font-weight: 700; }
+.workspace-dialog.cp-modal .cp-form { padding: 16px 22px 24px; }
+.workspace-dialog.cp-modal footer .cp-button {
+  min-height: 40px;
+  min-width: 70px;
+  padding-inline: 14px;
+  border-radius: 12px;
+  font-size: 15px !important;
+}
+.workspace-dialog.cp-modal .cp-destructive {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+.workspace-dialog.workspace-confirmation {width:min(478px,calc(100% - 32px));padding:22px;border-radius:18px}
 .workspace-confirmation>p {line-height:1.6;overflow-wrap:anywhere}
-.workspace-confirmation>footer {display:flex;justify-content:flex-end;gap:8px;margin-top:24px}
-.workspace-confirmation>footer button {min-width:72px;min-height:40px}
+.workspace-confirmation>footer {display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:24px}
+.workspace-confirmation>footer button {min-width:70px;min-height:40px;border-radius:12px}

@@ -242,10 +242,13 @@ private fun ChatHistoryMenu(hasMessages: Boolean, available: Boolean, clear: () 
         text = { Text("这台设备上的全部聊天记录将被删除，无法恢复。草稿和待答任务会保留。") },
         dismissButton = { TextButton(onClick = { confirming = false }) { Text("取消") } },
         confirmButton = {
-            TextButton(enabled = hasMessages && available, onClick = {
+            Button(enabled = hasMessages && available,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFBD3848), contentColor = Color.White),
+                onClick = {
                 confirming = false
                 clear()
-            }) { Text("清空", color = Color(0xFFFFABA3)) }
+            }) { Text("清空") }
         }
     )
 }

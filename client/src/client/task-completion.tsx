@@ -37,7 +37,7 @@ export function TaskCompletionPanel(props:Props){
     {deletion.dialog}
     {props.tasks.map(task=><section className="sw-sync-row" key={task.guid||task.title}><strong>{task.title}</strong><span>{task.when}</span>
       {task.guid&&<><button type="button" disabled={!available||busy||props.deleting} onClick={()=>prepare(task.guid)}>完成待办</button>
-        <button type="button" disabled={busy||props.deleting} onClick={()=>{deletion.ask('删除飞书待办？',task.title,()=>props.onDeleteTask?.(task.guid));}}>删除待办</button></>}
+        <button type="button" disabled={busy||props.deleting} onClick={()=>{deletion.ask('删除飞书待办？',task.title, {label:'删除待办', danger:true}, ()=>props.onDeleteTask?.(task.guid));}}>删除待办</button></>}
       {props.taskErrors?.[task.guid]&&<p role="alert">{props.taskErrors[task.guid]}</p>}
     </section>)}
     {active&&<fieldset className="task-completion-confirm" disabled={busy}><legend>{active.state==='prepared'?'确认完成待办':'完成操作结果'}</legend>

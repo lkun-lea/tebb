@@ -271,3 +271,9 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   assert.equal(writes,1);assert.equal(navigations.length,beforeNavigation,'saving within the displayed week must not rebuild the view');
   act(()=>view.unmount());
 });
+
+test('new calendar draft starts in the next available slot on Beijing today',()=>{
+  const now=Date.parse('2026-11-26T20:46:00+08:00');
+  assert.equal(shared.beijingStamp(state.defaultCalendarStart('2026-11-26',now)), '2026-11-26T21:00');
+  assert.equal(shared.beijingStamp(state.defaultCalendarStart('2026-11-27',now)), '2026-11-27T09:00');
+});
