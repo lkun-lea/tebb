@@ -35,7 +35,7 @@ def create_calendar_entry(calendar, grants, device, request):
                                 start=request['start'], end=request['end']))
     if not result['ok']:
         raise ValueError(result['error'])
-    return dict(id=request['id'], accepted=True, event=result['event']['local_id'], version=result['event']['local_version'])
+    return dict(accepted=True, event=result['event']['local_id'], version=result['event']['local_version'])
 
 
 def apply_request(service, device, request, now, *, calendar=None, grants=(), shared=()):

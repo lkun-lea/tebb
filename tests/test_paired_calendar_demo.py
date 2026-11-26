@@ -1,11 +1,18 @@
 """在独立账号目录验证手机日程写入，覆盖中转、撤权及回执丢失后的重试。"""
 import os
+import base64
+import json
 import tempfile
+import threading
+import time
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
+import httpx
 
-from desk_companion.local_api.paired_workspace import apply_request, create_calendar_entry, seal, unseal
+from desk_companion.local_api.paired_workspace import apply_request, create_calendar_entry, exchange, seal, unseal
 from desk_companion.planning.scheduling import SchedulingService
 from desk_companion.planning.work_board import WorkBoardService
 from tests.schedule_fixture import END, START, TimeCalendar
@@ -13,6 +20,30 @@ from tests.schedule_fixture import END, START, TimeCalendar
 
 
 class PairedCalendarDemo(unittest.TestCase):
+    def test_exchange_publishes_calendar_ack_and_reuses_it(self):
+        device, key = uuid4().hex, os.urandom(32)
+        request = dict(id=str(uuid4()), time=int(time.time()), action='calendar.create', summary='评审', start=START, end=END)
+        published = []
+        def relay(http_request):
+            if http_request.method == 'GET':
+                return httpx.Response(200, json={'sealed': seal(key, device, 'phone', request)})
+            published.append(unseal(key, device, 'windows', json.loads(http_request.content)['sealed']))
+            return httpx.Response(200, json={'stored': True})
+        client = httpx.Client
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, DESK_COMPANION_DATA_DIR=folder):
+            path = Path(folder) / 'approved.json'
+            path.write_text(json.dumps(dict(account='demo', id=device, relay_key=base64.b64encode(key).decode(),
+                                            write_grants=['calendar.create'])), encoding='utf-8')
+            pair = SimpleNamespace(lock=threading.RLock(), active=lambda:True, record=path, account='demo',
+                                   calendar=SchedulingService(WorkBoardService(), TimeCalendar()).local,
+                                   collaboration=lambda:SimpleNamespace(mobile_workspace=lambda shared:dict(questions=[])))
+            with patch('httpx.Client', side_effect=lambda **kw:client(transport=httpx.MockTransport(relay), **kw)):
+                exchange(pair, dict)
+                exchange(pair, dict)
+            self.assertEqual(published[0]['ack'], published[1]['ack'])
+            self.assertTrue(published[0]['ack']['accepted'])
+            self.assertEqual(published[0]['ack']['id'], request['id'])
+
     def test_revocation_retry_and_desktop_readback(self):
         device, key = uuid4().hex, os.urandom(32)
         request = dict(id=str(uuid4()), action='calendar.create', summary='设计评审', start=START, end=END)

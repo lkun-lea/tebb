@@ -10,6 +10,7 @@ import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import httpx
 
@@ -60,6 +61,34 @@ def main():
             assert result['ack']['id'] == request['id'] and result['ack']['accepted'] and not result['questions']
             exchange(pair, lambda:headers)
             assert flow.service.execution_status(q['run'])['updates'] == ['45 分钟']
+            # 使用与产品隔离的日程、笔记和会话数据，只让真实账号承担中转鉴权。
+            from desk_companion.planning.scheduling import SchedulingService
+            from desk_companion.planning.work_board import WorkBoardService
+            from desk_companion.knowledge.notebook import _read
+            from tests.schedule_fixture import START, END, TimeCalendar
+            with patch.dict(os.environ, DESK_COMPANION_DATA_DIR=tmp):
+                pair.calendar = SchedulingService(WorkBoardService(), TimeCalendar()).local
+                record = json.loads(path.read_text(encoding='utf-8'))
+                record['write_grants'] = ['agent.request', 'calendar.create', 'note.create']
+                path.write_text(json.dumps(record), encoding='utf-8')
+
+                def submit(action, **fields):
+                    message = dict(id=str(uuid.uuid4()), time=int(time.time()), action=action, **fields)
+                    phone.post(endpoint, json=dict(device=device, stream='phone', sealed=seal(key,device,'phone',message))).raise_for_status()
+                    exchange(pair, lambda:headers)
+                    ack = read()['ack']
+                    assert ack['id'] == message['id'] and ack.get('accepted'), ack.get('error')
+                    return ack
+
+                saved = submit('calendar.create', summary='验收评审', start=START, end=END)
+                submit('calendar.update', event=saved['event'], version=saved['version'],
+                       summary='已修改的评审', start=START, end=END)
+                event, = submit('calendar.list')['events']
+                assert event['summary'] == '已修改的评审' and event['id'] == saved['event']
+                note = submit('note.create', title='中转验收', body='仅保存在隔离笔记本')
+                assert _read()['sessions'][0]['notes'][0]['id'] == note['note']
+                submit('agent.request', conversation=q['conversation'], text='整理隔离验收资料')
+                assert len(flow.service.snapshot()['state']['runs']) == 2
             assert httpx.get(endpoint,params=params).status_code == 401
             time.sleep(46)
             assert phone.get(endpoint,params=params).raise_for_status().json()['sealed'] is None
