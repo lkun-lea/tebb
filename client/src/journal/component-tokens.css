@@ -1,0 +1,14 @@
+:root {
+  --tebb-action: #00a6f4;
+  --tebb-progress: #00bba7;
+  --tebb-chart-low: #cdecf6;
+  --tebb-chart-mid: #49cbe4;
+  --tebb-chart-high: #00b8db;
+  --tebb-feedback: 120ms;
+  --tebb-enter: 180ms;
+  --tebb-ease: cubic-bezier(.2,0,0,1);
+}
+[data-reduce-motion=true] { --tebb-feedback: 0ms; --tebb-enter: 0ms; }
+@media (prefers-reduced-motion: reduce) {
+  :root { --tebb-feedback: 0ms; --tebb-enter: 0ms; }
+}

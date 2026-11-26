@@ -13,7 +13,7 @@
 .desk-btn:hover:not(:disabled) { background: color-mix(in srgb, hsl(var(--foreground)) 3%, hsl(var(--secondary))); }
 .desk-btn:disabled { opacity: .45; cursor: not-allowed; }
 .desk-btn-lg { padding: 9px 16px; font-size: var(--ui-text-body); }
-.desk-btn-solid, .desk-btn-solid:hover:not(:disabled) { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.desk-btn-solid, .desk-btn-solid:hover:not(:disabled) { background: var(--tebb-action); color: white; }
 .desk-btn-danger { background: hsl(var(--ui-status-danger) / .1); color: hsl(var(--ui-status-danger)); }
 .desk-btn-danger:hover:not(:disabled) { background: hsl(var(--ui-status-danger) / .16); }
 .desk-btn-danger-solid, .desk-btn-danger-solid:hover:not(:disabled) { background: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }

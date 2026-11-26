@@ -18,6 +18,7 @@ class TodayJournal {
     const previousKey = this.activeKey;
     root.replaceChildren();
     root.className = 'journal';
+    if (this.mode === 'mobile') root.dataset.reduceMotion = String(Boolean(data.reduceMotion));
     const make = (parent, tag, style, text) => {
       const node = document.createElement(tag);
       node.className = style;
@@ -31,14 +32,14 @@ class TodayJournal {
     const stamp = t => t ? new Date(t*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
     const receivedToday = data.receipt && data.receipt.day === data.day;
     const state = q ? 'pending' : receivedToday ? 'received' : 'quiet';
+    const stateChanged = root.dataset.state && root.dataset.state !== state;
     root.dataset.state = state;
     root.dataset.solo = String(Boolean(data.solo));
     const keys = new Set(data.questions.map(row => JSON.stringify([row.conversation,row.run,row.version])));
     for (const key of this.drafts.keys()) if (!keys.has(key)) this.drafts.delete(key);
     const main = make(root,'div','jr-page');
     const top = make(main,'nav','jr-nav');
-    button(top,'主聊',()=>this.action({type:'chat'}));
-    make(top,'strong','','今日');
+    if(this.mode==='mobile') button(top,'返回主聊',()=>this.action({type:'chat'}));
     if(this.mode==='desktop') button(top,data.solo?'双栏':'独立阅读',()=>this.action({type:'layout'}));
     if(data.profiles) button(top,'个人资料',()=>this.action({type:'profiles'}));
     if(data.settings) button(top,'偏好',()=>this.action({type:'settings'})).classList.add('jr-prefs');
@@ -50,6 +51,8 @@ class TodayJournal {
     make(head,'span','jr-mascot').ariaHidden='true';
     const card = (label,title) => {
       const a=make(content,'article','jr-card');
+      if (label === '项目进展') a.classList.add('jr-project');
+      if (stateChanged && record && a === content.querySelector('.jr-card')) a.classList.add('jr-arrival');
       make(a,'small','jr-kicker',label);
       make(a,'h2','',title);
       return a;

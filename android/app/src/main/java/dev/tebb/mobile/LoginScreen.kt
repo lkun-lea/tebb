@@ -3,7 +3,6 @@ package dev.tebb.mobile
 import android.content.res.Configuration
 import android.util.Patterns
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,10 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
@@ -36,20 +32,13 @@ internal enum class LoginDestination { Cloud, Computer }
 
 private val suffixes = listOf("gmail.com", "qq.com", "163.com", "outlook.com")
 private val fieldShape = RoundedCornerShape(20.dp)
-private val accent = Color(0xFFBDCEA9)
+private val accent = Color(0xFF00A6F4)
 private val field = Color(0xFF252828)
 
-/** 桌宠沿用主聊的呼吸、眨眼和点按反馈。光晕与地面投影随布局尺寸绘制。 */
+/** 桌宠沿用主聊的呼吸、眨眼和点按反馈。登录页使用原始配色。 */
 @Composable
 private fun LoginPet(diameter: Dp) {
     Box(Modifier.size(width = diameter * 1.85f, height = diameter * 1.55f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = .16f), Color.Transparent),
-                center, size.height * .49f), radius = size.height * .49f)
-            val orbit = Size(size.width * .62f, size.height * .16f)
-            drawOval(accent.copy(alpha = .21f), Offset(center.x - orbit.width / 2, size.height * .74f),
-                orbit, style = Stroke(1.dp.toPx()))
-        }
         Box(Modifier.size(diameter)) {
             val half = with(LocalDensity.current) { diameter.toPx() / 2 }
             ChatPet(Offset(half, half), diameter, waiting = false, listening = false, location = "登录页", pendingCount = 0)
@@ -125,7 +114,7 @@ internal fun LoginScreen(state: PairingState, authenticate: (String, String) -> 
                             (state as? PairingState.Notice)?.let { Text(it.message, fontSize = 14.sp) }
                             Spacer(Modifier.height(4.dp))
                             Button({ authenticate(address, code) }, Modifier.fillMaxWidth().heightIn(min = 64.dp), shape = fieldShape,
-                                colors = ButtonDefaults.buttonColors(disabledBackgroundColor = Color(0xFF373D36),
+                                colors = ButtonDefaults.buttonColors(backgroundColor = accent, contentColor = Color.White, disabledBackgroundColor = Color(0xFF373D36),
                                     disabledContentColor = Color(0xFFB2BAAE)),
                                 enabled = !busy && valid && code.isNotBlank()) { Text(if (busy) "请稍候…" else "登录", fontSize = 19.sp) }
                         }

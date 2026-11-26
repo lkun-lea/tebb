@@ -8,11 +8,11 @@
   border-radius:14px;
   padding:10px 17px;
   font-weight:600;
-  transition:background .15s,box-shadow .15s,transform .15s
+  transition:background var(--tebb-feedback),box-shadow var(--tebb-feedback),transform var(--tebb-feedback)
 }
 
 .journal .jr-primary {
-  background:#0077b8;
+  background:var(--tebb-action);
   color:white
 }
 
@@ -51,12 +51,12 @@
   width:8px;
   height:8px;
   border-radius:50%;
-  background:#178bc4
+  background:var(--tebb-action)
 }
 
 [data-variant="choice"].jr-button[aria-pressed=true] {
   background:#e4f4ff;
-  border-color:#0077b8;
+  border-color:var(--tebb-action);
   color:#005986
 }
 
@@ -85,9 +85,12 @@
   cursor:default
 }
 @media(prefers-reduced-motion:reduce) {
+  .journal button:enabled:active {transform:none}
   .journal button {
   transition:none
 }
 
 
 }
+
+[data-reduce-motion=true] .journal button:enabled:active {transform:none}

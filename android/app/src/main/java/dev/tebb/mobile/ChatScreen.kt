@@ -59,7 +59,7 @@ import androidx.compose.ui.window.DialogProperties
 private val Ink = Color(0xFF090909)
 private val Paper = Color(0xFFF1F1EF)
 private val Muted = Color(0xFFAAAAAA)
-private val Accent = Color(0xFFBDCEA9)
+private val Accent = Color(0xFF00A6F4)
 private val Surface = Color(0xFF1D1D1D)
 
 /** 组合 Android 主聊天和设备入口；只有展开面板属于 UI 临时状态，草稿和任务归属来自 [state]。 */
@@ -218,9 +218,15 @@ internal fun ChatScreen(
 private fun ChatHistoryMenu(hasMessages: Boolean, available: Boolean, clear: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
+    val preferences = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE)
+    val reduced = LocalReducedMotion.current
     Box {
         GlyphButton(Glyph.More, "更多选项", { if (available) expanded = true })
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(onClick = {
+                preferences.edit().putBoolean("reduceMotion", !preferences.getBoolean("reduceMotion", false)).apply()
+                expanded = false
+            }) { Text(if (reduced) "减少动效 · 已开启" else "减少动效") }
             DropdownMenuItem(enabled = hasMessages && available, onClick = {
                 expanded = false
                 confirming = true
@@ -253,8 +259,8 @@ private fun Wordmark() {
 /** 保留操作现场作为背景。桌宠轻轻歪头，视线来回移动，表示正在处理请求。 */
 @Composable
 private fun ThinkingOverlay(label: String) {
-    val motion = rememberInfiniteTransition()
-    val tilt by motion.animateFloat(-8f, 8f, infiniteRepeatable(tween(800), RepeatMode.Reverse))
+    val tilt = if (LocalReducedMotion.current) 0f else rememberInfiniteTransition()
+        .animateFloat(-8f, 8f, infiniteRepeatable(tween(800), RepeatMode.Reverse)).value
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(Modifier.size(72.dp).rotate(tilt)) {
@@ -369,7 +375,7 @@ private fun ComposerBar(
 ) {
     val target = state.pending.firstOrNull { it.key == state.target } ?: state.unavailable
     val shape = RoundedCornerShape(28.dp)
-    val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFF363638))
+    val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFF363638), androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
     val hint = if (target == null) "给 tebb 发消息…" else "输入回答…"
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
         .background(Brush.verticalGradient(listOf(Color(0xFF222224), Surface)), shape)
@@ -414,8 +420,8 @@ private fun HoldToSpeak(listening: Boolean, start: () -> Unit, stop: () -> Unit,
     val stopNow by rememberUpdatedState(stop)
     val cancelNow by rememberUpdatedState(cancel)
     val active by rememberUpdatedState(listening)
-    val face by animateColorAsState(if (listening) Accent else Paper)
-    val scale by animateFloatAsState(if (listening) .93f else 1f)
+    val face by animateColorAsState(if (listening) Accent else Paper, androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
+    val scale = if (LocalReducedMotion.current) 1f else animateFloatAsState(if (listening) .93f else 1f, tween(120)).value
     Box(Modifier.size(56.dp).semantics {
         contentDescription = if (listening) "松开停止听写" else "按住说话"
         role = Role.Button

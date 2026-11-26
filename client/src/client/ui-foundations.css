@@ -1,3 +1,4 @@
+@import "../journal/component-tokens.css";
 /* UI_DEVELOPMENT.md: tokens shared by workbench, previews and pet chat. */
 :root {
   --background: 220 25% 98%;

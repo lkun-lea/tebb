@@ -48,6 +48,7 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
     val pending = state.composer.pending.filter { paired && it.deviceId.isNotEmpty() }
     val snapshot = JSONObject().apply {
         put("day", day)
+        put("reduceMotion", LocalReducedMotion.current)
         put("online", paired && state.connectionNotice == null)
         put("busy", state.work != null || state.composer.dictating)
         put("notice", notice.ifBlank { state.connectionNotice ?: state.notice ?: if (!paired) "配对 Windows 后可查看电脑任务。" else "" })

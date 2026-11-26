@@ -53,18 +53,19 @@ internal fun PetAnchor(size: Dp, moved: (Offset?) -> Unit) {
 /** 在同一绘制层移动纸白圆点，位置由布局决定，眨眼、呼吸和点按反馈只改变绘制效果。 */
 @Composable
 internal fun ChatPet(center: Offset, diameter: Dp, waiting: Boolean, listening: Boolean, location: String, pendingCount: Int) {
-    val position by animateOffset(center)
-    val width by animateDpAsState(diameter, tween(420))
+    val reduced = LocalReducedMotion.current
+    val position = if (reduced) center else animateOffset(center).value
+    val width = if (reduced) diameter else animateDpAsState(diameter, tween(420)).value
     val touchSize = maxOf(48.dp, width)
     val half = with(LocalDensity.current) { touchSize.toPx() / 2 }
-    val cycle = rememberInfiniteTransition()
-    val breath by cycle.animateFloat(1f, 1.025f, infiniteRepeatable(tween(1800), RepeatMode.Reverse))
-    val eyes by cycle.animateFloat(1f, 1f, infiniteRepeatable(keyframes {
-        durationMillis = 4800
-        1f at 2000
-        .10f at 2090
-        1f at 2180
-    }))
+    val cycle = if (reduced) null else rememberInfiniteTransition()
+    val breath = cycle?.animateFloat(1f, 1.025f, infiniteRepeatable(tween(1800), RepeatMode.Reverse))?.value ?: 1f
+    val eyes = cycle?.animateFloat(1f, 1f, infiniteRepeatable(keyframes {
+        durationMillis = 6300
+        1f at 2709
+        .08f at 2835
+        1f at 2961
+    }))?.value ?: 1f
     val tap = remember { Animatable(1f) }
     var taps by remember { mutableIntStateOf(0) }
     var greeted by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -83,8 +84,8 @@ internal fun ChatPet(center: Offset, diameter: Dp, waiting: Boolean, listening: 
             speech = null
         }
     }
-    LaunchedEffect(taps) {
-        if (taps > 0) {
+    LaunchedEffect(taps, reduced) {
+        if (reduced) tap.snapTo(1f) else if (taps > 0) {
             tap.animateTo(.85f, tween(85))
             tap.animateTo(1f, spring(dampingRatio = .38f, stiffness = 520f))
         }

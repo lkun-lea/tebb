@@ -105,8 +105,8 @@ class MainActivity : ComponentActivity() {
             val activeChat = androidx.compose.runtime.remember(owner) { chat }
             val state by activeChat.state.collectAsState()
             val device by pairing.state.collectAsState()
-            ChatScreen(state, device, pairing, chat::replyFromJournal, chat::select, chat::dismiss, chat::edit, chat::send,
-                ::requestVoice, ::stopListening, ::cancelVoice, chat::sync, chat::readHistory, chat::clearHistory, chat::chooseCloud, chat::defer)
+            MotionPreferences { ChatScreen(state, device, pairing, chat::replyFromJournal, chat::select, chat::dismiss, chat::edit, chat::send,
+                ::requestVoice, ::stopListening, ::cancelVoice, chat::sync, chat::readHistory, chat::clearHistory, chat::chooseCloud, chat::defer) }
         }
     }
 
