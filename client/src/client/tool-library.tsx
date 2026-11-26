@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, Cloud, Plus, Search, Sparkles } from 'lucide-r
 import { editToolLibrary, fetchCloudTools, fetchToolLibrary, rpc, type BackendInfo, type CatalogDefinition, type LibraryEntry } from './api';
 import { toolPresentation } from './tool-presentation';
 import { UiButton, UiFeedback, UiField } from './ui-controls';
+import {useActionConfirmation} from './action-confirmation';
 import { WorkspaceDialog } from './workspace-dialog';
 import './tool-library.css';
 
@@ -22,11 +23,12 @@ export function ToolLibrary({info,definitions,onActivity,onRefresh,onChat}:Props
   const [caps,setCaps] = useState<CatalogDefinition[]>([]);
   const [prefs,setPrefs] = useState<Record<string,LibraryEntry>>({});
   const [detail,setDetail] = useState<CatalogDefinition|null>(null);
-  const [editing,setEditing] = useState(false), [archiving,setArchiving] = useState(false);
+  const [editing,setEditing] = useState(false);
   const [title,setTitle] = useState(''), [summary,setSummary] = useState('');
   const [author,setAuthor] = useState<CatalogDefinition|'new'|null>(null);
   const [instructions,setInstructions] = useState(''), [conversation,setConversation] = useState('');
   const [busy,setBusy] = useState(false), [error,setError] = useState('');
+  const archive=useActionConfirmation(String(info?.port)+'/'+(detail?.capabilityId||''),busy);
   const locked = useRef(false);
   const receipt = useRef<{text:string; id:string; conversation:string}>();
   const local = new Map([...definitions,...caps].map(d=>[keyOf(d),d]));
@@ -105,7 +107,7 @@ export function ToolLibrary({info,definitions,onActivity,onRefresh,onChat}:Props
     {!rows.length&&!busy&&!error&&<p className="library-empty">{query?'没有找到匹配的工具':page==='mine'?'还没有工具，可以从云端挑选。':page==='removed'?'没有已移除的工具':'云端目录为空'}</p>}
     <div className="library-groups">{groups.map(group=><section key={group} className="library-group" data-group={group}><h3>{group}</h3><div className="library-list">{rows.filter(d=>describe(d).group===group).map(d=>{
       const {title,summary,Icon}=describe(d), key=keyOf(d), exists=local.has(key)&&!prefs[key]?.hidden;
-      return <div className="library-row" key={key}><button className="library-item" onClick={()=>{setError('');setEditing(false);setArchiving(false);setDetail(d);}}>
+      return <div className="library-row" key={key}><button className="library-item" onClick={()=>{setError('');setEditing(false);setDetail(d);}}>
         <span className="library-icon"><Icon aria-hidden size={21}/></span><span><strong>{title}</strong><small>{summary}</small></span><ChevronRight size={16} aria-hidden/></button>
         {isCloud?<UiButton disabled={busy||!preferencesReady||exists||!d.compatible} onClick={()=>change(d,{add:true})}>{exists?'已添加':d.compatible?'添加':'本机不支持'}</UiButton>:
           page==='removed'?<UiButton disabled={busy} onClick={()=>change(d,{hidden:false})}>恢复</UiButton>:prefs[key]?.disabled?<small>已停用</small>:null}</div>;
@@ -121,14 +123,16 @@ export function ToolLibrary({info,definitions,onActivity,onRefresh,onChat}:Props
           <UiButton disabled={busy} onClick={()=>change(detail,{disabled:!prefs[keyOf(detail)]?.disabled})}>{prefs[keyOf(detail)]?.disabled?'启用本机调用':'停用本机调用'}</UiButton>
           <UiButton disabled={busy} onClick={()=>change(detail,{hidden:!prefs[keyOf(detail)]?.hidden})}>{prefs[keyOf(detail)]?.hidden?'恢复到目录':'从目录移除'}</UiButton>
           <UiButton disabled={busy} onClick={()=>openAuthor(detail)}><Sparkles size={16}/>{detail.capabilityId?'让 tebb 修改能力':'让 tebb 定制能力'}</UiButton>
-          {detail.capabilityId&&<UiButton disabled={busy} variant="danger" onClick={()=>setArchiving(true)}>删除自定义能力</UiButton>}
+          {detail.capabilityId&&<UiButton disabled={busy} variant="danger" onClick={()=>archive.ask('删除自定义能力？','「'+detail.name+'」将从可复用工具中移除。已有工作流保留原版本。',{label:'删除能力',danger:true},()=>{
+            if(info) void run(async()=>{
+              const result=await rpc<{ok:boolean;error?:string}>(info,'automation_workflow',{operation:'capability_archive',payload:{id:detail.capabilityId,version:detail.version}});
+              if(!result.ok) throw Error(result.error);
+              setDetail(null);await readLocal();
+            });
+          })}>删除自定义能力</UiButton>}
           {!detail.capabilityId&&<UiButton onClick={()=>onActivity(detail.name)}>查看调用记录</UiButton>}</div>}
-        {archiving&&<div><p>从可复用能力中删除「{detail.name}」？已有工作流保留原版本。</p><UiButton disabled={busy} onClick={()=>setArchiving(false)}>取消</UiButton>
-          <UiButton busy={busy} variant="danger" onClick={()=>{if(info) void run(async()=>{
-            const result=await rpc<{ok:boolean;error?:string}>(info,'automation_workflow',{operation:'capability_archive',payload:{id:detail.capabilityId,version:detail.version}});
-            if (!result.ok) throw Error(result.error);
-            setDetail(null);await readLocal();
-          });}}>确认删除</UiButton></div>}</>}{errorView}</WorkspaceDialog>}
+        </>}{errorView}</WorkspaceDialog>}
+    {archive.dialog}
     {author&&<WorkspaceDialog title={author==='new'?'让 tebb 创建工具':'让 tebb 调整工具'} closeDisabled={busy} onClose={()=>setAuthor(null)}>
       {conversation?<><p role="status">需求已交给 tebb。能力保存后可在「我的工具」刷新查看。</p>{onChat&&<UiButton disabled={busy} onClick={()=>void run(async()=>{await onChat(conversation);})}>查看任务会话</UiButton>}</>:
       <form className="library-form" onSubmit={e=>{e.preventDefault();submitRequest();}}><UiField label="你想让工具做什么？"><textarea required maxLength={3000} placeholder="例如，从会议记录中提取负责人和截止日期" value={instructions} onChange={e=>setInstructions(e.target.value)}/></UiField><UiButton variant="primary" busy={busy} disabled={!instructions.trim()} type="submit">交给 tebb</UiButton></form>}

@@ -36,7 +36,7 @@ export function ToolMonitorPane({info,onTrace,onConnections,onChat}:{onChat?:(id
       const measured=result?.timings?.[r.name],series=measured?.trend||[];
       return <tr key={r.name} onClick={()=>{setTool(r.name);setInspectTool(true)}} data-selected={r.name===active?.name}><td><button onClick={()=>{setTool(r.name);setInspectTool(true)}}>{r.name}</button></td><td>{r.ok}</td><td>{r.fail+r.timeout}</td><td>{measured?.p50_ms==null?'—':measured.p50_ms+' ms'}</td>
        <td>{series.some(Boolean)?<svg role="img" aria-label={'各时段调用次数 '+series.join('、')} viewBox="0 0 100 26"><polyline fill="none" stroke="currentColor" strokeWidth="2" points={series.map((v,i)=>i*100/Math.max(1,series.length-1)+','+(24-22*v/Math.max(...series))).join(' ')}/></svg>:'—'}</td></tr>;
-    })}</tbody></table></section>{inspectTool&&active&&<WorkspaceDialog title={active.name} onClose={()=>setInspectTool(false)}><h3>最近失败</h3><p>{failure?.error_message||'当前范围内没有失败回执'}</p>{failure?.root&&<UiButton onClick={()=>onTrace(failure.root!)}>查看关联运行 →</UiButton>}
+    })}</tbody></table></section>{inspectTool&&active&&<WorkspaceDialog title="工具调用记录" onClose={()=>setInspectTool(false)}><p>{active.name}</p><h3>最近失败</h3><p>{failure?.error_message||'当前范围内没有失败回执'}</p>{failure?.root&&<UiButton onClick={()=>onTrace(failure.root!)}>查看关联运行 →</UiButton>}
     {active&&<dl className="tool-counts">{[['加载',active.loads],['提供',active.offers],['调用',active.attempts]].map(([label,n])=><div key={label}><dt>{label}</dt><dd>{n}</dd></div>)}</dl>}
     {active&&/^(feishu|github|connection_|video_)/i.test(active.name)&&onConnections&&<UiButton onClick={onConnections}>管理外部连接 →</UiButton>}
     {failure&&<EvaluationCaseEditor info={info} sourceFailure={failure.id}/>}</WorkspaceDialog>}</div>

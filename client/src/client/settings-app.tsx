@@ -103,7 +103,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
   const debug = !!debugKind;
   const [info, setInfo] = useState<BackendInfo | null>(null);
   const [section, setSection] = useState<SettingsSection>(() => (debugKind === "usage" ? "usage" : debugKind === "feishu" || debugKind === "video" ? "connections" : debugKind === "profile" ? "personalization" : initialSection()));
-  async function openTodayConversation(conversation:string){
+  async function openConversation(conversation:string){
     if (!info) return;
     await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
     if(onOpenChat) onOpenChat();
@@ -423,7 +423,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
 
 
           {section === "account" ? <><AccountsPane info={info} debug={debug} /><MobilePairingPane info={info} /></> : null}
-          {section === 'tools' ? <ToolMonitorPane info={info} onChat={openTodayConversation} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
+          {section === 'tools' ? <ToolMonitorPane info={info} onChat={openConversation} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
           {section === 'monitor' && <>
             <nav className="design-tabs monitor-views" aria-label="运行监控视图">
               {([['history','运行记录'],['collaboration','协作任务'],['channels','渠道任务与执行设置']] as const).map(([id,label])=>
@@ -432,7 +432,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
             </nav>
             {monitorView==='history'&&<ExecutionCenterPane key={trace} info={info} initialTrace={lastRun.current||trace} onSelectRun={id=>{lastRun.current=id}} onInspectCalls={openModelCalls}/>}
             <PageStack active={monitorView==='history'?'':monitorView}>
-              {monitorView==='collaboration'?<WorkspaceRuns info={info} onOpen={async conversation=>{if(info){await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});if(isTauri())await emitTo('main','open-collaboration');focusMainWindow();}}}/>:<AgentMonitor info={info} debug={debug}/>}
+              {monitorView==='collaboration'?<WorkspaceRuns info={info} onOpen={openConversation}/>:<AgentMonitor info={info} debug={debug}/>}
             </PageStack>
           </>}
           {section === 'evaluation' && <><div className="design-tabs"><button className="desk-btn" aria-pressed={evalTab==='debug'} onClick={()=>setEvalTab('debug')}>模型调用</button><button className="desk-btn" aria-pressed={evalTab==='evaluation'} onClick={()=>setEvalTab('evaluation')}>评测批次</button></div>{evalTab==='debug'?<AgentDebugDialog inline info={info} debug={debug} onClose={()=>{}}/>:<EvaluationPane info={info}/>}</>}
@@ -440,7 +440,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
             <Suspense fallback={<p role="status"><LoadingText text="正在打开今日…"/></p>}>
               {showProfiles || profileTarget ? <><button type="button" className="desk-btn" onClick={()=>{setShowProfiles(false);setProfileTarget(null);}}>返回今日</button>
               <PersonalizationPane initialView="records" info={info} debug={debug} target={profileTarget} onAccount={()=>setSection("account")} onInspect={openModelCalls} /></> :
-              <TodayPane info={info} onProfiles={()=>setShowProfiles(true)} onOpen={openTodayConversation}/>}
+              <TodayPane info={info} onProfiles={()=>setShowProfiles(true)} onOpen={openConversation}/>}
             </Suspense>
           ) : null}
 
