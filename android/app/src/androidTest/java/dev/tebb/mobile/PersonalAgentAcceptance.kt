@@ -111,7 +111,7 @@ class PersonalAgentAcceptance : Instrumentation() {
             waitFor("刷新电脑状态")
             waitFor("扫码配对 Windows")
             waitFor("从图片识别配对码")
-            val review = PendingQuestion(QuestionKey("review","v1"), "评审安排", "评审多久？", "dm-tebb", "windows")
+            val review = PendingQuestion(QuestionKey(owner,"v1"), "评审安排", "评审多久？", "dm-tebb", "windows")
             val received = java.util.concurrent.atomic.AtomicReference("")
             val submitted = java.util.concurrent.CountDownLatch(1)
             runOnMainSync {
@@ -128,6 +128,18 @@ class PersonalAgentAcceptance : Instrumentation() {
             waitFor("原文-中转设计")
             tap("返回手记")
             tap("45 分钟")
+            waitForIdleSync()
+            runOnMainSync { screen.setContent { androidx.compose.material.Text("离开手记") } }
+            waitFor("离开手记")
+            runOnMainSync {
+                screen.setContent {
+                    JournalScreen(ChatUiState(ComposerState(pending=listOf(review)), historySnapshot=saved.history), true, {}) { key, answer ->
+                        check(key == review.key)
+                        received.set(answer)
+                        submitted.countDown()
+                    }
+                }
+            }
             val enabledDeadline = SystemClock.elapsedRealtime() + 5000
             while (!waitFor("回复原任务").isEnabled && SystemClock.elapsedRealtime() < enabledDeadline) {
                 SystemClock.sleep(100)
@@ -136,6 +148,24 @@ class PersonalAgentAcceptance : Instrumentation() {
             tap("回复原任务")
             waitForIdleSync()
             check(submitted.await(5, java.util.concurrent.TimeUnit.SECONDS) && received.get() == "45 分钟") { "本地阅读器未提交选中的时长" }
+            runOnMainSync { screen.setContent { WorkspaceEntry("agent.request", owner, saved.history) {} } }
+            tap("选择已共享会话")
+            tap("中转设计")
+            waitFor("想让伙伴做什么？")
+            runOnMainSync { screen.setContent { WorkspaceEntry("note.create", owner, saved.history) {} } }
+            waitFor("新增笔记")
+            waitFor("正文")
+            check(generateSequence(waitFor("保存到电脑")) { it.parent }.any { !it.isEnabled }) { "未配对时不能写入电脑" }
+            runOnMainSync { screen.setContent { WorkspaceEntry("calendar.create", owner, saved.history) {} } }
+            waitFor("查看最近新增的日程")
+            runOnMainSync { screen.setContent { MobileWorkspace(ChatUiState(ComposerState()), owner, true, {}, { _, _ -> }, {}, {}) } }
+            tap("笔记")
+            tap("手动新增笔记")
+            waitFor("正文")
+            tap("返回笔记")
+            tap("知识库")
+            tap("让伙伴处理资料")
+            waitFor("请先在电脑共享一个会话")
             if (live) {
                 val url = java.net.URL("https://8.136.145.17/cloud/v1/device-snapshot?device=" + "0".repeat(32) + "&stream=windows")
                 val http = url.openConnection() as javax.net.ssl.HttpsURLConnection

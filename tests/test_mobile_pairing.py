@@ -110,6 +110,11 @@ class PairingTest(unittest.TestCase):
         ticket = {'Authorization': 'Bearer ' + receipt['ticket']}
         approved = self.http.get('pairings/'+receipt['id'], headers=ticket).json()
         self.assertTrue(approved['relay'])
+        self.assertEqual(self.pair.desktop()['write_grants'], [])
+        with self.assertRaises(ValueError):
+            self.pair.desktop('allow_agent', 'other-device')
+        self.assertEqual(self.pair.desktop('allow_agent', receipt['id'])['write_grants'], ['agent.request'])
+        self.assertEqual(self.pair.desktop('revoke_agent', receipt['id'])['write_grants'], [])
         stored = json.loads(self.pair.record.read_text('utf-8'))
         key = hashlib.sha256(('tebb-relay-v1:' + approved['access']).encode()).digest()
         self.assertEqual(base64.b64decode(stored['relay_key']),key)

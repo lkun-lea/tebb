@@ -211,7 +211,7 @@ class LocalCalendarService:
             domain.attach(state, item_id, self.view(state, row))
             work_items.touch_item(item)
 
-    def save(self, action):
+    def save(self, action, *, mobile_only=False):
         attempted = False
         try:
             rid = self.board.validate_request_id(action.get('request_id'))
@@ -232,6 +232,8 @@ class LocalCalendarService:
                         return self.result(existing, self.view(state, self.require(state, existing['local_id'])))
                     row = self.records(state).get(uid)
                     if row:
+                        if mobile_only and (row.get('remote') or any(domain.event_key(link['event']) == LOCAL+'/'+uid for link in state.get('schedule_links', []))):
+                            raise ValueError('日程已在电脑关联事项或外部日历，请在电脑上调整。')
                         if action.get('type') != 'update' or action.get('version') != row['version']:
                             raise ValueError('日程已更新，请重新读取后编辑。')
                         self.idle(state, row)

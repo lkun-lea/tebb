@@ -48,6 +48,19 @@ internal class PairedRelay(private val invite: JSONObject) {
             val row = rows.getJSONObject(index)
             listOf("run","conversation","version").all { field -> row.getString(field) == body.getString(field) }
         }) { "原问题已变化，请刷新" }
+        return publish(action, id, body)
+    }
+
+    /** 新增操作仅在桌面授权后手动提交。重试复用草稿编号并核对同一份回执。 */
+    fun create(action: String, id: String, body: JSONObject): JSONObject {
+        require(action in setOf("calendar.create", "note.create", "agent.request", "calendar.update", "calendar.list"))
+        val state = snapshot()
+        val grants = state.optJSONArray("grants") ?: error("请先在电脑配对设置中授权")
+        check((0 until grants.length()).any { grants.optString(it) == (if (action.startsWith("calendar.")) "calendar.create" else action) }) { "请先在电脑配对设置中授权" }
+        return publish(action, id, body)
+    }
+
+    private fun publish(action: String, id: String, body: JSONObject): JSONObject {
         val nonce = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val data = body.put("action", action).put("id", id).put("time", System.currentTimeMillis()/1000)
         val sealed = nonce + relayCipher(Cipher.ENCRYPT_MODE, invite.getString("access"), device, nonce, "phone").doFinal(data.toString().toByteArray(Charsets.UTF_8))

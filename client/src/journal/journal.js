@@ -62,8 +62,12 @@ class TodayJournal {
     if(q) {
       this.activeKey = JSON.stringify([q.conversation,q.run,q.version]);
       const key = this.activeKey;
-      const draft = this.drafts.get(key) || {choice:'', note:''};
+      const draft = this.drafts.get(key) || q.draft || {choice:'', note:''};
       this.drafts.set(key,draft);
+      const saveDraft = () => {
+        if (this.mode === 'mobile') this.action({type:'draft',conversation:q.conversation,
+          run:q.run,version:q.version,choice:draft.choice,note:draft.note});
+      };
       const a=card('待答任务',q.prompt);
       make(a,'time','jr-stamp',stamp(q.asked));
       make(a,'p','jr-context','Windows 上的原任务正在等你的答复。');
@@ -73,6 +77,7 @@ class TodayJournal {
       for(const value of durations){
         const chip=button(choices,value,()=>{
           draft.choice=draft.choice===value?'':value;
+          saveDraft();
           for(const c of chips)c.setAttribute('aria-pressed',String(c.textContent===draft.choice));
           enable();
         }, 'choice');
@@ -90,7 +95,7 @@ class TodayJournal {
           .finally(() => { if (send.isConnected) enable(); });
       } ,'primary');
       function enable(){send.disabled=!data.online || data.busy || !answer() || answer().length>4000}
-      note.oninput=()=>{draft.note=note.value;enable()};enable();
+      note.oninput=()=>{draft.note=note.value;saveDraft();enable()};enable();
       button(actions,'查看上下文',open);
       if(editing && previousKey===key){note.focus({preventScroll:true});note.setSelectionRange(...selection)}
       for(const other of data.questions.slice(1)){

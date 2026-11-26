@@ -125,7 +125,10 @@ internal fun ChatScreen(
                 // 读图协程由设备页面持有。显示加载层时让页面留在组合中，以便完成解码。
                 if (sheet == "journal") {
                     key(owner, (device as? PairingState.Paired)?.computer) {
-                        JournalScreen(state, owner.isNotEmpty() && device is PairingState.Paired, { sheet = "" }, journalReply)
+                        MobileWorkspace(state, owner, owner.isNotEmpty() && device is PairingState.Paired,
+                            { sheet = "" }, journalReply, select) {
+                            if (owner.isEmpty()) loginFor = LoginDestination.Computer else sheet = "device"
+                        }
                     }
                 } else if (sheet == "device" && owner.isNotEmpty()) {
                     BackHandler(enabled = loading == null) { sheet = "" }

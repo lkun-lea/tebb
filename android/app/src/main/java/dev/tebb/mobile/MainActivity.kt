@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
                                 val now = snapshot.time
                                 if (previous?.rows != rows || previous?.history != snapshot.history || now - lastVerified > 60_000) {
                                     client.cache(applicationContext, snapshot)
+                                    client.pruneJournalDrafts(applicationContext, rows)
                                     lastVerified = now
                                     previous = snapshot
                                 }

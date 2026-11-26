@@ -75,7 +75,7 @@ def write_identity(path, address):
 
 
 class MobilePairing:
-    def __init__(self, directory, account, active, collaboration=None, lease=None, relay_headers=None):
+    def __init__(self, directory, account, active, collaboration=None, lease=None, relay_headers=None, calendar=None):
         self.directory = Path(directory)
         self.account = account
         self.active = active
@@ -85,6 +85,7 @@ class MobilePairing:
         self.expires = 0
         self.next_presence = 0
         self.discovery = Discovery(self._offer)
+        self.calendar = calendar
         self.collaboration = collaboration
         self.token = None
         self.lock = threading.RLock()
@@ -146,6 +147,22 @@ class MobilePairing:
                                                    credential=hashlib.sha256(self.access.encode()).hexdigest())), encoding='utf-8')
                     os.replace(tmp, self.record)
                 self.state = 'rejected' if action == 'reject' else 'approved'
+            elif action in ('allow_calendar', 'revoke_calendar', 'allow_notes', 'revoke_notes', 'allow_agent', 'revoke_agent'):
+                self._key()
+                record = json.loads(self.record.read_text(encoding='utf-8'))
+                if record.get('id') != request_id or record.get('account') != self.account or not record.get('relay_key'):
+                    raise ValueError('请检查当前配对设备及加密中转授权')
+                grants = set(record.get('write_grants', []))
+                scope = {'notes': 'note.create', 'calendar': 'calendar.create', 'agent': 'agent.request'}[action.split('_')[1]]
+                if action.startswith('allow_'):
+                    grants.add(scope)
+                else:
+                    grants.discard(scope)
+                record['write_grants'] = sorted(grants)
+                record.pop('relay_ack', None)
+                tmp = self.record.with_suffix('.tmp')
+                tmp.write_text(json.dumps(record), encoding='utf-8')
+                os.replace(tmp, self.record)
             elif action in ('share_history', 'unshare_history'):
                 self._key()
                 if not self.record.exists():
@@ -176,6 +193,9 @@ class MobilePairing:
             if self.record.exists():
                 record = json.loads(self.record.read_text(encoding='utf-8'))
                 view['paired'] = record['name']
+                view['paired_id'] = record['id']
+                view['relay'] = bool(record.get('relay_key'))
+                view['write_grants'] = record.get('write_grants', [])
                 view['shared_chats'] = record.get('shared_chats', [])
                 view['legacy'] = record.get('protocol') != 2
             if self.state == 'waiting':

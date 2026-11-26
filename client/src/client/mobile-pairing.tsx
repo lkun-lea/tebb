@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react';
 import {WorkspaceDialog} from './workspace-dialog';
 import {rpc, type BackendInfo} from './api';
 
-type Pairing = {state:string;account_ready?:boolean;legacy?:boolean; addresses:string[]; paired?:string; qr?:string; name?:string; code?:string; id?:string};
+type Pairing = {state:string;account_ready?:boolean;legacy?:boolean; addresses:string[]; paired?:string; paired_id?:string; relay?:boolean; write_grants?:string[]; qr?:string; name?:string; code?:string; id?:string};
 
 export function MobilePairingPane({info}:{info:BackendInfo|null}) {
   const [view,setView]=useState<Pairing|null>(null);
@@ -26,12 +26,12 @@ export function MobilePairingPane({info}:{info:BackendInfo|null}) {
   async function change(action:string){
     if(!info||busy)return;
     setBusy(true);setError('');
-    try {setView(await rpc<Pairing>(info,'mobile_pairing',{action,address,request_id:view?.id||''}));}
+    try {setView(await rpc<Pairing>(info,'mobile_pairing',{action,address,request_id:(action.startsWith('allow_')||action.startsWith('revoke_')?view?.paired_id:view?.id)||''}));}
     catch(e){setError(String(e));}finally{setBusy(false);}
   }
   return <section className="settings-card"><h3>Android 手机配对</h3>
     {view && !view.account_ready && <p>请先在「账号与空间」登录，与手机使用同一账号，并重启切换到该空间。</p>}
-    {view?.paired ? <><p>{view.legacy?'旧版授权，请解除后重新配对':'已配对'} · {view.paired}</p><button className="desk-btn" disabled={busy} onClick={()=>void change('forget')}>解除配对</button></>
+    {view?.paired ? <><p>{view.legacy?'旧版授权，请解除后重新配对':'已配对'} · {view.paired}</p>{view.relay&&<label><input type="checkbox" checked={view.write_grants?.includes('calendar.create')||false} disabled={busy} onChange={e=>void change(e.target.checked?'allow_calendar':'revoke_calendar')}/>允许手机新增及修改由它创建的本机日程</label>}{view.relay&&<label><input type="checkbox" checked={view.write_grants?.includes('note.create')||false} disabled={busy} onChange={e=>void change(e.target.checked?'allow_notes':'revoke_notes')}/>允许手机新增笔记</label>}{view.relay&&<label><input type="checkbox" checked={view.write_grants?.includes('agent.request')||false} disabled={busy} onChange={e=>void change(e.target.checked?'allow_agent':'revoke_agent')}/>允许手机在已共享会话发起任务（沿用该伙伴的工具权限）</label>}<button className="desk-btn" disabled={busy} onClick={()=>void change('forget')}>解除配对</button></>
     : view?.state==='pending' ? <><p>{view.name} 正在申请配对。请核对手机上的校验码 <strong>{view.code}</strong>。</p>
       <button className="desk-btn" disabled={busy} onClick={()=>void change('approve')}>允许配对</button>
       <button className="desk-btn" disabled={busy} onClick={()=>void change('approve_relay')}>配对并通过 ECS 加密接续</button>

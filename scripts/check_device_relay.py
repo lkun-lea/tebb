@@ -43,7 +43,7 @@ def main():
             path = Path(tmp) / 'approved.json'
             path.write_text(json.dumps(dict(account=selected, id=device, relay_key=base64.b64encode(key).decode(),
                                             shared_chats=[q['conversation']])), encoding='utf-8')
-            pair = SimpleNamespace(lock=threading.RLock(),active=lambda:True,record=path,account=selected,collaboration=lambda:flow.service)
+            pair = SimpleNamespace(calendar=None, lock=threading.RLock(),active=lambda:True,record=path,account=selected,collaboration=lambda:flow.service)
             endpoint = ORIGIN + '/cloud/v1/device-snapshot'
             params = dict(device=device, stream='windows')
             def read():

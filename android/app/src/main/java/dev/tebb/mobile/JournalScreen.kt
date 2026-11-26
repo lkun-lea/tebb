@@ -46,6 +46,10 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
         List(list.length()) { list.getJSONObject(it) }
     }
     val pending = state.composer.pending.filter { paired && it.deviceId.isNotEmpty() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val drafts = context.getSharedPreferences("windows_pairing", android.content.Context.MODE_PRIVATE)
+    fun draftKey(q: PendingQuestion) = "journal:" + JSONArray().put(MobileAccount.owner).put(q.deviceId)
+        .put(q.conversation).put(q.key.runId).put(q.key.version).toString()
     val snapshot = JSONObject().apply {
         put("day", day)
         put("reduceMotion", LocalReducedMotion.current)
@@ -56,6 +60,7 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
             for (q in pending.sortedByDescending { it.key == selected }) put(JSONObject().apply {
                 put("conversation", q.conversation); put("run", q.key.runId); put("version", q.key.version)
                 put("asked", q.asked); put("created", q.created); put("title", q.title); put("prompt", q.prompt)
+                drafts.getString(draftKey(q), null)?.let { put("draft", JSONObject(it)) }
             })
         })
         plans.mapNotNull { it.optJSONObject("today")?.optJSONObject("receipt") }
@@ -74,6 +79,11 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
     val act by rememberUpdatedState<(JSONObject) -> Unit> { action ->
         val key = QuestionKey(action.optString("run"), action.optString("version"))
         when (action.optString("type")) {
+            "draft" -> pending.find { it.key == key && it.conversation == action.optString("conversation") }?.let { q ->
+                val value = JSONObject().put("choice", action.optString("choice").take(100))
+                    .put("note", action.optString("note").take(4000))
+                drafts.edit().putString(draftKey(q), value.toString()).apply()
+            }
             "chat" -> back()
             "select" -> selected = key
             "source" -> {

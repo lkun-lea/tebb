@@ -26,6 +26,15 @@ internal class PairingAuthorizationDenied : IllegalStateException("Windows 授�
 /** 本轮配对的连接信息。二维码中的证书指纹只用于验证提供该二维码的 Windows 服务。 */
 internal class PairingClient(private val invite: JSONObject) {
     private val relay = if (invite.optBoolean("relay")) PairedRelay(invite) else null
+    val pairedId: String get() = invite.getString("id")
+
+    /** 配对模式和账号由调用入口重新核对，服务端仅中转加密后的内容。 */
+    fun create(action: String, id: String, body: JSONObject): JSONObject {
+        val ack = requireNotNull(relay) { "请先在电脑启用加密接续" }.create(action, id, body)
+        check(ack.optBoolean("accepted") && ack.optString("id") == id) { "电脑尚未确认保存" }
+        return ack
+    }
+
     val usesRelay: Boolean get() = relay != null
     private val owner = invite.getString("owner")
     private val host = invite.getString("host")
@@ -105,7 +114,20 @@ internal class PairingClient(private val invite: JSONObject) {
             .put("device", invite.getString("id")).put("time", snapshot.time).put("history",snapshot.history).put("rows", data).toString()).apply()
     }
 
-    fun clearCache(context: Context) = preferences(context).edit().remove("question_cache").apply()
+    fun clearCache(context: Context) {
+        preferences(context).edit().remove("question_cache").apply()
+        pruneJournalDrafts(context, emptyList())
+    }
+
+    /** 只在电脑确认问题版本或撤销授权后清理该设备已经失效的待答草稿。 */
+    fun pruneJournalDrafts(context: Context, rows: List<PendingQuestion>) {
+        val prefs = preferences(context)
+        val prefix = "journal:" + org.json.JSONArray().put(owner).put(pairedId).toString().dropLast(1) + ","
+        val valid = rows.map { q -> "journal:" + org.json.JSONArray().put(owner).put(pairedId)
+            .put(q.conversation).put(q.key.runId).put(q.key.version).toString() }.toSet()
+        val expired = prefs.all.keys.filter { it.startsWith(prefix) && it !in valid }
+        if (expired.isNotEmpty()) prefs.edit().apply { expired.forEach { remove(it) } }.apply()
+    }
 
     private fun preferences(context: Context) = context.getSharedPreferences("windows_pairing", Context.MODE_PRIVATE)
 

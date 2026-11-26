@@ -81,7 +81,7 @@ class HeadlessApp:
                 from desk_companion.local_api.mobile_pairing import MobilePairing
                 account = self.accounts.runtime.key
                 self._mobile_pairing = MobilePairing(data_root() / 'memory' / 'pairing' / account, account,
-                    self.accounts.mobile_active, lambda: self.collaboration, self.accounts.mobile_lease, self._mobile_relay_headers)
+                    self.accounts.mobile_active, lambda: self.collaboration, self.accounts.mobile_lease, self._mobile_relay_headers, self.scheduling.local)
             return self._mobile_pairing
 
     def _mobile_relay_headers(self):

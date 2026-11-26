@@ -25,10 +25,66 @@ def unseal(key, device, stream, sealed):
     return json.loads(AESGCM(key).decrypt(raw[:12], raw[12:], aad))
 
 
-def apply_request(service, device, request, now):
+def create_calendar_entry(calendar, grants, device, request):
+    if 'calendar.create' not in grants:
+        raise PermissionError('这台电脑还未允许手机新增日程')
+    if set(request) != {'id', 'action', 'summary', 'start', 'end'} or request['action'] != 'calendar.create':
+        raise ValueError('日程操作无效')
+    request_id = f'mobile-{device}-{UUID(request["id"]).hex}'
+    result = calendar.save(dict(type='create', request_id=request_id, summary=request['summary'],
+                                start=request['start'], end=request['end']))
+    if not result['ok']:
+        raise ValueError(result['error'])
+    return dict(id=request['id'], accepted=True, event=result['event']['local_id'], version=result['event']['local_version'])
+
+
+def apply_request(service, device, request, now, *, calendar=None, grants=(), shared=()):
     UUID(request['id'])
     if not now - 30 < request['time'] <= now + 5:
         raise ValueError('请求已过期')
+    if request.get('action') == 'agent.request':
+        if 'agent.request' not in grants or request.get('conversation') not in shared:
+            raise PermissionError('请先在电脑授权并共享目标会话')
+        if set(request) != {'action', 'time', 'id', 'conversation', 'text'}:
+            raise ValueError('任务参数无效')
+        text = request['text']
+        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
+            raise ValueError('任务说明须为 1 至 4000 字')
+        conversation = request['conversation']
+        service.action(dict(type='send', conversation=conversation, text=text.strip(), mode='task',
+                            request_id=f'mobile-{device}-{UUID(request["id"]).hex}'))
+        return dict(accepted=True, conversation=conversation)
+    if request.get('action') == 'note.create':
+        if 'note.create' not in grants:
+            raise PermissionError('这台电脑还未允许手机新增笔记')
+        if set(request) != {'action', 'time', 'id', 'title', 'body'}:
+            raise ValueError('笔记操作无效')
+        from desk_companion.knowledge.notebook import save_mobile_note
+        note = save_mobile_note(device, str(UUID(request['id'])), request['title'], request['body'])
+        return dict(accepted=True, note=note)
+    if request.get('action') == 'calendar.list':
+        if 'calendar.create' not in grants:
+            raise PermissionError('电脑未授权手机维护本机日程')
+        with calendar.board.workspace_transaction() as (state, _):
+            own = [row for row in calendar.records(state).values()
+                   if row['id'].startswith('mobile-' + device + '-')]
+            own.sort(key=lambda row: row.get('updated_at', row['created_at']), reverse=True)
+            return dict(accepted=True, events=[{k: row[k] for k in ('id', 'summary', 'start', 'end', 'version')}
+                                                for row in own[:30]])
+    if request.get('action') == 'calendar.update':
+        if 'calendar.create' not in grants:
+            raise PermissionError('电脑未授权手机维护本机日程')
+        required = {'action', 'id', 'time', 'event', 'version', 'summary', 'start', 'end'}
+        if set(request) != required or not isinstance(request['event'], str) or not request['event'].startswith('mobile-' + device + '-'):
+            raise ValueError('仅可编辑这台手机新增的日程')
+        result = calendar.save(dict(type='update', local_id=request['event'], version=request['version'],
+                                   request_id=f'mobile-{device}-{UUID(request["id"]).hex}', summary=request['summary'],
+                                   start=request['start'], end=request['end']), mobile_only=True)
+        if not result['ok']:
+            raise ValueError(result['error'])
+        return dict(accepted=True, event=result['event']['local_id'], version=result['event']['local_version'])
+    if request.get('action') == 'calendar.create':
+        return create_calendar_entry(calendar, grants, device, {k: v for k, v in request.items() if k != 'time'})
     fields = {k: request[k] for k in ('run', 'version', 'conversation')}
     if request['action'] == 'defer':
         return service.defer_question(fields['conversation'], fields['run'], fields['version'], request['until'])
@@ -77,8 +133,13 @@ def exchange(pair, headers):
                 request = unseal(key, device, 'phone', incoming)
                 if not ack or ack.get('id') != request.get('id'):
                     try:
-                        result = apply_request(service, device, request, time.time())
-                    except (KeyError, ValueError, TypeError):
+                        result = apply_request(service, device, request, time.time(), calendar=pair.calendar,
+                                               grants=latest.get('write_grants', []), shared=latest.get('shared_chats', []))
+                    except PermissionError as exc:
+                        result = dict(error=str(exc))
+                    except ValueError as exc:
+                        result = dict(error=str(exc)[:200])
+                    except (KeyError, TypeError):
                         result = dict(error='原问题或请求已变化，请核对')
                     ack = dict(id=request.get('id'), **result)
                     latest['relay_ack'] = ack
@@ -86,7 +147,7 @@ def exchange(pair, headers):
                     tmp.write_text(json.dumps(latest), encoding='utf-8')
                     os.replace(tmp, pair.record)
             workspace = service.mobile_workspace(latest.get('shared_chats', []))
-            payload = dict(time=int(time.time()), device=device, ack=ack, **workspace)
+            payload = dict(time=int(time.time()), device=device, ack=ack, grants=latest.get('write_grants', []), **workspace)
             sealed = seal(key, device, 'windows', payload)
         http.post(endpoint, json=dict(device=device, stream='windows', sealed=sealed)).raise_for_status()
 

@@ -153,6 +153,33 @@ def save_agent_artifact(conversation: str, run_id: str, title: str, question: st
     return dict(ok=True, session_id=session_id, note_id=note_id)
 
 
+def save_mobile_note(device: str, request_id: str, title: str, body: str) -> str:
+    """将手机手写内容存入当前账号的笔记本，重复投递核对同一条原文。"""
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 120:
+        raise ValueError('笔记标题须为 1 至 120 字')
+    if not isinstance(body, str) or not 1 <= len(body.strip()) <= 4000:
+        raise ValueError('笔记正文须为 1 至 4000 字')
+    session_id = uuid.uuid5(uuid.NAMESPACE_URL, 'tebb-mobile-notes:' + device).hex
+    note_id = uuid.uuid5(uuid.NAMESPACE_URL, session_id + ':' + request_id).hex
+    title, body = title.strip(), body.strip()
+    with _LOCK:
+        book = _read()
+        session = next((s for s in book['sessions'] if s['id'] == session_id), None)
+        if session is None:
+            session = dict(id=session_id, title='手机笔记', updated=_now(), turns=[], notes=[])
+            book['sessions'].insert(0, session)
+        existing = next((n for n in session['notes'] if n['id'] == note_id), None)
+        if existing:
+            if (existing['question'], existing['answer']) != (title, body):
+                raise ValueError('同一提交编号已有不同的笔记')
+            return note_id
+        cite = dict(n=1, doc='手机手记', title=title, text=body, doc_id='tebb:mobile-note:' + note_id)
+        session['notes'].insert(0, dict(id=note_id, question=title, answer=body, cites=[cite], saved=_now(), files=[]))
+        session['updated'] = _now()
+        _write_change(book, session_id, note_id)
+    return note_id
+
+
 def delete_note(session_id: str, note_id: str) -> dict:
     target = (note_id or "").strip()
     if not target:
