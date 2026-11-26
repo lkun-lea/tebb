@@ -1,16 +1,27 @@
 """Exercise the same TLS enrollment and desktop decision used by Android."""
 import base64
+import socket
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from desk_companion.local_api.mobile_pairing import MobilePairing
+from desk_companion.local_api.mobile_pairing import MobilePairing, lan_addresses
+
+
+class PairingAddressTest(unittest.TestCase):
+    def test_virtual_switch_is_selectable_after_physical_lan(self):
+        def entry(address):
+            return [SimpleNamespace(family=socket.AF_INET, address=address)]
+        interfaces = {'vEthernet (WSL)': entry('172.29.16.1'), '以太网': entry('192.168.1.50')}
+        with patch('psutil.net_if_addrs', return_value=interfaces):
+            self.assertEqual(lan_addresses(), ['192.168.1.50', '172.29.16.1'])
 
 
 class PairingTest(unittest.TestCase):

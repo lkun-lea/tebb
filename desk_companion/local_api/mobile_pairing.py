@@ -50,10 +50,13 @@ class TaskAnswer(QuestionReference):
 def lan_addresses():
     candidates = []
     for name, entries in psutil.net_if_addrs().items():
+        interface = name.casefold()
+        virtual = interface.startswith(('vethernet', 'vmnet', 'vboxnet', 'vmware', 'virtualbox'))
+        wireless = any(word in interface for word in ('wi-fi', 'wlan', '无线'))
         for entry in entries:
             if entry.family == socket.AF_INET and any(ipaddress.ip_address(entry.address) in net for net in PRIVATE):
-                candidates.append((not any(word in name.lower() for word in ('wi-fi', 'wlan', '无线')), entry.address))
-    return [addr for _, addr in sorted(candidates)]
+                candidates.append((virtual, not wireless, entry.address))
+    return list(dict.fromkeys(address for _, _, address in sorted(candidates)))
 
 
 PRIVATE = tuple(map(ipaddress.ip_network, ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')))
