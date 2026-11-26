@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "dev.tebb.mobile"
     compileSdk = 34
+    sourceSets.getByName("main").assets.srcDir("../../client/src/journal")
     // Java 与 Kotlin 统一生成 Java 17 字节码，打包时由 Android 工具链转换。
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

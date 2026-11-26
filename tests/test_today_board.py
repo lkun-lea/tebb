@@ -30,6 +30,15 @@ class TodayBoardTests(unittest.TestCase):
         after = today_board(self.service)
         self.assertEqual(after['questions'], [])
         self.assertEqual(after['events'][0]['title'], '开始 · 今日隔离验收')
+        receipt = after['receipt']
+        self.assertEqual((receipt['run'], receipt['version'], receipt['title'], receipt['answer']),
+                         (q['run'], q['version'], q['title'], '45min'))
+        shared, = self.service.mobile_workspace([q['conversation']])['history']
+        self.assertEqual(shared['today']['receipt'], dict(receipt, truncated=False))
+        self.assertEqual(self.service.mobile_workspace([])['history'], [])
+        next_day = datetime.fromtimestamp(receipt['accepted']) + timedelta(days=1)
+        later = today_board(self.service, now=next_day)
+        self.assertNotEqual(later['day'], later['receipt']['day'])
         history, = self.service.shared_history([q['conversation']])
         self.assertEqual(sum(row['text'] == '45min' for row in history['rows']), 1)
 

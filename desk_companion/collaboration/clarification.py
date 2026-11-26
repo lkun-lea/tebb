@@ -85,7 +85,7 @@ def version(run):
 
 
 def pause(run, question, items=None):
-    run.update(answer=_text(question,4000),clarification=question,clarification_version=uuid.uuid4().hex)
+    run.update(answer=_text(question,4000),clarification=question,clarification_version=uuid.uuid4().hex, clarification_asked_at=time.time())
     run.pop('clarification_form',None)
     if items:run['clarification_form']=dict(version=version(run),questions=questions(items))
 

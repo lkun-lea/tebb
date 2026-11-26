@@ -12,7 +12,7 @@ data class QuestionKey(val runId: String, val version: String) : Serializable
 
 /** 聊天页展示的待答问题。[key] 标识问题，更新 [title] 或 [prompt] 后引用仍然有效。 */
 data class PendingQuestion(val key: QuestionKey, val title: String, val prompt: String,
-                           val conversation: String = "", val deviceId: String = "", val created: Long = 0, val items: String = "") : Serializable
+                           val conversation: String = "", val deviceId: String = "", val created: Long = 0, val items: String = "", val asked: Long = 0) : Serializable
 
 /**
  * 主聊天输入框在一次界面更新中使用的完整状态。

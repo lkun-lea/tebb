@@ -31,3 +31,10 @@
 .today-timeline .today-source:not(:last-child)::after {content:""; position:absolute; left:9px; top:calc(50% + 5px); height:calc(100% - 10px); border-left:1px solid hsl(var(--border))}
 .today-pane fieldset {border:1px solid hsl(var(--border)); padding:12px; border-radius:10px}
 .today-pane form>div {justify-content:flex-end}
+
+.today-workspace:has(.journal-host){padding:0}
+.journal-host,.journal-host>.journal{height:100%;min-height:0;width:100%}
+.journal-host>.today-pane{padding:20px}
+.tebb-content-slot[data-today-open]:has(.journal[data-solo=true])>.tebb-core-chat{display:none}
+
+.journal-host>.today-pane,.journal-host>.today-pane *{box-sizing:border-box;min-width:0}

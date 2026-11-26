@@ -450,7 +450,7 @@ class Collaboration:
             if run['state'] != 'needs_input' or run['kind'] == 'chat' or self._deferred(run) or self._handled(items):
                 continue
             rows.append(dict(run=run['id'], conversation=run['conversation'], version=version(run),
-                             created=int(run.get('created') or 0), title=run['title'],
+                             created=int(run.get('created') or 0), asked=run.get('clarification_asked_at'), title=run['title'],
                              prompt=run.get('clarification') or run.get('answer', ''),
                              items=[dict(id=i['id'], owner=i.get('agent_id', 'tebb'), due=i.get('due', ''))
                                     for i in items if not i['archived'] and i['state'] != 'done']))
@@ -471,6 +471,7 @@ class Collaboration:
         result.pop('today_board', None)
         # Internal snapshots/keys/worker requests never cross the browser boundary.
         for run in result["runs"]:
+            run.pop('journal_receipt', None)
             if run.get('budget_id'):
                 from desk_companion.tasks.task_budgets import Ledger
                 run['task_budget']=Ledger().view(run['budget_id'])
@@ -826,6 +827,10 @@ class Collaboration:
                 if run['state']=='needs_input':
                     from desk_companion.collaboration.clarification import stop_options
                     if sum(r['state'] in ACTIVE for r in state['runs'])>=12:raise ValueError('已有较多任务，请稍后补充。')
+                    from desk_companion.collaboration.clarification import version
+                    run['journal_receipt'] = dict(run=run['id'], conversation=conversation['id'],
+                        version=version(run), title=run['title'], created=run.get('created'),
+                        asked=run.get('clarification_asked_at'), accepted=time.time(), answer=action['text'].strip())
                     stop_options(run,self.managers['chat'])
                     run['context'].append(dict(sender=run['agent'],text=run['answer']))
                     # The continuing reply belongs after the human supplement.

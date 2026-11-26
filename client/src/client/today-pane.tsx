@@ -1,22 +1,33 @@
-import {useEffect, useState} from 'react';
-import {CalendarDays, CornerUpRight, Flag, MessageCircle, SlidersHorizontal} from 'lucide-react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
+import '../journal/buttons.js';
+import '../journal/journal.js';
+import '../journal/journal.css';
+import '../journal/buttons.css';
 import {rpc, type BackendInfo} from './api';
 import {UiButton, UiFeedback} from './ui-controls';
 import './today-pane.css';
+
+type JournalAction = {type:string; run?:string; version?:string; conversation?:string; text?:string};
+type JournalView = {update:(data:unknown)=>void};
+declare global { interface Window { TodayJournal:new(root:HTMLElement,action:(a:JournalAction)=>void)=>JournalView } }
 
 type Period = {time:string; focus:string; keywords?:string; frequency?:string};
 type Preferences = {version:number; project:string; morning:Period; evening:Period};
 type Source = {title:string; conversation:string; source:string; time?:number};
 type Board = {
   preferences:Preferences; projects:{id:string; name:string}[];
-  questions:{run:string; title:string; prompt:string; conversation:string}[];
+  day:string; receipt:unknown; questions:{version:string; run:string; title:string; prompt:string; conversation:string}[];
   events:Source[]; reports:{slot:string; date:string; generated:number; rows:Source[]}[];
 };
 const slots = {morning:'早报', evening:'晚报'} as const;
 const periods = ['morning','evening'] as const;
-const formatTime = (seconds:number) => new Date(seconds*1000).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
 
-export function TodayPane({info,onOpen,onProfiles}:{info:BackendInfo|null; onOpen:(id:string)=>Promise<void>; onProfiles:()=>void}) {
+
+type TodayProps = {info:BackendInfo|null; onOpen:(id:string)=>Promise<void>; onProfiles:()=>void; onChat?:()=>void};
+export function TodayPane(props:TodayProps) {
+  return <AccountJournal key={props.info?.token} {...props}/>;
+}
+function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
   const [board,setBoard]=useState<Board|null>(null);
   const [draft,setDraft]=useState<Preferences|null>(null);
   const [busy,setBusy]=useState(false);
@@ -45,17 +56,45 @@ export function TodayPane({info,onOpen,onProfiles}:{info:BackendInfo|null; onOpe
     } catch(e){setActionError(String(e));}
     finally{setBusy(false);}
   }
-  function open(id:string){void onOpen(id).catch(e=>setActionError(String(e)));}
-  function sourceRow(row:Source,index:number){
-    return <button className="today-source" key={row.source+index} onClick={()=>open(row.conversation)}>
-      {row.time&&<small>{formatTime(row.time)}</small>}<span>{row.title}</span><CornerUpRight size={16}/></button>;
-  }
-  return <section className="today-pane">
-    <header><time>{new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</time>
-      <div><UiButton onClick={onProfiles}>个人资料</UiButton><UiButton disabled={!board} onClick={()=>setDraft(board!.preferences)}><SlidersHorizontal size={16}/>定制看板</UiButton></div></header>
-    {(actionError||error)&&<p role="alert">{actionError||error}</p>}
-    {!board&&<UiFeedback state={info?'loading':'unconfirmed'} title={info?'正在读取今日看板…':'等待本地助手连接'}/>}
-    {draft&&<form onSubmit={event=>{event.preventDefault();void save();}}>
+  const [solo,setSolo]=useState(false);
+  const [selected,setSelected]=useState('');
+  const container=useRef<HTMLDivElement>(null);
+  const viewer=useRef<JournalView>();
+  const handle=useRef<(a:JournalAction)=>void>(()=>{});
+  handle.current=async a=>{
+    if(a.type==='layout')return setSolo(value=>!value);
+    if(a.type==='profiles')return onProfiles();
+    if(a.type==='settings' && board)return setDraft(board.preferences);
+    if(a.type==='select')return setSelected(a.run || '');
+    if(a.type==='chat' && onChat)return onChat();
+    try {
+      if(a.type==='answer' && info){
+        setBusy(true);
+        const result=await rpc<{ok:boolean;error?:string}>(info,'collaboration_action',{action:{
+          type:'send',run:a.run,conversation:a.conversation,question_version:a.version,text:a.text,request_id:crypto.randomUUID()
+        }});
+        if(result.ok===false)throw Error(result.error || '原任务未接收');
+        setBoard(await rpc<Board>(info,'today_board',{}));
+      } else if(a.type==='source'||a.type==='chat')await onOpen(a.conversation || 'dm-tebb');
+      setActionError('');
+    }catch(e){setActionError(String(e));}finally{setBusy(false);}
+  };
+  useLayoutEffect(()=>{
+    if(container.current)viewer.current=new window.TodayJournal(container.current,a=>handle.current(a));
+    return ()=>{viewer.current=undefined};
+  },[info]);
+  useLayoutEffect(()=>{
+    if(!board)return;
+    const questions=[...board.questions].sort((a,b)=>Number(b.run===selected)-Number(a.run===selected));
+    const sections=[...(board.events.length?[{title:'项目时间线',rows:board.events}]:[]),
+      ...board.reports.map(report=>({title:slots[report.slot as keyof typeof slots],rows:report.rows}))];
+    viewer.current?.update({...board,questions,sections,solo,busy,online:Boolean(info)&&!error,
+      notice:actionError||error,settings:true,profiles:true});
+  },[board,solo,busy,selected,info,actionError,error]);
+  return <section className="journal-host">
+    {!board&&<UiFeedback state={info?'loading':'unconfirmed'} title={error || (info?'正在读取今日手记…':'等待本地助手连接')}/>}
+    <div ref={container} hidden={Boolean(draft)||!board}/>
+    {draft&&<div className="today-pane"><form onSubmit={event=>{event.preventDefault();void save();}}>
       <label>关注项目<select value={draft.project} onChange={e=>setDraft({...draft,project:e.target.value})}><option value="">选择项目</option>{board?.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       {periods.map(slot=><fieldset key={slot}><legend>{slots[slot]}</legend>
         <label>周期<select value={draft[slot].frequency||'daily'} onChange={e=>setDraft({...draft,[slot]:{...draft[slot],frequency:e.target.value}})}><option value="daily">每天</option><option value="weekdays">工作日</option><option value="weekends">周末</option><option value="off">关闭</option></select></label>
@@ -64,11 +103,6 @@ export function TodayPane({info,onOpen,onProfiles}:{info:BackendInfo|null; onOpe
         <label>关注词（选填）<input value={draft[slot].keywords||''} maxLength={120} placeholder="多个词用空格分开" onChange={e=>setDraft({...draft,[slot]:{...draft[slot],keywords:e.target.value}})}/></label>
       </fieldset>)}
       <small>新偏好用于下一份简报。</small><div><UiButton type="button" onClick={()=>setDraft(null)}>取消</UiButton><UiButton type="submit" disabled={busy}>保存</UiButton></div>
-    </form>}
-    {board&&<>
-      <article className="today-questions"><h3><MessageCircle/>等你决定</h3>{board.questions.length?board.questions.map(q=><button className="today-source" key={q.run} onClick={()=>open(q.conversation)}><small>{q.title}</small><strong>{q.prompt}</strong><CornerUpRight size={16}/></button>):<p>当前没有待答任务。</p>}</article>
-      <article className="today-timeline"><h3><Flag/>{board.projects.find(p=>p.id===board.preferences.project)?.name || '关注的项目'}</h3>{board.events.length?board.events.map(sourceRow):<p>{board.preferences.project?'这个项目还没有任务记录。':'在「定制看板」中选择要跟进的项目。'}</p>}</article>
-      <article><h3><CalendarDays/>今日简报</h3>{board.reports.length?board.reports.map(r=><section key={r.slot}><h4>{r.slot==='morning'?'早报':'晚报'} <small>{formatTime(r.generated)}</small></h4>{r.rows.length?r.rows.map(sourceRow):<p>生成时没有符合偏好的记录。</p>}</section>):<p>{periods.map(slot=>slots[slot]+' '+(board.preferences[slot].frequency==='off'?'已关闭':board.preferences[slot].time)).join(' · ')}</p>}</article>
-    </>}
+    </form>{actionError&&<p role="alert">{actionError}</p>}</div>}
   </section>;
 }

@@ -55,6 +55,14 @@ def update_reports(board, now, questions, events):
         del reports[key]
 
 
+def latest_receipt(state, conversation=None):
+    receipts = (run['journal_receipt'] for run in state['runs'] if run.get('journal_receipt')
+                and (conversation is None or run['conversation'] == conversation))
+    latest = max(receipts, key=lambda row: row['accepted'], default=None)
+    if latest:
+        return dict(latest, day=datetime.fromtimestamp(latest['accepted']).date().isoformat())
+
+
 def today_board(service, preferences=None, *, scheduled=False, now=None):
     now = now or datetime.now().astimezone()
     with service.lock, transaction(service.path) as (state, _):
@@ -89,19 +97,19 @@ def today_board(service, preferences=None, *, scheduled=False, now=None):
         update_reports(board, now, questions, events)
         if not scheduled:
             day = now.strftime('%Y-%m-%d')
-            return dict(preferences=config, projects=projects, questions=questions, events=events,
+            return dict(day=day, receipt=latest_receipt(state), preferences=config, projects=projects, questions=questions, events=events,
                         reports=[r for r in board['reports'].values() if r['date'] == day])
 
 
 def attach_mobile_board(state, history, now=None):
     """只随已授权的会话投影视图。撤销共享后，对应看板内容也随快照移除。"""
     board = state.get('today_board')
-    if not board or not history:
+    if not history:
         return
     day = (now or datetime.now().astimezone()).strftime('%Y-%m-%d')
-    events = timeline(state, board['preferences']['project'])
+    events = timeline(state, board['preferences']['project']) if board else []
     sources = {'project': events}
-    sources.update({r['slot']: r['rows'] for r in board['reports'].values() if r['date'] == day})
+    sources.update({r['slot']: r['rows'] for r in (board or {}).get('reports', {}).values() if r['date'] == day})
     for chat in history:
         sections = {}
         for slot, rows in sources.items():
@@ -109,5 +117,8 @@ def attach_mobile_board(state, history, now=None):
                        for r in rows if r['conversation'] == chat['id']][:6]
             if visible:
                 sections[slot] = visible
-        if sections:
+        receipt = latest_receipt(state, chat['id'])
+        if sections or receipt:
             chat['today'] = dict(date=day, sections=sections)
+            if receipt:
+                chat['today']['receipt'] = dict(receipt, answer=receipt['answer'][:400], truncated=len(receipt['answer']) > 400)

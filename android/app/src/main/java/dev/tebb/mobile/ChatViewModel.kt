@@ -165,6 +165,23 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
         }
     }
 
+    /** 核对原任务版本与编辑状态后复用聊天投递路径。已有其他草稿时保留原文并提示用户。 */
+    fun replyFromJournal(key: QuestionKey, text: String) {
+        val current = mutable.value
+        val input = current.composer
+        if (current.work != null || input.dictating || text.isBlank() || text.length > 4000) return
+        if (input.pending.none { it.key == key && it.deviceId.isNotEmpty() }) {
+            mutable.value = current.copy(notice = "原问题已更新，请重新查看")
+            return
+        }
+        if (input.draft.isNotBlank() && (input.target != key || input.draft != text)) {
+            mutable.value = current.copy(notice = "聊天中已有草稿，请先返回主聊处理")
+            return
+        }
+        update(input.select(key).copy(draft = text))
+        send()
+    }
+
     /** 冻结本次正文与任务版本，写入成功后清空草稿；失败时保留草稿及其目标。 */
     fun send() {
         val current = mutable.value

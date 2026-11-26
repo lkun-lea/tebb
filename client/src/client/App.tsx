@@ -1511,7 +1511,7 @@ export function App() {
         <div className="tebb-route-page" hidden={coreChat} style={{ display: coreChat ? "none" : "flex" }}>
         <PageStack active={coreChat ? "" : pane === "chat" ? chatFace : pane}>
           {pane === "today" ? <section className="today-workspace" aria-label="今日">
-            <Suspense fallback={<LoadingText text="正在打开今日…"/>}><TodayPane info={info} onProfiles={()=>openSettings('personalization','records')} onOpen={async conversation=>{
+            <Suspense fallback={<LoadingText text="正在打开今日…"/>}><TodayPane info={info} onChat={()=>setPane("collaboration")} onProfiles={()=>openSettings('personalization','records')} onOpen={async conversation=>{
               if (!info) throw Error('本地助手尚未连接。');
               await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
               setPane('collaboration');

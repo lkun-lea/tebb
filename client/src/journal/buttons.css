@@ -1,0 +1,93 @@
+.jr-button,.jr-primary {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:44px;
+  border:1px solid transparent;
+  border-radius:14px;
+  padding:10px 17px;
+  font-weight:600;
+  transition:background .15s,box-shadow .15s,transform .15s
+}
+
+.journal .jr-primary {
+  background:#0077b8;
+  color:white
+}
+
+.jr-button {
+  background:#e4e9f0;
+  color:#374b62
+}
+
+.jr-nav {
+  margin-inline:auto;
+  background:#ffffffad;
+  box-shadow:0 6px 22px #35557012
+}
+
+.jr-nav .jr-button {
+  background:transparent
+}
+
+.jr-nav strong {
+  background:#d9e0e9
+}
+
+.jr-choices {
+  padding:9px;
+  border-radius:16px;
+  background:#dce4ed8a
+}
+
+[data-variant="choice"].jr-button {
+  background:#fffffff0;
+  border:1px solid transparent
+}
+
+[data-variant="choice"].jr-button:before {
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#178bc4
+}
+
+[data-variant="choice"].jr-button[aria-pressed=true] {
+  background:#e4f4ff;
+  border-color:#0077b8;
+  color:#005986
+}
+
+[data-variant="choice"].jr-button[aria-pressed=true]:before {
+  content:"✓";
+  width:auto;
+  height:auto;
+  color:inherit;
+  background:transparent
+}
+
+.journal button:enabled:hover {
+  box-shadow:0 2px 8px #28557c24
+}
+
+.journal button:enabled:active {
+  transform:scale(.97)
+}
+
+.journal button:focus-visible,.jr-note:focus-visible {
+  outline:3px solid #005d96;
+  outline-offset:3px
+}
+
+.journal button:disabled {
+  cursor:default
+}
+@media(prefers-reduced-motion:reduce) {
+  .journal button {
+  transition:none
+}
+
+
+}

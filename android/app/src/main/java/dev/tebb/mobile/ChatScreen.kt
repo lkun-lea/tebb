@@ -66,6 +66,7 @@ private val Surface = Color(0xFF1D1D1D)
 @Composable
 internal fun ChatScreen(
     state: ChatUiState, device: PairingState, pairing: PairingViewModel,
+    journalReply: (QuestionKey, String) -> Unit,
     select: (QuestionKey) -> Unit, dismiss: () -> Unit, edit: (String) -> Unit,
     send: () -> Unit, voice: () -> Unit, stop: () -> Unit, cancel: () -> Unit,
     sync: (List<PendingQuestion>) -> Unit, retryHistory: () -> Unit, clearHistory: () -> Unit, chooseCloud: (Boolean) -> Unit, defer: (PendingQuestion) -> Unit
@@ -122,7 +123,11 @@ internal fun ChatScreen(
         Box(Modifier.fillMaxSize().background(Ink).imePadding().onGloballyPositioned { origin = it.positionInRoot() }) {
             Box(Modifier.fillMaxSize().blur(if (showLoading) 12.dp else 0.dp)) {
                 // 读图协程由设备页面持有。显示加载层时让页面留在组合中，以便完成解码。
-                if (sheet == "device" && owner.isNotEmpty()) {
+                if (sheet == "journal") {
+                    key(owner, (device as? PairingState.Paired)?.computer) {
+                        JournalScreen(state, owner.isNotEmpty() && device is PairingState.Paired, { sheet = "" }, journalReply)
+                    }
+                } else if (sheet == "device" && owner.isNotEmpty()) {
                     BackHandler(enabled = loading == null) { sheet = "" }
                     Column(Modifier.fillMaxSize().padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -146,7 +151,7 @@ internal fun ChatScreen(
                                     sheet = if (tasksOpen) "" else "tasks"
                                 }
                             })
-                            if (!tasksOpen) Spacer(Modifier.width(48.dp))
+                            if (!tasksOpen) TextButton(onClick = { sheet = "journal" }, enabled = !composer.dictating) { Text("今日") }
                             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                                 Box(Modifier.offset(x = (-52).dp)) { PetAnchor(40.dp) { header = it } }
                                 Wordmark()

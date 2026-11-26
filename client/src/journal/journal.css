@@ -1,0 +1,229 @@
+.journal,.journal * {
+  box-sizing:border-box
+}
+
+.journal {
+  color:#263142;
+  font:16px/1.55 "Segoe UI","Microsoft YaHei",sans-serif;
+  background:linear-gradient(180deg,#aecfea 0%,#c8dcee 31%,#e8ebf2 64%,#f9e3cd 100%);
+  background-attachment:local;
+  height:100%;
+  overflow:auto;
+  color-scheme:light
+}
+
+.jr-page {
+  position:relative;
+  min-height:100%;
+  padding:20px clamp(16px,4vw,52px) 54px;
+
+}
+
+.jr-content {
+  max-width:620px;
+  margin:auto
+}
+
+.jr-nav {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  width:max-content;
+  background:#fff6;
+  border-radius:24px;
+  padding:4px
+}
+
+.journal button {
+  font:inherit;
+  cursor:pointer;
+  color:inherit;
+  border:0
+}
+
+.jr-button,.jr-nav strong {
+  border-radius:18px;
+  background:#ffffff70;
+  padding:9px 16px
+}
+
+.jr-nav button,.jr-nav strong {
+  font-size:14px;
+  padding:8px 14px
+}
+
+.jr-nav strong {
+  background:#faf7ef
+}
+
+.jr-head {
+  position:relative;
+  padding:58px 110px 26px 4px
+}
+
+.jr-head h1 {
+  font-size:clamp(30px,4vw,48px);
+  font-weight:600;
+  line-height:1.2;
+  letter-spacing:-.05em;
+  margin:10px 0
+}
+
+.jr-date,.jr-kicker {
+  font-weight:600;
+  color:#585360
+}
+
+.jr-head p,.jr-context {
+  margin:8px 0 14px
+}
+
+.jr-mascot {
+  position:absolute;
+  right:3%;
+  top:22%;
+  width:106px;
+  height:106px;
+  background:url(art/pet.svg) center/68% auto no-repeat,url(art/halo.svg) center/contain no-repeat
+}
+
+.jr-card {
+  position:relative;
+  background:#ffffffad;
+  border:1px solid #fff9;
+  border-radius:23px;
+  padding:22px 25px;
+  margin:12px 0;
+  box-shadow:0 6px 25px #68606b12
+}
+
+.jr-card h2 {
+  font-size:22px;
+  line-height:1.4;
+  margin:7px 0 12px;
+  font-weight:620
+}
+
+.jr-stamp {
+  position:absolute;
+  right:24px;
+  top:23px;
+  font-size:13px
+}
+
+.jr-choices,.jr-actions {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
+}
+
+.jr-choices .jr-button {
+  border:1px solid #79717d55;
+  background:#fffbf4
+}
+
+
+
+.jr-primary {
+  padding:11px 21px;
+  border-radius:15px
+}
+
+.jr-primary:disabled {
+  opacity:.5
+}
+
+.jr-note {
+  display:block;
+  width:100%;
+  padding:12px;
+  margin:12px 0;
+  border-radius:13px;
+  border:1px solid #9a919955;
+  background:#fffaf4;
+  font:inherit;
+  color:inherit;
+  resize:vertical
+}
+
+.jr-rail {
+  display:flex;
+  justify-content:space-between;
+  list-style:none;
+  padding:0;
+  margin:18px 0 0
+}
+
+.jr-rail li {
+  width:33%;
+  border-top:1px solid #a79ca3;
+  padding:10px 0 0
+}
+
+.jr-rail li:before {
+  content:"";
+  display:block;
+  background:#766d83;
+  width:8px;
+  height:8px;
+  border-radius:8px;
+  margin:-15px 0 10px
+}
+
+.jr-rail small {
+  display:block
+}
+
+.jr-prefs {
+  border-radius:24px
+}
+
+.jr-answer {
+  font-size:24px
+}
+
+.jr-notice {
+  background:#ffefcf;
+  padding:12px;
+  border-radius:12px
+}
+
+@media(max-width:520px) {
+  .jr-page {
+  padding:14px 16px 38px
+}
+
+.jr-head {
+  padding:34px 84px 14px 2px
+}
+
+.jr-mascot {
+  width:82px;
+  height:82px;
+  right:0
+}
+
+.jr-card {
+  padding:16px;
+  border-radius:19px
+}
+
+.jr-card h2 {
+  font-size:20px
+}
+
+.jr-button {
+  padding:9px 12px
+}
+
+.jr-stamp {
+  top:17px;
+  right:16px
+}
+
+
+}
+
+.jr-nav{max-width:100%;flex-wrap:wrap;justify-content:center}
+.jr-kicker,.jr-answer{color:#007578}
+.jr-context,.jr-answer,.jr-card h2{overflow-wrap:anywhere}

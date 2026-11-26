@@ -81,11 +81,6 @@ class PersonalAgentAcceptance : Instrumentation() {
             runOnMainSync {
                 screen.setContent { SharedPlanCard(owner, "测试电脑", saved.history, "Windows 缓存 · 已离线", true) { draft.set(it) } }
             }
-            tap("今日看板")
-            waitFor("早报")
-            tap("2026-11-26 · 复核中转设计")
-            waitFor("原文-中转设计")
-            tap("关闭")
             tap("已共享方案")
             tap("夏季方案")
             waitFor("Windows 缓存 · 已离线")
@@ -116,6 +111,31 @@ class PersonalAgentAcceptance : Instrumentation() {
             waitFor("刷新电脑状态")
             waitFor("扫码配对 Windows")
             waitFor("从图片识别配对码")
+            val review = PendingQuestion(QuestionKey("review","v1"), "评审安排", "评审多久？", "dm-tebb", "windows")
+            val received = java.util.concurrent.atomic.AtomicReference("")
+            val submitted = java.util.concurrent.CountDownLatch(1)
+            runOnMainSync {
+                screen.setContent {
+                    JournalScreen(ChatUiState(ComposerState(pending=listOf(review)), historySnapshot=saved.history), true, {}) { key, answer ->
+                        check(key == review.key)
+                        received.set(answer)
+                        submitted.countDown()
+                    }
+                }
+            }
+            waitFor("早报")
+            tap("复核中转设计")
+            waitFor("原文-中转设计")
+            tap("返回手记")
+            tap("45 分钟")
+            val enabledDeadline = SystemClock.elapsedRealtime() + 5000
+            while (!waitFor("回复原任务").isEnabled && SystemClock.elapsedRealtime() < enabledDeadline) {
+                SystemClock.sleep(100)
+            }
+            check(waitFor("回复原任务").isEnabled) { "选中时长后提交按钮仍未启用" }
+            tap("回复原任务")
+            waitForIdleSync()
+            check(submitted.await(5, java.util.concurrent.TimeUnit.SECONDS) && received.get() == "45 分钟") { "本地阅读器未提交选中的时长" }
             if (live) {
                 val url = java.net.URL("https://8.136.145.17/cloud/v1/device-snapshot?device=" + "0".repeat(32) + "&stream=windows")
                 val http = url.openConnection() as javax.net.ssl.HttpsURLConnection

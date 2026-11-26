@@ -29,11 +29,21 @@ async function main() {
       </script>`}));
     await page.goto(base+'/today-acceptance');
     if (process.argv.includes('--review')) {
-      await page.getByRole('heading',{name:'等你决定'}).waitFor();
+      await page.locator('.jr-head h1').waitFor();
+      const submit = page.getByRole('button',{name:'回复原任务'});
+      const choice = page.getByRole('button',{name:'45 分钟'});
+      assert(await submit.isDisabled());
+      await choice.click();
+      assert.equal(await choice.getAttribute('aria-pressed'), 'true');
+      await page.getByLabel('自行补充').fill('请留五分钟讨论');
+      await page.getByRole('button',{name:'独立阅读'}).click();
+      assert.equal(await page.getByLabel('自行补充').inputValue(),'请留五分钟讨论');
+      await choice.click();
+      assert(await submit.isEnabled(), '允许只提交自行填写的答案');
       await page.screenshot({path:path.join(output,'today-desktop.png')});
       await page.setViewportSize({width:390,height:844});
       await page.evaluate(()=>{document.documentElement.classList.add('dark');document.body.style.background='hsl(var(--background))';});
-      await page.getByRole('button',{name:'定制看板'}).click();
+      await page.getByRole('button',{name:'偏好'}).click();
       await page.getByLabel('关注项目').selectOption('today-demo');
       await page.getByRole('group',{name:'晚报'}).getByLabel('关注词').fill('评审 设计');
       assert(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth));
@@ -41,12 +51,12 @@ async function main() {
       console.log('PASS 窄屏定制表单、早晚报关注词和项目选择');
       return;
     }
-    const question = page.locator('article').first().getByRole('button',{name:/今日验收：评审需要多少分钟/});
+    const question = page.locator('article').first().getByRole('heading',{name:/今日验收：评审需要多少分钟/});
     await question.waitFor();
     await page.screenshot({path:path.join(output,'windows-before.png')});
     console.log('Windows 已显示原问题');
     await question.waitFor({state:'detached',timeout:300000});
-    await page.getByText('当前没有待答任务。').waitFor();
+    await page.getByRole('heading',{name:'Windows 收到了你的答复'}).waitFor();
     const observed=JSON.parse(fs.readFileSync(path.join(output,'view.json'),'utf8'));
     assert.equal(observed.history[0].rows.filter(row=>row.text==='45min').length,1);
     await page.screenshot({path:path.join(output,'windows-after.png')});
