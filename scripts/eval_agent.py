@@ -54,7 +54,8 @@ class Fixture(BaseHTTPRequestHandler):
         if spec.get('kind')=='route'and not spec.get('executor'):
             delta=tool('request_clarification',dict(question='请补充目标、日期和时间。'))if value['mode']=='clarify'else dict(content=json.dumps(spec['business_expected'],ensure_ascii=False)if 'business_expected'in spec else '幂等表示重复执行产生相同效果。')
         call_names={c['id']:c['function']['name']for m in request['messages']for c in m.get('tool_calls',[])}
-        receipts=[m for m in request['messages'] if m.get('role')=='tool' and not call_names.get(m.get('tool_call_id'),'').startswith('tebb_tools_')]
+        tool_messages = [m for m in request['messages'] if m.get('role') == 'tool']
+        receipts = [m for m in tool_messages if call_names.get(m.get('tool_call_id')) not in {'tebb_tools_search', 'tebb_tools_load'}]
         executor=spec.get('executor')
         if executor=='timeout_probe':
             from desk_companion.evaluation.agent_eval_timeout import respond
@@ -190,8 +191,18 @@ class Fixture(BaseHTTPRequestHandler):
         if delta.get('tool_calls') and 'tebb_tools_search' in available:
             target=delta['tool_calls'][0]['function']['name']
             if target not in available:
-                searched=any(name=='tebb_tools_search'for name in call_names.values())
-                delta=tool('tebb_tools_load',dict(names=[target])) if searched and 'tebb_tools_load' in available else tool('tebb_tools_search',dict(query=target))
+                discovered = {
+                    row['name'] for message in tool_messages
+                    if call_names.get(message.get('tool_call_id')) == 'tebb_tools_search'
+                    for row in json.loads(message['content']).get('tools', [])
+                }
+                if target in discovered and 'tebb_tools_call' in available:
+                    arguments = json.loads(delta['tool_calls'][0]['function']['arguments'])
+                    delta = tool('tebb_tools_call', dict(name=target, arguments=arguments))
+                elif target in discovered and 'tebb_tools_load' in available:
+                    delta = tool('tebb_tools_load', dict(names=[target]))
+                else:
+                    delta = tool('tebb_tools_search', dict(query=target))
         self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
         if executor=='lifecycle' and spec['scenario']=='cancel':
             try:
