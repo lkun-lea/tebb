@@ -211,12 +211,18 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
                         val client = PairingClient.approved(getApplication()) ?: error("请重新配对 Windows")
                         client.answer(remote, text)
                     }
+                    val quick = if (!cloud && question == null) starterAnswer(text, input.pending) else null
                     val reply = if (cloud) {
                         CloudChatClient.answer(owner, requestId, text) { progress ->
                             withContext(Dispatchers.Main) { mutable.value = mutable.value.copy(work = progress) }
                         }.also { check(MobileAccount.owner == owner) { "登录账号已变化" } }
-                    } else if (question == null) starterAnswer(text, input.pending) else null
-                    history.append(text, question, reply)
+                    } else if (question == null) quick ?: PersonalModel.answer(getApplication(), owner, text, current.messages) else null
+                    val source = when {
+                        cloud -> "cloud"
+                        quick != null || question != null -> "phone"
+                        else -> "local"
+                    }
+                    history.append(text, question, reply, source)
                 }
                 mutable.value = mutable.value.copy(messages = (mutable.value.messages + message).takeLast(80))
                 if (cloud) saved.remove<String>("cloudId")
@@ -232,7 +238,7 @@ internal class ChatViewModel(app: Application, private val saved: SavedStateHand
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) {
                 if (e is CloudTaskEnded) saved.remove<String>("cloudId")
-                mutable.value = mutable.value.copy(notice = (if (cloud) "云端任务未完成，草稿已保留：" else "未取得 Windows 回执，草稿已保留：") + (e.localizedMessage ?: "连接失败"))
+                mutable.value = mutable.value.copy(notice = (if (cloud) "云端任务未完成，草稿已保留：" else if (question == null) "本地模型未完成，草稿已保留：" else "未取得 Windows 回执，草稿已保留：") + (e.localizedMessage ?: "连接失败"))
             } finally {
                 mutable.value = mutable.value.copy(work = null)
             }

@@ -79,3 +79,9 @@ Android 在 android 目录运行 `.\gradlew.bat --offline :app:testDebugUnitTest
 .\gradlew.bat --offline :app:installDebug :app:installDebugAndroidTest
 adb shell am instrument -w -e live true dev.tebb.mobile.test/dev.tebb.mobile.PersonalAgentAcceptance
 ```
+
+## 手机主聊的模型来源与跨端验收（#341）
+
+在 Windows 的「设置 → 账号与空间 → Android 手机配对」批准加密接续，勾选共享当前 HTTPS 模型地址和 API Key。手机登录账号与 Windows 配对账号须一致。手机收到端到端加密快照后，通过 Android Keystore 加密保存配置。选「本地」发普通消息，手机直接向该服务发送正文和最近的普通聊天上下文；服务可达即可回答。切到「云端」走 tebb ECS 的免费 Qwen。星期、时间和待答快捷问题可在手机上离线处理。每条新消息在入库时记录执行来源。撤销模型共享会在手机下次成功同步时清除配置，移除本机配对也会清除配置。如需立即吊销仍处于离线状态的设备所持密钥，应在模型服务处轮换密钥。
+
+验收时在独立 Windows 工作区登记资料并创建一条可手动触发的自动化。共享通用伙伴会话并授予手机任务权限，在 MuMu 的「知识库」请求按名称重命名资料，再从「自动化」请求运行指定规则。Windows 端核对来源编号、标题、版本和自动化执行编号，读取自动化最终运行的答复。撤销 Agent 权限后再次提交，应保留草稿，Windows 运行数和资料名称都应保持原值。配对协议与来源版本可用 `python -m unittest tests.test_paired_calendar_demo tests.test_material_sources` 复验。

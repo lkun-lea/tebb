@@ -357,6 +357,7 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defe
                         .background(Surface, RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 }
+                Text(message.sourceLabel(), color = Muted, fontSize = 12.sp)
                 return@items
             }
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
@@ -364,7 +365,7 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defe
                 Text(message.text, Modifier.widthIn(max = 480.dp)
                     .background(Color(0xFF232325), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
-                Text(if (message.windowsAccepted) "Windows 已接收" else "已保存到本机", color = Muted, fontSize = 12.sp)
+                Text(message.sourceLabel(), color = Muted, fontSize = 12.sp)
             }
         }
     }

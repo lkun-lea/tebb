@@ -67,7 +67,14 @@ class MainActivity : ComponentActivity() {
                             val rows = snapshot.rows
                             if (generation == boundChat.replyGeneration) {
                                 val now = snapshot.time
-                                if (previous?.rows != rows || previous?.history != snapshot.history || now - lastVerified > 60_000) {
+                                val old = previous
+                                val modelChanged = old == null || old.modelConfig != snapshot.modelConfig
+                                if (modelChanged || old?.rows != rows || old.history != snapshot.history || now - lastVerified > 60_000) {
+                                    if (modelChanged) {
+                                        withContext(Dispatchers.IO) {
+                                            PersonalModel.sync(applicationContext, client.pairedId, snapshot.modelConfig)
+                                        }
+                                    }
                                     client.cache(applicationContext, snapshot)
                                     client.pruneJournalDrafts(applicationContext, rows)
                                     lastVerified = now
@@ -79,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         }
                         catch (e: CancellationException) { throw e }
                         catch (e: PairingAuthorizationDenied) {
+                            PersonalModel.sync(applicationContext, client.pairedId, null)
                             boundChat.sharedHistory("[]")
                             client.clearCache(applicationContext)
                             previous = null

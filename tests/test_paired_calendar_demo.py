@@ -20,6 +20,30 @@ from tests.schedule_fixture import END, START, TimeCalendar
 
 
 class PairedCalendarDemo(unittest.TestCase):
+    def test_model_config_is_only_in_the_authorized_devices_encrypted_snapshot(self):
+        device, key = uuid4().hex, os.urandom(32)
+        item = dict(id='active', base_url='https://model.example/v1', model='demo', api_key='fixture-model-secret')
+        snapshots = []
+        def relay(request):
+            if request.method == 'GET':
+                return httpx.Response(200, json={'sealed': None})
+            self.assertNotIn(item['api_key'].encode(), request.content)
+            snapshots.append(unseal(key, device, 'windows', json.loads(request.content)['sealed']))
+            return httpx.Response(200)
+        client = httpx.Client
+        with tempfile.TemporaryDirectory() as folder:
+            record = Path(folder) / 'device.json'
+            pair = SimpleNamespace(lock=threading.RLock(), account='demo', record=record, active=lambda:True,
+                                   collaboration=lambda:SimpleNamespace(mobile_workspace=lambda shared:dict(questions=[])))
+            with patch('httpx.Client', side_effect=lambda **kw:client(transport=httpx.MockTransport(relay), **kw)), \
+                    patch('desk_companion.models.model_catalog.load_catalog', return_value=dict(active='active', items=[item])):
+                for grants in ([], ['model.share'], []):
+                    record.write_text(json.dumps(dict(id=device, account='demo', relay_key=base64.b64encode(key).decode(), write_grants=grants)))
+                    exchange(pair, dict)
+            self.assertNotIn('chat_model', snapshots[0])
+            self.assertEqual(snapshots[1]['chat_model'], {k:item[k] for k in ('model','base_url','api_key')})
+            self.assertNotIn('chat_model', snapshots[2])
+
     def test_exchange_publishes_calendar_ack_and_reuses_it(self):
         device, key = uuid4().hex, os.urandom(32)
         request = dict(id=str(uuid4()), time=int(time.time()), action='calendar.create', summary='评审', start=START, end=END)

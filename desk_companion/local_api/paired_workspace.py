@@ -148,6 +148,12 @@ def exchange(pair, headers):
                     os.replace(tmp, pair.record)
             workspace = service.mobile_workspace(latest.get('shared_chats', []))
             payload = dict(time=int(time.time()), device=device, ack=ack, grants=latest.get('write_grants', []), **workspace)
+            if 'model.share' in latest.get('write_grants', []):
+                from desk_companion.models.model_catalog import load_catalog
+                catalog = load_catalog()
+                item = next((row for row in catalog['items'] if row['id'] == catalog['active']), None)
+                if item and item['base_url'].startswith('https://'):
+                    payload['chat_model'] = {field: item[field] for field in ('base_url', 'api_key', 'model')}
             sealed = seal(key, device, 'windows', payload)
         http.post(endpoint, json=dict(device=device, stream='windows', sealed=sealed)).raise_for_status()
 

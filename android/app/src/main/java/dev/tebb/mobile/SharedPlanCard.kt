@@ -13,7 +13,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** 一次完整、可原子替换的设备投影。时间为 Windows 核对时的毫秒值。 */
-internal data class DeviceSnapshot(val time: Long, val rows: List<PendingQuestion>, val history: String)
+internal data class DeviceSnapshot(val time: Long, val rows: List<PendingQuestion>, val history: String, val modelConfig: String? = null) {
+    override fun toString(): String = "DeviceSnapshot(time=$time, rows=${rows.size})"
+}
 
 private fun JSONArray.objects() = List(length()) { getJSONObject(it) }
 private fun evidenceTime(plan: JSONObject) = plan.getJSONArray("rows").objects().maxOfOrNull { it.optLong("time") } ?: 0L

@@ -57,6 +57,15 @@ def execute(host,run_id,tool,args):
             if kind=='create':raise ValueError('创建安排请使用calendar_create；明确要求先预览时使用calendar_propose。')
             if kind in {'update','sync','resolve_delete'}:return host.scheduling.local.change(action)
             return host.scheduling.change(action)
+        if tool in {'knowledge_sources', 'knowledge_rename'}:
+            from desk_companion.knowledge import material_sources
+            if tool == 'knowledge_rename':
+                row = material_sources.rename(args['source_id'], project_id, args['revision'], args['title'])
+                return dict(ok=True, source_id=row['id'], title=row['title'], revision=row['revision'])
+            query = args.get('query', '').casefold()
+            rows = [row for row in material_sources.listing(project_id) if query in row['title'].casefold()]
+            return dict(ok=True, sources=[{k: row[k] for k in ('id','title','revision')} for row in rows[:50]],
+                        truncated=len(rows) > 50)
         if tool=='automation_list':return host.automation.list_automation_jobs()
         if tool=='automation_save':
             payload=args['payload'];payload.setdefault('project_id',project_id);payload.setdefault('agent_id','tebb');payload.setdefault('doc','')

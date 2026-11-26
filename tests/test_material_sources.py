@@ -26,6 +26,17 @@ class MaterialSourcesTests(unittest.TestCase):
     def register(self, project_id=''):
         return sources.register(title='One', snapshot_id=self.select(), project_id=project_id)
 
+    def test_rename_uses_current_scope_and_version_without_changing_source_contents(self):
+        row = sources.register(title="草稿", locator="test-source")
+        updated = sources.rename(row['id'], '', row['revision'], "确认稿")
+        self.assertEqual(updated['title'], "确认稿")
+        self.assertEqual(updated['locator'], row['locator'])
+        with self.assertRaises(ValueError):
+            sources.rename(row['id'], '', row['revision'], "过期修改")
+        with self.assertRaises(ValueError):
+            sources.rename(row['id'], 'another-project', updated['revision'], "越权修改")
+        self.assertEqual(sources.get(row['id'])['title'], "确认稿")
+
     def test_duplicate_selection_reuses_identity_and_versions_remain_immutable(self):
         one = self.register(); two = self.register()
         self.assertEqual(one['id'], two['id'])

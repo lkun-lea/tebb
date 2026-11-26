@@ -293,6 +293,17 @@ def commit_guard(source_id, project_id, revision, version, operation_id):
         yield
 
 
+def rename(source_id, project_id, expected_revision, title):
+    """在当前项目内按已读取的版本修改来源标题。"""
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
+        raise ValueError('资料名称须为 1 至 200 字')
+    def change(row):
+        if row['revision'] != expected_revision or (row.get('operation') or {}).get('state') == 'running':
+            raise ValueError('资料正在处理或版本已变化，请重新查询')
+        row.update(title=title.strip(), revision=uuid.uuid4().hex)
+    return _update(source_id, project_id, change)
+
+
 def rebind(source_id, project_id, snapshot_id, expected_revision):
     from desk_companion.knowledge.local_sources import get as attachment
     selected = attachment(snapshot_id)

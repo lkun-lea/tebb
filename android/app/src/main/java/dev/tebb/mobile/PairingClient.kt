@@ -77,7 +77,7 @@ internal class PairingClient(private val invite: JSONObject) {
     fun snapshot(): DeviceSnapshot {
         val raw = relay?.snapshot() ?: request("/questions", ticket = invite.getString("access"))
         return DeviceSnapshot(raw.optLong("time", System.currentTimeMillis()/1000) * 1000,
-            decodeQuestions(raw.getJSONArray("questions")), raw.optJSONArray("history")?.toString() ?: "[]")
+            decodeQuestions(raw.getJSONArray("questions")), raw.optJSONArray("history")?.toString() ?: "[]", raw.optJSONObject("chat_model")?.toString())
 
     }
 
