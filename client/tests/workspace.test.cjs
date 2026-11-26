@@ -248,6 +248,11 @@ test('notebook titles are reading links, citations use complete stored Markdown,
   await act(async () => button(view, '引用1').props.onClick()); assert.deepEqual(quoted, cite);
   await act(async () => view.root.findByProps({ 'data-note-answer-toggle': 'n1' }).props.onClick({preventDefault(){}}));
   await act(async () => button(view, '删除文件').props.onClick()); assert.equal(deleted.length, 0);
+  const fileDialog = view.root.findByProps({role:'alertdialog', 'aria-label':'删除关联文件？'});
+  await act(async () => fileDialog.props.onCancel({preventDefault(){},stopPropagation(){}}));
+  assert.equal(deleted.length, 0);
+  assert.equal(view.root.findByProps({'data-note-reader':'n1'}).type, 'article');
+  await act(async () => button(view, '删除文件').props.onClick());
   await act(async () => button(view, '确认删除文件').props.onClick()); assert.deepEqual(deleted, [['n1', '资料.md']]);
   await act(async () => button(view, '多选').props.onClick());
   await act(async () => view.root.findAllByType('input').find(i => i.props.type === 'checkbox').props.onChange({ target: { checked: true } }));

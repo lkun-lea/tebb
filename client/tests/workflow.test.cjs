@@ -162,7 +162,9 @@ test('focus uses the native modal and a stable portal container, preserving chil
   try{
     await act(async()=>{view=create(React.createElement(App),{createNodeMock:host});});act(()=>view.root.findByType('input').props.onChange({target:{value:'未保存的内容'}}));
     await act(async()=>view.root.findByType('button').props.onClick());assert.equal(shows,1);assert.equal(view.root.findByType('dialog').props['aria-label'],'工作流专注画布');assert.equal(view.root.findByType('input').props.value,'未保存的内容');
-    let prevented=false;await act(async()=>view.root.findByType('dialog').props.onCancel({preventDefault(){prevented=true;}}));assert.equal(prevented,true);assert.equal(closes,1);assert.equal(view.root.findByType('input').props.value,'未保存的内容');
+    let prevented=false,stopped=false;
+    await act(async()=>view.root.findByType('dialog').props.onCancel({preventDefault(){prevented=true;},stopPropagation(){stopped=true;}}));
+    assert.equal(prevented,true);assert.equal(stopped,true);assert.equal(closes,1);assert.equal(view.root.findByType('input').props.value,'未保存的内容');
     await act(async()=>view.root.findByType('button').props.onClick());assert.equal(shows,2);assert.equal(mounts,1);assert.ok(targets.every(target=>target===targets[0]));
   }finally{act(()=>view?.unmount());for(const[key,value]of Object.entries(old))if(value===undefined)delete global[key];else global[key]=value;}
 });

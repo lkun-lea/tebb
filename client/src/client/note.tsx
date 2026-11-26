@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Markdown } from "./Markdown";
 import { previewQuote } from "./side-workspace";
 import { LoadingText } from "./loading-text";
+import { useActionConfirmation } from "./action-confirmation";
 import { WorkspaceDialog } from "./workspace-dialog";
 
 export type NoteCite = {
@@ -102,8 +103,7 @@ export function NoteMode(props: {
   const [notesW, setNotesW] = useState(256);
   const [readerId, setReaderId] = useState<string | null>(null);
   const [batch, setBatch] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [confirmFile, setConfirmFile] = useState<string | null>(null);
+  const confirmation = useActionConfirmation(JSON.stringify([props.sessionId, readerId]), props.busy);
   const [pickedAnswers, setPickedAnswers] = useState<string[]>([]);
   const picked = notes.filter((note) => pickedAnswers.includes(note.id));
   const reader = notes.find(note => note.id === readerId) || null;
@@ -270,7 +270,7 @@ export function NoteMode(props: {
                   data-note-answer-toggle={note.id}
                   aria-current={open ? "page" : undefined}
                   className="note-directory-title"
-                  onClick={event => { event.preventDefault(); setReaderId(note.id); setConfirmDelete(null); }}
+                  onClick={event => { event.preventDefault(); setReaderId(note.id); }}
                 >
                   <h3 data-note-theme="">{note.question}</h3>
                 </a>
@@ -287,18 +287,16 @@ export function NoteMode(props: {
       </motion.aside>
     </div>{reader && <WorkspaceDialog title="阅读笔记" onClose={() => setReaderId(null)}><article className="note-reader" data-note-reader={reader.id}>
             <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs text-muted-foreground" title={reader.saved}>已存笔记 · {savedTime(reader.saved)}</p><h1 className="mt-2 text-xl">{reader.question}</h1></div>
-              <details className="note-more"><summary>更多 ⌄</summary><div><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onMarkdown(reader.id)}>导出 Markdown</button><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onFeishu(reader.id)}>保存到飞书文档</button><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => setConfirmDelete(reader.id)}>删除笔记</button></div></details></div>
+              <details className="note-more"><summary>更多 ⌄</summary><div><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onMarkdown(reader.id)}>导出 Markdown</button><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onFeishu(reader.id)}>保存到飞书文档</button><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => confirmation.ask("删除笔记？", `将删除「${reader.question}」。原始来源会保留。`, {label:"删除笔记", danger:true}, () => props.onDelete(reader.id))}>删除笔记</button></div></details></div>
             <button className="desk-menu-item my-3" onClick={() => setReaderId(null)}>关闭阅读，返回问答</button>
             {props.onCollaborate && <button className="desk-menu-item" disabled={props.busy} onClick={() => props.onCollaborate?.(reader.id)}>作为资料交给伙伴</button>}
             {props.saveStatus && <p className={`mb-3 text-xs ${props.saveBad ? "text-destructive" : "text-muted-foreground"}`} role="status"><LoadingText text={props.saveStatus} active={props.busy} /></p>}
-            {confirmDelete === reader.id && <div className="note-delete-confirm" role="alert"><p>删除这条笔记？原始来源不会删除。</p><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => { props.onDelete(reader.id); setConfirmDelete(null); }}>删除</button><button className="desk-menu-item" onClick={() => setConfirmDelete(null)}>取消</button></div>}
             <CitedText text={reader.answer} cites={reader.cites} onPreview={()=>setReaderId(null)} />
             {!!reader.files?.length && <details className="note-files"><summary>关联文件 · {reader.files.length}</summary>{reader.files.map(file => <div key={file.name} data-note-file={file.name} data-note-file-path={file.path} className="py-2">
               <p className="text-sm">{file.name}</p><p className="break-all text-xs text-muted-foreground">{file.path}</p>
-              <div className="flex flex-wrap gap-2"><button className="desk-menu-item" disabled={props.busy} onClick={() => {props.onOpenFile(reader.id, file.name);setReaderId(null);}}>侧栏预览</button><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onRevealFile(reader.id, file.name)}>所在文件夹</button><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => setConfirmFile(`${reader.id}:${file.name}`)}>删除文件</button></div>
-              {confirmFile === `${reader.id}:${file.name}` && <div role="alert" className="note-delete-confirm"><p>删除关联文件 {file.name}？笔记正文保留。</p><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => { props.onDeleteFile(reader.id, file.name); setConfirmFile(null); }}>确认删除文件</button><button className="desk-menu-item" onClick={() => setConfirmFile(null)}>取消</button></div>}
+              <div className="flex flex-wrap gap-2"><button className="desk-menu-item" disabled={props.busy} onClick={() => {props.onOpenFile(reader.id, file.name);setReaderId(null);}}>侧栏预览</button><button className="desk-menu-item" disabled={props.busy} onClick={() => props.onRevealFile(reader.id, file.name)}>所在文件夹</button><button className="desk-menu-item text-destructive" disabled={props.busy} onClick={() => confirmation.ask("删除关联文件？", `将删除关联文件「${file.name}」。笔记正文会保留。`, {label:"确认删除文件", danger:true}, () => props.onDeleteFile(reader.id, file.name))}>删除文件</button></div>
             </div>)}</details>}
-          </article></WorkspaceDialog>}</>
+          {confirmation.dialog}</article></WorkspaceDialog>}</>
   );
 }
 
