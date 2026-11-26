@@ -22,6 +22,8 @@ export function AccountBootstrap({children}:{children:ReactNode}){
     })();
     return()=>{active=false;};
   },[attempt]);
-  if(state.error)return <section role="alert" className="p-6"><p>账号空间初始化失败：{state.error}</p><button onClick={()=>{setState({ready:false,error:''});setAttempt(value=>value+1);}}>重试</button></section>;
+  if(state.error)return <section role="alert" className="p-6"><p>账号空间初始化失败：{state.error}</p>
+    <div className="flex gap-3"><button onClick={()=>{setState({ready:false,error:''});setAttempt(value=>value+1);}}>重试</button>
+      <a href="/client.html?preview=chat">打开交互演示</a></div></section>;
   return state.ready?<>{children}</>:<p className="p-6">正在核对本机账号空间…</p>;
 }

@@ -42,6 +42,25 @@ test('missing receipt never permits a second save until explicit reconciliation 
  await c.change({type:'create',local_id:'stable-event'});assert(c.unknown);await c.read();await c.change({type:'create'});assert.equal(writes,1);
  await c.change({type:'resolve_save',local_id:'stable-event',operation_id:'fixed-request',confirmed:true});assert.equal(writes,2);assert.equal(c.unknown,null);
 });
+test('reconciliation keeps the original delete receipt across a lost response and restart',async()=>{
+ const memory=storage(),writes=[];
+ const transport=async(method,args)=>{
+   if(method==='load_local_calendar')return page();
+   writes.push(args.action.type);
+   if(writes.length===1)throw Error('reply lost');
+   return {ok:true,change_state:'committed'};
+ };
+ const action={type:'resolve_delete',operation_id:'original-delete',resolution:'present',confirmed:true};
+ let controller=new LocalCalendarController(transport,memory);
+ await controller.change(action);
+ controller=new LocalCalendarController(transport,memory);
+ assert.equal(controller.unknown.request_id,'original-delete');
+ await controller.change({...action,operation_id:'other-delete'});
+ assert.equal(writes.length,1);
+ await controller.change(action);
+ assert.deepEqual(writes,['resolve_delete','resolve_delete']);
+ assert.equal(controller.unknown,null);
+});
 test('bulk uses a fixed version manifest, reports partial results and does not retry unknown entries',async()=>{
  const events=[event('a'),event('b')],calls=[];let batch;
  const c=new LocalCalendarController(async(method,args)=>{calls.push([method,args]);if(method==='load_local_calendar')return page({events,batches:batch?[batch]:[]});

@@ -7,6 +7,7 @@ export type SyncBatch={id:string;created_at:string;entries:SyncEntry[]};
 export type LocalCalendarPage={ok:boolean;feishu_connection_id?:string;events:CalendarEvent[];operations:LocalOperation[];batches:SyncBatch[];operation?:LocalOperation;error?:string};
 export type LocalResult={ok:boolean;event?:CalendarEvent;operation?:LocalOperation;batch?:SyncBatch;change_state?:string;stage?:string;error?:string};
 type Marker={request_id:string;local_id?:string;type:string};
+const resolvedOperations:Record<string,string>={resolve_delete:'delete',resolve_sync:'sync',resolve_save:'update'};
 type StorageLike=Pick<Storage,'getItem'|'setItem'|'removeItem'>;
 export class LocalCalendarController{
   page:LocalCalendarPage={ok:true,events:[],operations:[],batches:[]};busy=false;loading=false;error='';notice='';unknown:Marker|null=null;batch:SyncBatch|null=null;
@@ -53,12 +54,22 @@ export class LocalCalendarController{
     return hint;
   }
   async change(input:Record<string,unknown>,requestId?:string):Promise<LocalResult>{
-    if(this.busy||this.damaged||this.unknown&&!['resolve_sync','resolve_save'].includes(String(input.type))){this.error='有执行中或结果待核对的操作，请先读取原编号。';this.emit();return {ok:false,error:this.error};}
+    const previous=this.unknown;
+    const originalType=resolvedOperations[String(input.type)];
+    const originalId=originalType && typeof input.operation_id==='string' ? input.operation_id : '';
+    const legacyCandidates=previous && previous.type===input.type ? this.page.operations.filter(op=>
+      op.type===originalType && (!previous.local_id||op.local_id===previous.local_id)) : [];
+    const legacyResolution=legacyCandidates.length===1 && legacyCandidates[0].id===originalId;
+    if(this.busy||this.damaged||previous&&previous.request_id!==originalId&&!legacyResolution){this.error='有执行中或结果待核对的操作，请先读取原编号。';this.emit();return {ok:false,error:this.error};}
     const action:Record<string,unknown>&{request_id:string}={...input,request_id:requestId||this.id()};
     if(action.type==='create'&&!action.local_id)action.local_id=action.request_id;
-    const marker={request_id:action.request_id,local_id:action.local_id as string|undefined,type:String(action.type)};
+    // 核对操作更新原回执。即使核对响应丢失，重新打开时也应读取原编号。
+    const marker=originalId && previous?.request_id===originalId ? previous : {
+      request_id:originalId||action.request_id,local_id:action.local_id as string|undefined,
+      type:originalId ? originalType : String(action.type)
+    };
     try{this.storage?.setItem(this.key,JSON.stringify(marker));}catch{this.error='本机无法登记编号，尚未提交操作。';this.emit();return {ok:false,error:this.error};}
-    const previous=this.unknown;this.unknown=marker;this.busy=true;this.error='';this.notice='';++this.serial;this.loading=false;this.emit();
+    this.unknown=marker;this.busy=true;this.error='';this.notice='';++this.serial;this.loading=false;this.emit();
     try{const result=await this.transport('change_local_calendar',{action}) as LocalResult;
       if(result.change_state!=='unconfirmed'){this.clear();if(!result.ok&&previous){this.unknown=previous;this.storage?.setItem(this.key,JSON.stringify(previous));}}
       if(result.batch)this.batch=result.batch;

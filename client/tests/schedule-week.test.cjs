@@ -175,12 +175,20 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
     const current=event(args.action.local_id,{calendar_id:'tebb-local',local_id:args.action.local_id,local_version:1,sync_state:'local',summary:args.action.summary,start:args.action.start,end:args.action.end});saved=[current];
     return {ok:true,event:current,change_state:'committed',operation:{id:args.action.request_id,state:'saved',event:current}};
   };
-  const props={info:null,transport,target:{day},onClose(){},onReturn(){},onDay(){},onChange(){}};let view;
+  let guardNavigation,navigated=false;
+  const props={info:null,transport,target:{day},onClose(){},onReturn(){},onDay(){},onChange(){},onNavigationGuard:guard=>{guardNavigation=guard;}};let view;
   await act(async()=>{view=create(React.createElement(Week,props));});
   act(()=>source.onArrange(item));
   assert.equal(editor.value.summary,item.title);assert.equal(editor.value.item_id,item.id);assert.equal(editor.value.sync,false);
   assert.equal(editor.value.start,day+'T09:00');assert.equal(editor.value.end,day+'T10:00');assert.equal(writes.length,0);
+  act(()=>editor.onChange({...editor.value,summary:'改过的安排'}));
+  act(()=>guardNavigation(()=>{navigated=true;}));
+  assert.equal(navigated,false);
+  const leave=view.root.findByProps({saveLabel:'确认新建并继续'});
+  act(()=>leave.props.onKeep());
+  assert.equal(editor.value.summary,'改过的安排');
   act(()=>editor.onClose());assert.equal(view.root.findAllByProps({'data-editor':true}).length,0);assert.equal(writes.length,0);
+  assert.equal(view.root.findAllByProps({saveLabel:'确认新建并继续'}).length,0);
   const lifted={kind:'item',item};
   function start(){act(()=>drag.onStart(lifted,{activatorEvent:{}}));}
   start();act(()=>drag.onCommit(lifted,null));act(()=>drag.onFinish(false));assert.equal(writes.length,0);assert.equal(view.root.findAllByProps({'data-editor':true}).length,0);

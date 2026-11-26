@@ -103,9 +103,17 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const busy=controller.pending.has(selected),blocked=controller.blocked(selected),checking=controller.checking.has(selected);
   const initialForm=event&&event.start.includes('T')&&Number.isFinite(Date.parse(event.start))&&Number.isFinite(Date.parse(event.end))?{key:selected,start:beijingStamp(event.start),end:beijingStamp(event.end),summary:event.summary}:null;
   const dirty=!!draft?.existing&&(!!draft.summary.trim()||!!draft.item_id||draft.sync)||!!form&&!!initialForm&&(form.start!==initialForm.start||form.end!==initialForm.end||form.key!==initialForm.key||form.summary!==initialForm.summary);
+  const linkedDraftBase=useRef<CalendarDraft|null>(null);
+  const linked=linkedDraftBase.current;
+  const changedArrangement=!!draft&&!!linked&&draft.id===linked.id&&(
+    draft.summary!==linked.summary||draft.start!==linked.start||draft.end!==linked.end||draft.item_id!==linked.item_id||draft.sync!==linked.sync);
+  function guardNavigation(next:()=>void){
+    if(changedArrangement&&!local.busy&&!local.unknown)setLeave(()=>next);
+    else guard(next);
+  }
   const itemDraftBlocked=!!draft||!!form||!!keyboard||local.busy||!!local.unknown||controller.pending.size>0||controller.unknown.size>0;
-  useEffect(()=>{onNavigationGuard?.(guard);return()=>onNavigationGuard?.(null);},[onNavigationGuard,dirty,form,selected,draft,local.busy,local.unknown]);
-  useEffect(()=>{if(!active)return;const before=(event:Event)=>{if(dirty||local.unknown&&draft){event.preventDefault();guard((event as CustomEvent<{navigate:()=>void}>).detail.navigate);}};window.addEventListener?.('tebb-before-navigate',before);return()=>window.removeEventListener?.('tebb-before-navigate',before);},[active,dirty,form,selected,draft,local.unknown,local.busy]);
+  useEffect(()=>{onNavigationGuard?.(guardNavigation);return()=>onNavigationGuard?.(null);},[onNavigationGuard,dirty,form,selected,draft,local.busy,local.unknown]);
+  useEffect(()=>{if(!active)return;const before=(event:Event)=>{if(dirty||changedArrangement||(local.unknown||local.busy)&&draft){event.preventDefault();guardNavigation((event as CustomEvent<{navigate:()=>void}>).detail.navigate);}};window.addEventListener?.('tebb-before-navigate',before);return()=>window.removeEventListener?.('tebb-before-navigate',before);},[active,dirty,form,selected,draft,local.unknown,local.busy]);
   useEffect(()=>controller.subscribe(redraw),[controller]);
   useEffect(()=>local.subscribe(redraw),[local]);
   // 点击菜单外部时收起「更多」；菜单内按钮由点击代理统一关闭。
@@ -116,7 +124,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     void local.read().then(ok=>{if(current&&ok){const hint=local.syncNotice();if(hint)setSyncHint(hint);}});
     return ()=>{current=false;};
   },[active,local,revision]);
-  useEffect(()=>{if(target.create)beginDraft((target.day||beijingDay())+'T09:00:00+08:00');},[target.create,target.item_id,target.day]);
+  useEffect(()=>{if(target.create)beginDraft(defaultCalendarStart(target.day||beijingDay()));},[target.create,target.item_id,target.day]);
   useEffect(()=>{if(!target.proposal)return;try{
     const proposal=calendarProposal(target.proposal);if(draft?.proposal?.id===proposal.id)return;
     guard(()=>{setDetailsOpen(false);setForm(null);setDraftError('');setDay(beijingDay(proposal.start));setDraft(createCalendarDraft(proposal.start,proposal.end,{id:proposal.id,summary:proposal.summary,item_id:proposal.item_id,proposal}));});
@@ -241,7 +249,9 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
     sync_state:'local' as const,edit_checked_at:new Date().toISOString()};}catch{return null;}},[draft]);
   function pulse(){if(reduce)return;window.requestAnimationFrame?.(()=>{root.current?.querySelector<HTMLElement>('.sw-draft')?.animate?.([{transform:'translateY(0)'},{transform:'translateY(-4px)'},{transform:'translateY(0)'}],{duration:260,easing:'ease-out'});});}
   function beginDraft(start:string,end?:string,source?:CalendarItem){guard(()=>{setDetailsOpen(false);setForm(null);setDraftError('');
-    setDraft(createCalendarDraft(start,end,{summary:source?.title||'',item_id:source?source.id:target.item_id||''}));pulse();});}
+    const next=createCalendarDraft(start,end,{summary:source?.title||'',item_id:source?source.id:target.item_id||''});
+    linkedDraftBase.current=next.item_id?next:null;
+    setDraft(next);pulse();});}
   function arrangeItem(source:CalendarItem){
     if(itemDraftBlocked||source.archived)return;
     beginDraft(defaultCalendarStart(day),undefined,source);
@@ -510,8 +520,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       {(local.batch||batchChoice)&&<section aria-label="本轮同步结果"><h3>清单 {(local.batch||batchChoice)!.id}</h3>{(local.batch||batchChoice)!.entries.map(entry=><p key={entry.local_id}>{local.page.events.find(e=>e.local_id===entry.local_id)?.summary||entry.local_id} · {({queued:'尚未执行',synced:'已同步',failed:'未同步',unconfirmed:'待核对'})[entry.state]} {entry.error}</p>)}</section>}
       {local.page.batches.filter(b=>b.entries.some(e=>e.state==='queued')).map(batch=><div key={batch.id}><span>未完成清单 {batch.id}</span><button type="button" disabled={local.busy||!!local.unknown} onClick={()=>{setBatchChoice(batch);void local.continueBatch(batch).then(()=>{changes.current();void controller.read(day);});}}>明确继续尚未执行的条目</button></div>)}
     </WorkspaceDialog>}
-    {leave&&<DraftLeaveDialog title="日程时间尚未保存" detail="可以保存当前修改，也可以放弃修改并继续。"
-      saveLabel="保存并继续" discardLabel="放弃并继续" saveDisabled={blocked} discardDisabled={busy}
+    {leave&&<DraftLeaveDialog title={changedArrangement?"未保存的安排":"日程时间尚未保存"} detail={changedArrangement?"可以创建这场日程后继续，或放弃本地表单。":"可以保存当前修改，也可以放弃修改并继续。"}
+      saveLabel={changedArrangement?"确认新建并继续":"保存并继续"} discardLabel="放弃并继续" saveDisabled={blocked} discardDisabled={busy}
       onKeep={()=>setLeave(null)} onDiscard={()=>{const next=leave;setDraft(null);setForm(null);setPicker(null);setLeave(null);next();}} onSave={()=>void (draft?saveDraft():saveForm()).then(ok=>{if(ok){const next=leave;setLeave(null);next();}})}/>}
   </section>;
 }

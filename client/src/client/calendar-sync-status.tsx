@@ -18,8 +18,9 @@ export function CalendarSyncStatus({groups,open,onOpenChange,checking,lastChecke
     if(!open)return;
     const previous=document.activeElement as HTMLElement|null;
     panel.current?.focus({preventScroll:true});
-    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close.current(false);}};
-    const outside=(event:PointerEvent)=>{const target=event.target as Node;if(panel.current?.contains(target)||pill.current?.contains(target))return;close.current(false);};
+    const inDialog=(target:EventTarget|null)=>target instanceof Element&&!!target.closest('dialog[open]');
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!inDialog(event.target)){event.preventDefault();event.stopPropagation();close.current(false);}};
+    const outside=(event:PointerEvent)=>{const target=event.target as Node;if(inDialog(target)||panel.current?.contains(target)||pill.current?.contains(target))return;close.current(false);};
     document.addEventListener('keydown',escape,true);document.addEventListener('pointerdown',outside,true);
     return()=>{document.removeEventListener('keydown',escape,true);document.removeEventListener('pointerdown',outside,true);
       // 打开确认框等后续弹窗时焦点已移出，此时不抢回焦点。
