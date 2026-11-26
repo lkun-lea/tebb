@@ -573,7 +573,7 @@ test('migration preview separates evidence categories and makes no move until ex
 });
 
 
-test('normal App starts in core chat and keeps its draft mounted while settings opens in the main workspace', async () => {
+test('workspace opens today beside chat and keeps its draft mounted under modal settings', async () => {
   environment(); global.window.addEventListener = () => {}; global.window.removeEventListener = () => {}; global.window.dispatchEvent = () => true;
   const opened=[]; global.window.open=(url)=>{opened.push(url);return null;};
   let sideProps, liveProps, mounts = 0, unmounts = 0;
@@ -587,6 +587,7 @@ test('normal App starts in core chat and keeps its draft mounted while settings 
   const defaultModule = new Proxy({}, { get(_o, key) { return key === '__esModule' ? true : Empty; } });
   const modules = {
     './companion-ui': load('companion-ui'),
+    './workspace-dialog': {WorkspaceDialog: ({children,title})=>React.createElement('dialog',{open:true,'aria-label':title},children)},
     './workspace-shell': load('workspace-shell'),
     './workspace-navigation': load('workspace-navigation'),
     './page-stack': load('page-stack'),
@@ -614,23 +615,24 @@ test('normal App starts in core chat and keeps its draft mounted while settings 
   mod._compile(compiled, filename); let view;
   await act(async () => { view = create(React.createElement(mod.exports.App)); });
   const root = () => view.root.findAllByType('div').find(n => n.props['data-pane']);
-  assert.equal(root().props['data-pane'], 'collaboration'); assert.equal(mounts, 1);
+  assert.equal(root().props['data-pane'], 'today'); assert.equal(mounts, 1);
   const draft = () => view.root.findByProps({ 'data-core-draft': true });
   await act(async () => draft().props.onChange({ target: { value: '跨页保留的草稿' } }));
   await act(async () => sideProps.onRequest());
-  assert.equal(root().props['data-pane'], 'collaboration');
+  assert.equal(root().props['data-pane'], 'today');
   await act(async () => sideProps.onLink('https://example.org/source'));
   assert.equal(liveProps.composeRequest.text, 'https://example.org/source');
   await act(async () => sideProps.onTerminalDraft('可引用的终端输出'));
   assert.equal(liveProps.composeRequest.text, '可引用的终端输出');
   assert.equal(root().props['data-pane'], 'collaboration');
-  await act(async () => button(view, '设置').props.onClick());
+  await act(async () => button(view, '设置').props.onClick({currentTarget:{closest:()=>({open:true})}}));
   assert.deepEqual(opened, []);
-  assert.equal(root().props['data-pane'], 'settings');
+  assert.equal(root().props['data-pane'], 'collaboration');
+  assert.equal(view.root.findByType('dialog').props['aria-label'],'设置');
   assert.equal(draft().props.value, '跨页保留的草稿'); assert.equal(unmounts, 0);
-  assert.equal(view.root.findAllByProps({'aria-label':'工作区快捷栏'}).length,0);
+  assert.equal(view.root.findAllByProps({'aria-label':'工作区'}).length,1);
   await act(async()=>button(view,'返回工作台').props.onClick());
-  const rail = view.root.findByProps({'aria-label':'工作区快捷栏'});
+  const rail = view.root.findByProps({'aria-label':'工作区'});
   assert.equal(root().props['data-pane'], 'collaboration'); assert.equal(draft().props.value, '跨页保留的草稿');
   assert.equal(mounts, 1);
   await act(async()=>rail.findAllByType('button').find(n=>n.props['aria-label']==='笔记').props.onClick());

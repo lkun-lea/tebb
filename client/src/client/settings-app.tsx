@@ -37,6 +37,7 @@ import {WorkspaceRuns} from "./workspace-runs";
 import { WindowCloseButton } from "./window-chrome";
 import {ArrowLeft, Activity, BookOpen, ChartColumn, CircleUserRound, CodeXml, Database, Layers, Link2, Paintbrush, Settings2, Wrench} from "lucide-react";
 import "./settings-window.css";
+import { PetSettings } from "./pet-settings";
 import "./settings-dashboard.css";
 
 const TodayPane = lazy(() => import('./today-pane').then(module => ({default:module.TodayPane})));
@@ -472,7 +473,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
             />
           </div>
 
-          {section==='appearance' && <ReminderSettings info={info} debug={debug}/>}
+          {section==='appearance' && <><PetSettings info={info} debug={debug}/><ReminderSettings info={info} debug={debug}/></>}
           {section==='network'&&<ModelNetworkSettings info={info} debug={debug}/>}
           {section === 'connections' && <div>
             <div className="external-services"><nav aria-label="外部服务">

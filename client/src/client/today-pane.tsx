@@ -5,6 +5,7 @@ import '../journal/journal.css';
 import '../journal/buttons.css';
 import {rpc, type BackendInfo} from './api';
 import {UiButton, UiFeedback} from './ui-controls';
+import {usePageActive} from './page-stack';
 import './today-pane.css';
 
 type JournalAction = {type:string; run?:string; version?:string; conversation?:string; text?:string};
@@ -23,7 +24,7 @@ const slots = {morning:'早报', evening:'晚报'} as const;
 const periods = ['morning','evening'] as const;
 
 
-type TodayProps = {info:BackendInfo|null; onOpen:(id:string)=>Promise<void>; onProfiles:()=>void; onChat?:()=>void};
+type TodayProps = {info:BackendInfo|null; onOpen:(id:string)=>Promise<void>; onProfiles?:()=>void; onChat?:()=>void};
 export function TodayPane(props:TodayProps) {
   return <AccountJournal key={props.info?.token} {...props}/>;
 }
@@ -33,8 +34,9 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
   const [busy,setBusy]=useState(false);
   const [actionError,setActionError]=useState('');
   const [error,setError]=useState('');
+  const visible=usePageActive();
   useEffect(()=>{
-    if (!info || busy) return;
+    if (!visible || !info || busy) return;
     let active=true;
     let timer:number;
     async function load() {
@@ -46,7 +48,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
     }
     void load();
     return ()=>{active=false;window.clearTimeout(timer);};
-  },[info,busy]);
+  },[info,busy,visible]);
   async function save(){
     if(!info || !draft) return;
     setBusy(true);setActionError('');
@@ -63,7 +65,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
   const handle=useRef<(a:JournalAction)=>void>(()=>{});
   handle.current=async a=>{
     if(a.type==='layout')return setSolo(value=>!value);
-    if(a.type==='profiles')return onProfiles();
+    if(a.type==='profiles')return onProfiles?.();
     if(a.type==='settings' && board)return setDraft(board.preferences);
     if(a.type==='select')return setSelected(a.run || '');
     if(a.type==='chat' && onChat)return onChat();
@@ -89,7 +91,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
     const sections=[...(board.events.length?[{title:'项目时间线',rows:board.events}]:[]),
       ...board.reports.map(report=>({title:slots[report.slot as keyof typeof slots],rows:report.rows}))];
     viewer.current?.update({...board,questions,sections,solo,busy,online:Boolean(info)&&!error,
-      notice:actionError||error,settings:true,profiles:true});
+      notice:actionError||error,settings:true,profiles:Boolean(onProfiles)});
   },[board,solo,busy,selected,info,actionError,error]);
   return <section className="journal-host">
     {!board&&<UiFeedback state={info?'loading':'unconfirmed'} title={error || (info?'正在读取今日手记…':'等待本地助手连接')}/>}

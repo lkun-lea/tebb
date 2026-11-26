@@ -46,3 +46,34 @@
 .side-workspace[data-active-tool=terminal] .workspace-tabs:not(:has(>div:nth-child(2))) {display:none}
 .side-workspace[data-active-tool=terminal] .terminal-panel-header strong {display:none}
 .side-workspace[data-active-tool=terminal] .terminal-panel-header {justify-content:flex-end}
+
+/* 桌面主聊常驻左列；右列导航切换同一工作区的内容。 */
+.tebb-content-slot>.tebb-core-chat {display:flex;overflow:hidden}
+.tebb-route-page {flex-direction:column;position:relative}
+.workspace-destinations {display:flex;align-self:center;flex-wrap:wrap;justify-content:center;gap:2px;margin:8px;padding:4px;border-radius:24px;background:hsl(var(--secondary))}
+.workspace-destinations .cp-rail-button,.workspace-destinations .compact-chat {position:static;width:auto;height:40px;padding:0 12px;border-radius:20px}
+.workspace-destinations .cp-rail-label {display:inline;font-size:14px}
+.workspace-destinations :is(svg,.cp-rail-tooltip) {display:none}
+.workspace-destinations [aria-pressed=true] {background:hsl(var(--card));font-weight:650}
+.workspace-account {position:absolute;bottom:10px;right:12px;z-index:12}
+.workspace-account summary {list-style:none;cursor:pointer;padding:8px 14px;border-radius:20px;background:hsl(var(--card));box-shadow:0 2px 10px #26344724}
+.workspace-account details>div {position:absolute;bottom:100%;right:0;width:180px;padding:12px;background:hsl(var(--card));box-shadow:0 8px 30px #23364226;border-radius:14px}
+.workspace-account details>div>button {display:block;width:100%;text-align:left;padding:8px}
+.workspace-settings-modal.workspace-dialog {width:min(980px,94vw);height:min(800px,90vh);padding:0;overflow:hidden}
+.workspace-settings-modal .settings-window {height:100%;min-height:0}
+.tebb-route-page {padding-bottom:48px}
+@container main-area (max-width: 850px) {
+ .tebb-content-slot[data-split]>.tebb-core-chat {display:none}
+ .tebb-content-slot:not([data-split]):has(>.tebb-core-chat:not([hidden])) {flex-direction:column-reverse}
+ .tebb-content-slot:not([data-split]):has(>.tebb-core-chat:not([hidden]))>.tebb-route-page {flex:none;padding:0}
+}
+@container main-area (min-width: 851px) {
+ .tebb-content-slot[data-split]>.tebb-core-chat {display:flex;flex:0 1 44%!important;border-inline-end:1px solid hsl(var(--border))}
+ .workspace-destinations .compact-chat {display:none}
+}
+@container main-area (max-width:850px) {
+ .tebb-content-slot[data-chat-focused] {flex-direction:column-reverse}
+ .tebb-content-slot[data-chat-focused]>.tebb-core-chat {display:flex}
+ .tebb-content-slot[data-chat-focused]>.tebb-route-page {flex:none;padding:0}
+ .tebb-content-slot[data-chat-focused] .tebb-page-panel {display:none!important}
+}
