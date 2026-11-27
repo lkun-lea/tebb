@@ -4,6 +4,8 @@
 
 # tebb.
 
+[官方网站](https://lkun-lea.github.io/tebb/)
+
 ### 一起研究，一起动手
 
 面向极客的 Agent 伙伴工作区

@@ -2,6 +2,8 @@
 
 # tebb.
 
+[Official website](https://lkun-lea.github.io/tebb/)
+
 ### Think together. Build together.
 
 A local-first workspace for AI companions, projects, and visual workflows.
