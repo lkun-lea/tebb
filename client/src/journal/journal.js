@@ -9,7 +9,8 @@ class TodayJournal {
   }
   update(data) {
     const hour = new Date().getHours();
-    const light = hour >= 6 && hour < 18 ? "sun" : "moon";
+    const night = data.night ?? (hour < 6 || hour >= 18);
+    const light = night ? "moon" : "sun";
     const fingerprint = light + JSON.stringify(data);
     if (fingerprint === this.fingerprint) return;
     this.fingerprint = fingerprint;
@@ -42,10 +43,10 @@ class TodayJournal {
     for (const key of this.drafts.keys()) if (!keys.has(key)) this.drafts.delete(key);
     const main = make(root,'div','jr-page');
     const top = make(main,'nav','jr-nav');
-    if(this.mode==='mobile') button(top,'返回主聊',()=>this.action({type:'chat'}));
     if(this.mode==='desktop') button(top,data.solo?'双栏':'独立阅读',()=>this.action({type:'layout'}));
     if(data.profiles) button(top,'个人资料',()=>this.action({type:'profiles'}));
     if(data.settings) button(top,'偏好',()=>this.action({type:'settings'})).classList.add('jr-prefs');
+    if (!top.childElementCount) top.remove();
     const content = make(main,'div','jr-content');
     const head = make(content,'header','jr-head');
     make(head,'small','jr-date',new Date(data.day+'T12:00:00').toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}));
@@ -53,7 +54,7 @@ class TodayJournal {
     make(head,'p','',q?'有一件事，需要你定下来。':receivedToday?'原任务已经收到你的答复。':'今天还没有新的待答任务。');
     make(head,'span','jr-mascot').ariaHidden='true';
     const card = (label,title) => {
-      const a=make(content,'article','jr-card');
+      const a=make(content,'article','jr-card glass-card');
       if (label === '项目进展') a.classList.add('jr-project');
       if (stateChanged && record && a === content.querySelector('.jr-card')) a.classList.add('jr-arrival');
       make(a,'small','jr-kicker',label);

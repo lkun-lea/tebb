@@ -51,6 +51,7 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
         .put(q.conversation).put(q.key.runId).put(q.key.version).toString()
     val snapshot = JSONObject().apply {
         put("day", day)
+        put("night", LocalNightSky.current)
         put("reduceMotion", LocalReducedMotion.current)
         put("online", paired && state.connectionNotice == null)
         put("busy", state.work != null || state.composer.dictating)

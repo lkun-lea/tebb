@@ -90,4 +90,23 @@
 .tebb-core-chat .cp-composer {border-radius:20px}
 .tebb-core-chat .cp-message-user .cp-markdown {border-radius:17px}
 .light .tebb-core-chat .cp-message-user .cp-markdown {background:#e2eef2}
-.tebb-route-page:has(.journal[data-light=moon]) {background:#3a506d}
+.tebb-content-slot[data-sky=moon]>.tebb-route-page {background:linear-gradient(180deg,#040519,#1b1d34 42%,#272b48 72%,#2e3d5c)}
+.tebb-content-slot[data-sky=moon]>.tebb-route-page .jr-page {background:transparent}
+.workspace-destinations {backdrop-filter:blur(18px);box-shadow:inset 0 1px 0 #ffffff55}
+.tebb-content-slot[data-sky=moon]>.tebb-route-page .workspace-destinations {background:#303954d9;color:#edf5ff}
+.tebb-content-slot[data-sky=moon]>.tebb-route-page .workspace-destinations button {color:inherit}
+.tebb-content-slot[data-sky=moon]>.tebb-route-page .workspace-destinations [aria-pressed=true] {background:#485675}
+
+/* 今日的两栏共享夜空色阶，聊天内的菜单继续使用不透明的阅读表面。 */
+.tebb-content-slot[data-sky=moon] .tebb-core-chat .cp-root {
+  --background:232 45% 10%;
+  --card:225 27% 20%;
+  --secondary:224 26% 24%;
+  --muted:224 23% 25%;
+  --border:225 21% 35%;
+  --foreground:215 85% 96%;
+  --muted-foreground:224 25% 79%;
+  --primary:204 86% 74%;
+  background:linear-gradient(180deg,#040519,#1b1d34 42%,#272b48 72%,#2e3d5c)
+}
+.tebb-content-slot[data-sky=moon] .cp-message-user .cp-markdown {background:#404e70;color:#edf5ff}

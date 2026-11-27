@@ -1,0 +1,25 @@
+/* Apply glass-card to a content container. The night ancestor selects the dark material. */
+.glass-card {
+  --glass-film: linear-gradient(148deg, rgb(255 255 255 / 74%), rgb(249 251 254 / 55%));
+  --glass-solid: #edf3f9;
+  --glass-rim: rgb(255 255 255 / 56%);
+  --glass-glint: rgb(255 255 255 / 72%);
+  border-radius: 22px;
+  border: 1px solid var(--glass-rim);
+  background: var(--glass-film);
+  box-shadow: inset 0 1px 0 var(--glass-glint), 0 4px 16px rgb(3 8 22 / 5%);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+[data-light=moon] .glass-card {
+  --glass-film: linear-gradient(154deg, rgb(67 71 106 / 53%), rgb(39 47 81 / 63%));
+  --glass-solid: #2c3555;
+  --glass-rim: rgb(173 188 229 / 10%);
+  --glass-glint: rgb(218 226 255 / 12%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-card { background: var(--glass-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card { background: var(--glass-solid); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

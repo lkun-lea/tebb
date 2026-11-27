@@ -165,12 +165,12 @@ class PersonalAgentAcceptance : Instrumentation() {
                         true, {}, { _, _ -> }, {}, {})
                 }
             }
-            tap("☰  今日")
+            tap("更多")
             tap("笔记")
             tap("手动新增笔记")
             waitFor("正文")
             tap("返回笔记")
-            tap("☰  笔记")
+            tap("返回更多")
             tap("知识库")
             tap("让伙伴处理资料")
             waitFor("请先在电脑共享一个会话")

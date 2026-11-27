@@ -1,4 +1,5 @@
 @import "./component-tokens.css";
+@import "./glass-card.css";
 
 .journal,.journal * {
   box-sizing:border-box
@@ -89,17 +90,13 @@
   background:url(art/pet.svg) center/68% auto no-repeat,radial-gradient(closest-side,var(--jr-glow,#ffdf8aa6) 30%,transparent 100%)
 }
 
-.journal[data-light=moon] { --jr-glow:#ffffffda; --jr-sky:linear-gradient(160deg,#3a506d,#78889c) }
+.journal[data-light=moon] { --jr-glow:#ffffffda; --jr-sky:linear-gradient(180deg,#040519,#1b1d34 42%,#272b48 72%,#2e3d5c); color:#edf5ff; color-scheme:dark }
 .journal[data-light=moon] .jr-head, .journal[data-light=moon] .jr-date {color:#fff}
 
 .jr-card {
   position:relative;
-  background:#ffffffad;
-  border:1px solid #fff9;
-  border-radius:23px;
   padding:22px 25px;
   margin:12px 0;
-  box-shadow:0 6px 25px #68606b12
 }
 
 .jr-card h2 {
@@ -237,3 +234,9 @@
 .jr-rail .is-pending:before {background:var(--tebb-chart-low)}
 .jr-arrival {animation:jr-arrival var(--tebb-enter) var(--tebb-ease)}
 @keyframes jr-arrival {from{opacity:.4;transform:translateY(4px)}}
+
+.journal[data-light=moon] :is(.jr-kicker,.jr-answer) {color:#86e3db}
+.journal[data-light=moon] :is(.jr-stamp,.jr-date) {color:#ced4e5}
+.journal[data-light=moon] :is(.jr-note,.jr-nav,.jr-choices,.jr-button) {background:#34415d;color:#edf5ff}
+.journal[data-light=moon] .jr-button[aria-pressed=true] {background:#244e72;color:#e4f6ff;border-color:#88d5ff}
+.journal[data-light=moon] .jr-notice {background:#554633;color:#fff3d7}
