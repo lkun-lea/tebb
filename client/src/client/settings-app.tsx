@@ -116,7 +116,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
     return id ? { id, nonce: Date.now() } : null;
   });
   const [query, setQuery] = useState("");
-  const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") !== "light"; } catch { return true; } });
+  const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") === "dark"; } catch { return false; } });
   const [storedBg] = useState(() => readStoredBackground());
   const [bgUrl, setBgUrl] = useState(storedBg.url);
   const [bgError, setBgError] = useState(storedBg.error);

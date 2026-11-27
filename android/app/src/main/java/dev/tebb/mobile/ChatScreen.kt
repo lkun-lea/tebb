@@ -56,11 +56,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-private val Ink = Color(0xFF090909)
-private val Paper = Color(0xFFF1F1EF)
-private val Muted = Color(0xFFAAAAAA)
-private val Accent = Color(0xFF00A6F4)
-private val Surface = Color(0xFF1D1D1D)
+private val Ink = Color(0xFFFAFBF9)
+private val Paper = Color(0xFF1E3444)
+private val Muted = Color(0xFF526D7D)
+private val Accent = Color(0xFF12678A)
+private val Surface = Color(0xFFFFFFFF)
 
 /** 组合 Android 主聊天和设备入口；只有展开面板属于 UI 临时状态，草稿和任务归属来自 [state]。 */
 @Composable
@@ -93,13 +93,14 @@ internal fun ChatScreen(
         }
         return
     }
+    var workspacePage by rememberSaveable { mutableStateOf("今日") }
     var readingCode by remember { mutableStateOf(false) }
     val composer = state.composer
     val focus = LocalFocusManager.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     var header by remember { mutableStateOf<Offset?>(null) }
     var welcome by remember { mutableStateOf<Offset?>(null) }
-    val welcomeSize = (LocalConfiguration.current.screenWidthDp.dp * .29f).coerceIn(112.dp, 174.dp)
+    val welcomeSize = (LocalConfiguration.current.screenWidthDp.dp * .23f).coerceIn(80.dp, 100.dp)
     val petQuestion = composer.target ?: composer.pending.firstOrNull()?.key
     var questionCenter by remember(petQuestion) { mutableStateOf<Offset?>(null) }
     val answerId = state.messages.lastOrNull { it.fromTebb }?.id
@@ -119,13 +120,13 @@ internal fun ChatScreen(
             showLoading = true
         }
     }
-    MaterialTheme(colors = darkColors(primary = Accent, background = Ink, surface = Surface, onSurface = Paper)) {
+    MaterialTheme(colors = lightColors(primary = Accent, onPrimary = Color.White, background = Ink, surface = Surface, onSurface = Paper)) {
         Box(Modifier.fillMaxSize().background(Ink).imePadding().onGloballyPositioned { origin = it.positionInRoot() }) {
             Box(Modifier.fillMaxSize().blur(if (showLoading) 12.dp else 0.dp)) {
                 // 读图协程由设备页面持有。显示加载层时让页面留在组合中，以便完成解码。
                 if (sheet == "journal") {
                     key(owner, (device as? PairingState.Paired)?.computer) {
-                        MobileWorkspace(state, owner, owner.isNotEmpty() && device is PairingState.Paired,
+                        MobileWorkspace(workspacePage, { workspacePage = it }, state, owner, owner.isNotEmpty() && device is PairingState.Paired,
                             { sheet = "" }, journalReply, select) {
                             if (owner.isEmpty()) loginFor = LoginDestination.Computer else sheet = "device"
                         }
@@ -154,7 +155,9 @@ internal fun ChatScreen(
                                     sheet = if (tasksOpen) "" else "tasks"
                                 }
                             })
-                            if (!tasksOpen) TextButton(onClick = { sheet = "journal" }, enabled = !composer.dictating) { Text("今日") }
+                            if (!tasksOpen) WorkspaceMenu("主聊", !composer.dictating) { page ->
+                                if (page != "主聊") { workspacePage = page; sheet = "journal" }
+                            }
                             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                                 Box(Modifier.offset(x = (-52).dp)) { PetAnchor(40.dp) { header = it } }
                                 Wordmark()
@@ -301,6 +304,7 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defe
                 .padding(horizontal = 24.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center) {
                 PetAnchor(welcomeSize, welcome)
+                Text("今天想聊点什么？", color = Paper, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 if (state.composer.draft.isBlank() && !state.composer.dictating) {
                     Spacer(Modifier.height(28.dp))
                     Column(Modifier.widthIn(max = 520.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -323,7 +327,7 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defe
         if (demo) item {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Text("电脑上现在有什么事在等我？", Modifier.align(Alignment.End)
-                    .background(Color(0xFF232325), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
+                    .background(Color(0xFFE2EEF2), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 val summary = when (pending.singleOrNull()?.key?.runId) {
                     "demo-review" -> "周三的评审定在 14:00，还差会议时长。"
@@ -366,7 +370,7 @@ private fun Conversation(state: ChatUiState, select: (QuestionKey) -> Unit, defe
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
                 message.title?.let { Text("回复 · $it", color = Accent, fontSize = 12.sp) }
                 Text(message.text, Modifier.widthIn(max = 480.dp)
-                    .background(Color(0xFF232325), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
+                    .background(Color(0xFFE2EEF2), RoundedCornerShape(22.dp, 22.dp, 7.dp, 22.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp), color = Paper, fontSize = 19.sp, lineHeight = 28.sp)
                 Text(message.sourceLabel(), color = Muted, fontSize = 12.sp)
             }
@@ -382,10 +386,10 @@ private fun ComposerBar(
 ) {
     val target = state.pending.firstOrNull { it.key == state.target } ?: state.unavailable
     val shape = RoundedCornerShape(28.dp)
-    val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFF363638), androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
+    val outline by animateColorAsState(if (listening) Accent.copy(alpha = .7f) else Color(0xFFCCDDE3), androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
     val hint = if (target == null) "给 tebb 发消息…" else "输入回答…"
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
-        .background(Brush.verticalGradient(listOf(Color(0xFF222224), Surface)), shape)
+        .background(Brush.verticalGradient(listOf(Color(0xFFF9FCFD), Surface)), shape)
         .border(1.dp, outline, shape).padding(9.dp)) {
         if (target != null) Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.size(2.dp, 14.dp).background(Accent, CircleShape))
@@ -427,7 +431,7 @@ private fun HoldToSpeak(listening: Boolean, start: () -> Unit, stop: () -> Unit,
     val stopNow by rememberUpdatedState(stop)
     val cancelNow by rememberUpdatedState(cancel)
     val active by rememberUpdatedState(listening)
-    val face by animateColorAsState(if (listening) Accent else Paper, androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
+    val face by animateColorAsState(if (listening) Accent else Color(0xFF0086C5), androidx.compose.animation.core.tween(if (LocalReducedMotion.current) 0 else 120))
     val scale = if (LocalReducedMotion.current) 1f else animateFloatAsState(if (listening) .93f else 1f, tween(120)).value
     Box(Modifier.size(56.dp).semantics {
         contentDescription = if (listening) "松开停止听写" else "按住说话"

@@ -104,7 +104,7 @@ type Thread = {
 
 export function App() {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
-  const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") !== "light"; } catch { return true; } });
+  const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") === "dark"; } catch { return false; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
   useEffect(()=>{const open=(event:Event)=>{openSettings('personalization',(event as CustomEvent<{id:string}>).detail?.id);};window.addEventListener('tebb-open-personalization',open);return()=>window.removeEventListener('tebb-open-personalization',open);},[]);
   const [workspaceModalOpen,setWorkspaceModalOpen] = useState(false);
@@ -247,7 +247,7 @@ export function App() {
   useEffect(() => {
     const sync = (ev: StorageEvent) => {
       if (ev.key === accountStorageKey("tebb.theme")) {
-        try { setDark(accountStorage().getItem("tebb.theme") !== "light"); } catch { /* 保持当前主题 */ }
+        try { setDark(accountStorage().getItem("tebb.theme") === "dark"); } catch { /* 保持当前主题 */ }
       } else if (ev.key === accountStorageKey(BG_STORAGE_KEY)) {
         setBgUrl(ev.newValue || "");
       }
@@ -1451,7 +1451,7 @@ export function App() {
   function openCalendar(target:ScheduleTarget={}){setCalendarTarget({...target});void openBoard();}
   function openWorkItem(id:string){setWorkTarget({id,nonce:Date.now()});setPane('work');}
   const workspaceNavigation = <nav className="workspace-destinations" aria-label="工作区">
-    <RailButton icon="theme" label="今日" active={pane==="today"} onClick={()=>navigateWorkspace(()=>setPane("today"))}/>
+    <RailButton icon="theme" label="今日" active={pane==="today" || coreChat} onClick={()=>navigateWorkspace(()=>setPane("today"))}/>
     <RailButton icon="board" label="事项" active={pane === "work"} onClick={() => navigateWorkspace(()=>setPane("work"))} />
     <RailButton icon="calendar" label="日程" active={pane === "board"} onClick={() => navigateWorkspace(()=>void openBoard())} />
     <RailButton icon="notes" label="笔记" active={pane === "chat" && (chatFace === "notebooks" || chatFace === "thread" && !!noteSessionId)} onClick={() => navigateWorkspace(()=>void openNotes())} />

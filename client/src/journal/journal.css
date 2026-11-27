@@ -7,8 +7,7 @@
 .journal {
   color:#263142;
   font:16px/1.55 "Segoe UI","Microsoft YaHei",sans-serif;
-  background:linear-gradient(180deg,#aecfea 0%,#c8dcee 31%,#e8ebf2 64%,#f9e3cd 100%);
-  background-attachment:local;
+  --jr-sky:linear-gradient(160deg,#b7d8ec,#e0eaf0 55%,#f6e5cf);
   height:100%;
   overflow:auto;
   color-scheme:light
@@ -17,6 +16,7 @@
 .jr-page {
   position:relative;
   min-height:100%;
+  background:var(--jr-sky);
   padding:20px clamp(16px,4vw,52px) 54px;
 
 }
@@ -89,7 +89,8 @@
   background:url(art/pet.svg) center/68% auto no-repeat,radial-gradient(closest-side,var(--jr-glow,#ffdf8aa6) 30%,transparent 100%)
 }
 
-.journal[data-light=moon] { --jr-glow: #ffffffda }
+.journal[data-light=moon] { --jr-glow:#ffffffda; --jr-sky:linear-gradient(160deg,#3a506d,#78889c) }
+.journal[data-light=moon] .jr-head, .journal[data-light=moon] .jr-date {color:#fff}
 
 .jr-card {
   position:relative;

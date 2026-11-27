@@ -1,1 +1,5 @@
 html,body,#root{height:100%;margin:0}
+html{background:#f6e5cf}
+@media (prefers-color-scheme:dark){html{color-scheme:light}}
+html:has(.journal[data-light=moon]){background:#78889c}
+.jr-page{min-height:100vh}

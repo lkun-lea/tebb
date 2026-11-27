@@ -10,7 +10,7 @@ import {accountStorage,accountStorageKey} from './client/account-storage';
 
 function AccountPetChat(){
   useEffect(()=>{
-    const apply=(value:string|null)=>{document.documentElement.classList.toggle('light',value==='light');document.documentElement.classList.toggle('dark',value!=='light');};
+    const apply=(value:string|null)=>{document.documentElement.classList.toggle('light',value!=='dark');document.documentElement.classList.toggle('dark',value==='dark');};
     try{apply(accountStorage().getItem('tebb.theme'));}catch{/* use default theme */}
     const changed=(event:StorageEvent)=>{if(event.key===accountStorageKey('tebb.theme'))apply(event.newValue);};
     window.addEventListener('storage',changed);return()=>window.removeEventListener('storage',changed);

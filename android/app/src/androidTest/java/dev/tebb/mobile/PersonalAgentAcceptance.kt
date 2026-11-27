@@ -158,11 +158,19 @@ class PersonalAgentAcceptance : Instrumentation() {
             check(generateSequence(waitFor("保存到电脑")) { it.parent }.any { !it.isEnabled }) { "未配对时不能写入电脑" }
             runOnMainSync { screen.setContent { WorkspaceEntry("calendar.create", owner, saved.history) {} } }
             waitFor("查看最近新增的日程")
-            runOnMainSync { screen.setContent { MobileWorkspace(ChatUiState(ComposerState()), owner, true, {}, { _, _ -> }, {}, {}) } }
+            runOnMainSync {
+                screen.setContent {
+                    val page = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("今日") }
+                    MobileWorkspace(page.value, { page.value = it }, ChatUiState(ComposerState()), owner,
+                        true, {}, { _, _ -> }, {}, {})
+                }
+            }
+            tap("☰  今日")
             tap("笔记")
             tap("手动新增笔记")
             waitFor("正文")
             tap("返回笔记")
+            tap("☰  笔记")
             tap("知识库")
             tap("让伙伴处理资料")
             waitFor("请先在电脑共享一个会话")

@@ -68,7 +68,7 @@
  .tebb-content-slot:not([data-split]):has(>.tebb-core-chat:not([hidden]))>.tebb-route-page {flex:none;padding:0}
 }
 @container main-area (min-width: 851px) {
- .tebb-content-slot[data-split]>.tebb-core-chat {display:flex;flex:0 1 44%!important;border-inline-end:1px solid hsl(var(--border))}
+ .tebb-content-slot[data-split]>.tebb-core-chat {display:flex;flex:0 0 clamp(322px,35.17%,490px)!important;border-inline-end:1px solid hsl(var(--border))}
  .workspace-destinations .compact-chat {display:none}
 }
 @container main-area (max-width:850px) {
@@ -77,3 +77,17 @@
  .tebb-content-slot[data-chat-focused]>.tebb-route-page {flex:none;padding:0}
  .tebb-content-slot[data-chat-focused] .tebb-page-panel {display:none!important}
 }
+
+@container main-area (min-width:851px) {
+ .workspace-destinations {align-self:flex-start;margin:20px clamp(16px,3.5cqw,44px) 8px;max-width:calc(100% - 32px);width:576px;flex-wrap:nowrap}
+ .workspace-destinations .cp-rail-button {flex:1;min-width:0;padding:0 4px;height:44px}
+}
+.light .tebb-route-page {background:linear-gradient(155deg,#b7d8ec,#e0eaf0 55%,#f6e5cf);color:#1e3444}
+.light .workspace-destinations {background:rgb(251 253 253 / 82%)}
+.light .workspace-destinations [aria-pressed=true] {background:#cfdfe9;color:#1e3444}
+
+.light .tebb-core-chat .cp-root {--background:60 20% 98%;--foreground:204 39% 19%;--primary:199 100% 39%}
+.tebb-core-chat .cp-composer {border-radius:20px}
+.tebb-core-chat .cp-message-user .cp-markdown {border-radius:17px}
+.light .tebb-core-chat .cp-message-user .cp-markdown {background:#e2eef2}
+.tebb-route-page:has(.journal[data-light=moon]) {background:#3a506d}
