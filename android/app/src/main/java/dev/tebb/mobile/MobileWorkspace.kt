@@ -107,14 +107,27 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                 else Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (secondary) TextButton({ choose("更多") }) { Text("返回更多") }
-                    Text(page, style = MaterialTheme.typography.h4)
+                    Text("tebb.", style = MaterialTheme.typography.h5)
+                    Text(if (secondary) "更多 / $page" else "工作区 · $page", style = MaterialTheme.typography.caption)
+                    Text(if (page == "更多") "工作区" else page, style = MaterialTheme.typography.h4)
+                    if (page == "更多") {
+                        Column(Modifier.fillMaxWidth().glassSurface(22.dp).clickable(onClick = connect).padding(20.dp)) {
+                            Text("设备", style = MaterialTheme.typography.caption)
+                            Text("我的电脑", style = MaterialTheme.typography.h6)
+                            Text(if (paired) "Windows 已配对" else "连接 Windows", style = MaterialTheme.typography.body2)
+                        }
+                    }
                     Box(Modifier.glassSurface(22.dp)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             if (page == "更多") {
                                 listOf("日程", "笔记", "知识库", "自动化").forEach { target ->
-                                    DropdownMenuItem(onClick = { choose(target) }) { Text(target) }
+                                    Row(Modifier.fillMaxWidth().clickable { choose(target) }.padding(vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(target)
+                                        Icon(Icons.Default.KeyboardArrowRight, null)
+                                    }
                                 }
-                                TextButton(connect) { Text("我的电脑") }
+
                             } else if (!paired) Button(connect) { Text("连接我的电脑") }
                             else {
                                 if (page == "事项") {

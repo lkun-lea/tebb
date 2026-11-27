@@ -14,7 +14,20 @@ import org.json.JSONObject
 class PersonalAgentAcceptance : Instrumentation() {
     private var live = false
 
+    private var capturePages = false
+    private fun capturePage(name: String) {
+        if (!capturePages) return
+        waitForIdleSync()
+        val image = requireNotNull(uiAutomation.takeScreenshot())
+        try {
+            java.io.File(targetContext.cacheDir, "qa342-$name.png").outputStream().use {
+                check(image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it))
+            }
+        } finally { image.recycle() }
+    }
+
     override fun onCreate(arguments: Bundle?) {
+        capturePages = arguments?.getString("capturePages") == "true"
         super.onCreate(arguments)
         live = arguments?.getString("live") == "true"
         start()
@@ -161,11 +174,14 @@ class PersonalAgentAcceptance : Instrumentation() {
             runOnMainSync {
                 screen.setContent {
                     val page = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("今日") }
-                    MobileWorkspace(page.value, { page.value = it }, ChatUiState(ComposerState()), owner,
-                        true, {}, { _, _ -> }, {}, {})
+                    WorkspaceTheme { MobileWorkspace(page.value, { page.value = it }, ChatUiState(ComposerState()), owner,
+                        true, {}, { _, _ -> }, {}, {}) }
                 }
             }
             tap("更多")
+            waitFor("我的电脑")
+            waitFor("工作区")
+            capturePage("workspace")
             tap("笔记")
             tap("手动新增笔记")
             waitFor("正文")
