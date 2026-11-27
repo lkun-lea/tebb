@@ -259,6 +259,17 @@
 .cp-avatar-picker button[aria-pressed="true"] { border-color: var(--cp-accent); background: color-mix(in srgb, var(--tebb-action) 10%, transparent); font-weight: 700; }
 .cp-avatar-picker button:focus-visible { outline: 2px solid var(--cp-accent); outline-offset: 2px; }
 .cp-avatar-picker .cp-avatar { width: 48px; height: 48px; max-width: 100%; }
+.cp-avatar-picker .cp-avatar-spark { --portrait-pose: translateY(-4px) scale(1.06); }
+.cp-avatar-picker .cp-avatar-fox { --portrait-pose: rotate(-9deg) translateY(-2px); }
+.cp-avatar-picker .cp-avatar-cat { --portrait-pose: translateY(2px) scale(1.07, .9); }
+.cp-avatar-picker .cp-avatar-owl { --portrait-pose: rotate(11deg); }
+.cp-avatar-picker button[aria-pressed="true"] .cp-portrait {
+  animation: companion-pick calc(3 * var(--tebb-feedback)) ease-out;
+}
+@keyframes companion-pick {
+  0%, 100% { transform: none; }
+  42% { transform: var(--portrait-pose); }
+}
 .cp-markdown { margin-top: 7px; font-size: 13px; line-height: 1.85; overflow-wrap: anywhere; min-width: 0; }
 .cp-markdown .md { font-size: inherit; line-height: inherit; }
 .cp-markdown .md > :first-child { margin-top: 0; }
