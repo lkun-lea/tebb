@@ -63,7 +63,14 @@ export function ChatSidebar({onShare,state,selected,draftActive,mobile,listView,
     }
     return groups;
   }, [recent, visibleChats, state.messages, state.runs, today, query, excerpts]);
-  function manage(callback:()=>void){if(management.current)management.current.open=false;callback();}
+  function manage(callback:()=>void){
+    const menu=management.current;
+    if(menu){
+      menu.open=false;
+      menu.querySelector('summary')?.focus();
+    }
+    callback();
+  }
   function row(item:DemoConversation){
     const agent=state.agents.find(a=>a.id===item.coordinator),active=!draftActive&&item.id===selected;
     return <div className="cp-history-item" key={item.id}>
