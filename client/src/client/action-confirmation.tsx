@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {usePageActive} from './page-stack';
-import {WorkspaceDialog} from './workspace-dialog';
+import {DialogPresence,WorkspaceDialog} from './workspace-dialog';
 import {UiButton} from './ui-controls';
 
 type Pending = {scope:string; title:string; detail:string; action:{label:string; danger?:boolean}; apply:()=>void};
@@ -17,7 +17,7 @@ export function useActionConfirmation(scope:string, disabled=false) {
     <footer><UiButton autoFocus onClick={close}>取消</UiButton>
       <UiButton disabled={disabled} variant={pending.action.danger ? "danger" : "primary"} className={pending.action.danger ? "desk-btn-danger-solid" : ""} onClick={()=>{close();pending.apply();}}>{pending.action.label}</UiButton></footer>
   </WorkspaceDialog>;
-  return {ask,dialog};
+  return {ask,dialog:<DialogPresence key={scope}>{dialog}</DialogPresence>};
 }
 
 export function DraftLeaveDialog({title,detail,saveLabel,discardLabel,saveDisabled,discardDisabled,onKeep,onDiscard,onSave}:{

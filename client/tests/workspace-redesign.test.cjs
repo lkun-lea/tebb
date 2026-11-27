@@ -3,7 +3,7 @@ const React=require('react'),{act,create}=require('react-test-renderer');
 const load=require('./load-client.cjs');
 const text=node=>typeof node==='string'?node:(node.children||[]).map(text).join('');
 const button=(view,label)=>view.root.findAllByType('button').find(n=>text(n)===label);
-const dialog={WorkspaceDialog:({title,children,onClose})=>React.createElement('section',{'role':'dialog','aria-label':title},children,React.createElement('button',{onClick:onClose},'关闭弹窗'))};
+const dialog={DialogPresence:React.Fragment,WorkspaceDialog:({title,children,onClose})=>React.createElement('section',{'role':'dialog','aria-label':title},children,React.createElement('button',{onClick:onClose},'关闭弹窗'))};
 test('note reading keeps the same question stream and composer mounted, and source adding is explicit',async()=>{
   const tags={};const motion=new Proxy({},{get:(_,tag)=>tags[tag]||=(React.forwardRef(({children,...props},ref)=>React.createElement(tag,{...props,ref},children)))});
   const {NoteMode}=load('note.tsx',{'framer-motion':{motion},'./workspace-dialog':dialog,'./side-workspace':{previewQuote(){}},'./loading-text':{LoadingText:()=>null},'./Markdown':{Markdown:({text})=>React.createElement('p',{},text)}});

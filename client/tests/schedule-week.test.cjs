@@ -162,7 +162,7 @@ test('item arrangement and dropping share a confirmation draft; cancellation and
   const Week=load('schedule-week.tsx',{'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,
     './calendar-proposal-state':load('calendar-proposal-state.ts'),'./schedule-week.css':{},'./calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
     './calendar-event-editor':{CalendarEventEditor:props=>{editor=props;return React.createElement('div',{'data-editor':true});}},
-    './workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
+    './workspace-dialog':{DialogPresence:React.Fragment,WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:props=>{drag=props;return React.createElement('div',{},props.children);},CalendarDragContent:({children})=>children},
     './calendar-item-source':{CalendarItemSource:props=>{source=props;return React.createElement('aside',{'data-items':true});}},
     './calendar-sync-status':{CalendarSyncStatus:()=>null},
@@ -218,7 +218,7 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   const Calendar=React.forwardRef((props,ref)=>{calendarProps=props;React.useImperativeHandle(ref,()=>({getApi:()=>({changeView:(...args)=>navigations.push(args),updateSize(){}})}));return React.createElement('div',{'data-calendar-stub':true});});
   const Week=load('schedule-week.tsx',{'./calendar-proposal-state':load('calendar-proposal-state.ts'),'./api':{},'./page-stack':{usePageActive:()=>true},'./schedule-state':shared,'./schedule-week-state':state,'./schedule-week.css':{},
     './calendar-interaction.css':{},'./local-calendar-state':load('local-calendar-state.ts'),
-    './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{WorkspaceDialog:({children})=>React.createElement('div',{},children)},
+    './calendar-event-editor':{CalendarEventEditor:props=>React.createElement('div',{'data-editor':true,editor:props})},'./workspace-dialog':{DialogPresence:React.Fragment,WorkspaceDialog:({children})=>React.createElement('div',{},children)},
     './calendar-drag':{CalendarDragSurface:({children})=>React.createElement('div',{},children),CalendarDragContent:({children})=>React.createElement('div',{},children)},
     './calendar-item-source':{CalendarItemSource:props=>React.createElement('aside',{'data-items':true,source:props})},
     './calendar-sync-status':{CalendarSyncStatus:()=>null},
