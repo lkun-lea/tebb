@@ -94,6 +94,12 @@ def today_board(service, preferences=None, *, scheduled=False, now=None):
             board['preferences'] = config = next_config
         events = timeline(state, config['project'])
         questions = service._mobile_questions(state)
+        if not scheduled:
+            forms = {run['id']: run['clarification_form'] for run in state['runs'] if run.get('clarification_form')}
+            for question in questions:
+                form = forms.get(question['run'])
+                if form and form['version'] == question['version']:
+                    question['form'] = form
         update_reports(board, now, questions, events)
         if not scheduled:
             day = now.strftime('%Y-%m-%d')

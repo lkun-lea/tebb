@@ -8,7 +8,8 @@ import {UiButton, UiFeedback} from './ui-controls';
 import {usePageActive} from './page-stack';
 import './today-pane.css';
 
-type JournalAction = {type:string; run?:string; version?:string; conversation?:string; text?:string};
+import type { ChoiceAnswer } from './clarification-state';
+type JournalAction = {type:string; answers?:Record<string,ChoiceAnswer>; run?:string; version?:string; conversation?:string; text?:string};
 type JournalView = {update:(data:unknown)=>void};
 declare global { interface Window { TodayJournal:new(root:HTMLElement,action:(a:JournalAction)=>void)=>JournalView } }
 
@@ -70,9 +71,9 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
     if(a.type==='select')return setSelected(a.run || '');
     if(a.type==='chat' && onChat)return onChat();
     try {
-      if(a.type==='answer' && info){
+      if((a.type==='answer'||a.type==='form-answer') && info){
         setBusy(true);
-        const result=await rpc<{ok:boolean;error?:string}>(info,'collaboration_action',{action:{
+        const result=await rpc<{ok:boolean;error?:string}>(info,'collaboration_action',{action:a.type==='form-answer' ? {type:'clarification_answer',id:a.run,conversation:a.conversation,version:a.version,answers:a.answers,request_id:crypto.randomUUID()} : {
           type:'send',run:a.run,conversation:a.conversation,question_version:a.version,text:a.text,request_id:crypto.randomUUID()
         }});
         if(result.ok===false)throw Error(result.error || '原任务未接收');

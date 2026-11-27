@@ -14,6 +14,25 @@ class TodayBoardTests(unittest.TestCase):
         self.service = self.flow.service
         self.start = datetime(2026, 11, 26, 6)
 
+    def test_today_choices_match_versioned_chat_form_and_receipt(self):
+        run = self.flow.send('确认会议时长')
+        self.flow.finish(run['id'], [self.flow.control('request_clarification', question='安排多久？')])
+        from desk_companion.collaboration.clarification import pause
+        with transaction(self.service.path) as (state, _):
+            pending = next(row for row in state['runs'] if row['id'] == run['id'])
+            pause(pending, '安排多久？', [dict(id='duration', question='时长', options=[
+                dict(id='short',label='15分钟',value='15'),dict(id='long',label='30分钟',value='30')])])
+        q, = today_board(self.service)['questions']
+        self.assertEqual(q['form'], self.service.execution_status(q['run'])['clarification_form'])
+        action = dict(type='clarification_answer', id=q['run'], conversation=q['conversation'],
+                      version=q['version'], answers={'duration': {'option_id': 'long'}})
+        with self.assertRaises(ValueError):
+            self.service.action(dict(action, version='stale', request_id='old-form'))
+        self.service.action(dict(action, request_id='current-form'))
+        after = today_board(self.service)
+        self.assertEqual(after['questions'], [])
+        self.assertEqual(after['receipt']['answer'], '补充信息：\n时长：30分钟')
+
     def test_reply_removes_both_projections_and_preserves_original_message(self):
         run = self.flow.send('今日隔离验收')
         self.flow.finish(run['id'], [self.flow.control('request_clarification', question='评审多久？')])

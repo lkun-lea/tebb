@@ -31,14 +31,11 @@ async function main() {
     if (process.argv.includes('--review')) {
       await page.locator('.jr-head h1').waitFor();
       const submit = page.getByRole('button',{name:'回复原任务'});
-      const choice = page.getByRole('button',{name:'45 分钟'});
       assert(await submit.isDisabled());
-      await choice.click();
-      assert.equal(await choice.getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator('.jr-choices button').count(),0,'纯文本问题沿用原会话的文字答复');
       await page.getByLabel('自行补充').fill('请留五分钟讨论');
       await page.getByRole('button',{name:'独立阅读'}).click();
       assert.equal(await page.getByLabel('自行补充').inputValue(),'请留五分钟讨论');
-      await choice.click();
       assert(await submit.isEnabled(), '允许只提交自行填写的答案');
       await page.screenshot({path:path.join(output,'today-desktop.png')});
       await page.setViewportSize({width:390,height:844});
