@@ -24,7 +24,7 @@
 .cp-sidebar-unified .cp-project-chats { margin:2px 0 10px 12px;padding-left:7px; }
 .cp-sidebar-unified .cp-history-item > .cp-conversation { gap:9px;min-height:42px;padding:7px 29px 7px 10px;margin-bottom:2px;border-radius:9px; }
 .cp-sidebar-unified .cp-history-item > .cp-conversation > svg { width:17px;height:17px;flex-shrink:0;color:var(--cp-muted); }
-.cp-sidebar-unified .cp-history-item > .cp-conversation > span { flex:1;min-width:0; }
+.cp-sidebar-unified .cp-history-item > .cp-conversation > span:not(.cp-avatar) { flex:1;min-width:0; }
 .cp-sidebar-unified .cp-history-item .cp-conversation strong { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:var(--ui-weight-400); }
 .cp-sidebar-unified .cp-history-item > .cp-conversation.is-selected { background:hsl(var(--primary)/.12);box-shadow:inset 2px 0 var(--cp-accent); }
 .cp-sidebar-unified .cp-history-more { right:1px;width:26px;height:30px;opacity:.7; }

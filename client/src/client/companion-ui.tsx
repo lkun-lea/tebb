@@ -15,13 +15,13 @@ export const AVATAR_NAMES = { spark: "小光团", fox: "探险狐", cat: "墨水
 export function CompanionAvatar({ agent, group = false }: { agent?: DemoAgent; group?: boolean }) {
   const defaults: Record<string, string> = { tebb: "spark", research: "fox", writer: "cat" };
   const avatar = agent?.avatar || defaults[agent?.id || ""] || "owl";
-  return <span className={`cp-avatar ${group ? "cp-group-avatar" : `cp-avatar-${avatar}`}`} aria-hidden="true">
+  if (!group) {
+    const portrait = Object.prototype.hasOwnProperty.call(AVATAR_NAMES, avatar) ? avatar : "owl";
+    return <span className={`cp-avatar cp-avatar-${portrait} cp-portrait`} aria-hidden="true" />;
+  }
+  return <span className="cp-avatar cp-group-avatar" aria-hidden="true">
     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      {group ? <><circle cx="18" cy="19" r="8" /><circle cx="33" cy="21" r="6" /><path d="M5 39c0-14 25-14 25 0M31 31c8 0 12 3 12 8" /></> :
-        avatar === "spark" ? <><path d="m24 5 5 9 10 3-4 10 2 10-11 1-9 5-5-9-9-5 5-9 1-10 11 1Z" fill="currentColor" opacity=".2" /><path d="M14 20c3-10 18-9 20 2 2 13-22 17-22 3" /><path d="m18 23 1 2m10-3 1 2m-9 5q4 3 7-1M34 9l2-3m4 8 3-1" /></> :
-        avatar === "fox" ? <><path d="m7 11 13 8h8l13-8-3 22-14 10-14-10Z" fill="currentColor" opacity=".18" /><path d="m7 11 13 8h8l13-8-3 22-14 10-14-10Z" /><path d="m12 24 9 7-8 1m23-8-9 7 8 1m-19-8 2 1m12-1-2 1m-6 10h4l-2 3Z" /></> :
-        avatar === "cat" ? <><path d="m9 8 12 9h7l11-9 1 23c-3 14-29 14-32 0Z" fill="currentColor" opacity=".18" /><path d="m9 8 12 9h7l11-9 1 23c-3 14-29 14-32 0Z" /><path d="m15 26 5-1m10 0 4 1m-12 6q2 4 5 0m-14-2-9 1m10 3-8 3m30-7 8 1m-9 3 7 3M27 12l3-5" /></> :
-        <><path d="m8 10 8 6h16l8-6v19c0 17-32 17-32 0Z" fill="currentColor" opacity=".18" /><path d="m8 10 8 6h16l8-6v19c0 17-32 17-32 0Z" /><circle cx="17" cy="26" r="6" /><circle cx="31" cy="26" r="6" /><path d="M17 25v2m14-2v2m-9 6 2 3 2-3M16 39h16" /></>}
+      <circle cx="18" cy="19" r="8" /><circle cx="33" cy="21" r="6" /><path d="M5 39c0-14 25-14 25 0M31 31c8 0 12 3 12 8" />
     </svg>
   </span>;
 }

@@ -377,7 +377,10 @@ test('active conversation deletion is disabled and normal companion settings hid
   await act(async () => button(view, '创建 Agent').props.onClick());
   const modal = view.root.findByProps({ role: 'dialog' });
   assert(!text(modal).includes('Agent 私有记忆'));
-  assert.equal(modal.findAllByType('svg').length, 4);
+  const choices = modal.findAllByType('button').filter(b => b.props['aria-pressed'] !== undefined);
+  assert.deepEqual(choices.map(text), ['小光团', '探险狐', '墨水猫', '夜读鸮']);
+  await act(async () => choices[1].props.onClick());
+  assert.equal(choices[1].props['aria-pressed'], true);
   await act(async () => view.unmount());
 });
 

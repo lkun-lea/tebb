@@ -1,15 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Bot, Users, FlaskConical, PenLine, CodeXml, ChartNoAxesCombined, ChevronRight, Folder, MoreHorizontal, SquarePen, FolderOpen, Folders, Settings2, Inbox, Plus, type LucideIcon } from 'lucide-react';
+import { Users, ChevronRight, Folder, MoreHorizontal, SquarePen, FolderOpen, Folders, Settings2, Inbox, Plus } from 'lucide-react';
 import { runActive,type DemoState,type DemoConversation,type DemoAgent,type DemoProject } from './chat-prototype-state';
 import { ConversationTimeline } from './conversation-timeline';
 import { UiField } from './ui-controls';
+import { CompanionAvatar } from './companion-ui';
 import './chat-sidebar.css';
 
-const PARTNER_ICONS:Record<string,LucideIcon>={research:FlaskConical,writer:PenLine,coder:CodeXml,chart:ChartNoAxesCombined};
-function PartnerIcon({agent,group=false}:{agent:string;group?:boolean}){
-  const Icon=group?Users:PARTNER_ICONS[agent]||Bot;
-  return <Icon size={17} strokeWidth={1.65} aria-hidden="true"/>;
-}
 export function ChatSidebar({onShare,state,selected,draftActive,mobile,listView,onListView,collapsed,onToggle,onNew,onSelect,onMenu,onKeys,onProject,onFolder,onMigrate,onAgent,onPick,onAdd,pendingCount,onInbox,busy,real}:{
   onShare?:(id:string, enabled:boolean)=>Promise<void>;state:DemoState;selected?:string;draftActive:boolean;mobile:boolean;listView:'history'|'companions';onListView:(value:'history'|'companions')=>void;
   collapsed:Record<string,boolean>;onToggle:(id:string)=>void;onNew:()=>void;onSelect:(id:string)=>void;
@@ -77,7 +73,7 @@ export function ChatSidebar({onShare,state,selected,draftActive,mobile,listView,
       <button data-conversation={item.id} data-chat-partner={item.kind==='dm'?item.coordinator:undefined} className={'cp-conversation'+(active?' is-selected':'')} aria-pressed={active}
         aria-label={item.title+'，'+(item.kind==='group'?'协作群':agent?.name||'伙伴')} title={item.title+(item.kind==='group'?' · 协作群': ' · '+(agent?.name||''))}
         onContextMenu={event=>onMenu(item.id,event)} onKeyDown={event=>onKeys(item.id,event)} onClick={()=>onSelect(item.id)}>
-        <PartnerIcon group={item.kind==='group'} agent={item.coordinator}/><span><strong>{item.title}</strong>{excerpts.has(item.id) && <small>{excerpts.get(item.id)}</small>}</span>
+        {item.kind==='group'?<Users size={17}/>:<CompanionAvatar agent={agent}/>}<span><strong>{item.title}</strong>{excerpts.has(item.id) && <small>{excerpts.get(item.id)}</small>}</span>
         {item.kind==='group'&&<small className="cp-conversation-kind">群</small>}
         {state.runs.some(r=>r.conversation===item.id&&runActive(r))&&<i className="cp-live-dot"/>}
       </button><button className="cp-icon-button cp-history-more" aria-label={item.title+'的会话操作'} title="会话操作" onClick={event=>onMenu(item.id,event)}><MoreHorizontal size={16}/></button>
@@ -119,7 +115,7 @@ export function ChatSidebar({onShare,state,selected,draftActive,mobile,listView,
       {visibleChats.filter(c=>!projects.some(p=>p.id===c.project_id)).map(row)}</>}
     </div>:<div className="cp-partner-list" role="tabpanel" aria-label="伙伴目录">
       <div className="cp-list-heading"><span>伙伴目录</span><button className="cp-icon-button" aria-label="创建 Agent" onClick={onAdd}><Plus size={17}/></button></div>
-      {state.agents.map(agent=><div className="cp-companion-card" key={agent.id}><button data-companion={agent.id} className="cp-conversation" onClick={()=>onPick(agent)} title={'选择'+agent.name+'作为新对话伙伴'}><span className="cp-sidebar-agent-icon"><PartnerIcon agent={agent.id}/></span><span><strong>{agent.name}</strong><small>{agent.personality||agent.role}</small></span></button><button className="cp-icon-button" aria-label={agent.name+'的设置'} onClick={()=>onAgent(agent)}><Settings2 size={17}/></button></div>)}
+      {state.agents.map(agent=><div className="cp-companion-card" key={agent.id}><button data-companion={agent.id} className="cp-conversation" onClick={()=>onPick(agent)} title={'选择'+agent.name+'作为新对话伙伴'}><span className="cp-sidebar-agent-icon"><CompanionAvatar agent={agent}/></span><span><strong>{agent.name}</strong><small>{agent.personality||agent.role}</small></span></button><button className="cp-icon-button" aria-label={agent.name+'的设置'} onClick={()=>onAgent(agent)}><Settings2 size={17}/></button></div>)}
     </div>}
     <div className="cp-list-bottom"><button className="cp-inbox-link" onClick={onInbox}><span><Inbox size={16}/>待你处理</span><b>{pendingCount}</b></button>
       <div className="cp-profile"><span className="cp-user-avatar">你</span><span><strong>我的工作空间</strong><small>{real?'本地执行 · 真实用量':'本地预览 · 未消耗模型额度'}</small></span></div>
