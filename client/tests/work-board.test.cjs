@@ -108,6 +108,7 @@ test('real component creates, moves, archives, restores and preserves its edit f
   const wrapped={...keyboardContext,over:{id:'doing'},droppableRects:new Map([['review',{left:0,top:500,width:250,height:220}]])};
   assert.deepEqual(keyboardOptions.coordinateGetter({code:'ArrowRight',preventDefault(){}},{context:wrapped,currentCoordinates:{x:315,y:100}}),{x:15,y:510});
   const button=label=>view.root.findAllByType('button').find(b=>(b.children||[]).join('')===label);
+  const detailButton=label=>view.root.findByProps({className:'wb-archive-tools'}).findAllByType('button').find(b=>b.children.join('')===label);
   act(()=>button('＋ 新增事项').props.onClick());
   await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
   const rendered=()=>JSON.stringify(view.toJSON());assert(rendered().includes('请输入事项标题'));
@@ -120,12 +121,12 @@ test('real component creates, moves, archives, restores and preserves its edit f
   const article=()=>view.root.findAllByType('article').find(a=>a.props['data-work-card']?.startsWith('demo-new'));
   const id=article().props['data-work-card'];await act(async()=>{dragProps.onDragEnd({active:{id},over:{id:'review'}});});
   assert.equal(article().props['data-state'],'review');
-  await act(async()=>button('归档事项').props.onClick());assert(rendered().includes('已归档事项'));
-  await act(async()=>button('恢复事项').props.onClick());assert.equal(article().props['data-state'],'review');
+  await act(async()=>detailButton('归档事项').props.onClick());assert(rendered().includes('已归档事项'));
+  await act(async()=>detailButton('恢复事项').props.onClick());assert.equal(article().props['data-state'],'review');
   act(()=>button('编辑事项').props.onClick());assert.equal(view.root.findByProps({'aria-label':'事项标题'}).props.value,'真实组件新事项');
   act(()=>view.root.findByProps({'aria-label':'关闭事项详情'}).props.onClick());
   act(()=>button('真实组件新事项').props.onClick());
-  await act(async()=>button('归档事项').props.onClick());
+  await act(async()=>detailButton('归档事项').props.onClick());
   act(()=>view.root.findByProps({'aria-label':'关闭事项详情'}).props.onClick());
   act(()=>view.root.findByProps({'aria-label':'搜索事项'}).props.onChange({target:{value:'挡住目标的搜索'}}));
   act(()=>view.root.findByProps({'aria-label':'筛选项目'}).props.onChange({target:{value:'Atlas'}}));
@@ -189,4 +190,12 @@ test('missing model reports one toast per execution and leaves the card and its 
     assert.equal(board.rowErrors.has(item.id),false);
     assert.deepEqual(board.items[0],item);
   }
+});
+
+test('late snapshots cannot restore a deleted card',()=>{
+  const before=fixture(),after=clone(before);
+  after.items.shift();after.revision++;
+  const removed=state.mergeWorkPage(before,after);
+  assert.deepEqual(removed.items,after.items);
+  assert.deepEqual(state.mergeWorkPage(removed,before).items,after.items);
 });

@@ -60,6 +60,31 @@ class WorkBoardTests(unittest.TestCase):
         for payload in (dict(title=''),dict(title='x',due='2026-02-30'),dict(title='x',project_id='missing'),dict(title='x',unknown=True)):
             self.assertFalse(self.service.change(self.action(fields=payload))['ok'])
 
+    def test_delete_is_versioned_durable_and_keeps_related_records(self):
+        item = self.create(project_id='p1')
+        other = self.create(project_id='p2')
+        result = self.change(item, 'link', run_id='r1')
+        linked = next(i for i in result['items'] if i['id'] == item['id'])
+        self.assertTrue(self.change(item, 'delete')['conflict'])
+        request = self.action('delete', id=item['id'], version=linked['version'])
+        self.assertFalse(self.service.change(request, project_id='p2')['ok'])
+        with transaction(self.service.path) as (state, _):
+            before = copy.deepcopy(state['runs'])
+            event = dict(calendar_id='local', event_id='owned', status='cancelled')
+            other_event = dict(event, event_id='other')
+            state['schedule_links'] = [dict(item_id=item['id'], event=event), dict(item_id=other['id'], event=other_event)]
+            state.setdefault('local_calendar_events', {})['owned'] = dict(id='owned', summary='关联日程')
+        saved = self.service.change(request)
+        self.assertTrue(saved['ok'], saved)
+        self.assertEqual(self.service.change(request)['receipt'], saved['receipt'])
+        remaining = WorkBoardService().load()['items']
+        self.assertEqual([row['id'] for row in remaining], [other['id']])
+        self.assertEqual(remaining[0]['schedules']['events'], [other_event])
+        with transaction(self.service.path) as (state, _):
+            self.assertEqual(state['runs'], before)
+            self.assertEqual([link['item_id'] for link in state['schedule_links']], [other['id']])
+            self.assertEqual(state['local_calendar_events']['owned']['id'], 'owned')
+
     def test_project_deletion_detaches_cards_atomically_and_preserves_active_runs(self):
         item = self.create(project_id='p1')
         linked = self.change(item, 'link', run_id='r1'); item = linked['items'][0]

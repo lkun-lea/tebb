@@ -99,3 +99,12 @@
 .wb-reading button.wb-read-primary { background: var(--tebb-action); color: #102531; font-weight: var(--ui-weight-500); }
 .wb-reading .wb-archive-tools { margin-top: 12px; font-size: var(--ui-text-caption, 12px); }
 .wb-archive-tools summary { cursor: pointer; }
+
+.wb-card-title::after{content:"";position:absolute;inset:0;border-radius:13px;cursor:pointer}
+.wb-card-title:focus-visible::after{outline:2px solid currentColor;outline-offset:2px}
+.wb-card .wb-grip,.wb-card .wb-schedule-summary{position:relative;z-index:1}
+.wb-card-top{padding-right:32px}
+.wb-card-options{position:absolute;top:10px;right:10px;z-index:2}
+.wb-card-options summary{cursor:pointer;list-style:none;padding:3px 7px}
+.wb-card-options>div{position:absolute;right:0;min-width:100px;padding:5px;background:var(--wb-surface);border:1px solid var(--wb-line);border-radius:8px}
+.wb-card-options button{display:block;width:100%}

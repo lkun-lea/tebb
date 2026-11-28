@@ -1,5 +1,5 @@
 import {WorkspaceDialog} from './workspace-dialog';
-import {DraftLeaveDialog} from './action-confirmation';
+import {DraftLeaveDialog,useActionConfirmation} from './action-confirmation';
 import {notifyReceipt,ReceiptNotice} from './toast';
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin, rectIntersection,
@@ -45,6 +45,9 @@ function ItemCard({item,controller,onSelect,onSchedule,overlay=false}:{item:Work
   const reduce=useUiReducedMotion();
   const linked=item.links.map(link=>controller.page.runs.find(run=>run.id===link.id)).filter(Boolean) as WorkRun[];
   const busy=controller.pending.has(item.id),uncertain=controller.uncertain.has(item.id);
+  const confirmation=useActionConfirmation(item.id,busy||uncertain);
+  const options=useRef<HTMLDetailsElement>(null);
+  function closeOptions(){if(options.current)options.current.open=false;}
   const arrangement=item.schedules?.next||item.schedules?.previous;
   return <motion.article ref={overlay?undefined:drag.setNodeRef} layout={!overlay&&!drag.isDragging&&!reduce}
     transition={reduce?{duration:0}:DRAG_SPRING} className={`wb-card${drag.isDragging?' wb-lifted':''}${overlay?' wb-ghost':''}`}
@@ -53,7 +56,18 @@ function ItemCard({item,controller,onSelect,onSchedule,overlay=false}:{item:Work
       {!overlay&&<span className="wb-card-state" role="status">{uncertain?'结果未确认':busy?'保存中…':controller.intents.has(item.id)?'待保存':''}</span>}
       {!overlay&&<button type="button" className="wb-grip" ref={drag.setActivatorNodeRef} {...drag.listeners} {...drag.attributes}
         aria-label={`拖动 ${item.title}`} disabled={item.archived||uncertain}>⠿</button>}</div>
-    <button type="button" className="wb-card-title" onClick={onSelect}>{item.title}</button>
+    {!overlay&&<details className="wb-card-options" ref={options} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))closeOptions();}}
+      onKeyDown={e=>{if(e.key==='Escape'){closeOptions();options.current?.querySelector('summary')?.focus();}}}>
+      <summary aria-label={`更多操作：${item.title}`}>···</summary><div>
+        <button type="button" disabled={busy||uncertain} onClick={()=>{closeOptions();void controller.change({type:'archive',id:item.id,archived:!item.archived});}}>{item.archived?'恢复事项':'归档事项'}</button>
+        <button type="button" disabled={busy||uncertain} onClick={()=>{
+          closeOptions();options.current?.querySelector('summary')?.focus();
+          confirmation.ask(`删除事项「${item.title}」？`, '永久删除这张卡片并解除其关联。日程、会话和执行记录会保留。', {label:'删除事项',danger:true},
+            ()=>void controller.change({type:'delete',id:item.id,version:item.version}));
+        }}>删除事项</button>
+      </div></details>}
+    {overlay?<span className="wb-card-title">{item.title}</span>:<button type="button" className="wb-card-title" onClick={onSelect}>{item.title}</button>}
+    {confirmation.dialog}
     {item.description&&<p className="wb-card-description">{item.description}</p>}
     {item.removed_project&&<p className="wb-removed">原项目已移除：{item.removed_project}</p>}
     <div className="wb-meta"><span className={item.priority==='high'?'wb-high':''}>⚑ {priorities[item.priority]}优先级</span><span>{item.due||'未设截止日'}</span></div>

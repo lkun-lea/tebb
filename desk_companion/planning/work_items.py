@@ -131,6 +131,10 @@ def apply_change(state, action):
         if item['archived']:
             raise BoardRuleError('请先恢复已归档事项，再修改状态。')
         item['state'] = action['state']
+    elif kind == 'delete':
+        # Schedule links belong to the card; calendar events and runs live separately.
+        state['schedule_links'] = [link for link in state.get('schedule_links', []) if link['item_id'] != item['id']]
+        items.remove(item)
     elif kind == 'archive':
         if type(action.get('archived')) is not bool:
             raise BoardRuleError('归档状态必须是开关。')

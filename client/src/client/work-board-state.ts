@@ -20,13 +20,15 @@ export function runStateLabel(run: WorkRun) {
 }
 export function mergeWorkPage(previous: WorkPage, incoming: WorkPage): WorkPage {
   const newer = incoming.revision >= previous.revision;
-  const items = new Map(previous.items.map(item=>[item.id,item]));
-  for(const item of incoming.items) {
-    const old = items.get(item.id);
-    if(!old || item.version>old.version || (newer && item.version===old.version)) items.set(item.id,item);
-  }
+  const latest = newer ? incoming : previous;
+  const otherItems = new Map((newer ? previous : incoming).items.map(item=>[item.id,item]));
+  // The latest full snapshot owns membership. An older response can never restore a deleted card.
+  const items = latest.items.map(item=>{
+    const other = otherItems.get(item.id);
+    return other && other.version > item.version ? other : item;
+  });
   const rank={high:0,normal:1,low:2};
-  return {...(newer?incoming:previous),items:[...items.values()].sort((a,b)=>rank[a.priority]-rank[b.priority]||(a.due||'9999').localeCompare(b.due||'9999')||a.created-b.created||a.id.localeCompare(b.id))};
+  return {...(newer?incoming:previous),items:items.sort((a,b)=>rank[a.priority]-rank[b.priority]||(a.due||'9999').localeCompare(b.due||'9999')||a.created-b.created||a.id.localeCompare(b.id))};
 }
 
 // One owner of confirmed snapshots and per-item user intentions. IO is injected.
@@ -139,6 +141,7 @@ export function demoWorkTransport():WorkTransport&{schedule:ScheduleTransport} {
     if(action.type==='execute'){const run={id:'demo-execution-'+(++count),title:item!.title,conversation:'demo-execution-chat',conversation_title:'事项执行',project_id:item!.project_id,project_name:item!.project_name,agent:item!.agent_id||'tebb',state:'running',delivery_state:'',kind:'task',status:'隔离演示：不会调用真实模型',error:'',answer:'',created:Date.now()};page.runs.push(run);item!.links.push({id:run.id,title:run.title,conversation:run.conversation,project_name:run.project_name});}
     if(action.type==='save')Object.assign(item!,action.fields);
     if(action.type==='move')item!.state=action.state!;
+    if(action.type==='delete')page.items=page.items.filter(row=>row.id!==item!.id);
     if(action.type==='archive')item!.archived=action.archived!;
     if(action.type==='link'&&!item!.links.some(l=>l.id===action.run_id)){const run=page.runs.find(r=>r.id===action.run_id)!;item!.links.push({id:run.id,title:run.title,conversation:run.conversation,project_name:run.project_name});}
     if(action.type==='unlink')item!.links=item!.links.filter(l=>l.id!==action.run_id);
