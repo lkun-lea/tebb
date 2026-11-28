@@ -98,7 +98,7 @@
 .tebb-content-slot[data-sky=moon]>.tebb-route-page .workspace-destinations [aria-pressed=true] {background:#485675}
 
 /* 今日的两栏共享夜空色阶，聊天内的菜单继续使用不透明的阅读表面。 */
-.tebb-content-slot[data-sky=moon] .tebb-core-chat .cp-root {
+.tebb-content-slot[data-sky=moon] {
   --background:232 45% 10%;
   --card:225 27% 20%;
   --secondary:224 26% 24%;
@@ -110,3 +110,12 @@
   background:linear-gradient(180deg,#040519,#1b1d34 42%,#272b48 72%,#2e3d5c)
 }
 .tebb-content-slot[data-sky=moon] .cp-message-user .cp-markdown {background:#404e70;color:#edf5ff}
+
+/* 两栏与手记共享所选主题，桌宠的光晕仍由当地时段决定。 */
+.tebb-route-page .journal {background: transparent; color: inherit; color-scheme: inherit}
+[data-sky=moon] > .tebb-route-page {color:#edf5ff;color-scheme:dark}
+[data-sky=moon] .journal :is(.jr-card,.jr-nav,.jr-notice) {background:#303954d9;border-color:#ffffff29}
+[data-sky=moon] .journal :is(.jr-date,.jr-stamp,.jr-context) {color:#cad7ed}
+[data-sky=moon] .journal :is(.jr-note,.jr-button,.jr-choices) {background:#25314a;color:#edf5ff}
+[data-sky=moon] .journal .jr-button[aria-pressed=true] {background:#465e7e;outline:1px solid #95d5ff}
+[data-sky=moon] .journal .jr-kicker {color:#78dcda}

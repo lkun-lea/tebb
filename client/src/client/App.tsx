@@ -102,17 +102,7 @@ type Thread = {
 };
 
 
-function workspaceLight() {
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 18 ? "sun" : "moon";
-}
-
 export function App() {
-  const [sky, setSky] = useState(workspaceLight);
-  useEffect(() => {
-    const timer = window.setInterval(() => setSky(workspaceLight()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") === "dark"; } catch { return false; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
@@ -1490,6 +1480,7 @@ export function App() {
       <WindowTitleBar />
       <div className="workspace-account"><details><summary aria-label="工作区菜单">tebb</summary><div>
         <button disabled={!sidebarState.available} onClick={()=>togglePreview()}>{sidebarState.open?'收起资料栏':'显示资料栏'}</button>
+        <button type="button" onClick={()=>setDark(value=>!value)}>{dark ? "切换到浅色模式" : "切换到深色模式"}</button>
         <button onClick={()=>openProjectFolder()}>打开项目文件夹</button>
         <button onClick={()=>openTerminal()}>终端</button>
         <ProductBrand developer={developerMode} onToggle={()=>changeDeveloperMode(!developerMode)}/>
@@ -1513,7 +1504,7 @@ export function App() {
           onDetach={id => setPickedAttachments(prev => prev.filter(s => s.id !== id))}
           onLink={url => { if (noteSessionId && pane === "chat" && chatFace === "thread") setDraft(text => `${text}${text ? "\n" : ""}${url}`); else { setComposeRequest({ id: Date.now(), text: url }); setPane("collaboration"); } }}
           onRequest={() => {}}>
-        <div className="tebb-content-slot" data-content-slot data-sky={sky} data-split={!debugKind || undefined} data-chat-focused={coreChat || undefined} data-today-open={pane==="today" || undefined}>
+        <div className="tebb-content-slot" data-content-slot data-sky={dark ? "moon" : "sun"} data-split={!debugKind || undefined} data-chat-focused={coreChat || undefined} data-today-open={pane==="today" || undefined}>
         <div className="tebb-core-chat" hidden={!!debugKind && !coreChat} style={{flexDirection:"column",flex:1,minHeight:0,minWidth:0}}>
           {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
