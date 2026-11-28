@@ -126,6 +126,7 @@ export function App() {
   const [workTarget, setWorkTarget] = useState<{id:string;nonce:number}|null>(null);
   const [calendarTarget, setCalendarTarget] = useState<(ScheduleTarget&{view?:'today'|'week'|'day'})|null>(null);
   const[chatProposals,setChatProposals]=useState<CalendarProposal[]>([]);
+  const [sourceTarget,setSourceTarget] = useState<{conversation:string; run?:string}>();
   const [composeRequest, setComposeRequest] = useState<{ id: number; text: string }>();
   const [developerMode, setDeveloperMode] = useState(readDeveloperMode);
   const [storedBg] = useState(() => readStoredBackground());
@@ -1514,16 +1515,19 @@ export function App() {
           onRequest={() => {}}>
         <div className="tebb-content-slot" data-content-slot data-sky={sky} data-split={!debugKind || undefined} data-chat-focused={coreChat || undefined} data-today-open={pane==="today" || undefined}>
         <div className="tebb-core-chat" hidden={!!debugKind && !coreChat} style={{flexDirection:"column",flex:1,minHeight:0,minWidth:0}}>
-          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
+          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page">
             {workspaceNavigation}
 
         <PageStack active={coreChat ? "today" : pane === "chat" ? chatFace : pane}>
           {pane === "today" || coreChat ? <section className="today-workspace" aria-label="今日">
-            <Suspense fallback={<LoadingText text="正在打开今日…"/>}><TodayPane info={info} onOpen={async conversation=>{
+            <Suspense fallback={<LoadingText text="正在打开今日…"/>}><TodayPane info={info} onOpen={async (conversation,run)=>{
               if (!info) throw Error('本地助手尚未连接。');
-              await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
+              const result = await rpc<{state?:{selected:string}}>(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
+              if (result.state?.selected !== conversation) throw Error('未能打开来源会话。');
+              setSourceTarget({conversation,run});
+              setPane('collaboration');
             }}/></Suspense></section> : pane === "chat" && chatFace === "knowledge" ? (
             <section
               key="knowledge"

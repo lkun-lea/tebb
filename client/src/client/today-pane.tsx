@@ -25,7 +25,7 @@ const slots = {morning:'早报', evening:'晚报'} as const;
 const periods = ['morning','evening'] as const;
 
 
-type TodayProps = {info:BackendInfo|null; onOpen:(id:string)=>Promise<void>; onProfiles?:()=>void; onChat?:()=>void};
+type TodayProps = {info:BackendInfo|null; onOpen:(id:string,run?:string)=>Promise<void>; onProfiles?:()=>void; onChat?:()=>void};
 export function TodayPane(props:TodayProps) {
   return <AccountJournal key={props.info?.token} {...props}/>;
 }
@@ -78,7 +78,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
         }});
         if(result.ok===false)throw Error(result.error || '原任务未接收');
         setBoard(await rpc<Board>(info,'today_board',{}));
-      } else if(a.type==='source'||a.type==='chat')await onOpen(a.conversation || 'dm-tebb');
+      } else if(a.type==='source'||a.type==='chat')await onOpen(a.conversation || 'dm-tebb',a.run);
       setActionError('');
     }catch(e){setActionError(String(e));}finally{setBusy(false);}
   };

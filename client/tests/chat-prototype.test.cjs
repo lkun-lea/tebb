@@ -891,3 +891,20 @@ test('旧方案时间线绑定会话、版本、回执及未记录时间的来�
   assert.deepEqual(conversationTimeline(state,'old').map(row=>row.text),['proposal.md · v2','改期','保存 · 已确认']);
   assert.deepEqual(conversationTimeline(state,'other'),[]);
 });
+test('opening a journal source focuses its matching message even in the selected conversation',async()=>{
+  environment();
+  const {ChatPrototype}=load('chat-prototype');
+  const state=initialDemo();
+  let focused=0,scrolled=0;
+  const source={dataset:{messageRun:'source-run'},focus(){focused++},scrollIntoView(){scrolled++}};
+  const list={querySelectorAll:()=>[source]};
+  const node=props=>React.createElement(ChatPrototype,{live:{state,act:async()=>true,busy:false,error:''},...props});
+  let view;
+  await act(async()=>{view=create(node({}),{createNodeMock:el=>el.props.className==='cp-message-list'?list:null});});
+  for(const count of [1,2]){
+    await act(async()=>view.update(node({sourceTarget:{conversation:state.selected,run:'source-run'}})));
+    assert.equal(focused,count);
+    assert.equal(scrolled,count);
+  }
+  await act(async()=>view.unmount());
+});

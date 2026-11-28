@@ -53,7 +53,7 @@
 .workspace-destinations {display:flex;align-self:center;flex-wrap:wrap;justify-content:center;gap:2px;margin:8px;padding:4px;border-radius:24px;background:hsl(var(--secondary))}
 .workspace-destinations .cp-rail-button,.workspace-destinations .compact-chat {position:static;width:auto;height:40px;padding:0 12px;border-radius:20px}
 .workspace-destinations .cp-rail-label {display:inline;font-size:14px}
-.workspace-destinations :is(svg,.cp-rail-tooltip) {display:none}
+.workspace-destinations svg, .workspace-destinations .cp-rail-button .cp-rail-tooltip {display:none!important}
 .workspace-destinations [aria-pressed=true] {background:hsl(var(--card));font-weight:650}
 .workspace-account {position:absolute;bottom:10px;right:12px;z-index:12}
 .workspace-account summary {list-style:none;cursor:pointer;padding:8px 14px;border-radius:20px;background:hsl(var(--card));box-shadow:0 2px 10px #26344724}

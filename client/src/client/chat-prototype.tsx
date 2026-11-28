@@ -81,7 +81,7 @@ function GroupForm({ editing, agents, projects, projectId, onCreate, onClose, re
   </form></Modal>;
 }
 
-export function ChatPrototype({ standalone = false, live, composeRequest, navigation, developerMode, onDeveloperMode, backend, onAttach, attachments: providedAttachments = [], onDetach, onProject, onFile, onTerminal, onCalendar }: { backend?: BackendInfo | null; onAttach?: () => void; attachments?: LocalSource[]; onDetach?: (id: string) => void; onProject?: () => void; onFile?: () => void; onTerminal?: () => void; onCalendar?: () => void; standalone?: boolean; composeRequest?: { id: number; text: string }; navigation?: ReactNode; developerMode?: boolean; onDeveloperMode?: (value: boolean) => void; live?: { state: DemoState; act: (action: DemoAction) => Promise<boolean>; confirmAction?: (id:string)=>void; busy: boolean; error: string } }) {
+export function ChatPrototype({ standalone = false, live, composeRequest, sourceTarget, navigation, developerMode, onDeveloperMode, backend, onAttach, attachments: providedAttachments = [], onDetach, onProject, onFile, onTerminal, onCalendar }: { backend?: BackendInfo | null; onAttach?: () => void; attachments?: LocalSource[]; onDetach?: (id: string) => void; onProject?: () => void; onFile?: () => void; onTerminal?: () => void; onCalendar?: () => void; standalone?: boolean; sourceTarget?: {conversation:string; run?:string}; composeRequest?: { id: number; text: string }; navigation?: ReactNode; developerMode?: boolean; onDeveloperMode?: (value: boolean) => void; live?: { state: DemoState; act: (action: DemoAction) => Promise<boolean>; confirmAction?: (id:string)=>void; busy: boolean; error: string } }) {
   const [demoState, demoDispatch] = useReducer(demoReducer, undefined, () => {
     if (live) return initialDemo();
     try { return restoreDemo(accountStorage().getItem(DEMO_STORAGE)); } catch { return initialDemo(); }
@@ -302,6 +302,22 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
   function menuKeys(id: string, event: React.KeyboardEvent<HTMLElement>) {
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) openMenu(id, event);
   }
+  const openedSource = useRef<typeof sourceTarget>(undefined);
+  useEffect(() => {
+    if (!sourceTarget || openedSource.current === sourceTarget) return;
+    if (editingDraft) { newConversation.hide(); return; }
+    if (conversation.id !== sourceTarget.conversation) return;
+    openedSource.current = sourceTarget;
+    setMobileList(false);
+    setInspector(false);
+    const list = messageList.current;
+    const source = sourceTarget.run && Array.from(list?.querySelectorAll<HTMLElement>('[data-message-run]') || [])
+      .find(node => node.dataset.messageRun === sourceTarget.run);
+    const target = source || list;
+    target?.focus({preventScroll:true});
+    target?.scrollIntoView?.({block:'nearest'});
+  }, [sourceTarget, conversation.id, editingDraft, newConversation]);
+
   function select(id: string) {
     if(newConversation.draft && state.conversations.some(c=>c.id===newConversation.draft?.id))newConversation.finish();
     else newConversation.hide();
@@ -415,10 +431,10 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
         {editingDraft&&<NewConversationSetup draft={editingDraft} agents={state.agents} projects={projects} busy={!!live?.busy}
           onChange={newConversation.change} onGroup={()=>newGroup(editingDraft.project_id)} onHide={()=>newConversation.hide()} onDiscard={()=>setDiscardDraft(true)}/>}
         {conversation.kind === "group" && <details className="cp-goal"><summary><span>共同目标</span><span>{conversation.goal || "为这个群确定一个目标，开始协作。"}</span></summary><p>{conversation.goal || "可在伙伴侧栏中调整协作群目标。"}</p></details>}
-        <div className="cp-message-list" ref={messageList} onScroll={event=>{const el=event.currentTarget;following.current=el.scrollHeight-el.scrollTop-el.clientHeight<48;}} aria-label={real ? "协作聊天记录" : "原型聊天记录"}>
+        <div className="cp-message-list" tabIndex={-1} ref={messageList} onScroll={event=>{const el=event.currentTarget;following.current=el.scrollHeight-el.scrollTop-el.clientHeight<48;}} aria-label={real ? "协作聊天记录" : "原型聊天记录"}>
           {!messages.length && !cloud.turns.length && <div className="cp-empty-chat"><Avatar agent={member(conversation.coordinator)} /><h2>暂无消息</h2><p>直接聊天，或者将目标交给 Agent。<br />私聊与协作群分别保留各自的消息。</p><button className="cp-button" disabled={draftLocked} onClick={() => { setDraft("帮我整理这周的研究方向"); setMode("auto"); input.current?.focus(); }}>填入示例任务</button></div>}
           {timeline.map(item => {
-            return item.kind === "notice" ? <p key={item.id} className="cp-system-message">{item.text}</p> : <article key={item.id} className={`cp-message ${item.sender === "user" ? "cp-message-user" : ""}`}>
+            return item.kind === "notice" ? <p key={item.id} className="cp-system-message">{item.text}</p> : <article key={item.id} tabIndex={-1} data-message-run={item.run} className={`cp-message ${item.sender === "user" ? "cp-message-user" : ""}`}>
             {item.sender === "user" ? <span className="cp-user-avatar">你</span> : <Avatar agent={member(item.sender)} />}
             <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>{item.origin === 'cloud' ? '云端' : '本地'}</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
               {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&!runs.find(r=>r.id===item.run)?.question_deferred&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{real&&runs.find(r=>r.id===item.run)&&<p className="cp-muted">{runProgressText(runs.find(r=>r.id===item.run)!)}</p>}{!real&&runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
@@ -457,7 +473,7 @@ export function ChatPrototype({ standalone = false, live, composeRequest, naviga
             <div className="cp-composer-bottom"><div className="cp-composer-controls">{showCloud ? <span>Qwen · 免费</span> : <><button type="button" aria-label="添加附件" disabled={!onAttach||draftLocked} onClick={onAttach}>＋ 附件</button><button type="button" disabled={draftLocked} onClick={() => recipient && setEditingAgent(recipient)}>工具</button><button type="button" aria-label="选择技能" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'/'); input.current?.focus(); }}>/ Skill</button><button type="button" aria-label="选择成员" disabled={draftLocked} onClick={() => { changeDraft(draft+(draft && !draft.endsWith(' ') ? ' ' : '')+'@'); input.current?.focus(); }}>@</button>
               <label><select disabled={draftLocked} aria-label="本轮模型" title="本轮模型" value={modelPick} onChange={e => setModelPick(e.target.value)}><option value="">{recipientModel}（默认）</option>{state.models?.map(model => <option key={model.id} value={model.id}>{model.model}</option>)}</select></label></>}{executionPicker}</div>
               <button type="submit" className="cp-send" disabled={showCloud ? cloud.sending || !(cloud.pending?.text ?? draft).trim() : live?.busy || !draft.trim() || (!!selectedRun && !runActive(selectedRun)&&selectedRun.state!=='needs_input')}>{showCloud && cloud.pending ? '重试原消息' : draftLocked?'重试原发送':updateRun ? '提交补充' : '发送'}<span>↑</span></button></div>
-            {!showCloud && <ContextDebug key={conversation.id} info={backend} conversation={editingDraft?'':conversation.id} draft={draft} sendOptions={{target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})}} onSent={text=>{if(text===draft)submitted();}}>{developer&&<div className="cp-parameter-debug"><label>推理力度<select disabled={draftLocked} value={sampling.reasoning_effort} onChange={e => setSampling({ ...sampling, reasoning_effort:e.target.value })}>{['low','high','max'].map(v => <option key={v}>{v}</option>)}</select></label><label>温度<input disabled={draftLocked} type="number" min="0" max="1" step="0.1" value={sampling.temperature} onChange={e => setSampling({ ...sampling, temperature:Number(e.target.value) })} /></label><label>top_p<input disabled={draftLocked} type="number" min="0.01" max="1" step="0.01" value={sampling.top_p} onChange={e => setSampling({ ...sampling, top_p:Number(e.target.value) })} /></label><button type="button" disabled={!!editingDraft} onClick={() => dispatch({ type:'compress' })}>整理当前会话上下文</button></div>}</ContextDebug>}
+            {developer && !showCloud && <ContextDebug key={conversation.id} info={backend} conversation={editingDraft?'':conversation.id} draft={draft} sendOptions={{target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})}} onSent={text=>{if(text===draft)submitted();}}>{developer&&<div className="cp-parameter-debug"><label>推理力度<select disabled={draftLocked} value={sampling.reasoning_effort} onChange={e => setSampling({ ...sampling, reasoning_effort:e.target.value })}>{['low','high','max'].map(v => <option key={v}>{v}</option>)}</select></label><label>温度<input disabled={draftLocked} type="number" min="0" max="1" step="0.1" value={sampling.temperature} onChange={e => setSampling({ ...sampling, temperature:Number(e.target.value) })} /></label><label>top_p<input disabled={draftLocked} type="number" min="0.01" max="1" step="0.01" value={sampling.top_p} onChange={e => setSampling({ ...sampling, top_p:Number(e.target.value) })} /></label><button type="button" disabled={!!editingDraft} onClick={() => dispatch({ type:'compress' })}>整理当前会话上下文</button></div>}</ContextDebug>}
 
           </form>
           <div className="cp-composer-hint"><span>Enter 发送 · Shift + Enter 换行</span>{!real && <span>演示数据仅存于此设备</span>}</div>
