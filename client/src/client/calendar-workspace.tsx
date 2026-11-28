@@ -15,7 +15,7 @@ type Props={info:BackendInfo|null;data:BoardPayload|null;loading:boolean;loadErr
 
 export function CalendarWorkspace(props:Props){
   const guard=useRef<((next:()=>void)=>void)|null>(null);
-  const [view,setView]=useState<'month'|'week'|'day'>('week'),[target,setTarget]=useState<ScheduleTarget>({}),[daily,setDaily]=useState<ScheduleTarget|null>(null),[revision,bump]=useReducer(n=>n+1,0);
+  const [view,setView]=useState<'month'|'week'|'day'>('month'),[target,setTarget]=useState<ScheduleTarget>({}),[daily,setDaily]=useState<ScheduleTarget|null>(null),[revision,bump]=useReducer(n=>n+1,0);
   const [panel,setPanel]=useState<'tasks'|'review'|null>(null),[reviewText,setReviewText]=useState(''),[reviewError,setReviewError]=useState(''),[reviewBusy,setReviewBusy]=useState(false);
   const demo=useMemo(()=>props.debug?demoWorkTransport():null,[props.debug]);
   useEffect(()=>{if(props.target){setTarget({...props.target,day:props.target.view==='today'?beijingDay():props.target.day});setView(props.target.view==='day'?'day':'week');}},[props.target]);

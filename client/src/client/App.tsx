@@ -1443,10 +1443,9 @@ export function App() {
   };
   async function openNotes(){
     setPane('chat');setChatFace('notebooks');
-    if(noteSessionId){setChatFace('thread');return;}
-    if(debugKind){setNoteSessions(NOTE_FIXTURE.sessions);setNoteDocs(NOTE_FIXTURE.docs);setNoteChecked(NOTE_FIXTURE.docs.map(doc=>doc.id));setNoteSessionId(NOTE_FIXTURE.sessions[0].id);setChatFace('thread');return;}
-    if(noteSessions.length){openNoteSession(noteSessions[0].id);return;}
-    await newNotebook();
+    if(debugKind){setNoteSessions(NOTE_FIXTURE.sessions);return;}
+    if(!info){setNoteListError('还没有连上本地后端。');return;}
+    await refreshNotebooks();
   }
   async function refreshNotebooks(){if(!noteBusy&&info&&await loadNotebooks(info))setNotebookNeedsCheck(false);}
   function openCalendar(target:ScheduleTarget={}){setCalendarTarget({...target});void openBoard();}
@@ -1564,7 +1563,15 @@ export function App() {
               />
             </section>
           ) : pane === "chat" && chatFace === "notebooks" ? (
-            <section key="notebooks" data-notebook-empty className="flex-1 overflow-y-auto px-8 py-6"><h1 className="text-xl">笔记</h1><p className="my-4 text-sm text-muted-foreground">选择或新建笔记会话，基于来源提问并保存成果。</p>{noteListError&&<p role="alert" className="text-destructive">{noteListError}</p>}<button type="button" className="desk-menu-item" disabled={notebookCreating||notebookNeedsCheck||busy||noteBusy} onClick={()=>void newNotebook()}>{notebookCreating?'正在创建…':'＋ 新建笔记'}</button><button type="button" className="desk-menu-item" onClick={()=>void refreshNotebooks()}>读取笔记核对</button>{noteSessions.map(session=><button type="button" className="desk-menu-item" key={session.id} onClick={()=>openNoteSession(session.id)}>{session.title||'未命名笔记'}</button>)}</section>
+            <section key="notebooks" data-notebook-empty className="workspace-record-page">
+              <header><div><small>我的笔记</small><h1>笔记</h1></div><button disabled={notebookCreating||notebookNeedsCheck||busy||noteBusy} onClick={()=>void newNotebook()}>＋ 新建笔记</button></header>
+              {noteListError&&<p role="alert">{noteListError}</p>}
+              {noteSessions.length > 0 && <article><small>最近编辑 · {noteSessions[0].updated}</small><h2>{noteSessions[0].title || "未命名笔记"}</h2><p>{noteSessions[0].notes.at(-1)?.answer.slice(0,180)}</p><button onClick={()=>openNoteSession(noteSessions[0].id)}>继续编辑</button></article>}
+              {noteSessions.length > 1 && <h2>其他笔记</h2>}
+              {noteSessions.slice(1).map(session=><button key={session.id} onClick={()=>openNoteSession(session.id)}>{session.title||"未命名笔记"} <small>{session.updated}</small></button>)}
+              {!noteSessions.length&&!noteListError&&<p>暂无笔记</p>}
+              <button onClick={()=>void refreshNotebooks()}>读取核对</button>
+            </section>
           ) : pane === "chat" && noteSessionId ? (
             <section
               key={`note-${noteSessionId}`}

@@ -319,7 +319,7 @@ export function KnowledgePane(props: {
   }
   return (
     <div data-knowledge="" data-knowledge-ok={data ? (failed ? "0" : "1") : ""}>
-      <h1 className="text-xl font-semibold">知识库</h1>
+      <small>本地资料</small><h1 className="text-xl font-semibold">知识库</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         管理飞书与本地资料，在笔记中基于来源检索；笔记可以作为资料带回伙伴聊天，伙伴回答也能收藏为笔记。
       </p>
@@ -415,7 +415,7 @@ export function KnowledgePane(props: {
       ) : null}
       <div hidden={section!=="index"}>{props.settings}</div>
       <section hidden={section!=="docs"} className="mt-6">
-        <div className="flex items-center gap-2"><h2 className="mr-auto text-sm font-semibold">文档库 · {docs.length} 篇</h2>
+        <div className="flex items-center gap-2"><h2 className="mr-auto text-sm font-semibold">资料来源 · {docs.length} 篇</h2>
           <button className="desk-btn" disabled={props.busy} onClick={() => props.onLocal?.("file")}>本地文件</button>
           <button className="desk-btn" disabled={props.busy} onClick={() => props.onLocal?.("folder")}>本地文件夹</button></div>
         <input
@@ -445,8 +445,8 @@ export function KnowledgePane(props: {
           ) : null}
         </div>
       </section>
-      <section hidden={section!=="docs"} className="mt-6">
-        <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">从飞书添加</h2>
+      <details hidden={section!=="docs"} className="mt-6">
+        <summary>从飞书添加</summary><div className="flex items-center justify-end">
           <button className="desk-btn" disabled={props.busy} onClick={props.onRefresh}>刷新目录</button></div>
         {props.catalogError ? <p className="mt-2 text-sm text-destructive">{props.catalogError}</p> : null}
         <input
@@ -530,7 +530,7 @@ export function KnowledgePane(props: {
         {removeWhere === "catalog" && removeNote ? (
           <p data-knowledge-remove-status="" className={`mt-2 text-xs ${removeBad ? "text-destructive" : "text-foreground"}`}>{removeNote}</p>
         ) : null}
-      </section>
+      </details>
       <section hidden={section!=="check"} className="mt-6">
         <h2 className="text-sm font-semibold">切块</h2>
         <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">

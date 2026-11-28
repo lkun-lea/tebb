@@ -149,3 +149,20 @@
 .tebb-core-chat .cp-composer .cp-send[data-simple] {width:44px;height:44px;justify-content:center;border-radius:16px;background:#0086c5;color:white!important}
 .tebb-core-chat .cp-send[data-simple] .cp-send-label {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .tebb-core-chat .cp-send-label {font-size:inherit}
+
+.workspace-record-page {padding:24px clamp(18px,4vw,54px);overflow:auto;flex:1;min-height:0}
+.workspace-record-page header {display:flex;justify-content:space-between;align-items:center}
+.workspace-record-page h1,.workflow-home-heading h2 {font-size:clamp(26px,3vw,38px);font-weight:600}
+.workspace-record-page article,.workspace-feature-card {padding:20px 24px;border:1px solid hsl(var(--border));border-radius:18px;background:hsl(var(--card)/.76);margin:16px 0}
+.workspace-record-page h2,.workspace-feature-card h3 {font-size:20px;margin:8px 0}
+.workspace-record-page p {margin:8px 0;overflow-wrap:anywhere}
+.workspace-record-page button,.workspace-feature-card button {padding:8px 14px;border-radius:12px;background:hsl(var(--card));color:hsl(var(--foreground))}
+.workspace-record-page > button {display:block;margin-block:8px}
+.tebb-route-page .work-board {--wb-bg:transparent;--wb-surface:hsl(var(--card)/.82)}
+.tebb-route-page .wb-columns {grid-template-columns:minmax(0,1fr);grid-auto-flow:row}
+.tebb-route-page .wb-column {min-height:56px}
+.tebb-route-page .wb-card {border:1px solid var(--wb-line);border-radius:16px}
+.tebb-route-page [data-knowledge-group] {background:hsl(var(--card)/.75);border-radius:16px}
+.tebb-route-page [data-knowledge-doc] {border-width:0 0 1px}
+.tebb-route-page .sw-month .fc-daygrid-day-frame {min-height:clamp(42px,6vh,68px)}
+.wb-waiting {max-height:32vh;overflow:auto;flex-shrink:0}

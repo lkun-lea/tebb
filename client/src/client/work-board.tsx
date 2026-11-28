@@ -105,6 +105,9 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
   const item=controller.items.find(i=>i.id===selected);
   const drawer=!weekTarget&&!scheduleTarget&&(!!draft||!!item);
   useEffect(()=>{setRunId('');setLinking(false);setDetailError('');},[selected]);
+  const waitingRuns = archived ? [] : controller.page.runs.filter(run =>
+    run.state === 'needs_input' && (project === 'all' || (project === 'none' ? !run.project_id : run.project_id === project))
+    && run.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   const visible=controller.items.filter(item=>item.archived===archived&&(project==='all'||(project==='none'?!item.project_id:item.project_id===project))&&(!query||(item.title+' '+item.description).toLocaleLowerCase().includes(query.toLocaleLowerCase())));
   useEffect(()=>{if(controller.loaded&&project!=='all'&&project!=='none'&&!controller.page.projects.some(p=>p.id===project))setProject('none');},[controller.loaded,controller.page.projects,project]);
   function guardDraft(next:()=>void){if(draft&&JSON.stringify(draft)!==draftBase.current)setLeaveWork(()=>next);else next();}
@@ -139,7 +142,7 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
     {schedulePane}
   </div>;
   return <div className="work-board" data-work-board data-demo={debug?'true':'false'}>
-    <header className="wb-heading"><div><span className="wb-eyebrow">工作区 / 工作看板</span><h1>事项</h1><p>查看和管理事项、负责人及执行状态。{debug&&' · 演示数据，未连接后端'}</p></div>
+    <header className="wb-heading"><div><span className="wb-eyebrow">待我处理</span><h1>事项</h1><p>查看和管理事项、负责人及执行状态。{debug&&' · 演示数据，未连接后端'}</p></div>
       <UiButton variant="primary" onClick={create}>＋ 新增事项</UiButton></header>
     {debug&&<UiContractSample/>}
     <div className="wb-toolbar"><label className="wb-search"><span aria-hidden="true">⌕</span><input aria-label="搜索事项" placeholder="搜索事项" value={query} onChange={e=>setQuery(e.target.value)}/></label>
@@ -149,8 +152,10 @@ export function WorkBoardPane({info,debug=false,onOpen,target,onCalendar}:Props)
       <UiButton busy={controller.loading} busyLabel="读取中…" onClick={()=>void refresh()}>刷新核对</UiButton><span className="wb-sort">优先级 · 截止日期</span></div>
     <div className="wb-alert-slot" aria-live="polite">{controller.error&&controller.error!==formError&&<UiFeedback state="error" title={controller.error} className="wb-error"/>}</div>
     {[...controller.uncertain].map(([key,record])=><UiFeedback state="unconfirmed" title="保存结果未确认" className="wb-uncertain" key={key}><div><p>{record.message}</p><small>操作编号：{record.action.request_id}</small></div><div><UiButton onClick={()=>void refresh()} busy={controller.loading} busyLabel="核对中…">重新读取核对</UiButton><UiButton onClick={()=>void retry(key)} busy={controller.pending.has(key)} busyLabel="原操作处理中…">手动重试原操作</UiButton></div></UiFeedback>)}
+    {waitingRuns.length > 0 && <section className="wb-waiting" aria-label="原任务待答">{waitingRuns.map(run=><article className="workspace-feature-card" key={run.id}><small>待答 · {run.conversation_title}</small><h3>{run.title}</h3><button type="button" onClick={()=>void openRun(run.conversation)}>打开原会话</button></article>)}</section>}
+    {!drawer && detailError && <p role="alert">{detailError}</p>}
     {!controller.loaded&&controller.loading&&<UiFeedback state="loading" title="正在读取事项…"/>}
-    {controller.loaded&&!visible.length&&<UiFeedback state={query||project!=='all'||archived?'no_results':'empty'} title={query||project!=='all'||archived?'当前筛选没有匹配事项':'还没有事项'}>可调整筛选，或用「新增事项」开始。</UiFeedback>}
+    {controller.loaded&&!visible.length&&!waitingRuns.length&&<UiFeedback state={query||project!=='all'||archived?'no_results':'empty'} title={query||project!=='all'||archived?'当前筛选没有匹配事项':'还没有事项'}>可调整筛选，或用「新增事项」开始。</UiFeedback>}
     <DndContext sensors={dragSensors} collisionDetection={collision}
       accessibility={{screenReaderInstructions:{draggable:'按空格抓起，左右方向键移动一列，空格放下，Escape 取消。'},announcements:{
         onDragStart:()=> '已抓起事项。',onDragOver:({over})=>over?`目标：${workStateLabel(String(over.id))}`:'请选择目标列。',
