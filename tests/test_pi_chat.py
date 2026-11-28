@@ -12,6 +12,23 @@ from tests.test_pi_inference import PiInferenceFixture
 
 
 class PiChatTests(PiInferenceFixture):
+    def test_luna_parameters_follow_final_tools_and_endpoint(self):
+        from desk_companion.pi_runtime.model_mapping import apply_chat_parameters
+        base = dict(model='gpt-6-luna', reasoning_effort='low', temperature=.5, top_p=.9,
+                    thinking={'type':'enabled'}, max_completion_tokens=128)
+        text = base.copy()
+        apply_chat_parameters(text, 'https://api.openai.com/v1')
+        self.assertEqual(text, dict(model='gpt-6-luna', reasoning_effort='low', max_completion_tokens=128))
+        tool = dict(base, tools=[{'type':'function'}])
+        apply_chat_parameters(tool, 'https://api.openai.com/v1/')
+        self.assertNotIn('thinking', tool)
+        self.assertEqual((tool['reasoning_effort'], tool['temperature']), ('none', .5))
+        for model, url in [('deepseek-flash', 'https://api.openai.com/v1'),
+                           ('gpt-6-luna', 'https://example.invalid/v1')]:
+            other = dict(base, model=model)
+            apply_chat_parameters(other, url)
+            self.assertEqual(other, dict(base, model=model))
+
     def test_demand_loading_updates_actual_sdk_payload_before_execution(self):
         agent=self.agent('discover-tool');agent.tool_loading='demand'
         self.assertEqual(agent.run('Discover and use the calculator.'),'40')

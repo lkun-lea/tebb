@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from atlas.llm import ChatCallbacks, ChatOptions, ChatCancelledError, IncompleteResponseError
 from desk_companion.collaboration.execution_context import ExecutionLLM, ContextAdmissionError, configuration_revision
 from desk_companion.models import model_capacity
-from desk_companion.pi_runtime.model_mapping import payload_for
+from desk_companion.pi_runtime.model_mapping import apply_chat_parameters, payload_for
 from desk_companion.observability.pi_observer import PiObserver
 from desk_companion.pi_runtime.bridge import PiBridge, PiProcessError, PiCancelled, PiTimeout
 
@@ -53,12 +53,14 @@ class PiInference(ExecutionLLM):
             if actual.get('model') != self.model or actual.get('messages') != messages or actual.get('tools'):
                 raise ContextAdmissionError('Pi 映射改变了已准入材料，未发送。', self.last_context)
             from desk_companion.collaboration.execution_context import prepare_request
+            apply_chat_parameters(actual, self.item['base_url'])
             _, check = prepare_request(actual, capacity)
             if check['input_tokens'] != self.last_context['input_tokens'] or check['compacted']:
                 raise ContextAdmissionError('实际发送材料与已准入计数不一致，未发送。', check)
             if options.should_cancel and options.should_cancel():
                 raise ChatCancelledError(partial())
             observer.sending(actual)
+            return dict(payload=actual)
 
         def event(kind, data):
             nonlocal usage

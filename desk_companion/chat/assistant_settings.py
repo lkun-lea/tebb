@@ -187,25 +187,32 @@ class AssistantSettingsService:
             base_url = str(payload.get("base_url") or "").strip()
             model = str(payload.get("model") or "").strip()
             api_key = str(payload.get("api_key") or "").strip()
+            entry_id = str(payload.get("id") or "").strip()
             if not api_key:
-                entry_id = str(payload.get("id") or "").strip()
                 if entry_id:
                     from desk_companion.models.model_catalog import require_item
 
-                    api_key = require_item(entry_id)["api_key"]
+                    item = require_item(entry_id)
+                    if item["base_url"].rstrip("/") != base_url.rstrip("/"):
+                        raise RuntimeError("模型地址已更改，请填写该地址的 API Key。")
+                    api_key = item["api_key"]
                 else:
-                    api_key = parse_env_file().get("ATLAS_API_KEY") or ""
+                    saved = parse_env_file()
+                    if saved.get("ATLAS_BASE_URL", "").rstrip("/") == base_url.rstrip("/"):
+                        api_key = saved.get("ATLAS_API_KEY") or ""
             if not api_key or not base_url or not model:
                 raise RuntimeError("测试前先填 API 地址、模型名和 Key。")
             from desk_companion.models.model_validation import validate_base_url
             from desk_companion.models.model_network import openai_client
             from desk_companion.observability.usage_observer import ModelAttempt
-            with openai_client(api_key=api_key, base_url=validate_base_url(base_url), timeout=20) as client:
-                with ModelAttempt(model,str(payload.get('id')or''),validate_base_url(base_url),source='model_test')as observed:
+            from desk_companion.models.model_generation import connection_probe_limit
+            base_url = validate_base_url(base_url)
+            with openai_client(api_key=api_key, base_url=base_url, timeout=20) as client:
+                with ModelAttempt(model, entry_id, base_url, source='model_test') as observed:
                     response = client.chat.completions.create(
                         model=model,
                         messages=[{"role": "user", "content": "ping"}],
-                        max_tokens=8,
+                        **connection_probe_limit(entry_id, model, base_url),
                     )
                     usage=getattr(response,'usage',None)
                     observed.returned(usage.model_dump()if hasattr(usage,'model_dump')else usage if isinstance(usage,dict)else None)

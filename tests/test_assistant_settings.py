@@ -243,6 +243,23 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
         self.conversation.rebuild_agent.assert_not_called()
 
+    def test_probe_limit_follows_route_binding_and_official_luna_default(self):
+        from desk_companion.models.model_generation import connection_probe_limit
+        official = 'https://api.openai.com/v1/'
+        self.assertEqual(connection_probe_limit('luna', 'gpt-6-luna', official), {'max_completion_tokens': 8})
+        self.assertEqual(connection_probe_limit('other', 'gpt-6-luna', 'https://example.invalid/v1'), {'max_tokens': 8})
+        with patch('desk_companion.models.model_generation.binding', return_value={'parameter': 'max_completion_tokens'}) as load:
+            self.assertEqual(connection_probe_limit('saved', 'fixture', official), {'max_completion_tokens': 8})
+            load.assert_called_once_with('saved', 'fixture', 'https://api.openai.com/v1/chat/completions')
+
+    def test_test_connection_does_not_reuse_saved_key_for_changed_endpoint(self):
+        saved = self.first_model()
+        with patch.object(model_network, 'openai_client') as connect:
+            for args in ({'id': saved}, {}):
+                result = self.service.test_model(dict(base_url='https://api.openai.com/v1', model='gpt-6-luna', **args))
+                self.assertFalse(result['ok'])
+            connect.assert_not_called()
+
     def test_model_test_reports_validation_and_network_failure_without_persisting(self):
         before = self.snapshot()
         with patch.object(model_network, 'openai_client', side_effect=RuntimeError('fixture offline')) as create:

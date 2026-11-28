@@ -13,7 +13,7 @@ from atlas.llm import ChatOptions, ChatCancelledError, IncompleteResponseError
 
 from desk_companion.observability.pi_observer import PiObserver
 from desk_companion.pi_runtime.bridge import PiBridge, PiCancelled, PiTimeout, PiProcessError
-from desk_companion.pi_runtime.model_mapping import payload_for
+from desk_companion.pi_runtime.model_mapping import apply_chat_parameters, payload_for
 
 
 def legacy_message(message):
@@ -157,6 +157,7 @@ class PiChatAgent:
                     self.discovered_for_turn=self.discovered_for_turn.intersection(allowed)
         self.allowed_tools={tool['function']['name']for tool in call.tools or []}
         if call.options:actual.update(call.options.extra_body or {})
+        apply_chat_parameters(actual, str(self.llm.client.base_url))
         observer.sending(actual)
         self._emit('llm_before_call',model=self.llm.model,messages=call.messages,kwargs=dict(tools=call.tools))
         return dict(payload=actual)

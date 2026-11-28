@@ -30,6 +30,19 @@ def binding(model_id,model,endpoint):
     return value
 
 
+def official_luna(model, base_url):
+    return model == 'gpt-6-luna' and base_url.rstrip('/') == 'https://api.openai.com/v1'
+
+
+def connection_probe_limit(model_id, model, base_url):
+    saved = binding(model_id, model, base_url.rstrip('/') + '/chat/completions')
+    if saved and not saved.get('invalidated'):
+        parameter = saved['parameter']
+    else:
+        parameter = 'max_completion_tokens' if official_luna(model, base_url) else 'max_tokens'
+    return {parameter: 8}
+
+
 def public(model_id):
     from desk_companion.models.model_catalog import require_item
     item=require_item(model_id)
