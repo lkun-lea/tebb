@@ -1164,7 +1164,10 @@ class Collaboration:
                         run.pop('public_answer',None)
                         run['answer_pending'] = True
                     elif kind == 'token': run.pop('answer_pending', None)
-                    elif kind == "llm_start": run["calls"] += 1; run["events"].append("调用模型：" + run["model"])
+                    elif kind == "llm_start":
+                        run["calls"] += 1
+                        model = data.get("model") if isinstance(data, dict) else None
+                        run["events"].append("调用模型：" + model if isinstance(model, str) and model else "正在调用模型")
                     elif kind == "collab_applied": run["applied"] = int(data)
                     elif kind == "usage":
                         run["input_tokens"] += int(data.get("input_tokens", 0)); run["output_tokens"] += int(data.get("output_tokens", 0))

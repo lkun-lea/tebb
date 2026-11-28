@@ -5,6 +5,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import {getCurrentWindow}from'@tauri-apps/api/window';
 import {ReminderInbox,reminderText,type ReminderResponse}from'./client/reminders-state';
 import { listen } from "@tauri-apps/api/event";
+import {accountStorage,accountStorageKey,initializeAccountStorage} from './client/account-storage';
+import './client/ui-foundations.css';
 import { PetFeedback, type FeedbackProgress, type FeedbackRun } from './pet-feedback';
 import {
   BUBBLE_MS,
@@ -76,7 +78,19 @@ function placeBubble(): void {
 function renderBubble(): void {
   bubbleEl.classList.toggle("hidden", !bubble.open);
   bubbleEl.dataset.kind = reminderBubble?'reminder':bubble.error ? "error" : "line";
+  bubbleEl.dataset.execution=String(feedbackBubble);
   bubbleEl.textContent = bubble.text;
+  if(feedbackBubble&&feedback.current){
+    const key=feedback.current.key;
+    const detail=document.createElement('button');
+    detail.type='button';detail.className='pet-trace-link';detail.textContent='运行详情 ›';
+    detail.onclick=event=>{
+      event.stopPropagation();
+      const trace=key.startsWith('task:')?'@'+key.slice(5):key;
+      void invoke('open_settings_window',{section:'monitor',trace}).catch(e=>showError(String(e)));
+    };
+    bubbleEl.append(detail);
+  }
   if (bubble.open) placeBubble();
   menuControls?.refresh();
   void reportHitRegions();
@@ -365,6 +379,12 @@ async function main(): Promise<void> {
   await reportHitRegions();
   if (backend) {
     const info = backend;
+    void rpc<{runtime:{key:string}}>(info,'account_session').then(({runtime})=>{
+      initializeAccountStorage(runtime.key);
+      const apply=()=>document.documentElement.classList.toggle('dark',accountStorage().getItem('tebb.theme')!=='light');
+      apply();
+      window.addEventListener('storage',event=>{if(event.key===accountStorageKey('tebb.theme'))apply()});
+    }).catch(()=>{});
     reminderInbox=new ReminderInbox((method,args)=>rpc<ReminderResponse>(info,method,args),'pet_'+crypto.randomUUID(),
       async()=>isTauri()&&petAvailable&&!(bubble.open&&bubble.error&&!feedbackBubble&&!reminderBubble)&&await getCurrentWindow().isVisible());
     const pollReminders=async()=>{await reminderInbox!.poll();refreshFeedback();};

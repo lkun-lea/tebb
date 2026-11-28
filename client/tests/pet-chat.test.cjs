@@ -20,9 +20,9 @@ test('pet retains real progress after chat closes, reports failure, and respects
   const run={id:'new',state:'running',kind:'chat',title:'hello',events:['正在调用模型']};
   assert.equal(feedback.update(progress,[old,run],true),null);
   assert.match(feedback.update(progress,[old,run],false).text,/正在调用模型/);
-  run.answer='你好，';assert.match(feedback.update(progress,[old,run],false).text,/你好/);
+  run.answer='你好，';assert.match(feedback.update(progress,[old,run],false).text,/正在调用模型/);
   run.state='succeeded';run.answer='你好，有什么可以帮你？';
-  assert.match(feedback.update(progress,[old,run],false).text,/已完成.*hello\n你好/);
+  assert.match(feedback.update(progress,[old,run],false).text,/hello\n已完成\n你好/);
   feedback.dismiss();assert.equal(feedback.update(progress,[old,run],false),null);
   const child={id:'child',parent:'new',state:'running'};
   assert.equal(feedback.update(progress,[old,run,child],false),null);
@@ -62,101 +62,21 @@ test('streaming passes complete Markdown and an appended reveal range, then reta
   assert.equal(text(view.root.findByType('article')),'第一段，新增');assert.equal(view.root.findByType('article').props['data-reveal'],undefined);act(()=>view.unmount());
 });
 
-test('floating chat shares real conversation, scopes drafts, handles IME and closes without cancelling',async()=>{
-  const windowBus=new EventTarget();windowBus.innerWidth=340;windowBus.innerHeight=420;windowBus.setInterval=()=>1;windowBus.clearInterval=()=>{};global.window=windowBus;
-  let callback;const invoked=[],calls=[];
-  const state={revision:1,selected:'a',agents:[{id:'tebb',name:'小光'}],conversations:[{id:'a',title:'会话A'},{id:'b',title:'会话B'}],messages:[],runs:[],models:[]};
-  const {PetChat}=load('pet-chat',{
-    './composer-picker':load('composer-picker'),
-    './api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}: {state};}},
-    './chat-prototype-state':{runActive:r=>r.state==='running',RUN_LABELS:{running:'执行中'}},
-    './stream-text':{StreamText:({text})=>React.createElement('p',null,text)},'./companion-ui':{AppIcon:()=>null},
-    '@tauri-apps/api/core':{isTauri:()=>true,invoke:async(name,args)=>invoked.push({name,args})},
-    '@tauri-apps/api/event':{listen:async(_name,cb)=>{callback=cb;return()=>{};}}
-  });let view;await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1,token:'test'}}));});
-  const input=()=>view.root.findByProps({'aria-label':'浮动聊天消息'});const choice=()=>view.root.findByProps({'aria-label':'当前会话'});
-  await act(async()=>input().props.onChange({target:{value:'@小光 请帮我验证'}}));
-  await act(async()=>input().props.onKeyDown({key:'Enter',nativeEvent:{isComposing:true},preventDefault(){throw Error('IME must not submit');}}));
-  assert.equal(calls.filter(c=>c.method==='collaboration_action').length,0);
-  await act(async()=>choice().props.onChange({target:{value:'b'}}));assert.equal(input().props.value,'');
-  await act(async()=>choice().props.onChange({target:{value:'a'}}));assert.equal(input().props.value,'@小光 请帮我验证');
-  await act(async()=>view.root.findByProps({'aria-label':'关闭对话框'}).props.onClick());
-  assert.deepEqual(invoked.at(-1),{name:'set_pet_chat_visible',args:{visible:false}});
-  await act(async()=>callback({payload:false}));await act(async()=>callback({payload:true}));
-  assert.equal(input().props.value,'@小光 请帮我验证');
-  await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
-  const sent=calls.find(c=>c.method==='collaboration_action').args.action;assert.equal(sent.conversation,'a');assert.equal(sent.mode,'auto');assert(sent.request_id);
-  assert(!calls.some(c=>c.args?.action?.type==='cancel'));assert.equal(input().props.value,'');await act(async()=>view.unmount());
+test('newer root keeps priority over a late older failure and replaces its own stage with its reason',()=>{
+ const file=path.resolve(__dirname,'../src/pet-feedback.ts'),mod=new Module(file,module);
+ mod._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,file);
+ const f=new mod.exports.PetFeedback(),p={enabled:true};
+ const a={id:'a',state:'running',created:12},b={id:'b',title:'验收日程',state:'running',created:12,events:['调用模型：test-local','正在读取日程']};
+ assert.match(f.update(p,[a,b],false).text,/test-local/);a.state='failed';a.error='旧轮失败';
+ assert.equal(f.update(p,[a,b],false).key,'collab:b');b.state='failed';b.error='日程连接断开';b.answer='旧输出';
+ const end=f.update(p,[a,b],false);assert.equal(end.working,false);assert.match(end.text,/日程连接断开/);assert(!end.text.includes('旧输出'));
 });
 
-test('floating @ and / select authorized members and skills, and pin changes reflect actual native results',async()=>{
-  const bus=new EventTarget();bus.setInterval=()=>1;bus.clearInterval=()=>{};global.window=bus;
-  let failPin=false;const calls=[];
-  const state={revision:1,selected:'a',agents:[{id:'tebb',name:'小光'},{id:'coder',name:'码可'}],
-    conversations:[{id:'a',title:'会话A',members:['tebb']}],messages:[],runs:[],models:[],skills:[{id:'github-summary',description:'整理项目近况'}]};
-  const {PetChat}=load('pet-chat',{
-    './composer-picker':load('composer-picker'),
-    './api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{calls.push({method,args});return method==='load_task_progress'?{enabled:true}:{state};}},
-    './chat-prototype-state':{runActive:()=>false,RUN_LABELS:{}},'./stream-text':{StreamText:()=>null},'./companion-ui':{AppIcon:()=>null},
-    '@tauri-apps/api/core':{isTauri:()=>true,invoke:async(name,args)=>{
-      if(name==='get_pet_chat_state')return {visible:true,pinned:false};
-      if(name==='set_pet_chat_pinned'){if(failPin)throw Error('pin failed');return args.pinned;}
-    }},'@tauri-apps/api/event':{listen:async()=>()=>{}}
-  });let view;await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1,token:'test'}}));});
-  const input=()=>view.root.findByProps({'aria-label':'浮动聊天消息'});
-  const key=value=>input().props.onKeyDown({key:value,nativeEvent:{},preventDefault(){}});
-  await act(async()=>input().props.onChange({target:{value:'@',selectionStart:1}}));
-  assert.equal(view.root.findAllByProps({role:'option'}).length,1);
-  await act(async()=>key('Enter'));assert.equal(input().props.value,'@小光 ');assert.equal(calls.filter(c=>c.method==='collaboration_action').length,0);
-  await act(async()=>input().props.onChange({target:{value:'@小光 /项目',selectionStart:7}}));
-  assert(text(view.root.findByProps({role:'listbox'})).includes('github-summary'));
-  await act(async()=>key('Enter'));assert.equal(input().props.value,'@小光 ');
-  assert.equal(view.root.findByProps({'aria-label':'移除技能 github-summary'}).type,'button');
-  await act(async()=>input().props.onChange({target:{value:'@小光 整理项目近况',selectionStart:11}}));
-  await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
-  assert.deepEqual(calls.find(c=>c.method==='collaboration_action').args.action.skills,['github-summary']);
-  await act(async()=>view.root.findByProps({'aria-label':'置顶对话框'}).props.onClick());
-  assert.equal(view.root.findByProps({'aria-label':'取消置顶'}).props['aria-pressed'],true);
-  failPin=true;await act(async()=>view.root.findByProps({'aria-label':'取消置顶'}).props.onClick());
-  assert.equal(view.root.findByProps({'aria-label':'取消置顶'}).props['aria-pressed'],true);
-  assert(text(view.root.findByProps({role:'alert'})).includes('pin failed'));
-  await act(async()=>view.unmount());
-});
-
-test('floating toolbar creates a new conversation without cancelling work, preserves draft, and deduplicates a retry',async()=>{
-  const bus=new EventTarget();bus.setInterval=()=>1;bus.clearInterval=()=>{};global.window=bus;
-  const calls=[];let failed=true;
-  let state={revision:1,selected:'old',agents:[{id:'tebb',name:'小缇'}],conversations:[{id:'old',title:'旧对话',coordinator:'tebb'}],messages:[],runs:[],models:[]};
-  const {PetChat}=load('pet-chat',{
-    './composer-picker':load('composer-picker'),'./api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{
-      if(method==='load_task_progress')return {enabled:true};
-      if(method==='collaboration_action'){
-        calls.push(args.action);
-        if(args.action.type==='new_chat'){if(failed){failed=false;throw Error('reply lost');}state={...state,revision:2,selected:'fresh',conversations:[...state.conversations,{id:'fresh',title:'新对话',coordinator:'tebb'}]};}
-      }return {state};}},
-    './chat-prototype-state':{runActive:()=>false,RUN_LABELS:{}},'./stream-text':{StreamText:()=>null},'./companion-ui':load('companion-ui'),
-    '@tauri-apps/api/core':{isTauri:()=>false,invoke:async()=>{}},'@tauri-apps/api/event':{listen:async()=>()=>{}}
-  });let view;await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1,token:'test'}}));});
-  const input=()=>view.root.findByProps({'aria-label':'浮动聊天消息'});
-  await act(async()=>input().props.onChange({target:{value:'保留旧草稿',selectionStart:5}}));
-  const toolbar=view.root.findByProps({role:'toolbar'});assert.equal(toolbar.findAllByType('button').length,4);
-  assert(toolbar.findAllByType('button').every(button=>button.findAllByType('svg').length===1));
-  await act(async()=>view.root.findByProps({'aria-label':'创建新对话'}).props.onClick());
-  await act(async()=>view.root.findByProps({'aria-label':'创建新对话'}).props.onClick());
-  assert.equal(calls[0].request_id,calls[1].request_id);assert.equal(calls[0].agent_id,'tebb');assert.equal(calls[0].conversation,'old');
-  assert.equal(view.root.findByProps({'aria-label':'当前会话'}).props.value,'fresh');assert.equal(input().props.value,'');
-  await act(async()=>view.root.findByProps({'aria-label':'当前会话'}).props.onChange({target:{value:'old'}}));
-  assert.equal(input().props.value,'保留旧草稿');assert(!calls.some(a=>a.type==='cancel'));await act(async()=>view.unmount());
-});
-
-
-test('floating clarification resumes the original root instead of creating another task',async()=>{
-  const bus=new EventTarget();bus.setInterval=()=>1;bus.clearInterval=()=>{};global.window=bus;const calls=[];
-  const state={revision:1,selected:'dm',agents:[{id:'tebb',name:'tebb'}],conversations:[{id:'dm',title:'对话',coordinator:'tebb'}],messages:[{id:'question',conversation:'dm',sender:'tebb',run:'root',text:'请说明目标'}],runs:[{id:'root',conversation:'dm',agent:'tebb',kind:'route',state:'needs_input',answer:'请说明目标',events:[],updates:[],calls:1}],models:[]};
-  const {PetChat}=load('pet-chat',{'./stream-text':{StreamText:({text})=>React.createElement('p',null,text)},'./api':{watchCollaboration:()=>()=>{},rpc:async(_i,method,args)=>{if(method==='load_task_progress')return {enabled:true};if(method==='collaboration_action')calls.push(args.action);return {state};}},'@tauri-apps/api/core':{isTauri:()=>false,invoke:async()=>false},'@tauri-apps/api/event':{listen:async()=>()=>{}}});let view;
-  await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1,token:'test'}}));});
-  const supplement=view.root.findAllByType('button').find(node=>text(node)==='改用文字补充');assert(supplement);
-  await act(async()=>supplement.props.onClick());await act(async()=>view.root.findByProps({'aria-label':'浮动聊天消息'}).props.onChange({target:{value:'把Hello改小写',selectionStart:10}}));
-  await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
-  assert.equal(calls[0].run,'root');assert.equal(calls[0].conversation,'dm');await act(async()=>view.unmount());
+test('pet board ranks pending answer, near appointment and selected project, deduplicating task identities',()=>{
+ const {petRows}=load('pet-board');const now=new Date('2026-11-29T10:00:00');
+ const pref={time:'20:00',focus:'both',keywords:'评审'};
+ const b={day:'2026-11-29',preferences:{morning:pref,evening:pref,project:'p'},projects:[{id:'p',name:'研发'}],questions:[{run:'q',title:'时长',prompt:'评审时长？'}],events:[{source:'q',time:+now/1000,title:'重复'},{source:'r',time:+now/1000,title:'准备议程'}]};
+ const e={calendar_id:'c',event_id:'e',summary:'评审',start:'2026-11-29T11:00:00',end:'2026-11-29T12:00:00'};
+ assert.deepEqual(petRows(b,[e],now).map(r=>r.id),['q','calendar:c:e','r']);b.preferences.project='';
+ assert.equal(petRows(b,[e],now).length,2);b.questions=[];assert.deepEqual(petRows(b,[],now),[]);
 });

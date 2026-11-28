@@ -446,6 +446,10 @@ export function App() {
   useEffect(() => {
     if (!isTauri()) return;
     let stop = () => {};
+    const petJournal=listen<ScheduleTarget>("pet-open-journal",({payload})=>{
+      if(payload?.event_id){setCalendarTarget(payload);openBoardRef.current(false);}
+      else setPane('today');
+    });
     const collaborationListener=listen("open-collaboration",()=>setPane("collaboration"));
     void listen("open-today", () => {
       setCalendarTarget({view:'today'});
@@ -453,7 +457,7 @@ export function App() {
     }).then((unlisten) => {
       stop = unlisten;
     });
-    return () => {stop();void collaborationListener.then(dispose=>dispose());};
+    return () => {stop();void petJournal.then(dispose=>dispose());void collaborationListener.then(dispose=>dispose());};
   }, []);
 
   async function loadThread(backend: BackendInfo) {

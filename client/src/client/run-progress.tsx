@@ -22,6 +22,8 @@ export function visibleChatMessage(message: DemoMessage, runs: DemoRun[]) {
 export function executionMessage(message:DemoMessage,runs:DemoRun[]){
   if(message.sender==='user'||!message.run)return message.text;
   const run=runs.find(r=>r.id===message.run);
+  const outcome=run?.chain?.state||run?.state;
+  if(run&&outcome&&['failed','timed_out','interrupted'].includes(outcome))return run.chain?.error||run.error||message.text;
   if(run?.kind==='route'&&runs.some(child=>child.parent===run.id))return run.chain?.answer||runs.filter(child=>child.parent===run.id).at(-1)?.answer||'';
   return run?.chain?.answer||message.text;
 }
@@ -33,6 +35,11 @@ export function DraftNotice({run}:{run?:DemoRun}) {
 
 export function runProgressText(run: DemoRun) {
   const state=run.chain?.state||run.state,events=run.events||[];
+  if(['failed','timed_out','interrupted'].includes(state)){
+    const error=run.chain?.error||run.error;
+    const step=events.filter(e=>e!==error&&!e.includes(error||'\u0000')&&!/^(失败|错误|error[:：])/i.test(e)).at(-1);
+    return step?'执行记录 · '+progressText(step):'';
+  }
   return state==='needs_input'?'待补充　尚未开始执行':runActive({...run,state}) ? progressText(run.status || events.at(-1) || '正在准备…') : run.chain?.error || run.error || `已结束　${events.length} 条执行记录`;
 }
 

@@ -425,6 +425,8 @@ class Bridge:
         return {"ok": True, "enabled": True, "task": {"id": task["id"], "status": status["data"] if status else "",
                 "state": task["state"], "text": task["text"][:200], "answer": task["answer"], "events": visible[-120:],
                 "created": task["created"], "error": task["error"],
+                "observed_model": next((e["data"]["model"] for e in reversed(events)
+                                        if e["kind"] == "llm_start" and isinstance(e["data"], dict) and e["data"].get("model")), ""),
                 "seq": events[-1]["seq"] if events else 0}}
 
     def start_feishu_agent(self) -> dict:

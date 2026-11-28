@@ -60,7 +60,7 @@ pub async fn set_pet_chat_visible(app: AppHandle, visible: bool) -> Result<(),St
     let chat=if let Some(chat)=app.get_webview_window(LABEL) { chat } else {
         let dev_url=app.config().build.dev_url.clone();
         let chat=WebviewWindowBuilder::new(&app,LABEL,WebviewUrl::App("pet-chat.html".into()))
-            .title("tebb 对话").inner_size(340.,420.).min_inner_size(300.,340.)
+            .title("tebb 今日看板").inner_size(340.,420.).min_inner_size(300.,340.)
             .decorations(false).always_on_top(PINNED.load(Ordering::Relaxed)).skip_taskbar(true).visible(false)
             // This local credential-bearing webview must never navigate into remote content.
             .on_navigation(move|url|url.path()=="/pet-chat.html" && (

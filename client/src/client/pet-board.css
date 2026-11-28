@@ -1,0 +1,6 @@
+.pet-today{box-sizing:border-box;height:100dvh;display:flex;flex-direction:column;gap:10px;padding:18px;background:hsl(var(--background));color:hsl(var(--foreground));font-family:var(--ui-font-sans),sans-serif}
+.pet-today header,.pet-today footer>div{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pet-today h1{margin:0;font-size:24px;line-height:1.2}.pet-today time,.pet-today small{font-size:12px;color:hsl(var(--muted-foreground))}
+.pet-today button{color:inherit;border-radius:10px;padding:5px 9px}.pet-today button:focus-visible{outline:2px solid hsl(var(--primary))}
+.pet-today section{display:grid;gap:6px}.pet-today .pet-today-row{background:hsl(var(--card));text-align:left;padding:9px 12px;display:grid;gap:2px}.pet-today-row strong{font-weight:550;font-size:15px;line-height:1.35;overflow-wrap:anywhere}.pet-today footer{margin-top:auto}.pet-today footer>div button:last-child{background:hsl(var(--secondary))}
+@media(max-height:365px){.pet-today{padding:10px 14px;gap:5px}.pet-today .pet-today-row{padding:4px 9px}.pet-today h1{font-size:20px}}
