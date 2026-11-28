@@ -78,3 +78,9 @@ PC 打开会话时先显示该账号及会话的本机缓存。SSE 历史回放�
 个人 ECS 已增设 `GET/POST /cloud/v1/device-snapshot`，复用聊天服务的 Supabase 账号校验。服务仅在内存保留每台设备两个方向的最新密文，45 秒自动清除。密钥在用户批准配对时派生，AES-GCM 将设备与方向绑定；ECS 不持有解密密钥。Windows 核对账号、设备、新鲜度和原问题版本后才执行改期或回复，手机以 Windows 业务回执判断成功。重新配对取得新密钥。
 
 本次只为线上现有 Python 服务安装中转模块、注册路由，并在原有 nginx 站点添加单一路径。配置检查、重启后健康检查以及匿名拒绝均已验证。使用已登录的真实账号测试了随机设备发布与取回、授权原文、原运行回复、重复请求、撤卡和过期清理。执行命令及范围见[移动端路线](../docs/MOBILE_AGENT_ROADMAP.md)。
+
+## 访客画像（#352）
+
+`deploy/tebb-portrait.service` 以独立动态用户运行 Uvicorn，监听回环端口 8767。公网 Nginx 只转发上述确切路径，正文上限 512 字节。单进程最多同时生成一次，两次接纳至少间隔 15 秒，繁忙返回 429。后台只调用同机 Ollama，输出约束在已选择标签允许的表达中。服务不读账号库，不创建任务或调用工具。检查服务使用 `systemctl is-active tebb-portrait nginx`。
+
+运行 `uv run --locked python -m unittest tests.test_guest_portrait` 验证请求字段和限流。

@@ -1,0 +1,16 @@
+[Unit]
+Description=tebb guest portrait generation
+After=network.target
+
+[Service]
+DynamicUser=yes
+WorkingDirectory=/opt/tebb
+ExecStart=/opt/tebb/.venv/bin/python -m uvicorn desk_companion.local_api.guest_portrait:app --host 127.0.0.1 --port 8767 --no-access-log
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
