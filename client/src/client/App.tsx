@@ -48,7 +48,6 @@ import { WikiConnectionSettings } from "./video";
 import { Markdown, MdLink, openableHref, PlainLinks } from "./Markdown";
 import { DEFAULT_SAMPLING, samplingFromInputs, EFFORTS, type Sampling } from "./sampling";
 import { startupFailed, startupReady, startupStatus } from "./startup";
-import { type SetupStatus } from "./onboarding";
 import { ReleaseIntro, useReleaseIntro } from "./release";
 import {
   backendInfo,
@@ -103,7 +102,6 @@ type Thread = {
 
 
 export function App() {
-  const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [dark, setDark] = useState(() => { try { return accountStorage().getItem("tebb.theme") === "dark"; } catch { return false; } });
   const [sidebarState, setSidebarState] = useState({ open: false, available: false });
   useEffect(()=>{const open=(event:Event)=>{openSettings('personalization',(event as CustomEvent<{id:string}>).detail?.id);};window.addEventListener('tebb-open-personalization',open);return()=>window.removeEventListener('tebb-open-personalization',open);},[]);
@@ -121,7 +119,7 @@ export function App() {
   const [developerMode, setDeveloperMode] = useState(readDeveloperMode);
   const [storedBg] = useState(() => readStoredBackground());
   const [bgUrl, setBgUrl] = useState(storedBg.url);
-  const releaseIntro = useReleaseIntro(!!setupStatus && !setupStatus.show && !debugKind);
+
   const [modelItems, setModelItems] = useState<ModelEntry[]>(() => (debugKind ? MODELS_FIXTURE.items : []));
   const [activeModelId, setActiveModelId] = useState(() => (debugKind ? MODELS_FIXTURE.active : ""));
   const [pane, setPane] = useState<Pane>(
@@ -132,6 +130,7 @@ export function App() {
         : debugKind ? "chat" : "today",
   );
   const [info, setInfo] = useState<BackendInfo | null>(null);
+  const releaseIntro = useReleaseIntro(!!info && !debugKind);
   const [workspaceEmail,setWorkspaceEmail] = useState("");
   useEffect(()=>{
     let active=true;
@@ -517,8 +516,6 @@ export function App() {
         if (!models.ok) throw new Error(models.error || "模型列表读取失败。");
         setModelItems(models.items);
         setActiveModelId(models.active);
-        const setup = await rpc<SetupStatus>(backend, "load_onboarding");
-        setSetupStatus(setup);
         startupReady();
       })
       .catch((err: unknown) => {

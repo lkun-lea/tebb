@@ -28,7 +28,8 @@ const panes={
   './agent-debug':{AgentDebugDialog:() => null},
   './status':{StatusGrid:() => null,loadingStatuses:() => [],statusError:() => null,statusFromPayload:() => null,STATUS_KINDS:[]},
   './companion-ui':{readDeveloperMode:()=>false},
-  './onboarding':{SetupGuide:() => null},
+  './pet-settings':{PetSettings:()=>null},
+  './tool-monitor':{ToolMonitorPane:() => null},
   './personalization':{PersonalizationPane:() => null},
 };
 function settingsApp({debugKind=null,rpc,backendInfo}={}){

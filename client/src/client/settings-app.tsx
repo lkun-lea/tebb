@@ -1,5 +1,5 @@
 import {LoadingText} from "./loading-text";
-import {PageStack,usePageActive} from "./page-stack";
+import {PageStack} from "./page-stack";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emitTo } from "@tauri-apps/api/event";
@@ -15,8 +15,6 @@ import {
   storeBackground,
 } from "./settings";
 import { useFeishuConnection, useModelSettings } from "./settings-state";
-import { SetupGuide, type SetupStatus } from "./onboarding";
-import type { ModelSetupState } from "./onboarding-state";
 import { readDeveloperMode } from "./companion-ui";
 import { useSyncExternalStore } from "react";
 import { AccountsPane } from "./accounts";
@@ -26,7 +24,7 @@ import { PersonalUsagePane } from "./usage-center";
 import { ReleaseIntro, ReleaseSettings, useReleaseIntro } from "./release";
 import { ModelNetworkSettings } from "./model-network";
 import { SearchSettings } from "./search-settings";
-import { FeishuPane, feishuLoggedIn } from "./feishu";
+import { FeishuPane } from "./feishu";
 import { FeishuAgentPane } from "./feishu-agent";
 import { VideoLogin, VideoSettings } from "./video";
 import { loadingStatuses, statusError, statusFromPayload, STATUS_KINDS, type StatusView } from "./status";
@@ -53,7 +51,7 @@ type NavItem = { id: SettingsSection; label: string; keywords: string };
 const SETTINGS_NAV: { id: string; label: string; items: NavItem[] }[] = [
   { id: "workspace", label: "", items: [
     { id: "account", label: "账号与空间", keywords: "账号 账户 数据目录 空间" },
-    { id: "assistant", label: "模型与人设", keywords: "模型 api base url key 人设 提示词 引导" },
+    { id: "assistant", label: "模型与人设", keywords: "模型 api base url key 人设 提示词" },
     { id: "connections", label: "外部连接", keywords: "飞书 github 网络代理 搜索 视频 登录 连接" },
     { id: "tools", label: "工具", keywords: "工具 集合 加载 调用 失败 监控" },
     { id: "monitor", label: "运行监控", keywords: "失败 时间线 运行 任务" },
@@ -131,10 +129,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
   const [cropSrc, setCropSrc] = useState("");
   const [cropError, setCropError] = useState("");
   const [cropFrame, setCropFrame] = useState({ w: 0, h: 0 });
-  const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
-  const pageActive = usePageActive();
-  const [showGuide, setShowGuide] = useState(false);
-  const [guideModel, setGuideModel] = useState<ModelSetupState | null>(null);
   const [statuses, setStatuses] = useState<StatusView[]>([]);
   const [bootError, setBootError] = useState("");
   const [githubNotice,setGithubNotice]=useState('');
@@ -153,7 +147,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
   const [monitorView,setMonitorView]=useState<'history'|'collaboration'|'channels'>('history');
   const [evalTab,setEvalTab]=useState('debug');
   function openModelCalls(){setEvalTab("debug");setSection("evaluation");}
-  const releaseIntro = useReleaseIntro(!target && !!setupStatus && !setupStatus.show && !showGuide && !cropSrc && !debugKind);
+  const releaseIntro = useReleaseIntro(!target && !!info && !cropSrc && !debugKind);
 
   const models = useModelSettings({ info, debug });
   useEffect(()=>{if(target)window.dispatchEvent(new Event("tebb-models-changed"));},[models.modelItems]);
@@ -201,7 +195,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
     }
   }, [feishuState.feishu]);
 
-  // 启动：连接本地后端，读取引导状态；首次使用自动打开引导。
+  // 连接本地后端。
   useEffect(() => {
     if (debugKind) return;
     let gone = false;
@@ -210,10 +204,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
         const backend = await backendInfo();
         if (gone) return;
         setInfo(backend);
-        const setup = await rpc<SetupStatus>(backend, "load_onboarding");
-        if (gone) return;
-        setSetupStatus(setup);
-        setShowGuide(setup.show);
       } catch (err) {
         if (!gone) setBootError(String(err));
       }
@@ -310,22 +300,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
     setCropSrc("");
   }
 
-  function openGuide(replay = false) {
-    const load = async () => {
-      if (!info) {
-        setShowGuide(true);
-        return;
-      }
-      try {
-        const setup = await rpc<SetupStatus>(info, "load_onboarding");
-        setSetupStatus(replay ? { ...setup, step: "model" } : setup);
-        setShowGuide(true);
-      } catch (err) {
-        setBgError(String(err));
-      }
-    };
-    void load();
-  }
 
   const nav = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -389,7 +363,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
                   className="settings-nav-item"
                   data-settings-nav-item={item.id}
                   aria-current={section === item.id ? "page" : undefined}
-                  onClick={() => {setShowGuide(false);setSection(item.id);}}
+                  onClick={() => {setSection(item.id);}}
                 >
                   {(() => {const Icon=navIcons[item.id];return <Icon size={17} aria-hidden="true"/>})()}{item.label}
                 </button>
@@ -407,25 +381,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
             <h1 data-tauri-drag-region>{meta.title}</h1>
             <p data-tauri-drag-region>{meta.blurb}</p>
           </header>
-      {pageActive && showGuide && info && setupStatus ? (
-        <SetupGuide
-          info={info}
-          status={setupStatus}
-          modelState={guideModel}
-          configured={!!models.modelItems.length}
-          feishuConnected={feishuLoggedIn(feishuState.feishu)} modelBusy={models.settingsBusy || feishuState.feishuBusy}
-          onClose={(completed) => {
-            setShowGuide(false);
-            if (completed) setSetupStatus(current => current ? { ...current, show: false } : current);
-          }}
-          onNavigate={(target) => {
-            if (target === "settings") setSection("assistant");
-            else if (target === "feishu") { setSection("connections"); void feishuState.ensureFeishu(); }
-            else if(target==="collaboration") (onOpenChat || focusMainWindow)();
-            else if (target==="terminal" && pageActive) window.dispatchEvent(new CustomEvent("desk-open-preview",{detail:{kind:"terminal"}}));
-          }}
-        />
-      ) : null}
 
           {bootError ? <p role="alert" className="text-sm text-destructive">连不上本地助手：{bootError}。恢复：重启客户端后重试。</p> : null}
 
@@ -455,7 +410,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
           <div hidden={!["assistant", "appearance"].includes(section)}>
             <SettingsPane
               section={section === "appearance" ? "appearance" : "assistant"}
-              onOpenGuide={(replay = false) => openGuide(replay)}
               model={models.modelForm}
               models={models.modelItems}
               editingId={models.editingModelId}
@@ -474,7 +428,6 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
               onClearBackground={() => { clearStoredBackground(); setBgUrl(""); setBgError(""); }}
               onSave={(draft) => void models.saveSettings(draft)}
               onTest={models.testSettings}
-              onSetupChange={setGuideModel}
               onEdit={models.editModel}
               onDelete={(id) => void models.deleteModel(id)}
               onSavePersona={(text) => void models.savePersona(text)}
@@ -516,7 +469,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
       </main>
 
 
-      {releaseIntro.open && !showGuide && !cropSrc ? (
+      {releaseIntro.open && !cropSrc ? (
         <ReleaseIntro daily={releaseIntro.daily} onDaily={releaseIntro.setDaily} onClose={releaseIntro.close} error={releaseIntro.preferenceError} />
       ) : null}
 

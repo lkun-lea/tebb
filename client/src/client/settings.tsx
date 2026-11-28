@@ -1,7 +1,6 @@
 import {ReceiptNotice} from './toast';
 import {accountStorage} from './account-storage';
 import { useEffect, useRef, useState } from "react";
-import type { ModelSetupState } from './onboarding-state';
 
 export const BG_STORAGE_KEY = "desk-companion-bg";
 const BG_MAX = 2_000_000;
@@ -188,17 +187,13 @@ export function SettingsPane(props: {
   onClearBackground: () => void;
   onSave: (draft: { id: string; base_url: string; model: string; api_key: string }) => void;
   onTest: (draft: { base_url: string; model: string; api_key: string }) => Promise<boolean>;
-  onSetupChange?: (state: ModelSetupState) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSavePersona: (persona: string) => void;
-  onOpenGuide: (replay?: boolean) => void;
 }) {
   const [baseUrl, setBaseUrl] = useState(props.model?.base_url || "");
   const [modelName, setModelName] = useState(props.model?.model || "");
   const [apiKey, setApiKey] = useState("");
-  const [tested, setTested] = useState(false);
-  const revision = useRef(0);
   const [assistantTab,setAssistantTab] = useState("model");
   const [persona, setPersona] = useState(props.persona);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -206,27 +201,13 @@ export function SettingsPane(props: {
   useEffect(() => {
     setBaseUrl(props.model?.base_url || "");
     setModelName(props.model?.model || "");
-    revision.current += 1; setTested(false);
   }, [props.model?.base_url, props.model?.model]);
 
   useEffect(() => {
     setApiKey("");
-    revision.current += 1; setTested(false);
   }, [props.keyEpoch]);
 
-  const saved = !!props.editingId && !!props.model?.has_key && !apiKey.trim()
-    && baseUrl.trim() === props.model?.base_url && modelName.trim() === props.model?.model;
-  useEffect(() => {
-    props.onSetupChange?.({ hasBase: !!baseUrl.trim(), hasModel: !!modelName.trim(),
-      hasKey: !!apiKey.trim() || !!props.model?.has_key, saved, tested, busy: props.busy, error: props.modelError });
-  }, [baseUrl, modelName, apiKey, props.model?.has_key, saved, tested, props.busy, props.modelError, props.onSetupChange]);
-  function changed(update: () => void) { revision.current += 1; setTested(false); update(); }
-  async function testConnection() {
-    const started = revision.current;
-    setTested(false);
-    const passed = await props.onTest({ base_url: baseUrl, model: modelName, api_key: apiKey });
-    if (started === revision.current) setTested(passed);
-  }
+  function testConnection() { return props.onTest({ base_url: baseUrl, model: modelName, api_key: apiKey }); }
 
   useEffect(() => {
     setPersona(props.persona);
@@ -266,7 +247,7 @@ export function SettingsPane(props: {
             placeholder="https://api.example.com/v1"
             value={baseUrl}
             disabled={props.busy}
-            onChange={(ev) => changed(() => setBaseUrl(ev.target.value))}
+            onChange={(ev) => setBaseUrl(ev.target.value)}
             className="border border-border bg-background px-3 py-2"
             autoComplete="off"
           />
@@ -280,7 +261,7 @@ export function SettingsPane(props: {
             placeholder="控制台中的准确模型 ID"
             value={modelName}
             disabled={props.busy}
-            onChange={(ev) => changed(() => setModelName(ev.target.value))}
+            onChange={(ev) => setModelName(ev.target.value)}
             className="border border-border bg-background px-3 py-2"
             autoComplete="off"
           />
@@ -296,7 +277,7 @@ export function SettingsPane(props: {
             type="password"
             value={apiKey}
             disabled={props.busy}
-            onChange={(ev) => changed(() => setApiKey(ev.target.value))}
+            onChange={(ev) => setApiKey(ev.target.value)}
             placeholder={props.model?.has_key ? "已保存，留空则不改" : "必填"}
             className="border border-border bg-background px-3 py-2"
             autoComplete="off"
@@ -384,10 +365,6 @@ export function SettingsPane(props: {
           </p>
         ) : null}
       </section>
-      <details hidden={props.section==="appearance" || assistantTab!=="model"} className="setup-guide">
-        <summary>设置引导</summary>
-        <div className="flex flex-wrap gap-2"><button className="desk-btn" onClick={()=>props.onOpenGuide(false)}>继续引导</button><button className="desk-btn" onClick={()=>props.onOpenGuide(true)}>重新开始</button></div>
-      </details>
       <section hidden={props.section==='assistant'} className="settings-card">
         <h2>主题模式</h2>
         <div className="theme-choices">{[false,true].map(dark=><button key={String(dark)} type="button" data-theme aria-pressed={props.dark===dark} onClick={()=>{if(props.dark!==dark)props.onToggleTheme()}}><i data-dark={dark} aria-hidden="true"/>{dark?'深色':'浅色'}</button>)}</div>
