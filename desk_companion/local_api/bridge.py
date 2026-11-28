@@ -218,7 +218,7 @@ class Bridge:
         if session.startswith("project:"):
             from desk_companion.projects import project_workspace as project
             cfg = project.load()
-            if session != "project:"+cfg["primary"] or workspace_revision != cfg["revision"]: raise ValueError("工作目录已切换，请重新打开终端")
+            if session != "project:"+cfg["primary"] or workspace_revision != cfg["revision"]: raise ValueError("工作目录已切换，请重新确认项目和权限")
             with project.lease(cfg["primary"]):
                 return manager().start(command, session, cwd, timeout, owner, task_id, request_id, project=cfg)
         return manager().start(command, session, cwd, timeout, owner, task_id, request_id)

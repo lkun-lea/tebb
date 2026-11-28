@@ -626,8 +626,8 @@ test('workspace opens today beside chat and keeps its draft mounted under modal 
   assert.equal(root().props['data-pane'], 'today');
   await act(async () => sideProps.onLink('https://example.org/source'));
   assert.equal(liveProps.composeRequest.text, 'https://example.org/source');
-  await act(async () => sideProps.onTerminalDraft('可引用的终端输出'));
-  assert.equal(liveProps.composeRequest.text, '可引用的终端输出');
+  await act(async () => sideProps.onProjectQuote('可引用的项目文件'));
+  assert.equal(liveProps.composeRequest.text, '可引用的项目文件');
   assert.equal(root().props['data-pane'], 'collaboration');
   await act(async () => button(view, '设置').props.onClick({currentTarget:{closest:()=>({open:true})}}));
   assert.deepEqual(opened, []);

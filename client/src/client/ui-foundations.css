@@ -88,7 +88,7 @@ button, input, textarea, select { font-weight: inherit; }
 b, strong { font-weight: var(--ui-weight-600); }
 h1, h2, h3, h4, h5, h6 { font-weight: var(--ui-weight-500); text-wrap: balance; }
 p, li, dd, .md, .note-reader { text-wrap: pretty; }
-pre, code, .terminal-screen { text-wrap: initial; }
+pre, code { text-wrap: initial; }
 /* Inline text only; flex/grid icons keep their own alignment. */
 .ui-inline-icon { display: inline-block; vertical-align: -0.125em; }
 /* Shared field appearance, local geometry. High specificity defeats page focus rules. */

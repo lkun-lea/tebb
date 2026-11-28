@@ -4,10 +4,10 @@ export function versionTap(previous: { count: number; time: number }, now: numbe
   return { count: count >= 5 ? 0 : count, time: now, open: count >= 5 };
 }
 
-export function TopToolbar({ title, model, connected, busy, onNewChat, onFile, onFolder, onTerminal, sidebarOpen, sidebarAvailable, onSidebarToggle }: {
+export function TopToolbar({ title, model, connected, busy, onNewChat, onFile, onFolder, sidebarOpen, sidebarAvailable, onSidebarToggle }: {
   title: string; model: string; connected: boolean; busy: boolean;
   onNewChat?: () => void;
-  onFile?: () => void; onFolder?: () => void; onTerminal?: () => void;
+  onFile?: () => void; onFolder?: () => void;
   sidebarOpen?: boolean; sidebarAvailable?: boolean; onSidebarToggle?: () => void;
 }) {
   return <header data-top-toolbar className="flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border bg-card/85 px-4 py-1">
@@ -18,7 +18,6 @@ export function TopToolbar({ title, model, connected, busy, onNewChat, onFile, o
     <nav aria-label="顶部工具栏" className="flex items-center gap-1 text-xs">
       {onSidebarToggle && <button className="desk-menu-item" disabled={!sidebarAvailable} aria-expanded={!!sidebarOpen} aria-label={sidebarOpen ? '收起侧栏' : '打开侧栏'} onClick={onSidebarToggle}>{sidebarOpen ? '收起侧栏' : '打开侧栏'}</button>}
       {onNewChat && <button className="desk-menu-item" onClick={onNewChat}>新对话</button>}
-      <button className="desk-menu-item" disabled={!connected} onClick={onTerminal}>终端</button>
       <button className="desk-menu-item" disabled={!connected} onClick={onFile}>文件</button>
       <button className="desk-menu-item" disabled={!connected} onClick={onFolder} title="选择本机项目文件夹，打开文件树与权限设置">打开文件夹</button>
 

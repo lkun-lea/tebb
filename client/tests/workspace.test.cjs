@@ -25,7 +25,7 @@ const renderedText = node => typeof node === 'string' ? node : (node.children ||
 const button = (view, label) => view.root.findAllByType('button').find(b => renderedText(b) === label);
 const source = { id: 's1', name: '技术.md', kind: 'file', path: 'E:/fixture/技术.md', chars: 12 };
 const markdown = { Markdown: ({ text }) => React.createElement('article', { 'data-markdown': '' }, text), openableHref: url => /^https?:\/\//.test(url || '') ? url : null };
-const mocks = rpc => ({ './api': { rpc }, './Markdown': markdown, './terminal': { TerminalPane: () => React.createElement('section', { 'data-terminal': '' }, '终端') }, '@tauri-apps/api/core': { isTauri: () => false }, '@tauri-apps/api/event': {} });
+const mocks = rpc => ({ './api': { rpc }, './Markdown': markdown, '@tauri-apps/api/core': { isTauri: () => false }, '@tauri-apps/api/event': {} });
 const workspaceProps = { info: { port: 1, token: 'test' }, enabled: true, attachments: [], onAttach() {}, onDetach() {}, onLink() {}, onRequest() {}, children: React.createElement('textarea', { defaultValue: '保留草稿' }) };
 
 test('same quoted text from different source versions keeps separate preview identities', () => {
@@ -96,10 +96,10 @@ test('citations from different answers do not share stale source tabs', () => {
 
 test('sidebar reports toolbar state and never overlays the conversation with a reopen button', async()=>{
   environment();const states=[];
-  const {SideWorkspace,openTerminal,togglePreview}=load('side-workspace',mocks());let view;
+  const {SideWorkspace,previewQuote,togglePreview}=load('side-workspace',mocks());let view;
   await act(async()=>{view=create(React.createElement(SideWorkspace,{...workspaceProps,onVisibilityChange:value=>states.push(value)}));});
   assert.deepEqual(states.at(-1),{open:false,available:false});
-  await act(async()=>openTerminal());assert.deepEqual(states.at(-1),{open:true,available:true});
+  await act(async()=>previewQuote({title:'引用',context:'正文',text:'正文',doc_id:'doc',n:1}));assert.deepEqual(states.at(-1),{open:true,available:true});
   await act(async()=>togglePreview());assert.deepEqual(states.at(-1),{open:false,available:true});
   assert.equal(view.root.findAllByProps({className:'desk-menu-item workspace-reopen'}).length,0);
   assert.equal(view.root.findByProps({'aria-label':'侧边工作区'}).props.hidden,true);
@@ -107,15 +107,18 @@ test('sidebar reports toolbar state and never overlays the conversation with a r
   await act(async()=>view.unmount());
 });
 
-test('terminal opens in the shared sidebar, preserves chat draft, and can be reopened', async () => {
-  environment(); let requests = 0;
-  const { SideWorkspace, openTerminal, togglePreview } = load('side-workspace', mocks());
-  let view; await act(async () => { view = create(React.createElement(SideWorkspace, { ...workspaceProps, onRequest: () => requests++ })); });
+test('obsolete terminal requests cannot reopen a sidebar or replace the draft', async () => {
+  environment(); let requests = 0; const states = [];
+  const { SideWorkspace, togglePreview } = load('side-workspace', mocks());
+  let view; await act(async () => { view = create(React.createElement(SideWorkspace, {
+    ...workspaceProps, onRequest: () => requests++, onVisibilityChange: value => states.push(value)
+  })); });
   const draft = view.root.findByType('textarea');
-  await act(async () => openTerminal()); assert.equal(requests, 1); assert.equal(view.root.findAllByProps({ 'data-terminal': '' }).length, 1);
-  await act(async () => openTerminal()); assert.equal(view.root.findAllByProps({ 'data-terminal': '' }).length, 1);
-  await act(async () => button(view, '收起').props.onClick()); assert.equal(view.root.findByType('textarea'), draft);
-  await act(async () => togglePreview()); assert.equal(view.root.findAllByProps({ 'data-terminal': '' }).length, 1);
+  await act(async () => window.dispatchEvent(new CustomEvent('desk-open-preview', {detail:{kind:'terminal'}})));
+  await act(async () => togglePreview());
+  assert.deepEqual(states, [{open:false, available:false}]);
+  assert.equal(requests, 0);
+  assert.equal(view.root.findByType('textarea'), draft);
   await act(async () => view.unmount());
 });
 

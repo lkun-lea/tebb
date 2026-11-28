@@ -40,7 +40,7 @@ import { RailButton, readDeveloperMode, saveDeveloperMode } from "./companion-ui
 import { WindowTitleBar } from "./window-chrome";
 import "./workspace-navigation.css";
 import { LocalSourcesDialog, type LocalSource } from "./local-sources";
-import { SideWorkspace, previewSource, openTerminal, openProject, openProjectFolder, togglePreview } from "./side-workspace";
+import { SideWorkspace, previewSource, openProject, openProjectFolder, togglePreview } from "./side-workspace";
 import { LoadingText } from "./loading-text";
 import { AutomationPane } from "./automation";
 
@@ -1490,7 +1490,6 @@ export function App() {
         <button disabled={!sidebarState.available} onClick={()=>togglePreview()}>{sidebarState.open?'收起资料栏':'显示资料栏'}</button>
         <button type="button" onClick={()=>setDark(value=>!value)}>{dark ? "切换到浅色模式" : "切换到深色模式"}</button>
         <button onClick={()=>openProjectFolder()}>打开项目文件夹</button>
-        <button onClick={()=>openTerminal()}>终端</button>
         <ProductBrand developer={developerMode} onToggle={()=>changeDeveloperMode(!developerMode)}/>
         <button onClick={e=>{e.currentTarget.closest("details")!.open=false;openSettings();}}>设置</button>
         <button onClick={e=>{e.currentTarget.closest("details")!.open=false;openSettings("appearance");}}>桌宠与外观</button>
@@ -1505,7 +1504,7 @@ export function App() {
           onAttach={sources => { setPickedAttachments(sources); setLocalDialog(null); setPane("collaboration"); setNoteSessionId(null); }}
           onIndex={source => knowledgeCall("add_knowledge", { doc_id: `local:${source.id}`, label: source.name })} />}
         <div className="tebb-page-body">
-        <SideWorkspace onVisibilityChange={setSidebarState} info={info} session={noteSessionId || thread?.sessionId || ""} onTerminalDraft={text => { if (noteSessionId && pane === "chat" && chatFace === "thread") { setDraft(previous => `${previous}${previous ? "\n\n" : ""}${text}`); setComposerNotice("内容已加入笔记提问草稿，尚未发送。"); } else { setComposeRequest({ id: Date.now(), text }); setPane("collaboration"); } }} enabled={true} debug={!!debugKind}
+        <SideWorkspace onVisibilityChange={setSidebarState} info={info} onProjectQuote={text => { if (noteSessionId && pane === "chat" && chatFace === "thread") { setDraft(previous => `${previous}${previous ? "\n\n" : ""}${text}`); setComposerNotice("内容已加入笔记提问草稿，尚未发送。"); } else { setComposeRequest({ id: Date.now(), text }); setPane("collaboration"); } }} enabled={true} debug={!!debugKind}
           suspended={workspaceModalOpen || releaseIntro.open || (!!localDialog && !localDialogMinimized)}
           attachments={pickedAttachments}
           onAttach={sources => { setPickedAttachments(sources); setPane("collaboration"); setNoteSessionId(null); }}
@@ -1514,7 +1513,7 @@ export function App() {
           onRequest={() => {}}>
         <div className="tebb-content-slot" data-content-slot data-sky={dark ? "moon" : "sun"} data-split={!debugKind || undefined} data-chat-focused={coreChat || undefined} data-today-open={pane==="today" || undefined}>
         <div className="tebb-core-chat" hidden={!!debugKind && !coreChat} style={{flexDirection:"column",flex:1,minHeight:0,minWidth:0}}>
-          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
+          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page">
             <WindowTitleBar>{workspaceNavigation}</WindowTitleBar>
