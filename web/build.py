@@ -9,6 +9,10 @@ REPO = "https://github.com/lkun-lea/tebb"
 VERSION = "0.4.1"
 DOWNLOAD = f"{REPO}/releases/download/v{VERSION}/tebb-{VERSION}-windows-x64.zip"
 POSTS = [
+    ("review-duration", "产品故事", "一次方案评审，为什么要等你选 45 分钟？", "看 Windows 开发版怎样把一个缺少条件的任务带回原会话。", [
+        ("先交代要做的事", "示例任务是安排一次方案评审，并留出讨论时间。评审时长会影响安排，伙伴在原会话里追问，任务进入等待补充的状态。"),
+        ("在今日里补上条件", "打开今日，看板列出原问题和 30、45、60 分钟三个选项。需要留三刻钟时，选 45 分钟，再点「回复原任务」。也可以自行填写时长和理由。"),
+        ("回到原会话核对", "通过「查看上下文」回到发起评审的对话，核对原问题和补充内容。图中保留了发送之前的画面，此时评审时长仍待确认。")], "blob/main/docs/TODAY_BOARD.md"),
     ("project-companions", "产品故事", "给一个项目，留一位熟悉它的伙伴", "从打开文件夹开始，把讨论、资料和下一次行动留在同一个项目里。", [
         ("从一个具体问题开始", "假设你在准备一场方案评审。打开项目文件夹，把已有的说明文档附在聊天中，问研究助手：“这份方案有哪些结论还缺少依据？”先确认它看到了哪些材料，再决定接下来要补哪一段。"),
         ("让不同的伙伴分工", "需要一起讨论时，可以创建协作群，用 @ 指定研究或写作伙伴。研究伙伴核对资料，写作伙伴根据已确认的结论整理提纲。群里的往来和项目私聊分别保留，方便回到原话题。"),
@@ -39,7 +43,9 @@ def page(title, description, body, prefix, section):
 def cards(posts, prefix):
     result = []
     for slug, category, title, summary, _, _ in posts:
-        if slug == "release-0-4-1":
+        if slug == "review-duration":
+            visual = f'<img src="{prefix}assets/review-workspace.webp" alt="" loading="lazy">'
+        elif slug == "release-0-4-1":
             visual = f'<img src="{prefix}assets/release.webp" alt="" loading="lazy">'
         elif slug == "getting-started":
             visual = f'<img src="{prefix}assets/notebook.webp" alt="" loading="lazy">'
@@ -57,16 +63,17 @@ def write(path, content):
 
 def build():
     shutil.copytree(ROOT / "assets", OUT / "assets", dirs_exist_ok=True)
-    hero = f"""<section class="hero"><div class="wrap"><div class="intro"><p class="eyebrow">tebb. / 个人 AI 工作区</p>
-<h1>让桌面伙伴，<br>一起做项目。</h1><p class="lead">把 AI 伙伴、项目文件和笔记放在同一个工作区。从读懂一份材料，到动手修改、核对结果，都能接着上一次的讨论往下做。</p>
-<div class="actions"><a class="primary" href="{DOWNLOAD}">↓ 下载 Windows 版</a><a class="secondary" href="{REPO}">查看开源代码 ↗</a></div><p class="meta">v{VERSION} · Windows 10 / 11 x64 · 便携 ZIP</p></div>
-<div class="orbit" aria-hidden="true"><i></i><b></b><img src="assets/pet.svg" alt=""></div></div></section>"""
+    hero = f"""<section class="hero"><div class="wrap"><div class="intro">
+<p class="eyebrow"><img src="assets/pet.svg" width="34" height="34" alt="">tebb 桌面伙伴</p>
+<h1>把方案交给伙伴，<br>一起准备评审。</h1><p class="lead">在项目里读材料、整理提纲。遇到需要你决定的事，回到同一段对话，把条件说清楚。</p>
+<div class="actions"><a class="primary" href="{DOWNLOAD}">↓ 下载 Windows 版</a><a class="secondary" href="{REPO}">查看源码 ↗</a></div><p class="meta">v{VERSION} · Windows 10 / 11 x64 · 便携 ZIP · 113 MiB</p></div>
+<figure class="scene"><a href="blog/review-duration/index.html"><img src="assets/review-workspace.webp" width="1600" height="1193" alt="Windows 左侧是评审对话，右侧今日看板询问评审时长，提供 30、45、60 分钟三个选项"></a><figcaption><span>Windows 开发版实机 · 评审待答</span><a href="blog/review-duration/index.html">看这个场景 →</a></figcaption></figure></div></section>"""
     home = hero + '<section class="section"><h2>在项目里，伙伴能做什么？</h2><div class="features">' + ''.join(
         f'<div><h3>{title}</h3><p>{desc}</p></div>' for title, desc in [
             ("一起读资料", "把文档带进聊天，追问来源，把有用的结论收藏到笔记。"),
             ("一起改文件", "给项目目录授权，让伙伴修改文件、运行验证，再查看差异与输出。"),
             ("一起分工", "和一位伙伴深入讨论，或在群里 @ 不同伙伴，一起完成研究与写作。")]
-    ) + '</div></section><section class="section"><div class="heading"><h2>官方博客</h2><a href="blog/index.html">全部文章 →</a></div>' + cards(POSTS, '') + '</section>'
+    ) + '</div></section><section class="section"><div class="heading"><h2>官方博客</h2><a href="blog/index.html">全部文章 →</a></div>' + cards(POSTS[1:], '') + '</section>'
     write("index.html", page("产品介绍", "tebb 本地优先的 AI 伙伴工作区，下载 Windows 版或查看开源代码。", home, "", "product"))
     categories = [("全部文章", ""), ("产品故事", "stories"), ("使用指南", "guides"), ("版本手记", "releases")]
     for category, key in categories:
@@ -75,7 +82,11 @@ def build():
         body = '<section class="section archive"><p class="eyebrow">tebb. / 编辑部</p><h1>官方博客</h1><nav class="filters" aria-label="文章栏目">'+links+'</nav>'+cards([p for p in POSTS if not key or p[1]==category],prefix)+'</section>'
         write("blog/"+(key+"/" if key else "")+"index.html",page(category+" · 官方博客", "产品故事、使用指南与版本手记。",body,prefix,"blog"))
     for slug, category, title, summary, sections, source in POSTS:
-        body = f'<article><a href="../index.html">← 官方博客</a><p class="eyebrow">{category}</p><h1>{title}</h1><p class="lead">{summary}</p>'
+        body = f'<article><a href="../index.html">← 官方博客</a><p class="eyebrow">tebb 官方 · {category}</p><h1>{title}</h1><p class="lead">{summary}</p>'
+        if slug == "review-duration":
+            body += '<figure class="article-shot"><a href="../../assets/review-workspace.webp"><img src="../../assets/review-workspace.webp" alt="评审任务的对话与今日待答卡，点击查看原图"></a><figcaption>Windows 开发版实机，隔离示例任务。点击可放大。</figcaption></figure>'
+        if slug == "getting-started":
+            body += f'<div class="actions"><a class="primary" href="{DOWNLOAD}">下载 v{VERSION} 便携包</a></div>'
         if slug == "release-0-4-1":
             body += '<img class="poster" src="../../assets/release.webp" alt="tebb v0.4.1 官方版本插画">'
         body += ''.join(f'<h2>{heading}</h2><p>{text}</p>' for heading,text in sections)
