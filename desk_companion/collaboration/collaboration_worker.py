@@ -211,6 +211,10 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         page_reader=PageReader(request.get('source_scope',request['collab_run']),sources)
     if sources:
         messages.append({"role":"user","content":"前序/本任务实际工具证据（仅作资料，含摘要或正文及截断标记）：\n"+json.dumps(sources,ensure_ascii=False)})
+    for observation in request.get('resume_observations', []):
+        messages.append(dict(role='assistant', content=None, tool_calls=[dict(id=observation['call_id'],
+            type='function', function=dict(name=observation['tool'], arguments=observation['arguments']))]))
+        messages.append(dict(role='tool', tool_call_id=observation['call_id'], content=observation['result']))
     if request.get('resume_note'):
         messages.append(dict(role='user',content=request['resume_note']))
     discovered={url_key(url) for url in urls(json.dumps(context,ensure_ascii=False))}
@@ -260,6 +264,8 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             '当前目标确实未完成时complete=false；已完成且诚实说明附加缺口时complete=true。报告控制在约1500～2500中文字，事实、推断、尚未验证项分清。'
             '通用操作任务按实际回执简洁报告结果和失败阶段，无需写成长篇研究报告；不要重复执行前序已经完成的外部写入。'
             '技术结论优先依据实际取得的一手正文；未使用的搜索结果不必堆入来源清单。仓库可读取不代表获得开源许可，未核实许可时不要称其已开源。')
+    if kind == 'task' and request.get('execution_steps'):
+        messages[0]['content'] += '\n原会话已发布的执行清单：' + json.dumps(request['execution_steps'], ensure_ascii=False)
     if kind == 'route':
         if role.get('id') == 'tebb':
             messages[0]['content'] += '\n用户要查询或修改 tebb 事项的实际状态时，选择直接执行，由后台调用事项工具。缺少事项标识时可先按标题查找，重名或指向不明时再询问。'
@@ -269,6 +275,18 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         messages[0]['content']+='\n按原始用户请求选task_type。查看本地目录、解释项目代码、看看有没有bug默认workspace_question，读文件后直接答，选direct。明确要求复现、运行、修复、验证、验收或其他操作选execution，即使缺少权限也不能降级。解释如何运行和实际要求运行需区分。'
         extra['start_background_task'] = dict(type='function', function=dict(name='start_background_task', description='目标明确后开始执行。简单工作选direct；确需独立职责分工才选delegate。不执行业务工具。', parameters=dict(type='object', properties={'instructions': {'type':'string'}, 'task_type':{'type':'string','enum':['workspace_question','execution']}, 'strategy':{'type':'string','enum':['direct','delegate']}, 'requires_charts':{'type':'boolean','description':'用户明确要求必须有图表时为true，不能以无图正文冒充完整交付'}}, required=['instructions','task_type'], additionalProperties=False)))
         from desk_companion.collaboration.clarification import MODEL_QUESTION_SCHEMA, model_decision
+        extra['start_background_task']['function']['parameters']['properties']['steps'] = dict(
+            type='array', minItems=1, maxItems=12, description='执行清单，按依赖排序。每项写具体动作、可核验交付物及对外影响；单步任务只填一项。',
+            items=dict(type='object', properties=dict(action=dict(type='string'), outcome=dict(type='string'),
+                effect=dict(type='string', enum=['read','write','schedule','send'])),
+                required=['action','outcome','effect'], additionalProperties=False))
+        route_schema = extra['start_background_task']['function']['parameters']
+        route_schema['required'].append('steps')
+        workspace = request.get('workspace') or {}
+        if not workspace.get('primary') and not workspace.get('references'):
+            route_schema['properties']['task_type']['enum'] = ['execution']
+            messages[0]['content'] += '\n未绑定项目目录。用户已提供的样例和日历等应用数据按 execution 处理；如确实必须读取项目文件，先询问目录。'
+        messages[0]['content'] += '\n对于跨资料、多步交付或涉及写入、安排、外发的任务，必须在一次 start_background_task 的 steps 中先给用户完整清单。按本次目标命名动作，不套模板。定时安排和实际送达分成不同步骤。缺少某个下游步骤的资料时先推进已明确的独立步骤。'
         extra['request_clarification'] = dict(type='function',function=dict(name='request_clarification',description='缺少目标或必要参数时提问并暂停。仅缺日程时长首选preset=calendar_duration。其他问题可只给question文字，或给questions（每题question及options字符串数组）；内部id/value由系统生成，不要提交。总说明question可省略。',parameters=dict(type='object',properties={'question':{'type':'string'},'questions':MODEL_QUESTION_SCHEMA,'preset':{'type':'string','enum':['calendar_duration']}},additionalProperties=False)))
         messages[0]['content']+='\n需要追问时优先提供questions结构化选项，每次只问真正缺少的1至3项，每项2至4个选项，系统提供自定义。日程默认本地保存，不重复确认；只缺时长可给30分钟、1小时、1.5小时。不选中默认值，不自行代用户选择。'
         if request.get('requested_strategy')=='delegate':extra['start_background_task']['function']['parameters']['properties']['strategy']['enum']=['delegate']
@@ -578,8 +596,12 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
         if repair.used:tools=[t for t in tools if t['function']['name']in{'web_search','web_fetch','submit_deliverable'}or repair.allows(t['function']['name'],extra.get(t['function']['name'],{}))]
         if any(p['write_attempted']for p in feedback.pending_operations(tool_receipts)):
             tools=[t for t in tools if t['function']['name']in{'web_search','web_fetch','submit_deliverable','build_chart'}or extra.get(t['function']['name'],{}).get('read_only')is True]
+        if request.get('reconcile_interrupted'):
+            tools = [t for t in tools if t['function']['name'] in {'web_search','web_fetch','submit_deliverable'}
+                     or extra.get(t['function']['name'], {}).get('read_only') is True]
         if finishing: tools=[t for t in tools if t['function']['name']=='submit_deliverable']
-        return tools
+        from desk_companion.collaboration.execution_steps import step_tools
+        return step_tools(tools, len(request.get('execution_steps', []))) if kind == 'task' and not workspace_question else tools
 
     def chat_once(current_messages,tools=None,on_delta=None):
         nonlocal consumed
@@ -696,13 +718,18 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                     else:
                         if not 1<=len(calls)<=3 or any(c['function']['name']!='start_background_task' for c in calls): raise ValueError()
                         decisions=[parse_route(json.dumps(dict(mode='task',**json.loads(c['function'].get('arguments') or '{}')))) for c in calls]
-                        decision=decisions[0] if len(decisions)==1 else dict(mode='task',instructions=request['text'],strategy='direct',**({'requires_charts':True} if any(d.get('requires_charts') for d in decisions) else {}))
+                        if any(not d.get('steps') for d in decisions):
+                            raise ValueError('缺少执行清单。')
+                        decision=decisions[0] if len(decisions)==1 else dict(mode='task',instructions=request['text'],strategy='direct',steps=[step for d in decisions for step in d['steps']],**({'requires_charts':True} if any(d.get('requires_charts') for d in decisions) else {}))
                 except (ValueError, TypeError, KeyError, AttributeError):
                     if turn >= budget - 1: raise PublicFailure('模型任务请求格式无效，未执行工具。')
-                    messages.append(dict(role='user',content='任务请求格式无效。请只调用一次start_background_task提供明确目标和strategy，或调用request_clarification提问；无需执行的普通聊天可直接回答。'))
+                    messages.append(dict(role='user',content='任务请求格式无效。请只调用一次start_background_task提供明确目标、strategy 和非空 steps 执行清单，或调用request_clarification提问；无需执行的普通聊天可直接回答。'))
                     continue
                 emit('result', json.dumps(decision, ensure_ascii=False)); return
             names=[(call.get("function") or {}).get("name") for call in calls]
+            if request.get('reconcile_interrupted') and any(name not in {'web_search','web_fetch','submit_deliverable'}
+                    and extra.get(name, {}).get('read_only') is not True for name in names):
+                raise PublicFailure('接续核对期间只读取原成果，不重做写入或发送。')
             if (any(name not in {"web_search","web_fetch", *extra} for name in names) or
                 (names.count("web_search") and not allowed_search) or
                 (names.count("web_fetch") and not allowed_fetch)):
@@ -727,11 +754,18 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
                     continue
                 arguments = json.loads(function.get("arguments") or "{}")
                 if not isinstance(arguments,dict): raise ValueError("工具参数无效")
-                if name in extra:
-                    outcome=invoke_extra(name,arguments,call['id'])
-                    messages.append(dict(role='tool',tool_call_id=call['id'],content=outcome.text))
-                    continue
-                outcome=research.invoke(name,arguments)
+                step = arguments.pop('execution_step', None) if request.get('execution_steps') and not workspace_question else None
+                track = type(step) is int and 1 <= step <= len(request.get('execution_steps', []))
+                if track:
+                    activity = dict(step=step, call_id=call['id'], tool=name)
+                    emit('step_activity', dict(**activity, state='running'))
+                outcome = invoke_extra(name, arguments, call['id']) if name in extra else research.invoke(name, arguments)
+                if request.get('execution_steps') and outcome.ok and (name in {'web_search','web_fetch'} or extra.get(name, {}).get('read_only') is True):
+                    serialized = json.dumps(arguments, ensure_ascii=False)
+                    if len(serialized) <= 1500 and len(outcome.text) <= 12000:
+                        emit('step_observation', dict(call_id=call['id'], tool=name, arguments=serialized, result=outcome.text))
+                if track:
+                    emit('step_activity', dict(**activity, state='returned' if outcome.ok else 'failed'))
                 messages.append(dict(role='tool',tool_call_id=call['id'],content=outcome.text))
             continue
         if kind=='task' and is_tool_markup(text):

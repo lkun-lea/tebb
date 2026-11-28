@@ -55,6 +55,16 @@ def parse_route(text):
     if decision.get('task_type', 'execution') not in ('workspace_question', 'execution'):
         raise ValueError('无效任务类型')
     if 'requires_charts' in decision and type(decision['requires_charts']) is not bool:raise ValueError('图表交付要求须为布尔值。')
+    if 'steps' in decision:
+        steps = decision['steps']
+        if decision['mode'] != 'task' or not isinstance(steps, list) or len(steps) > 12:
+            raise ValueError('执行清单格式无效。')
+        for step in steps:
+            if (not isinstance(step, dict) or set(step) != {'action', 'outcome', 'effect'}
+                    or step['effect'] not in ('read', 'write', 'schedule', 'send')
+                    or any(not isinstance(step[k], str) or not 1 <= len(step[k].strip()) <= 300
+                           for k in ('action', 'outcome'))):
+                raise ValueError('执行步骤须说明动作、交付物和操作类型。')
     if decision['mode']=='answer':
         from desk_companion.collaboration.execution_flow import claims_handoff
         if claims_handoff(content):raise ValueError('未取得真实后台提交，不能把口头派发声明当回答。')
@@ -479,7 +489,7 @@ class Collaboration:
             if not run.get('parent'):
                 run['chain'] = chain_view(run, result['runs'])
             run['text_version'] = [run.get('attempt', 0), run.get('cursor', 0)]
-            for key in ("input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs", "memory_snapshot"):
+            for key in ("interrupted_attempts", "input", "agent_config", "members", "context", "cursor", "task", "attempt", "parent_draft", "source_evidence", "selection", "compress_ids", "public_answer", "handoffs", "memory_snapshot"):
                 run.pop(key, None)
         catalog = public_catalog()
         result["models"] = [{"id": item["id"], "model": item["model"]} for item in catalog["items"]]
@@ -657,7 +667,7 @@ class Collaboration:
                 if receipt[0] != fingerprint: raise ValueError("此去重编号已被另一项操作使用")
             else:
                 if readonly:
-                    if action.get('type') in {'add_coder','compress','open_folder_project','migrate_projects'} or action.get('attachments') or action.get('skills'): raise ValueError('浏览器体验不开放本地工作区和技能执行，请使用桌面客户端')
+                    if action.get('type') in {'add_coder','compress','open_folder_project','migrate_projects','reconcile_interrupted'} or action.get('attachments') or action.get('skills'): raise ValueError('浏览器体验不开放本地工作区和技能执行，请使用桌面客户端')
                     if action.get('type') == 'agent' and set(action.get('agent',{}).get('tools',[])) - {'联网搜索','网页读取','构建图表'}: raise ValueError('浏览器体验仅支持联网只读工具和报告图表')
                     if action.get('type')=='clarification_answer':
                         paused=next((r for r in state['runs'] if r['id']==action.get('id')),None)
@@ -916,6 +926,16 @@ class Collaboration:
             self._message(state, conversation["id"], "user", text, run["id"], note_refs=note_refs)
             reply["created"] = time.time()
             state["messages"].append(reply)
+        elif kind == 'reconcile_interrupted':
+            run = next((r for r in state['runs'] if r['id'] == action.get('id')
+                        and r['conversation'] == action.get('conversation')), None)
+            if not run or run['state'] != 'interrupted' or run['kind'] != 'task' or run.get('parent') or not run.get('execution_steps'):
+                raise ValueError('当前执行清单没有可接续核对的中断任务。')
+            run['reconcile_interrupted'] = True
+            run.setdefault('interrupted_attempts', []).append(run['task'])
+            run['parent_draft'] = run.get('answer', '')
+            run.pop('finished', None)
+            advance(run, 'task', status='接续核对原回执与剩余步骤', preserve_answer=True)
         elif kind == "cancel":
             run = next((r for r in state["runs"] if r["id"] == action.get("id")), None)
             if not run: raise ValueError("任务不存在")
@@ -1116,8 +1136,8 @@ class Collaboration:
                 if run["state"] == "pending":
                     from desk_companion.tasks.task_budgets import Ledger, default_tier
                     ledger=Ledger()
+                    parent = next((r for r in state['runs'] if r['id'] == run['parent']), None) if run.get('parent') else None
                     if not run.get('budget_id'):
-                        parent=next((r for r in state['runs']if r['id']==run.get('parent')),None)
                         # Size a new development root for the work it owns. A
                         # coordinator's shorter chat timeout otherwise caps its entire team.
                         coding_root=run.get('development_task') and not run.get('parent')
@@ -1135,8 +1155,16 @@ class Collaboration:
                         reference_time=run.get("created",0), supplemented_at=run.get("supplemented_at"), members=run.get("members", []), requested_strategy=run.get('requested_strategy','auto'), requested_assignees=run.get('requested_assignees',[]), require_execution=run.get('require_execution',False), applied=run["applied"], draft=run.get("parent_draft", ""), budget=max(0, call_budget(run['agent'],run['kind'],run.get('agent_config',{}).get('tools',()))-phase_calls(run)),
                         task_type=run.get('task_type','execution'), objective=run.get('objective',run['input']),parent_run=run.get('parent'),stage=run.get('stage','collect'),required_sources=run.get('required_sources',[]),requires_charts=run.get('requires_charts',False),
                         search_budget=max(0, run.get('search_limit',2)-run.get("search_calls",0)),fetch_budget=max(0,run.get('fetch_limit',4)-run.get("fetch_calls",0)),
+                        execution_steps=(parent or run).get('execution_steps', []),
                         source_topics=run.get('source_topics',[]),dependencies=dependencies(run),execution_runtime=run.get('execution_runtime','legacy'),
                         source_evidence=run.get("source_evidence",[]),evidence=run.get("evidence",[]),handoffs=run.get('handoffs',[]))
+                    if run.get('reconcile_interrupted'):
+                        request['reconcile_interrupted'] = True
+                        observed = []
+                        for prior in run.get('interrupted_attempts', [])[-3:]:
+                            observed.extend(e['data'] for e in manager.get(prior)['events'] if e['kind'] == 'step_observation')
+                        request['resume_observations'] = observed[-8:]
+                        request['resume_note'] = '接续的工具消息记录上次实际读取的数据，请按当时的时点引用，仅在需要最新状态或原回执缺失时重查。中断后从原清单接续。仅核对现有成果和剩余步骤，已安排与已送达分开。保留结果未知的操作；此次仅使用只读工具。原调用记录：' + json.dumps(run.get('flow_events', []), ensure_ascii=False)
                     if run.get('development_task'):
                         request.update(development_task=True, implementers=run.get('implementers', []))
                         if run.get('integration_verification'):
@@ -1153,6 +1181,10 @@ class Collaboration:
                     if event["seq"] <= run["cursor"]: continue
                     run["cursor"] = event["seq"]
                     kind, data = event["kind"], event["data"]
+                    if kind == 'step_activity':
+                        from desk_companion.collaboration.execution_steps import attach_activity
+                        owner = next((r for r in state['runs'] if r['id'] == run.get('parent')), run) if run.get('parent') else run
+                        attach_activity(owner, run['task'], event)
                     if kind in {'tool_start','tool_end','file_change','verification','feedback_check','integration_failure'}:
                         # Only public tool summaries; never publish worker requests or credentials.
                         record = {key:data[key] for key in ('tool','service','query','path','symbol','revision','status','error','state','exit_code','command')
@@ -1268,6 +1300,9 @@ class Collaboration:
                     if run.get('requested_strategy')=='delegate'and decision.get('strategy')!='delegate':run['events'].append('模型建议直接执行，已按用户明确的协作策略准备分工。')
                     if delegate and not run.get('members'):
                         self._finish(state,run,'failed','当前任务没有可委派的伙伴，未降级为直接执行；请先选择协作群成员。');continue
+                    if decision.get('steps'):
+                        run['execution_steps'] = decision['steps']
+                        run['plan_published_at'] = time.time()
                     run['requires_charts']=decision.get('requires_charts',False)
                     advance(run,'plan' if delegate else 'task',status='目标明确，准备职责分工' if delegate else '目标明确，直接执行',preserve_answer=True)
                     authors = run.get('implementers', [])

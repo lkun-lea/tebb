@@ -8,6 +8,7 @@ export type DemoMessage = { note_refs?:{id:string;title:string}[]; origin?:"clou
 export type ChartDraftView={draft_id:string;title:string;stage:string;attempt:number;asset_id?:string;spec?:unknown;history:{stage:string;attempt:number;error?:string;issues?:{path:string;message:string;hint?:string}[]}[]};
 export type FeedbackReport={completion:'incomplete'|'unverified'|'assessed'|'checked';ok:boolean;scope:string;checks:{id:string;dimension:string;status:'pass'|'fail'|'unknown';message:string;basis:string}[];unknown_operations:{operation_id?:string;call_id:string;state:string}[]};
 export type DemoRun = { id: string; conversation: string; agent: string; title: string; state: "running" | "waiting" | "succeeded" | "cancelled" | "pending" | "queued" | "cancelling" | "failed" | "timed_out" | "interrupted" | "needs_input";
+  execution_steps?:{action:string;outcome:string;calls?:{task:string;call_id:string;tool:string;state:'running'|'returned'|'failed'}[];effect:'read'|'write'|'schedule'|'send'}[];
   development_task?:boolean;
   stage?:string; integration_verification?:boolean; integration_repair?:string; rechecked_by?:string;
   flow_events?:{seq:number;ts?:number;kind:string;data:{tool?:string;service?:string;query?:string;path?:string;symbol?:string;revision?:string;status?:string;error?:string;state?:string;exit_code?:number|null;command?:string}}[];
@@ -42,6 +43,7 @@ export type DemoAction = ClarificationAction
   | { type: "add_coder" }
   | { type: "compress" }
   | { type: "advance" }
+  | { type: "reconcile_interrupted"; id: string; conversation: string }
   | { type: "cancel"; id: string }
   | { type: "group"; id?: string; title: string; members: string[]; goal: string; project_id?: string }
   | { type: "agent"; agent: DemoAgent }

@@ -160,7 +160,7 @@ class FeedbackWorkerTests(unittest.TestCase):
                     self.assertIn('本轮只能',correction)
                 return super().chat(messages,tools,on_delta)
         control=dict(tool_calls=[dict(id='resume-execution',function=dict(name='start_background_task',
-            arguments=json.dumps(dict(instructions='计算7和11并返回JSON',strategy='direct'))))])
+            arguments=json.dumps(dict(instructions='计算7和11并返回JSON',strategy='direct',steps=[dict(action='计算',outcome='JSON',effect='read')]))))])
         self.run_model(ResumeModel(['{"total":18,"checked":true}',control]))
         result=json.loads(self.events[-1][1]);self.assertEqual(result['mode'],'task')
 
@@ -218,7 +218,7 @@ class FeedbackWorkerTests(unittest.TestCase):
 
     def test_explicit_delegation_reaches_actual_route_prompt_and_schema(self):
         self.request.update(kind='route',requested_strategy='delegate',require_execution=True,members=[dict(id='writer',name='writer',role='read',tools=[])])
-        call=dict(tool_calls=[dict(id='actual-route',function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='核对资料',strategy='direct'))))])
+        call=dict(tool_calls=[dict(id='actual-route',function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='核对资料',strategy='direct',steps=[dict(action='核对资料',outcome='差异',effect='read')]))))])
         model=ScriptedModel([call]);self.run_model(model)
         tool=next(t for t in model.calls[0]['tools']if t['function']['name']=='start_background_task')
         self.assertEqual(tool['function']['parameters']['properties']['strategy']['enum'],['delegate'])

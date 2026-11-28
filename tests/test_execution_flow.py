@@ -50,6 +50,8 @@ class ExecutionFlowTests(unittest.TestCase):
         self.assertEqual([line['content'] for line in outbound], ['来自本地的项目代号','接着云端继续'])
 
     def control(self,name,**arguments):
+        if name == 'start_background_task':
+            arguments.setdefault('steps', [dict(action=arguments['instructions'], outcome='核对结果', effect='read')])
         return dict(role='assistant',tool_calls=[dict(id='control',type='function',function=dict(name=name,arguments=json.dumps(arguments)))])
 
     def test_unclear_goal_pauses_with_zero_business_tools_and_resumes_same_root(self):

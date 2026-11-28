@@ -467,6 +467,17 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
             {item.sender === "user" ? <span className="cp-user-avatar">你</span> : <Avatar agent={member(item.sender)} />}
             <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>{item.origin === 'cloud' ? '云端' : '本地'}</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
               {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&!runs.find(r=>r.id===item.run)?.question_deferred&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{real && progress && progress.trim() !== executionMessage(item, runs).trim() && <p className="cp-muted">{progress}</p>}{!real&&runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
+              {item.sender !== 'user' && messageRun?.execution_steps?.length ? <section aria-label="执行清单">
+                <strong>执行清单</strong><ol>{messageRun.execution_steps.map((step,index)=><li key={index}>
+                  <strong>{step.action}</strong> · {step.outcome}
+                  {step.effect !== 'read' && <small>（{{write:'写入文档或数据',schedule:'写入安排',send:'对外发送'}[step.effect]}）</small>}
+                  {step.calls?.map(call=><small key={call.task+':'+call.call_id}> · {call.tool}（{{running:'进行中',returned:'已返回',failed:'失败'}[call.state]}）</small>)}
+                </li>)}</ol>
+                {messageRun.updates.length > 0 && <div><strong>用户修订</strong><ol>{messageRun.updates.map((update,index)=>
+                  <li key={index}>{update}（{index < messageRun.applied ? '已接收处理' : '等待应用'}）</li>)}</ol></div>}
+                {real && !standalone && messageRun.state === 'interrupted' && messageRun.kind === 'task' && !messageRun.parent &&
+                  <button className="cp-message-reference" disabled={live?.busy} onClick={()=>void sendAction({type:'reconcile_interrupted',id:messageRun.id,conversation:messageRun.conversation})}>接续核对已有成果</button>}
+              </section> : null}
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
               {item.note_refs?.map(ref=><p key={ref.id}>引用笔记：{ref.title}</p>)}
               {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}

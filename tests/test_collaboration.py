@@ -210,6 +210,31 @@ class CollaborationTests(unittest.TestCase):
         self.assertNotIn('control only',str(state['messages']))
         self.assertNotIn('已开始处理，任务进度会持续更新。',str(state['messages']))
 
+    def test_published_plan_survives_interruption_and_readonly_reconciliation(self):
+        state = self.action(type='send', text='核对样例并查询日历')
+        ident = state['runs'][-1]['id']
+        self.service.tick()
+        steps = [dict(action='查阅日历', outcome='可用时段', effect='read')]
+        self.chat.complete('collab:'+ident+':0', json.dumps(dict(mode='task', instructions='核对', steps=steps)))
+        self.service.tick()
+        self.assertFalse(self.work.requests)
+        self.assertEqual(self.state()['runs'][-1]['execution_steps'], steps)
+        self.service.tick()
+        task = next(iter(self.work.items))
+        self.work.complete(task, '部分结果', state='interrupted')
+        self.work.items[task]['events'].append(dict(seq=4, ts=10, kind='step_activity',
+            data=dict(step=1, call_id='sample', tool='calendar_query', state='returned')))
+        self.service.tick()
+        action = dict(type='reconcile_interrupted', id=ident, conversation='group-research', request_id='resume-once')
+        self.service.action(action)
+        self.service.action(action)
+        self.service.tick()
+        self.assertEqual(len(self.work.requests), 2)
+        resumed = list(self.work.requests.values())[-1]
+        self.assertTrue(resumed['reconcile_interrupted'])
+        self.assertEqual(resumed['execution_steps'][0]['calls'][0]['call_id'], 'sample')
+        self.assertEqual(resumed['draft'], '部分结果')
+
     def test_public_snapshot_delta_updates_orders_deletions_and_redacts_internal_data(self):
         before=self.service.snapshot();self.action(type='send',text='hello')
         update=self.service.snapshot(since=before['sync'])
@@ -582,9 +607,9 @@ class CollaborationTests(unittest.TestCase):
         request=self.request();request['kind']='route';events=[]
         class LLM:
             def chat(_,messages,tools,on_delta):
-                return dict(message=dict(tool_calls=[dict(function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='读取app.py并运行测试'))))]),usage={})
+                return dict(message=dict(tool_calls=[dict(function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='读取app.py并运行测试',steps=[dict(action='测试入口',outcome='测试结果',effect='read')]))))]),usage={})
         execute(request,lambda k,d:events.append((k,d)),llm=LLM())
-        self.assertEqual(json.loads(events[-1][1]),dict(mode='task',instructions='读取app.py并运行测试'))
+        self.assertEqual(json.loads(events[-1][1]),dict(mode='task',instructions='读取app.py并运行测试',steps=[dict(action='测试入口',outcome='测试结果',effect='read')]))
         self.assertFalse(any(k=='tool_start' for k,d in events))
 
     def test_duplicate_route_requests_coalesce_into_one_original_goal_without_extra_model_call(self):
@@ -592,11 +617,11 @@ class CollaborationTests(unittest.TestCase):
         class LLM:
             def chat(_,messages,tools,on_delta):
                 calls.append(1)
-                return dict(message=dict(tool_calls=[dict(function=dict(name='start_background_task',arguments=json.dumps(dict(instructions=part)))) for part in ['只查资料','只写报告']]),usage={})
+                return dict(message=dict(tool_calls=[dict(function=dict(name='start_background_task',arguments=json.dumps(dict(instructions=part,steps=[dict(action=part,outcome=part,effect='read')])))) for part in ['只查资料','只写报告']]),usage={})
         execute(request,lambda k,d:events.append((k,d)),llm=LLM())
         self.assertEqual(len(calls),1)
         results=[json.loads(d) for k,d in events if k=='result']
-        self.assertEqual(results,[dict(mode='task',instructions=request['text'],strategy='direct')])
+        self.assertEqual(results,[dict(mode='task',instructions=request['text'],strategy='direct',steps=[dict(action=part,outcome=part,effect='read') for part in ['只查资料','只写报告']])])
         self.assertFalse(any(k=='tool_start' for k,d in events))
 
     def test_personal_note_edit_and_selected_content_reaches_model(self):
