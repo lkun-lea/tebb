@@ -17,7 +17,7 @@
 .sn-card-read[aria-expanded=true] svg {transform:rotate(180deg)}
 .sn-card-read:hover strong {text-decoration:underline;text-underline-offset:.2em}
 .sn-card-read:focus-visible {outline:2px solid hsl(var(--ring));outline-offset:3px}
-.sn-add {min-width:6em}
+.sn-add {width:7em;white-space:nowrap}
 .sn-excerpt {overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:var(--ui-text-body);line-height:1.55}
 .sn-excerpt:empty {display:none}
 .saved-notes small,.sn-excerpt {color:hsl(var(--muted-foreground))}

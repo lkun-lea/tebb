@@ -74,6 +74,7 @@ export function LiveCollaboration({ noteDraftPort, info: provided, standalone = 
     if (!pending.current || pending.current.body !== fingerprint) pending.current = { body: fingerprint, id: action.type==='send'&&action.new_chat ? action.conversation! : crypto.randomUUID() };
     try {
       const result = await rpc<{ ok: boolean; state: DemoState }>(info, "collaboration_action", { action: { ...body, request_id: pending.current.id } }, { timeoutMs: 12000 });
+      if (result.ok === false || !result.state) throw Error('未收到会话保存回执');
       if (mounted.current) accept(result.state);
       pending.current = null;
       return true;
