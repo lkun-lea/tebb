@@ -15,3 +15,11 @@ test('标题不同，正文和事项描述中的共同主题也可合并',()=>{
  const n=[{notes:[{question:'会前记录',answer:'产品评审材料',saved:new Date(now).toISOString()}]}];
  assert.deepEqual(recentFocus(n,chat,[{...item,title:'本周议程',description:'产品评审议程'}],now),['产品评审']);
 });
+
+const {noteExcerpt}=require('./load-client.cjs')('note-excerpt.ts');
+test('笔记列表摘取正文，完整来源留在详情',()=>{
+ const body='&gt; 由伙伴聊天收藏，AI 生成；未作额外来源核验。\n\n# 评审材料\n\n- **补齐方案**，查看[验证记录](https://example.com)。';
+ assert.equal(noteExcerpt(body,'评审材料'),'补齐方案，查看验证记录。');
+ assert.equal(noteExcerpt('> 由伙伴聊天收藏，AI 生成；未作额外来源核验。','评审材料'),'');
+ assert.equal(noteExcerpt('> 这是我保留的观察。','评审材料'),'这是我保留的观察。');
+});
