@@ -10,3 +10,8 @@ test('会话、更新中的事项和保留笔记均可独立提供近期关注',
 });
 test('三类记录围绕同一主题时只展示一次',()=>assert.deepEqual(recentFocus(notes,chat,[item],now),['产品评审']));
 test('已完成、归档和超出时间范围的事项不形成当前关注',()=>assert.deepEqual(recentFocus([],null,[{...item,state:'done'},{...item,archived:true},{...item,updated:stamp-15*86400}],now),[]));
+
+test('标题不同，正文和事项描述中的共同主题也可合并',()=>{
+ const n=[{notes:[{question:'会前记录',answer:'产品评审材料',saved:new Date(now).toISOString()}]}];
+ assert.deepEqual(recentFocus(n,chat,[{...item,title:'本周议程',description:'产品评审议程'}],now),['产品评审']);
+});

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { rpc, type BackendInfo } from "./api";
 import { LoadingText } from "./loading-text";
 
-export type LocalSource = { id: string; kind: "file" | "folder"; name: string; path: string; relative?: string;
+export type LocalSource = { id: string; noteKey?:string; kind: "file" | "folder"; name: string; path: string; relative?: string;
   chars: number; lines?: number; files?: LocalSource[]; skipped?: number; errors?: { name: string; error: string }[] };
 type Result = { ok: boolean; sources: LocalSource[]; errors: { name: string; error: string }[]; error?: string };
 

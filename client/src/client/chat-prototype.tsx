@@ -179,15 +179,16 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
     if(!noteDraftPort)return;
     const targets=state.conversations.map(c=>({id:c.id,title:c.title}));
     if(editingDraft&&!draftLocked)targets.unshift({id:conversation.id,title:conversation.title});
-    noteDraftPort.current={targets,current:targets.some(t=>t.id===conversation.id)?conversation.id:'',
+    noteDraftPort.current={owner:backend?.token||'',targets,current:targets.some(t=>t.id===conversation.id)?conversation.id:'',
       attach:(id,source)=>{
         if(!targets.some(t=>t.id===id))throw Error('目标会话已移除');
-        const current=attachmentMap[id]||[];
+        const keep=(a:LocalSource)=>a.id!==source.id&&(!source.noteKey||source.noteKey!==a.noteKey);
+        const current=(attachmentMap[id]||[]).filter(keep);
         if(current.length>=10)throw Error('当前草稿已选满 10 份资料');
-        setAttachmentMap(old=>({...old,[id]:[...(old[id]||[]).filter(a=>a.id!==source.id),source]}));
+        setAttachmentMap(old=>({...old,[id]:[...(old[id]||[]).filter(keep),source]}));
       }};
     return ()=>{noteDraftPort.current=null;};
-  },[noteDraftPort,state.conversations,conversation.id,editingDraft,draftLocked,attachmentMap]);
+  },[noteDraftPort,backend?.token,state.conversations,conversation.id,editingDraft,draftLocked,attachmentMap]);
   useEffect(() => { if (providedAttachments.length&&!draftLocked) setAttachmentMap(old => ({ ...old, [conversation.id]: [...new Map([...(old[conversation.id] || []), ...providedAttachments].map(a => [a.id,a])).values()] })); }, [providedAttachments]);
   const removeAttachment = (id: string) => { if(draftLocked)return;setAttachmentMap(old => ({ ...old, [conversation.id]: attachments.filter(a => a.id!==id) })); onDetach?.(id); };
   const [cloudChoices,setCloudChoices]=useState<Record<string,boolean>>({});

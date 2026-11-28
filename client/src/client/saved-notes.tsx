@@ -12,7 +12,7 @@ import './saved-notes.css';
 
 export type NoteDraftTarget={id:string;title:string};
 export type NoteDraftPort=MutableRefObject<{
-  targets:NoteDraftTarget[];current:string;attach:(id:string,file:LocalSource)=>void
+  owner:string;targets:NoteDraftTarget[];current:string;attach:(id:string,file:LocalSource)=>void
 }|null>;
 type Row=NoteItem&{session:string;group:string};
 type Editor={id:string;row?:Row;title:string;body:string};
@@ -25,7 +25,8 @@ export function SavedNotes({info,sessions,error,accept,refresh,port,initialSessi
  const [editor,setEditor]=useState<Editor|null>(null),[discard,setDiscard]=useState(false),[share,setShare]=useState<Row|null>(null);
  const [target,setTarget]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[problem,setProblem]=useState('');
  const [chat,setChat]=useState<DemoState|null>(null),[work,setWork]=useState<WorkPage['items']>([]);
- const submitting=useRef(false);
+ const submitting=useRef(false),mounted=useRef(true);
+ useEffect(()=>{mounted.current=true;return ()=>{mounted.current=false};},[]);
  const rows=useMemo(()=>sessions.flatMap(s=>s.notes.map(n=>({...n,session:s.id,group:s.title}))).sort((a,b)=>b.saved.localeCompare(a.saved)),[sessions]);
  const selected=rows.find(r=>r.id===opened);
  const initialId=initialSession?rows.find(r=>r.session===initialSession)?.id:'';
@@ -44,6 +45,7 @@ export function SavedNotes({info,sessions,error,accept,refresh,port,initialSessi
    try{
      const r=editor.row;
      const page=await rpc<NotebookPage>(info,'write_personal_note',{session_id:r?.session||'',note_id:editor.id,title:editor.title,body:editor.body,previous:r?{title:r.question,body:r.answer}:null});
+     if(!mounted.current)return;
      if(!accept(page))throw Error(page.error||'保存结果待核对');
      setOpened(editor.id);setEditor(null);setNotice('笔记已保存');
    }catch(e){setProblem(String(e));}finally{submitting.current=false;setBusy(false);}
@@ -54,16 +56,17 @@ export function SavedNotes({info,sessions,error,accept,refresh,port,initialSessi
    submitting.current=true;setBusy(true);setProblem('');
    try{
      const response=await rpc<{ok:boolean;sources:LocalSource[];errors?:unknown[]}>(info,'prepare_notebook_source',{session_id:share.session,note_id:share.id});
+     if(!mounted.current)return;
      const dest=port.current?.targets.find(t=>t.id===target);
      if(!response.ok||!response.sources?.length||response.errors?.length)throw Error('笔记资料准备失败');
-     if(!dest||!port.current)throw Error('会话已发生变化，请重新选择。');
-     port.current.attach(target,{...response.sources[0],name:'笔记 · '+share.question});
+     if(!dest||!port.current||port.current.owner!==info.token)throw Error('会话已发生变化，请重新选择。');
+     port.current.attach(target,{...response.sources[0],name:'笔记 · '+share.question,noteKey:JSON.stringify([share.session,share.id])});
      setShare(null);setNotice('已加入「'+dest.title+'」的草稿，可在发送前移除。');
    }catch(e){setProblem(String(e));}finally{submitting.current=false;setBusy(false);}
  }
  const needle=query.trim().toLocaleLowerCase(),visible=rows.filter(r=>(r.question+' '+r.answer).toLocaleLowerCase().includes(needle));
  return <section className="saved-notes" aria-label="笔记">
- <header><div><small>个人工作区</small><h1>笔记</h1></div><button className="sn-primary" onClick={()=>edit()} disabled={!info}>＋ 新建笔记</button></header>
+ <header><h1>笔记</h1><button className="sn-primary" onClick={()=>edit()} disabled={!info}>＋ 新建笔记</button></header>
  {error&&<p role="alert">{error} <button onClick={refresh}>重新读取</button></p>}
  {notice&&<p role="status">{notice}</p>}
  {selected?<article><button onClick={()=>setOpened('')}>‹ 全部笔记</button><h2>{selected.question}</h2><small>{selected.group} · {selected.saved.slice(0,10)}</small><Markdown text={selected.answer}/>

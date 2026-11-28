@@ -2,7 +2,7 @@ import type {DemoState} from './chat-prototype-state';
 import type {NoteSession} from './note';
 import type {WorkItem} from './work-board-state';
 
-type Signal={title:string;project:string;stamp:number;weight:number;kind:'会话'|'事项'|'笔记'};
+type Signal={title:string;detail:string;project:string;stamp:number;weight:number;kind:'会话'|'事项'|'笔记'};
 const DAY=86400000;
 const ignore=new Set('今天 最近 正在 本周 明天 昨天 需要 可以 请问 帮我 我们 这个 继续 整理 准备 确认 处理 一下 一份 请把 请帮 工作 项目 笔记 安排 任务 资料 关于 更新 进行 完成 计划 当前 怎么 是否 一个 事情 记得 开始 相关 记录'.split(' '));
 
@@ -13,18 +13,25 @@ export function recentFocus(sessions:NoteSession[],chat:Pick<DemoState,'messages
   const conversations=new Map(chat?.conversations.map(c=>[c.id,c]));
   for(const m of chat?.messages||[])if(m.sender==='user' && m.created){
     const title=m.text.split('\n')[0].trim();
-    add({title,project:projects.get(conversations.get(m.conversation)?.project_id||'')||'',stamp:m.created*1000,weight:1,kind:'会话'});
+    add({title,detail:m.text.split('\n').slice(1).join(' '),project:projects.get(conversations.get(m.conversation)?.project_id||'')||'',stamp:m.created*1000,weight:1,kind:'会话'});
   }
-  for(const item of items)if(!item.archived && item.state!=='done')add({title:item.title,project:item.project_name,stamp:item.updated*1000,weight:item.state==='doing'?3:2,kind:'事项'});
-  for(const session of sessions)for(const n of session.notes)add({title:n.question,project:'',stamp:Date.parse(n.saved),weight:1,kind:'笔记'});
+  for(const item of items)if(!item.archived && item.state!=='done')add({title:item.title,detail:item.description||'',project:item.project_name,stamp:item.updated*1000,weight:item.state==='doing'?3:2,kind:'事项'});
+  for(const session of sessions)for(const n of session.notes)add({title:n.question,detail:(n.answer||'').split('\n').filter(line=>!line.startsWith('>')).join(' '),project:'',stamp:Date.parse(n.saved),weight:1,kind:'笔记'});
   const ordered=signals.sort((a,b)=>b.stamp-a.stamp).slice(0,120);
   const Segmenter=(Intl as unknown as {Segmenter:new(locale:string,options:{granularity:string})=>{segment:(s:string)=>Iterable<{segment:string;isWordLike:boolean}>}}).Segmenter;
   const tokenizer=Segmenter?new Segmenter('zh',{granularity:'word'}):null;
   const groups=new Map<string,Set<Signal>>();
   for(const s of ordered){
-    const title=s.title.slice(0,140);
-    const words=tokenizer?Array.from(tokenizer.segment(title)).filter(x=>x.isWordLike).map(x=>x.segment):title.split(/\s+/);
-    const labels=new Set([s.project,...words,...words.slice(1).flatMap((word,i)=>ignore.has(word)||ignore.has(words[i])?[]:[words[i]+word])]);
+    const labels=new Set([s.project]);
+    for(const part of [s.title,s.detail]){
+      const text=part.slice(0,200);
+      const words=tokenizer?Array.from(tokenizer.segment(text)).filter(x=>x.isWordLike).map(x=>x.segment):text.split(/\s+/);
+      words.forEach((word,i)=>{
+        if(ignore.has(word))return;
+        labels.add(word);
+        if(i>0&&!ignore.has(words[i-1]))labels.add(words[i-1]+word);
+      });
+    }
     for(const label of labels){if(!label||label.length<2||ignore.has(label)||/^\d+$/.test(label))continue;
       const seen=groups.get(label)||new Set<Signal>();seen.add(s);groups.set(label,seen);}
   }

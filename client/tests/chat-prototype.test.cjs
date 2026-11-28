@@ -595,6 +595,7 @@ test('workspace opens today beside chat and keeps its draft mounted under modal 
     './window-chrome': load('window-chrome', { '@tauri-apps/api/core': { isTauri: () => false } }),
     './workspace-navigation': load('workspace-navigation'),
     './page-stack': load('page-stack'),
+    './saved-notes': load('saved-notes',{'./api':{},'./Markdown':{Markdown:Empty},'./recent-focus':load('recent-focus'),'./page-stack':load('page-stack'),'./workspace-dialog':{WorkspaceDialog:Empty}}),
     './live-collaboration': { LiveCollaboration: LiveStub },
     './debug': { debugPane: () => null, debugRequested: () => false, installDeskDebug() {} },
     './settings': { readStoredBackground: () => ({ url: '', error: '' }), SettingsPane: Empty },
@@ -640,8 +641,8 @@ test('workspace opens today beside chat and keeps its draft mounted under modal 
   assert.equal(root().props['data-pane'], 'collaboration'); assert.equal(draft().props.value, '跨页保留的草稿');
   assert.equal(mounts, 1);
   await act(async()=>rail.findAllByType('button').find(n=>n.props['aria-label']==='笔记').props.onClick());
-  assert.equal(root().props['data-pane'],'chat');assert.equal(view.root.findAllByProps({'data-notebook-empty':true}).length,1);
-  assert.match(text(view.root.findByProps({'data-notebook-empty':true})),/还没有连上本地后端/);
+  assert.equal(root().props['data-pane'],'chat');assert.equal(view.root.findAllByProps({className:'saved-notes'}).length,1);
+  assert.match(text(view.root.findByProps({className:'saved-notes'})),/还没有连上本地后端/);
   assert.equal(draft().props.value,'跨页保留的草稿');assert.equal(unmounts,0);
   await act(async () => view.unmount()); assert.equal(unmounts, 1);
 });

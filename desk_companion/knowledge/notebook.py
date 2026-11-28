@@ -548,7 +548,9 @@ def _markdown(note: dict) -> tuple[str, str]:
         raise RuntimeError("笔记正文是空的。")
     if len(title) > 80:
         title = title[:80]
-    lines = [f"# {note['question'].strip()}", "", body_text, "", "## 引用", ""]
+    lines = [f"# {note['question'].strip()}", "", body_text]
+    if note["cites"]:
+        lines.extend(["", "## 引用", ""])
     for cite in note["cites"]:
         lines.append(f"{cite['n']}. {cite['doc']} · {cite['title']}")
         lines.append("")
