@@ -118,6 +118,25 @@ class PairedCalendarDemo(unittest.TestCase):
             with self.assertRaises(ValueError):
                 apply_request(None, device, dict(request, body='不同原文'), 100, **args)
 
+    def test_workspace_reads_require_separate_grants_and_project_only_display_fields(self):
+        device = uuid4().hex
+        request = dict(id=str(uuid4()), time=100)
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, DESK_COMPANION_DATA_DIR=folder):
+            apply_request(None, device, dict(request, action='note.create', title='评审', body='确认三十分钟'),
+                          100, grants={'note.create'})
+            for action in ('note.list', 'knowledge.list', 'automation.list'):
+                with self.assertRaises(PermissionError):
+                    apply_request(None, device, dict(request, action=action), 100, grants={'note.create'})
+            def read(action):
+                return apply_request(None, device, dict(request, action=action), 100, grants={action})['rows']
+            self.assertEqual(read('note.list')[0]['detail'], '确认三十分钟')
+            doc = dict(title='评审参考', source_version='3', updated='2026-11-28', url='private')
+            with patch('desk_companion.knowledge.index.indexed_documents', return_value=[doc]):
+                self.assertEqual(read('knowledge.list'), [dict(title='评审参考', detail='3', stamp='2026-11-28')])
+            job = dict(name='早间简报', enabled=True, last_result='ok', schedule_text='每日 08:30', last_run_slot='08:30')
+            with patch('desk_companion.automation.schedule.list_snapshot', return_value={'items':[job]}):
+                self.assertEqual(read('automation.list')[0]['result'], '已完成')
+
     def test_agent_dispatch_requires_both_grants_and_preserves_original_conversation(self):
         from tests.test_execution_flow import ExecutionFlowTests
         flow = ExecutionFlowTests()

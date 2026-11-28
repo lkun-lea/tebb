@@ -55,6 +55,14 @@ def _now() -> str:
     return datetime.now(TZ).isoformat(timespec="seconds")
 
 
+def recent_mobile_previews():
+    book = _read()
+    notes = sorted((note for session in book['sessions'] for note in session['notes']),
+                   key=lambda note: note.get('saved', ''), reverse=True)
+    return [dict(title=n['question'][:120], detail=n['answer'][:400], stamp=n.get('saved', ''))
+            for n in notes[:24]]
+
+
 def load_notebook() -> dict:
     from desk_companion.knowledge.index import public_view
 

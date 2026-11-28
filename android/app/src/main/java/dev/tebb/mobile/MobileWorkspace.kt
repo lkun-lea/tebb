@@ -110,7 +110,7 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                     if (secondary) TextButton({ choose("更多") }) { Text("返回更多") }
                     Text("tebb.", style = MaterialTheme.typography.h5)
                     Text(if (secondary) "更多 / $page" else "工作区 · $page", style = MaterialTheme.typography.caption)
-                    Text(if (page == "更多") "工作区" else page, style = MaterialTheme.typography.h4)
+                    Text(when (page) { "更多" -> "工作区"; "事项" -> "我的事项"; else -> page }, style = MaterialTheme.typography.h4)
                     if (page == "更多") {
                         Column(Modifier.fillMaxWidth().glassSurface(22.dp).clickable(onClick = connect).padding(20.dp)) {
                             Text("设备", style = MaterialTheme.typography.caption)
@@ -140,8 +140,17 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                                 if (page == "事项") {
                                     val questions = state.composer.pending.filter { it.deviceId.isNotEmpty() }
                                     if (questions.isEmpty()) Text("当前没有来自电脑的待答事项")
-                                    questions.forEach { q -> OutlinedButton({ select(q.key); back() }) { Text(q.prompt) } }
+                                    if (questions.isNotEmpty()) Text("待处理", style = MaterialTheme.typography.caption)
+                                    questions.forEach { q ->
+                                        Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                                            Text(q.title, style = MaterialTheme.typography.h6)
+                                            Text(q.prompt)
+                                            Text("Windows · 原任务", style = MaterialTheme.typography.caption)
+                                            OutlinedButton({ select(q.key); back() }) { Text("查看任务") }
+                                        }
+                                    }
                                 }
+                                if (page in listOf("笔记", "知识库", "自动化")) PairedWorkspaceRecords(page, owner)
                                 val prompt = when (page) {
                                     "日程" -> "让伙伴安排日程"
                                     "笔记" -> "让伙伴整理笔记"

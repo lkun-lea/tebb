@@ -1,6 +1,10 @@
 package dev.tebb.mobile
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.UUID
+import java.util.Calendar
+import java.util.Locale
+import java.text.SimpleDateFormat
 
 /** 电脑只返回这台手机创建的记录，每次打开日程或从编辑返回时重新读取。 */
 @Composable
@@ -36,13 +43,39 @@ internal fun PairedCalendarAgenda(onEdit: (JSONObject) -> Unit) {
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { rows = emptyList(); status = e.message ?: "读取日程失败" }
     }
-    Text("我的日程", style = MaterialTheme.typography.h6)
+    var offset by remember { mutableIntStateOf(0) }
+    var selected by remember { mutableIntStateOf((Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 5) % 7) }
+    val days = remember(offset) {
+        val monday = Calendar.getInstance()
+        monday.add(Calendar.DATE, offset * 7 - (monday.get(Calendar.DAY_OF_WEEK) + 5) % 7)
+        List(7) { (monday.clone() as Calendar).apply { add(Calendar.DATE, it) }.time }
+    }
+    val isoDate = remember { SimpleDateFormat("yyyy-MM-dd", Locale.ROOT) }
+    val dateText = remember { SimpleDateFormat("M月d日 E", Locale.CHINA) }
+    val weekdays = listOf("周一","周二","周三","周四","周五","周六","周日")
+    Text(dateText.format(days[selected]), style = MaterialTheme.typography.caption)
+    Text("本周安排", style = MaterialTheme.typography.h6)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        TextButton({ offset-- }) { Text("上一周") }
+        TextButton({ offset++ }) { Text("下一周") }
+    }
+    Row(Modifier.horizontalScroll(rememberScrollState())) {
+        weekdays.forEachIndexed { index, label ->
+            TextButton({ selected = index }, enabled = selected != index) { Text(label) }
+        }
+    }
+    val day = isoDate.format(days[selected])
+    val visible = rows.filter { it.getString("start").take(10) <= day && it.getString("end").take(10) >= day }
     if (status.isNotEmpty()) Text(status)
-    rows.forEach { event ->
+    else if (visible.isEmpty()) Text("当天没有日程")
+    visible.forEach { event ->
         Column(Modifier.fillMaxWidth().clickable { onEdit(event) }.padding(vertical = 12.dp)) {
             Text(event.getString("summary"), style = MaterialTheme.typography.subtitle1)
-            Text(event.getString("start").take(16).replace("T", " ") + " — " +
-                event.getString("end").take(16).replace("T", " "), style = MaterialTheme.typography.caption)
+            val start = event.getString("start")
+            val end = event.getString("end")
+            val sameDay = start.take(10) == end.take(10)
+            fun time(value: String) = if (sameDay) value.substring(11,16) else value.take(16).replace("T", " ")
+            Text(time(start) + " — " + time(end), style = MaterialTheme.typography.caption)
         }
     }
     TextButton({ revision++ }) { Text("刷新日程") }

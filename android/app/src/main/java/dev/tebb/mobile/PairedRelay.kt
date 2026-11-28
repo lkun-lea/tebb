@@ -53,7 +53,8 @@ internal class PairedRelay(private val invite: JSONObject) {
 
     /** 新增操作仅在桌面授权后手动提交。重试复用草稿编号并核对同一份回执。 */
     fun create(action: String, id: String, body: JSONObject): JSONObject {
-        require(action in setOf("calendar.create", "note.create", "agent.request", "calendar.update", "calendar.list"))
+        require(action in setOf("calendar.create", "note.create", "agent.request", "calendar.update", "calendar.list",
+            "note.list", "knowledge.list", "automation.list"))
         val state = snapshot()
         val grants = state.optJSONArray("grants") ?: error("请先在电脑配对设置中授权")
         check((0 until grants.length()).any { grants.optString(it) == (if (action.startsWith("calendar.")) "calendar.create" else action) }) { "请先在电脑配对设置中授权" }

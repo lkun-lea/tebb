@@ -38,10 +38,43 @@ def create_calendar_entry(calendar, grants, device, request):
     return dict(accepted=True, event=result['event']['local_id'], version=result['event']['local_version'])
 
 
+def workspace_rows(action):
+    if action == 'note.list':
+        from desk_companion.knowledge.notebook import recent_mobile_previews
+        return recent_mobile_previews()
+    if action == 'knowledge.list':
+        from desk_companion.knowledge.index import indexed_documents
+        docs = sorted(indexed_documents(), key=lambda d: str(d.get('updated', '')), reverse=True)
+        return [dict(title=d['title'][:120], detail=str(d.get('source_version') or ''),
+                     stamp=str(d.get('updated') or '')) for d in docs[:24]]
+    from desk_companion.automation.schedule import list_snapshot
+    jobs = sorted(list_snapshot()['items'], key=lambda job: (job['enabled'], job['last_run_slot']), reverse=True)
+    states = {'ok': '已完成', 'fail': '失败', 'missed': '已错过', 'queued': '排队中',
+              'running': '运行中', 'needs_input': '等待答复'}
+    rows = [dict(title=job['name'][:120], detail=job['schedule_text'], enabled=job['enabled'],
+                 stamp=job['last_run_slot'], result=states.get(job['last_result'], '')) for job in jobs[:24]]
+    from datetime import datetime
+    from desk_companion.automation.workflows import WorkflowStore
+    workflow_states = {'completed':'已完成', 'failed':'失败', 'running':'运行中', 'needs_input':'等待答复',
+                       'cancelled':'已取消', 'queued':'排队中'}
+    for run in WorkflowStore().runs()[:12]:
+        rows.append(dict(kind='run', title=run['name'][:120], detail='',
+                         stamp=datetime.fromtimestamp(run['updated']).strftime('%Y-%m-%d %H:%M'),
+                         result=workflow_states.get(run['state'], run['state'])))
+    return rows
+
+
 def apply_request(service, device, request, now, *, calendar=None, grants=(), shared=()):
     UUID(request['id'])
     if not now - 30 < request['time'] <= now + 5:
         raise ValueError('请求已过期')
+    action = request.get('action')
+    if action in ('note.list', 'knowledge.list', 'automation.list'):
+        if action not in grants:
+            raise PermissionError('请先在 Windows 配对设置中允许手机查看此页内容')
+        if set(request) != {'action', 'time', 'id'}:
+            raise ValueError('读取参数无效')
+        return dict(accepted=True, rows=workspace_rows(action))
     if request.get('action') == 'agent.request':
         if 'agent.request' not in grants or request.get('conversation') not in shared:
             raise PermissionError('请先在电脑授权并共享目标会话')
