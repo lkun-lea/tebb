@@ -17,6 +17,8 @@ import {
 import { useFeishuConnection, useModelSettings } from "./settings-state";
 import { SetupGuide, type SetupStatus } from "./onboarding";
 import type { ModelSetupState } from "./onboarding-state";
+import { readDeveloperMode } from "./companion-ui";
+import { useSyncExternalStore } from "react";
 import { AccountsPane } from "./accounts";
 import { MobilePairingPane } from "./mobile-pairing";
 import { ReminderSettings } from "./reminders";
@@ -98,7 +100,13 @@ function focusMainWindow() {
   else window.opener?.focus?.();
 }
 
+function subscribeDeveloperMode(refresh:()=>void){
+  window.addEventListener("storage",refresh);
+  return ()=>window.removeEventListener("storage",refresh);
+}
+
 export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;onOpenChat?:()=>void;onBack?:()=>void}={}) {
+  const developerMode = useSyncExternalStore(subscribeDeveloperMode,readDeveloperMode);
   const debugKind = debugPane();
   const debug = !!debugKind;
   const [info, setInfo] = useState<BackendInfo | null>(null);
@@ -422,7 +430,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
           {bootError ? <p role="alert" className="text-sm text-destructive">连不上本地助手：{bootError}。恢复：重启客户端后重试。</p> : null}
 
 
-          {section === "account" ? <><AccountsPane info={info} debug={debug} /><MobilePairingPane info={info} /></> : null}
+          {section === "account" ? <><AccountsPane info={info} debug={debug} developerMode={developerMode} /><MobilePairingPane info={info} /></> : null}
           {section === 'tools' ? <ToolMonitorPane info={info} onChat={openConversation} onConnections={()=>setSection('connections')} onTrace={id=>{lastRun.current=id;setTrace(id);setMonitorView('history');setSection('monitor')}}/> : null}
           {section === 'monitor' && <>
             <nav className="design-tabs monitor-views" aria-label="运行监控视图">
