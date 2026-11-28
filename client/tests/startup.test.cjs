@@ -111,3 +111,32 @@ test("启动失败后迟到的阶段、就绪和慢启动回调不能覆盖恢�
   ui.retry.click();
   assert.equal(ui.reloads(), 1);
 });
+
+test("re-evaluating the workspace entry reuses its mounted React root", async () => {
+  const { transformWithEsbuild } = await import("vite");
+  const entry = path.resolve(__dirname, "../src/client/main.tsx");
+  const { code } = await transformWithEsbuild(readFileSync(entry, "utf8"), entry, {
+    format: "cjs", jsx: "automatic", define: { "import.meta.env.DEV": "true" },
+  });
+  let container = {}, roots = 0, renders = 0;
+  const context = {
+    exports: {}, URLSearchParams, window: { location: { search: "" } },
+    document: { getElementById: () => container },
+    require(id) {
+      if (id === "react-dom/client") return { createRoot(node) {
+        assert.equal(node, container);
+        roots++;
+        return { render() { renders++; } };
+      } };
+      if (id === "react" || id === "react/jsx-runtime") return require(id);
+      return { ToastHost: () => null, RenderBoundary: () => null, AccountBootstrap: () => null };
+    },
+  };
+  const evaluate = () => vm.runInNewContext(code, { ...context }, { filename: entry });
+  evaluate();
+  evaluate();
+  assert.deepEqual([roots, renders], [1, 2]);
+  container = {};
+  evaluate();
+  assert.deepEqual([roots, renders], [2, 3]);
+});
