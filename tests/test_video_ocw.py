@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from desk_companion.content.video import sources, worker
@@ -22,6 +24,21 @@ class PublisherCaptions(unittest.TestCase):
             result = worker.retrieve(URL, {}, lambda _: None)
             self.assertEqual(fetch.call_count, 1 + len(tracks))
             return result
+
+    def test_publisher_direct_only_before_video_settings_are_saved(self):
+        for saved, proxy, direct in [(False, "", True), (True, "", False),
+                                      (True, "http://localhost:8888", False)]:
+            with self.subTest(saved=saved, proxy=proxy), TemporaryDirectory() as tmp:
+                settings = Path(tmp) / "settings.json"
+                if saved:
+                    settings.touch()
+                with patch.object(sources, "settings_path", return_value=settings), \
+                     patch.object(sources, "load_settings", return_value={"proxy": proxy}), \
+                     patch.object(sources, "source_path", return_value=Path(tmp) / "source.json"), \
+                     patch.object(sources, "extract", side_effect=RuntimeError("stop")) as extract:
+                    with self.assertRaisesRegex(RuntimeError, "stop"):
+                        sources._read_video("demo", URL)
+                    self.assertEqual(extract.call_args.args[1], {"proxy": proxy, "publisher_direct": direct})
 
     def test_exact_ranges_and_repeated_cues(self):
         result = self.read("<video>" + TRACK + "</video>", VTT)

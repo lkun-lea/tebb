@@ -1155,7 +1155,7 @@ class Collaboration:
                         reference_time=run.get("created",0), supplemented_at=run.get("supplemented_at"), members=run.get("members", []), requested_strategy=run.get('requested_strategy','auto'), requested_assignees=run.get('requested_assignees',[]), require_execution=run.get('require_execution',False), applied=run["applied"], draft=run.get("parent_draft", ""), budget=max(0, call_budget(run['agent'],run['kind'],run.get('agent_config',{}).get('tools',()))-phase_calls(run)),
                         task_type=run.get('task_type','execution'), objective=run.get('objective',run['input']),parent_run=run.get('parent'),stage=run.get('stage','collect'),required_sources=run.get('required_sources',[]),requires_charts=run.get('requires_charts',False),
                         search_budget=max(0, run.get('search_limit',2)-run.get("search_calls",0)),fetch_budget=max(0,run.get('fetch_limit',4)-run.get("fetch_calls",0)),
-                        execution_steps=(parent or run).get('execution_steps', []),
+                        execution_steps=(parent or run).get('execution_steps', []), plan_revision=run.get('plan_revision', 0),
                         source_topics=run.get('source_topics',[]),dependencies=dependencies(run),execution_runtime=run.get('execution_runtime','legacy'),
                         source_evidence=run.get("source_evidence",[]),evidence=run.get("evidence",[]),handoffs=run.get('handoffs',[]))
                     if run.get('reconcile_interrupted'):
@@ -1181,6 +1181,11 @@ class Collaboration:
                     if event["seq"] <= run["cursor"]: continue
                     run["cursor"] = event["seq"]
                     kind, data = event["kind"], event["data"]
+                    if kind == 'plan_revision' and run.get('plan_revision', 0) < data['version'] <= len(run['updates']):
+                        for change in data['changes']:
+                            step = run['execution_steps'][change['step'] - 1]
+                            step.setdefault('revisions', []).append(dict(version=data['version'], note=change['note']))
+                        run['plan_revision'] = data['version']
                     if kind == 'step_activity':
                         from desk_companion.collaboration.execution_steps import attach_activity
                         owner = next((r for r in state['runs'] if r['id'] == run.get('parent')), run) if run.get('parent') else run
@@ -1303,6 +1308,7 @@ class Collaboration:
                     if decision.get('steps'):
                         run['execution_steps'] = decision['steps']
                         run['plan_published_at'] = time.time()
+                        run['plan_revision'] = run['applied']
                     run['requires_charts']=decision.get('requires_charts',False)
                     advance(run,'plan' if delegate else 'task',status='目标明确，准备职责分工' if delegate else '目标明确，直接执行',preserve_answer=True)
                     authors = run.get('implementers', [])

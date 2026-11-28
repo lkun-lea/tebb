@@ -192,7 +192,7 @@ def _private(client, query, deadline, cancelled):
         raise SearchFailure('私有搜索返回结构无效。', category='protocol') from None
 
 
-def _normalize(rows):
+def _normalize(rows, *, site=None):
     result, seen = [], set()
     for row in rows:
         if not isinstance(row, dict):
@@ -205,6 +205,12 @@ def _normalize(rows):
             valid = False
         if not valid or not isinstance(title, str) or not title.strip() or link in seen:
             continue
+        if site:
+            host = site[1].lower().rstrip('.')
+            if not (parsed.hostname == host or parsed.hostname.endswith('.' + host)):
+                continue
+            if site[2] and not parsed.path.startswith('/' + site[2]):
+                continue
         seen.add(link)
         snippet=str(row.get('snippet') or '')[:3000]
         if sum(c=='\ufffd' or ord(c)<32 and c not in '\n\r\t' for c in snippet)>max(2,len(snippet)*.02):snippet=''
@@ -227,7 +233,10 @@ def _search(query, *, on_status=None, cancelled=None, budget_s=TOTAL_SECONDS):
     attempts = []
     failure = None
     with model_network.http_client(min(10, budget_s)) as client:
-        for channel in (provider, 'bing-rss'):
+        channels = [provider, 'bing-rss']
+        if re.search(r'(?:^|\s)site:ocw\.mit\.edu(?:/|\s|$)', query, re.I) and re.search(r'\b(?:videos?|lectures?)\b', query, re.I):
+            channels.insert(0, 'ocw-catalog')
+        for channel in channels:
             if _cooldown(channel):
                 failure = SearchFailure('搜索渠道暂处冷却期。', category='cooldown', stage='admission')
                 attempts.append(dict(provider=channel, attempt=0, ok=False, elapsed_ms=0, **failure.diagnostic()))
@@ -236,11 +245,16 @@ def _search(query, *, on_status=None, cancelled=None, budget_s=TOTAL_SECONDS):
                 mark = time.monotonic()
                 try:
                     _remaining(deadline, cancelled)
-                    rows = {'exa': _exa, 'model-api': _private, 'bing-rss': _bing}[channel](client, query, deadline, cancelled)
-                    rows = _normalize(rows)
+                    if channel == 'ocw-catalog':
+                        from desk_companion.integrations.web.ocw_catalog import search as course_videos
+                        rows = course_videos(query, lambda url: _request(client, 'GET', url, deadline, cancelled=cancelled)[0])
+                    else:
+                        rows = {'exa': _exa, 'model-api': _private, 'bing-rss': _bing}[channel](client, query, deadline, cancelled)
+                    site = re.search(r'(?:^|\s)site:([a-z0-9.-]+)(?:/([^\s]*))?(?=\s|$)', query, re.I)
+                    rows = _normalize(rows, site=site if query.lower().count('site:') == 1 and ' OR ' not in query else None)
                     attempts.append(dict(provider=channel, attempt=attempt + 1, ok=True, elapsed_ms=int((time.monotonic() - mark) * 1000)))
                     return dict(results=rows, provider=channel, attempts=attempts, elapsed_ms=int((time.monotonic() - started) * 1000),
-                                **(dict(fallback_reason=failure.category, primary_failure=failure.diagnostic()) if failure else {}))
+                                **(dict(fallback_reason=failure.category, primary_failure=failure.diagnostic()) if failure and channel == 'bing-rss' else {}))
                 except SearchFailure as exc:
                     failure = exc
                     attempts.append(dict(provider=channel, attempt=attempt + 1, ok=False, elapsed_ms=int((time.monotonic() - mark) * 1000), **exc.diagnostic()))
@@ -254,7 +268,7 @@ def _search(query, *, on_status=None, cancelled=None, budget_s=TOTAL_SECONDS):
                             on_status('搜索临时故障，重试一次。')
                         continue
                     break
-            if on_status and channel != 'bing-rss':
+            if on_status and channel == provider:
                 on_status('主搜索未取得来源，切换公共 Bing 备用；仍需核对相关性。')
     error = SearchFailure('所有搜索渠道均未取得来源，请查看搜索诊断后重试。', category='all_providers_failed', stage='fallback')
     error.attempts = attempts

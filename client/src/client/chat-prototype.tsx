@@ -471,6 +471,7 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
                 <strong>执行清单</strong><ol>{messageRun.execution_steps.map((step,index)=><li key={index}>
                   <strong>{step.action}</strong> · {step.outcome}
                   {step.effect !== 'read' && <small>（{{write:'写入文档或数据',schedule:'写入安排',send:'对外发送'}[step.effect]}）</small>}
+                  {step.revisions?.map(change=><p key={change.version}>修订 {change.version} · {change.note}</p>)}
                   {step.calls?.map(call=><small key={call.task+':'+call.call_id}> · {call.tool}（{{running:'进行中',returned:'已返回',failed:'失败'}[call.state]}）</small>)}
                 </li>)}</ol>
                 {messageRun.updates.length > 0 && <div><strong>用户修订</strong><ol>{messageRun.updates.map((update,index)=>

@@ -109,7 +109,7 @@ def classify_error(text):
     return "无法读取这个视频，可能已删除、受地区限制或平台接口变动。请检查链接后重试。"
 
 
-def caption_bytes(url, platform, headers, cookies, proxy=""):
+def caption_bytes(url, platform, headers, cookies, proxy="", *, direct=False):
     class Redirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, response_headers, newurl):
             if not safe_caption_url(newurl, platform):
@@ -117,7 +117,10 @@ def caption_bytes(url, platform, headers, cookies, proxy=""):
             return super().redirect_request(req, fp, code, msg, response_headers, newurl)
     if not safe_caption_url(url, platform):
         raise RuntimeError("字幕地址不受支持。")
-    handler = urllib.request.ProxyHandler({"https": proxy, "http": proxy}) if proxy else urllib.request.ProxyHandler()
+    proxies = {"https": proxy, "http": proxy} if proxy else None
+    if direct and not proxy:
+        proxies = {}
+    handler = urllib.request.ProxyHandler(proxies)
     opener = urllib.request.build_opener(handler, urllib.request.HTTPCookieProcessor(cookies), Redirect())
     with opener.open(urllib.request.Request(url, headers=headers), timeout=12) as response:
         payload = response.read(4_000_001)
@@ -254,7 +257,7 @@ def retrieve(url, settings, emit):
         try:
             if platform == "MIT OpenCourseWare":
                 from desk_companion.content.video.ocw import metadata
-                info = metadata(url, caption_bytes(url, platform, {}, None, settings.get("proxy", "")))
+                info = metadata(url, caption_bytes(url, platform, {}, None, settings.get("proxy", ""), direct=settings.get("publisher_direct", False)))
             elif platform == "Bilibili":
                 info = bilibili_metadata(ydl, url)
             else:
@@ -288,7 +291,7 @@ def retrieve(url, settings, emit):
                         caption_url = "https:" + caption_url
                     if not safe_caption_url(caption_url, platform):
                         raise RuntimeError("字幕地址不受支持。")
-                    raw = caption_bytes(caption_url, platform, info.get("http_headers") or {}, ydl.cookiejar, settings.get("proxy", ""))
+                    raw = caption_bytes(caption_url, platform, info.get("http_headers") or {}, ydl.cookiejar, settings.get("proxy", ""), direct=platform == "MIT OpenCourseWare" and settings.get("publisher_direct", False))
                 if len(raw) > 4_000_000:
                     raise RuntimeError("字幕文件过大。")
                 publisher = platform == "MIT OpenCourseWare"

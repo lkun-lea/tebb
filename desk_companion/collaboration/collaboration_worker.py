@@ -189,6 +189,7 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     for row in request.get('context',[]):
         if row.get('sender')=='project_materials' and row.get('instructions'):
             messages.append(dict(role='user',content='本项目用户设置的约定（不授予额外文件或工具权限）：\n'+row['instructions'][:4000]))
+    plan_revision = request.get('plan_revision', 0)
     applied=0
     default_budget=call_budget(role.get('id'),kind,role.get('tools',()))
     budget = min(default_budget, int(request.get("budget",default_budget)))
@@ -264,11 +265,13 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             '当前目标确实未完成时complete=false；已完成且诚实说明附加缺口时complete=true。报告控制在约1500～2500中文字，事实、推断、尚未验证项分清。'
             '通用操作任务按实际回执简洁报告结果和失败阶段，无需写成长篇研究报告；不要重复执行前序已经完成的外部写入。'
             '技术结论优先依据实际取得的一手正文；未使用的搜索结果不必堆入来源清单。仓库可读取不代表获得开源许可，未核实许可时不要称其已开源。')
-    if kind == 'task' and request.get('execution_steps'):
+    if kind in {'task','plan'} and request.get('execution_steps'):
         messages[0]['content'] += '\n原会话已发布的执行清单：' + json.dumps(request['execution_steps'], ensure_ascii=False)
     if kind == 'route':
         if role.get('id') == 'tebb':
             messages[0]['content'] += '\n用户要查询或修改 tebb 事项的实际状态时，选择直接执行，由后台调用事项工具。缺少事项标识时可先按标题查找，重名或指向不明时再询问。'
+        if role.get('id') == 'tebb':
+            messages[0]['content'] += '\n按实际能力选择执行方式：tebb 自身可搜索、读取视频字幕、核对本人日程和调用工作流。不能仅因步骤多就把这些能力交给只有网页读取权限的伙伴。需要由自己顺序使用这些工具时选择 direct。'
         if request.get('requested_strategy')=='delegate':
             messages[0]['content']+='\n用户已明确选择协作；目标就绪后必须申请delegate分工，不能改为direct。仍须对真正缺失的目标/材料先request_clarification。'
         messages[0]['content']+='\n用户明确要求图表时，start_background_task设置requires_charts=true，交付需有真实构建的图表；普通技术报告按需要使用图表。'
@@ -562,6 +565,9 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
     def prepare_turn():
         nonlocal catalog_message,turn_message,budget_message,finishing,handoff_finish,time_finishing,time_stage
         latest_updates()
+        if request.get('execution_steps') and not request.get('parent_run') and applied > plan_revision:
+            from desk_companion.collaboration.execution_steps import revision_tool
+            return [revision_tool(len(request['execution_steps']))]
         if scope:
             view=scope.ledger.view(scope.member['id'])
             budget_message=replace_owned_message(messages,budget_message,
@@ -689,6 +695,19 @@ def _execute(request, emit, llm=None, search=None, fetch=None, *, preview=False)
             messages.append({"role": "assistant", "content": text or "正在修订"})
             messages.append({"role": "user", "content": "请按刚收到的补充重写上面的草稿，尚未交付。"})
             emit("answer_reset", True)
+            continue
+        if request.get('execution_steps') and not request.get('parent_run') and applied > plan_revision:
+            from desk_companion.collaboration.execution_steps import revision_changes
+            try:
+                if len(calls) != 1 or calls[0]['function']['name'] != 'revise_execution_steps':
+                    raise ValueError('须先说明受影响的执行步骤。')
+                changes = revision_changes(json.loads(calls[0]['function']['arguments']), len(request['execution_steps']))
+            except (KeyError, ValueError, TypeError):
+                messages.append(dict(role='user', content='请先调用 revise_execution_steps 核对受影响的原步骤。'))
+                continue
+            plan_revision = applied
+            emit('plan_revision', dict(version=applied, changes=changes))
+            messages.extend([dict(answer, role='assistant'), dict(role='tool', tool_call_id=calls[0]['id'], content='已记录清单修订，继续按最新范围执行。')])
             continue
         if calls:
             if kind=='plan':

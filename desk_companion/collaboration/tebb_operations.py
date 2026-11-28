@@ -46,7 +46,15 @@ def execute(host,run_id,tool,args):
                                                state=args['state'], request_id=work_item_request_id(run_id, call_id)),
                                           project_id=project_id)
         if tool=='calendar_query':
-            result=host.scheduling.load_month(args['day'],True,args.get('request_id','')) if args.get('month') else host.scheduling.load(args['day'],refresh=True,request_id=args.get('request_id',''))
+            scope = args.get('scope', 'combined')
+            if scope not in ('local','combined'):
+                raise ValueError('未知的日历读取范围。')
+            if scope == 'local':
+                if args.get('month'):
+                    raise ValueError('本地快照按日读取，请指定日期。')
+                result = host.scheduling.local.query(args['day'])
+            else:
+                result=host.scheduling.load_month(args['day'],True,args.get('request_id','')) if args.get('month') else host.scheduling.load(args['day'],refresh=True,request_id=args.get('request_id',''))
             if args.get('query') and result.get('events'):
                 result['events']=[e for e in result['events'] if args['query'].casefold() in e['summary'].casefold()]
             return result

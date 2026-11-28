@@ -28,3 +28,25 @@ def attach_activity(run, task, event):
     record['state'] = data['state']
     if data['state'] != 'running':
         record['ended'] = event['ts']
+
+def revision_tool(count):
+    return dict(type='function', function=dict(name='revise_execution_steps',
+        description='在执行业务工具前按用户修订更新原清单。只列受影响步骤及其新范围或时间；保留已有成果。没有影响时传空列表。',
+        parameters=dict(type='object', properties=dict(changes=dict(type='array', maxItems=count,
+            items=dict(type='object', properties=dict(step=dict(type='integer', minimum=1, maximum=count),
+                note=dict(type='string', maxLength=300)), required=['step','note'], additionalProperties=False))),
+            required=['changes'], additionalProperties=False)))
+
+
+def revision_changes(value, count):
+    changes = value.get('changes') if isinstance(value, dict) else None
+    if not isinstance(changes, list) or len(changes) > count:
+        raise ValueError('执行清单修订无效。')
+    seen = set()
+    for change in changes:
+        if (not isinstance(change, dict) or set(change) != {'step', 'note'}
+                or type(change['step']) is not int or not 1 <= change['step'] <= count or change['step'] in seen
+                or not isinstance(change['note'], str) or not 1 <= len(change['note'].strip()) <= 300):
+            raise ValueError('修订须使用现有步骤序号并说明变化。')
+        seen.add(change['step'])
+    return changes

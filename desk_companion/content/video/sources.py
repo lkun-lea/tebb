@@ -227,7 +227,7 @@ def _read_video(session, url, refresh=False, on_status=None):
     # 完整成功来源复用 7 天；缺字幕/登录要求 5 分钟，接口失败 30 秒；设置变化失效。
     cfg = load_settings()
     if platform == "MIT OpenCourseWare":
-        cfg = {"proxy": cfg.get("proxy", "")}
+        cfg = {"proxy": cfg.get("proxy", ""), "publisher_direct": not settings_path().exists() and not cfg.get("proxy")}
     elif not cfg.get("cookie_file"):
         from desk_companion.content.video.login import cookies
         cfg["cookie_rows"] = cookies(platform)

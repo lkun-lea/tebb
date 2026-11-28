@@ -33,6 +33,27 @@ class SearchTests(unittest.TestCase):
         mock = patch.object(service.model_network, 'http_client', side_effect=lambda *a, **k: httpx.Client(transport=httpx.MockTransport(call)))
         mock.start(); self.addCleanup(mock.stop)
 
+    def test_scoped_course_search_uses_publisher_sitemaps_and_checks_player(self):
+        course = 'https://ocw.mit.edu/courses/sample-performance-engineering'
+        lesson = course + '/resources/lecture-multicore/'
+        pages = {
+            '/sitemap.xml': '<sitemapindex><sitemap><loc>'+course+'/sitemap.xml</loc></sitemap></sitemapindex>',
+            '/courses/sample-performance-engineering/sitemap.xml': '<urlset><url><loc>'+lesson+'</loc></url></urlset>',
+            '/courses/sample-performance-engineering/resources/lecture-multicore/':
+                """<meta property="og:title" content="Multicore"><video data-setup='{"sources":[{"type":"video/youtube","src":"https://www.youtube.com/watch?v=ASzP7E9LoKc"}]}'><track kind="captions" srclang="en" src="main.vtt"></video>""",
+        }
+        self.transport(lambda request: httpx.Response(200, text=pages[request.url.path]))
+        result = service.search('site:ocw.mit.edu performance engineering multicore lecture')
+        self.assertEqual(result['provider'], 'ocw-catalog')
+        self.assertEqual([row['link'] for row in result['results']], [lesson])
+        self.assertTrue(all(r.url.host == 'ocw.mit.edu' for r in self.requests))
+
+    def test_positive_site_filter_rejects_unrelated_rss_results(self):
+        self.transport(lambda req: httpx.Response(429) if req.url.host != 'www.bing.com' else httpx.Response(200, text=RSS))
+        with self.assertRaises(service.SearchFailure) as failure:
+            service.search('site:docs.example.org inference deployment')
+        self.assertEqual(failure.exception.attempts[-1]['category'], 'empty')
+
     def test_public_sse_and_json_without_model_configuration_or_credentials(self):
         for sse in (True, False):
             self.transport(lambda request: exa(request, sse=sse))

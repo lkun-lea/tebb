@@ -216,6 +216,18 @@ class FeedbackWorkerTests(unittest.TestCase):
             self.run_model(ScriptedModel(['{"mode":"task","text":"已搜索"}']*2))
         self.assertFalse(any(kind=='result'for kind,_ in self.events))
 
+    def test_user_correction_revises_steps_before_more_work(self):
+        self.request.update(kind='task', stage='collect', text='计算7和11的和',
+                            execution_steps=[dict(action='计算', outcome='结果', effect='read')])
+        change = dict(step=1, note='改算7和12')
+        model = ScriptedModel([dict(tool_calls=[dict(id='edit', function=dict(name='revise_execution_steps',
+                               arguments=json.dumps(dict(changes=[change]))))]), '19'])
+        with patch('desk_companion.collaboration.collaboration_worker.updates', return_value=['改算7和12']):
+            self.run_model(model)
+        self.assertEqual([t['function']['name'] for t in model.calls[0]['tools']], ['revise_execution_steps'])
+        self.assertIn(('plan_revision', dict(version=1, changes=[change])), self.events)
+        self.assertFalse(any(kind == 'tool_start' for kind, _ in self.events))
+
     def test_explicit_delegation_reaches_actual_route_prompt_and_schema(self):
         self.request.update(kind='route',requested_strategy='delegate',require_execution=True,members=[dict(id='writer',name='writer',role='read',tools=[])])
         call=dict(tool_calls=[dict(id='actual-route',function=dict(name='start_background_task',arguments=json.dumps(dict(instructions='核对资料',strategy='direct',steps=[dict(action='核对资料',outcome='差异',effect='read')]))))])
