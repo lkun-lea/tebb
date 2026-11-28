@@ -42,10 +42,19 @@ async function main() {
       await page.evaluate(()=>{document.documentElement.classList.add('dark');document.body.style.background='hsl(var(--background))';});
       await page.getByRole('button',{name:'偏好'}).click();
       await page.getByLabel('关注项目').selectOption('today-demo');
-      await page.getByRole('group',{name:'晚报'}).getByLabel('关注词').fill('评审 设计');
+      await page.getByRole('button',{name:'晚间简报'}).click();
+      await page.getByLabel('关注词').fill('评审 设计');
+      await page.getByRole('button',{name:'早间简报'}).click();
+      assert.notEqual(await page.getByLabel('关注词').inputValue(),'评审 设计');
+      await page.getByRole('button',{name:'晚间简报'}).click();
+      assert.equal(await page.getByLabel('关注词').inputValue(),'评审 设计');
       assert(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth));
       await page.screenshot({path:path.join(output,'today-preferences.png'),fullPage:true});
-      console.log('PASS 窄屏定制表单、早晚报关注词和项目选择');
+      await page.getByRole('button',{name:'取消'}).click();
+      await page.getByRole('button',{name:'偏好'}).click();
+      await page.getByRole('button',{name:'晚间简报'}).click();
+      assert.notEqual(await page.getByLabel('关注词').inputValue(),'评审 设计');
+      console.log('PASS 窄屏定制、时段草稿、取消和项目选择');
       return;
     }
     const question = page.locator('article').first().getByRole('heading',{name:/今日验收：评审需要多少分钟/});

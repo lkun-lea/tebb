@@ -1,40 +1,30 @@
 .today-workspace {overflow:auto; flex:1; min-width:0; padding:clamp(16px,4vw,48px)}
-.today-pane {display:grid; gap:16px; max-width:860px; margin:auto; width:100%}
-.today-pane header,.today-pane header div,.today-pane form>div,.today-pane h3 {display:flex; align-items:center; gap:10px}
-.today-pane header {justify-content:space-between; flex-wrap:wrap}
-.today-pane time,.today-pane small,.today-pane article p {color:hsl(var(--muted-foreground))}
-.today-pane article,.today-pane form {padding:clamp(16px,3vw,26px); background:hsl(var(--card)); border:1px solid hsl(var(--border)); border-radius:18px}
-.today-pane h3 {margin:0 0 16px; font-size:1.12rem}
-.today-pane h3 svg {width:19px; color:hsl(var(--primary))}
-.today-pane h4 {margin:14px 0 6px}
-.today-pane .today-source {display:flex; align-items:center; flex-wrap:wrap; width:100%; gap:8px; min-height:44px; padding:10px 4px; text-align:start; border-bottom:1px solid hsl(var(--border)); overflow-wrap:anywhere}
-.today-source svg {margin-inline-start:auto; flex-shrink:0}
-.today-pane form,.today-pane label {display:grid; gap:7px}
-.today-pane fieldset {display:flex; gap:16px; flex-wrap:wrap}
-.today-pane select,.today-pane input {padding:6px; color:inherit; background:hsl(var(--card)); border:1px solid hsl(var(--border)); border-radius:7px}
-
-
-.today-pane {font-family:system-ui,"Microsoft YaHei",sans-serif; color:hsl(var(--foreground))}
-.today-pane time {letter-spacing:.02em; font-weight:550}
-.today-pane h3 {font-weight:650}
-.today-pane h3>svg {box-sizing:content-box; padding:8px; border-radius:10px; background:hsl(var(--primary)/.09)}
-.today-pane .today-source {font:inherit; color:inherit; background:transparent; border:0; border-radius:7px; cursor:pointer}
-.today-pane .today-source:hover {background:hsl(var(--primary)/.06)}
-.today-pane .today-source:focus-visible {outline:2px solid hsl(var(--primary))}
-.today-pane .today-source small {font-size:.8rem}
-.today-questions .today-source {display:grid; grid-template-columns:minmax(0,1fr) auto; padding:12px}
-.today-questions .today-source small {grid-column:1}
-.today-questions .today-source strong {grid-column:1; font-size:1.08rem}
-.today-questions .today-source svg {grid-column:2; grid-row:1/3}
-.today-pane .today-timeline .today-source {position:relative; padding-inline-start:22px}
-.today-timeline .today-source::before {content:""; position:absolute; left:6px; width:7px; height:7px; border-radius:50%; background:hsl(var(--primary))}
-.today-timeline .today-source:not(:last-child)::after {content:""; position:absolute; left:9px; top:calc(50% + 5px); height:calc(100% - 10px); border-left:1px solid hsl(var(--border))}
-.today-pane fieldset {border:1px solid hsl(var(--border)); padding:12px; border-radius:10px}
-.today-pane form>div {justify-content:flex-end}
-
 .today-workspace:has(.journal-host){padding:0}
 .journal-host,.journal-host>.journal{height:100%;min-height:0;width:100%}
-.journal-host>.today-pane{padding:20px}
 .tebb-content-slot[data-today-open]:has(.journal[data-solo=true])>.tebb-core-chat{display:none}
 
-.journal-host>.today-pane,.journal-host>.today-pane *{box-sizing:border-box;min-width:0}
+
+.workspace-dialog.brief-preferences {width:min(488px,calc(100% - 24px));padding:18px;border-radius:26px;background:linear-gradient(145deg,hsl(var(--card)/.96),hsl(var(--secondary)/.9));border-color:hsl(var(--border)/.75);box-shadow:0 18px 65px hsl(var(--ui-shadow-tone)/.22)}
+.brief-preferences::backdrop {background:hsl(var(--ui-shadow-tone)/.19)}
+.brief-preferences form,.brief-preferences fieldset {display:grid;gap:16px;margin:0;min-width:0}
+.brief-preferences fieldset {border:0;padding:0}
+.brief-preferences header {position:relative;text-align:center;padding:3px 32px}
+.brief-preferences header h2 {font-size:17px;font-weight:600}
+.brief-preferences header button {position:absolute;right:0;top:0;border-radius:50%;background:hsl(var(--card));width:30px;height:30px;padding:0;font-size:20px}
+.brief-switch,.brief-preferences footer {display:flex;gap:6px}
+.brief-switch {padding:3px;border-radius:22px;background:hsl(var(--muted))}
+.brief-switch button,.brief-preferences footer button {flex:1;border-radius:24px}
+.brief-switch button[aria-pressed=true] {background:hsl(var(--card));box-shadow:0 1px 4px hsl(var(--ui-shadow-tone)/.2)}
+.brief-preferences h3 {font-size:14px;font-weight:600;margin:0 0 8px}
+.brief-fields,.brief-keywords,.brief-schedule {background:hsl(var(--card)/.88);border-radius:16px;padding:9px 14px}
+.brief-fields,.brief-schedule {display:grid;gap:4px}
+.brief-fields label,.brief-schedule label {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.brief-preferences label select,.brief-preferences input {max-width:65%;border:0;color:inherit;background:transparent}
+.brief-preferences option {color:hsl(var(--foreground));background:hsl(var(--card))}
+.brief-keywords {margin-top:8px}.brief-keywords label,.brief-keywords small {display:block;font-size:12px;color:hsl(var(--muted-foreground))}
+.brief-keywords textarea {display:block;width:100%;min-height:56px;resize:vertical;background:transparent;color:hsl(var(--foreground));padding:6px 0;font-size:14px}
+.brief-keywords small {text-align:right}
+.brief-schedule label+label {border-top:1px solid hsl(var(--border))}
+.brief-preferences footer button {min-height:38px;background:hsl(var(--muted-foreground)/.27);font-weight:600}
+.brief-preferences footer button[type=submit] {background:color-mix(in srgb,var(--tebb-action) 55%,white);color:#10364c}
+.brief-preferences footer button:hover {filter:brightness(.96)}
