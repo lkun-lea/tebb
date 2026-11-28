@@ -85,9 +85,8 @@ const serviceNames:Record<string,string>={feishu:'飞书',github:'GitHub',Bilibi
 const serviceIcons:Record<string,string>={feishu:"feishu.ico",github:"github.svg",Bilibili:"Bilibili.ico",YouTube:"YouTube.png"};
 const SECTIONS: SettingsSection[] = ["assistant", "account", "personalization", "connections", "appearance", "usage", "tools", "evaluation", "network", "monitor", "about"];
 
-function initialSection(): SettingsSection {
-  const value = new URLSearchParams(window.location.search).get("section");
-  return SECTIONS.includes(value as SettingsSection) ? value as SettingsSection : "assistant";
+function settingsSection(value?: string | null): SettingsSection | undefined {
+  return SECTIONS.find(section => section === value);
 }
 
 // 跨窗口定位：主窗口入口（如 tebb-open-personalization）通过事件把设置窗口切到目标分类。
@@ -103,12 +102,16 @@ function subscribeDeveloperMode(refresh:()=>void){
   return ()=>window.removeEventListener("storage",refresh);
 }
 
-export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;onOpenChat?:()=>void;onBack?:()=>void}={}) {
+export function SettingsApp({target,onOpenChat,onBack,workspaceBackend}:{target?:SectionTarget;workspaceBackend?:BackendInfo|null;onOpenChat?:()=>void;onBack?:()=>void}={}) {
   const developerMode = useSyncExternalStore(subscribeDeveloperMode,readDeveloperMode);
   const debugKind = debugPane();
   const debug = !!debugKind;
-  const [info, setInfo] = useState<BackendInfo | null>(null);
-  const [section, setSection] = useState<SettingsSection>(() => (debugKind === "usage" ? "usage" : debugKind === "feishu" || debugKind === "video" ? "connections" : debugKind === "profile" ? "personalization" : initialSection()));
+  const [standaloneBackend, setInfo] = useState<BackendInfo | null>(null);
+  const info = workspaceBackend ?? standaloneBackend;
+  const [section, setSection] = useState<SettingsSection>(() =>
+    settingsSection(target?.section) ??
+    (debugKind === "usage" ? "usage" : debugKind === "feishu" || debugKind === "video" ? "connections" :
+      debugKind === "profile" ? "personalization" : settingsSection(new URLSearchParams(window.location.search).get("section")) ?? "assistant"));
   async function openConversation(conversation:string){
     if (!info) return;
     await rpc(info,'collaboration_action',{action:{type:'select',id:conversation,conversation,request_id:crypto.randomUUID()}});
@@ -149,8 +152,12 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
   function openModelCalls(){setEvalTab("debug");setSection("evaluation");}
   const releaseIntro = useReleaseIntro(!target && !!info && !cropSrc && !debugKind);
 
-  const models = useModelSettings({ info, debug });
-  useEffect(()=>{if(target)window.dispatchEvent(new Event("tebb-models-changed"));},[models.modelItems]);
+  const [visitedModels, setVisitedModels] = useState(section === "assistant");
+  useEffect(() => { if (section === "assistant") setVisitedModels(true); }, [section]);
+  const models = useModelSettings({
+    info, debug, active: visitedModels || section === "assistant",
+    onChanged: target ? () => window.dispatchEvent(new Event("tebb-models-changed")) : undefined,
+  });
   useEffect(()=>{if(target)window.dispatchEvent(new CustomEvent("tebb-background",{detail:bgUrl}));},[bgUrl]);
   const feishuState = useFeishuConnection({ info, debug, active: section === "connections" });
 
@@ -197,7 +204,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
 
   // 连接本地后端。
   useEffect(() => {
-    if (debugKind) return;
+    if (debugKind || workspaceBackend) return;
     let gone = false;
     void (async () => {
       try {
@@ -209,8 +216,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
       }
     })();
     return () => { gone = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [debugKind, workspaceBackend]);
 
   useEffect(()=>{
     if(!target)return;
@@ -408,7 +414,9 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
           ) : null}
 
           <div hidden={!["assistant", "appearance"].includes(section)}>
-            <SettingsPane
+            {section === "assistant" && models.loading
+              ? !bootError && <p role="status"><LoadingText text="正在读取模型与人设…"/></p>
+              : <SettingsPane
               section={section === "appearance" ? "appearance" : "assistant"}
               model={models.modelForm}
               models={models.modelItems}
@@ -431,7 +439,7 @@ export function SettingsApp({target,onOpenChat,onBack}:{target?:SectionTarget;on
               onEdit={models.editModel}
               onDelete={(id) => void models.deleteModel(id)}
               onSavePersona={(text) => void models.savePersona(text)}
-            />
+            />}
           </div>
 
           {section==='appearance' && <><PetSettings info={info} debug={debug}/><ReminderSettings info={info} debug={debug}/></>}

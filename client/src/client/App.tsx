@@ -87,7 +87,8 @@ import {
 
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
 type SettingsTarget = {section?:string;profile?:string;service?:string;trace?:string};
-const EmbeddedSettings = lazy(() => import('./settings-app').then(module => ({default:module.SettingsApp})));
+const loadSettings = () => import('./settings-app');
+const EmbeddedSettings = lazy(() => loadSettings().then(module => ({default:module.SettingsApp})));
 const TodayPane = lazy(() => import('./today-pane').then(module => ({default:module.TodayPane})));
 type Pane = "today" | "work" | "chat" | "board" | "automation" | "collaboration";
 
@@ -1485,7 +1486,7 @@ export function App() {
       >
         {bgUrl ? <div className="desk-bg-scrim" data-bg-scrim /> : null}
       </div>
-      <div className="workspace-account"><details><summary aria-label="工作区菜单" title={workspaceEmail||"本机空间"}>{workspaceEmail ? workspaceEmail.slice(0,2).toUpperCase() : "tebb"}</summary><div>
+      <div className="workspace-account"><details onToggle={event=>{if(event.currentTarget.open) void loadSettings().catch(()=>{});}}><summary aria-label="工作区菜单" title={workspaceEmail||"本机空间"}>{workspaceEmail ? workspaceEmail.slice(0,2).toUpperCase() : "tebb"}</summary><div>
         <strong className="workspace-identity">{workspaceEmail||"本机空间"}</strong>
         <button onClick={e=>{e.currentTarget.closest("details")!.open=false;openSettings("account");}}>账号与设备</button>
         <button disabled={!sidebarState.available} onClick={()=>togglePreview()}>{sidebarState.open?'收起资料栏':'显示资料栏'}</button>
@@ -1498,7 +1499,7 @@ export function App() {
       <div className="tebb-workspace-body flex min-h-0 flex-1">
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         {settingsOpen && <WorkspaceDialog title="设置" hideHeader className="workspace-settings-modal" onClose={()=>setSettingsOpen(false)}>
-          <Suspense fallback={<LoadingText text="正在打开设置…"/>}><EmbeddedSettings onBack={()=>setSettingsOpen(false)} target={settingsTarget} onOpenChat={()=>{setSettingsOpen(false);setPane("collaboration");}}/></Suspense>
+          <Suspense fallback={<LoadingText text="正在打开设置…"/>}><EmbeddedSettings workspaceBackend={info} onBack={()=>setSettingsOpen(false)} target={settingsTarget} onOpenChat={()=>{setSettingsOpen(false);setPane("collaboration");}}/></Suspense>
         </WorkspaceDialog>}
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
         {localDialog && <LocalSourcesDialog info={info} initialKind={localDialog} debug={!!debugPane()} onClose={() => { setLocalDialog(null); setLocalDialogMinimized(false); }} onPreview={previewSource} onMinimizedChange={setLocalDialogMinimized}

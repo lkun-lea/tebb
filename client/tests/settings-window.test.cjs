@@ -125,3 +125,38 @@ test('后端未连上时给出可读错误而不是空面板',async()=>{
   assert(text(view.root).includes('连不上本地助手'));
   act(()=>view.unmount());
 });
+
+test('账号深链复用主窗连接，首次查看模型时才加载一次', async () => {
+  const calls = [];
+  let probes = 0;
+  let resolveModels;
+  const pending = new Promise(resolve => { resolveModels = resolve; });
+  const {SettingsApp} = settingsApp({
+    backendInfo: async () => { probes++; return {port: 9, token: 'isolated'}; },
+    rpc: async (_info, method) => {
+      calls.push(method);
+      if (method === 'load_models') return pending;
+      if (method === 'load_persona') return {ok: true, persona: 'tebb'};
+      return {ok: true};
+    },
+  });
+  let view;
+  await act(async () => {
+    view = create(React.createElement(SettingsApp, {
+      target: {section: 'account'}, workspaceBackend: {port: 9, token: 'isolated'},
+    }));
+  });
+  assert.equal(view.root.findByProps({'data-settings-shell':'1'}).props['data-settings-section'], 'account');
+  assert.equal(probes, 0);
+  assert.ok(!calls.includes('load_models') && !calls.includes('load_persona'));
+  const select = id => navItems(view).find(node => node.props['data-settings-nav-item'] === id).props.onClick();
+  await act(async () => select('assistant'));
+  assert.ok(text(view.root).includes('正在读取模型与人设'));
+  assert.equal(view.root.findAllByProps({'data-model-save': true}).length, 0);
+  await act(async () => resolveModels({ok: true, ...MODELS_FIXTURE}));
+  assert.equal(modelEntries(view).length, MODELS_FIXTURE.items.length);
+  await act(async () => select('account'));
+  await act(async () => select('assistant'));
+  assert.deepEqual(calls.filter(method => ['load_models','load_persona'].includes(method)), ['load_models','load_persona']);
+  act(() => view.unmount());
+});

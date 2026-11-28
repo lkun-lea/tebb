@@ -16,8 +16,10 @@ import { feishuLoggedIn, feishuWaiting, type FeishuSnap } from "./feishu";
 export function useModelSettings(props: {
   info: BackendInfo | null;
   debug: boolean;
+  active: boolean;
+  onChanged?: () => void;
 }) {
-  const { info, debug } = props;
+  const { info, debug, active } = props;
   const [modelItems, setModelItems] = useState<ModelEntry[]>(() => (debug ? MODELS_FIXTURE.items : []));
   const [activeModelId, setActiveModelId] = useState(() => (debug ? MODELS_FIXTURE.active : ""));
   const [editingModelId, setEditingModelId] = useState(() => (debug ? MODELS_FIXTURE.active : ""));
@@ -31,6 +33,7 @@ export function useModelSettings(props: {
   const [settingsNotice, setSettingsNotice] = useState("");
   const [personaError, setPersonaError] = useState("");
   const [personaNotice, setPersonaNotice] = useState("");
+  const [loadedBackend, setLoadedBackend] = useState<BackendInfo | null>(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [keyEpoch, setKeyEpoch] = useState(0);
 
@@ -49,6 +52,7 @@ export function useModelSettings(props: {
   }
 
   useEffect(() => {
+    if (!active) return;
     if (debug) {
       setPersonaForm(PERSONA_FIXTURE);
       setSettingsError("");
@@ -78,12 +82,14 @@ export function useModelSettings(props: {
         setPersonaError("");
       } catch (err) {
         if (!gone) setPersonaError(String(err));
+      } finally {
+        if (!gone) setLoadedBackend(info);
       }
     })();
     return () => {
       gone = true;
     };
-  }, [info, debug]);
+  }, [info, debug, active]);
 
   function settingsPayload(draft: { base_url: string; model: string; api_key: string }) {
     const base_url = draft.base_url.trim();
@@ -133,6 +139,7 @@ export function useModelSettings(props: {
       const data = await rpc<ModelList>(info, "delete_model_entry", { model_id: id });
       if (!data.ok) throw new Error(data.error || "删除模型失败。");
       rememberModels(data, data.active);
+      props.onChanged?.();
       setSettingsNotice(data.message || "模型已删除。");
     } catch (err) {
       setSettingsError(String(err));
@@ -190,6 +197,7 @@ export function useModelSettings(props: {
       if (!data.ok) throw new Error(data.error || "模型保存失败。");
       const created = data.items.find((row) => !modelItems.some((old) => old.id === row.id));
       rememberModels(data, draft.id || created?.id || data.active);
+      props.onChanged?.();
       setSettingsNotice(data.message || "模型已保存。");
     } catch (err) {
       setSettingsError(String(err));
@@ -276,6 +284,7 @@ export function useModelSettings(props: {
   }
 
   return {
+    loading: !debug && (!info || loadedBackend !== info),
     modelItems, modelForm, editingModelId, keyEpoch,
     settingsError, settingsNotice, personaForm, personaError, personaNotice, settingsBusy,
     editModel, deleteModel, saveSettings, savePersona, testSettings,
