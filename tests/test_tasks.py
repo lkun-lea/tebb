@@ -292,6 +292,26 @@ class TaskTests(unittest.TestCase):
         self.env.stop()
         self.temp.cleanup()
 
+    def test_corrupt_settings_recover_and_failed_save_preserves_configuration(self):
+        from desk_companion.collaboration.service import execution_limits
+        from desk_companion.tasks.settings import DEFAULTS
+        directory = Path(self.temp.name) / "memory"
+        directory.mkdir(exist_ok=True)
+        path = directory / "task_settings.json"
+        path.write_text("{", "utf-8")
+        manager = TaskManager(path=directory / "tasks.sqlite3")
+        try:
+            self.assertEqual(manager.settings, DEFAULTS)
+            self.assertEqual(execution_limits("research")["task_timeout"], 360)
+            manager.configure(3, 30, 120, False)
+            with patch.object(Path, "replace", side_effect=OSError("busy")):
+                with self.assertRaises(OSError):
+                    manager.configure(1, 20, 60, True)
+            self.assertEqual(manager.settings, json.loads(path.read_text("utf-8")))
+            self.assertEqual(execution_limits("research"), dict(call_timeout=30, task_timeout=120))
+        finally:
+            manager.shutdown()
+
     def test_parallel_and_same_session_fifo(self):
         first = self.manager.submit("slow", "a")
         second = self.manager.submit("second", "a")

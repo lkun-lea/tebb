@@ -12,10 +12,10 @@ import uuid
 from contextlib import closing, contextmanager
 from pathlib import Path
 from desk_companion.infrastructure.paths import data_root
+from desk_companion.tasks.settings import DEFAULTS, read_settings, save_settings, settings_path
 from desk_companion.tasks.task_process import ProcessTree
 
 TERMINAL = {"succeeded", "failed", "cancelled", "timed_out", "interrupted"}
-DEFAULTS = {"parallel": 2, "call_timeout": 90, "task_timeout": 300, "pet_progress": True}
 
 
 def submission_task_id(submission_key):
@@ -65,8 +65,8 @@ class TaskManager:
         self._session_reservations = set()
         self.listeners = {}
         self.stopped = False
-        self.settings_path = self.path.parent / "task_settings.json"
-        self.settings = {**DEFAULTS, **(json.loads(self.settings_path.read_text("utf-8")) if self.settings_path.exists() else {})}
+        self.settings_path = settings_path(self.path.parent)
+        self.settings = read_settings(self.settings_path, DEFAULTS)
         with self.db() as db:
             db.execute("CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, session TEXT, channel TEXT, "
                        "text TEXT, request TEXT, state TEXT, answer TEXT DEFAULT '', error TEXT DEFAULT '', "
@@ -94,17 +94,10 @@ class TaskManager:
         return closing(db)
 
     def configure(self, parallel, call_timeout, task_timeout, pet_progress):
-        if type(parallel) is not int or not 1 <= parallel <= 4:
-            raise ValueError("并行数须为 1～4。")
-        if type(call_timeout) is not int or not 10 <= call_timeout <= 300:
-            raise ValueError("单次调用时限须为 10～300 秒。")
-        if type(task_timeout) is not int or not call_timeout <= task_timeout <= 1800:
-            raise ValueError("总时限须大于单次调用时限，且不超过 1800 秒。")
-        if type(pet_progress) is not bool:
-            raise ValueError("桌宠进度反馈须为开关。")
         with self.cv:
-            self.settings = dict(parallel=parallel, call_timeout=call_timeout, task_timeout=task_timeout, pet_progress=pet_progress)
-            self.settings_path.write_text(json.dumps(self.settings), "utf-8")
+            settings = dict(parallel=parallel, call_timeout=call_timeout, task_timeout=task_timeout, pet_progress=pet_progress)
+            save_settings(self.settings_path, settings)
+            self.settings = settings
             self.cv.notify_all()
         return {"ok": True, "settings": self.settings}
 

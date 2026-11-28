@@ -15,6 +15,7 @@ from pathlib import Path
 
 from desk_companion.collaboration.store import workspace_path, transaction
 from desk_companion.infrastructure.paths import data_root
+from desk_companion.tasks.settings import read_settings, settings_path
 from desk_companion.tasks.manager import TaskManager, TERMINAL
 from desk_companion.collaboration.execution_flow import ACTIVE, OPEN, advance, phase_calls, chain_view
 
@@ -72,16 +73,7 @@ def execution_limits(agent_id, tools=()):
     from desk_companion.tasks.task_budgets import default_tier, policy
     tier = default_tier(role=dict(id=agent_id, tools=tools))
     defaults = dict(call_timeout=90, task_timeout=max(300, policy(tier)['time_ms']//1000))
-    path = data_root() / 'memory' / 'task_settings.json'
-    if not path.exists(): return defaults
-    try:
-        saved = json.loads(path.read_text('utf-8'))
-        call, total = saved['call_timeout'], saved['task_timeout']
-        if type(call) is not int or type(total) is not int or not 10 <= call <= 300 or not call <= total <= 1800:
-            return defaults
-        return dict(call_timeout=call, task_timeout=total)
-    except (ValueError, KeyError, TypeError):
-        return defaults
+    return read_settings(settings_path(), defaults)
 
 
 def migrate_companions(state):
