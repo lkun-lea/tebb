@@ -257,6 +257,11 @@ test('real week component keeps FullCalendar time-zone/gesture gates and guards 
   let selectedDay;await act(async()=>view.update(React.createElement(Week,{info:null,transport,target:{day},view:'month',onViewDay:date=>selectedDay=date,onClose(){},onReturn(){},onDay(){},onChange(){}})));
   assert.equal(calendarProps.initialView,'dayGridMonth');assert.equal(calendarProps.fixedWeekCount,false);assert.equal(calendarProps.eventAllow({},{extendedProps:{source:current}}),false);
   act(()=>calendarProps.navLinkDayClick(new Date(time('09:00'))));assert.equal(selectedDay,day);
+  const agenda=()=>view.root.findByProps({'aria-label':'选中日期的日程'});
+  assert.equal(agenda().findByType('strong').children.join(''),current.summary);
+  act(()=>calendarProps.dateClick({allDay:true,dateStr:shared.addCalendarDays(day,1),jsEvent:{timeStamp:500}}));
+  assert.equal(agenda().findAllByType('button').length,0);
+
   for(const mode of ['week','day','month']){
     await act(async()=>view.update(React.createElement(Week,{info:null,transport,target:{day},view:mode,onClose(){},onReturn(){},onDay(){},onChange(){}})));
     const click=stamp=>calendarProps.dateClick({allDay:mode==='month',dateStr:mode==='month'?day:time('13:00'),date:new Date(time('13:00')),jsEvent:{timeStamp:stamp}});

@@ -185,3 +185,9 @@
 .knowledge-recent small {display:block;color:hsl(var(--muted-foreground))}
 
 .workspace-identity {display:block;padding:8px;overflow-wrap:anywhere;color:hsl(var(--foreground))}
+
+.sw-selected-day .fc-daygrid-day-number {border-radius:50%;background:var(--wb-text);color:var(--wb-surface)}
+.sw-month-agenda {margin:12px 0;padding:14px 18px;border:1px solid var(--wb-line);border-radius:16px;background:var(--wb-surface)}
+.sw-month-agenda h3 {margin:0 0 8px;font-size:15px}
+.sw-month-agenda button {display:flex;align-items:baseline;gap:14px;width:100%;padding:8px 0;text-align:left}
+.sw-month-agenda time,.sw-month-agenda p {font-size:13px;color:var(--wb-muted)}

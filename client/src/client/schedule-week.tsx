@@ -66,6 +66,8 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
   const root=useRef<HTMLElement|null>(null),calendar=useRef<FullCalendar|null>(null),details=useRef<HTMLElement|null>(null);
   const draftRoot=useRef<HTMLDivElement|null>(null);
   const [day,setDay]=useState(target.day||beijingDay()),[paneWidth,setPaneWidth]=useState(Number.POSITIVE_INFINITY);
+  const [monthSelection,setMonthSelection]=useState(day);
+  useEffect(()=>setMonthSelection(day),[day]);
   const narrow=paneWidth<680;
   const [selected,setSelected]=useState(target.event_id&&target.calendar_id?calendarKey(target as {calendar_id:string;event_id:string}):'');
   const [form,setForm]=useState<Form|null>(null),[picker,setPicker]=useState<'start'|'end'|null>(null),[formError,setFormError]=useState('');
@@ -361,6 +363,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       firstDay={1} initialView={view==='month'?'dayGridMonth':view==='day'?'timeGridDay':'timeGridWeek'} initialDate={day} headerToolbar={false} height="auto" stickyHeaderDates={false} allDaySlot allDayText="全天"
       slotMinTime="00:00:00" slotMaxTime="24:00:00" slotDuration="00:30:00" snapDuration="00:15:00"
       slotLabelInterval="01:00:00" slotLabelFormat={{hour:'2-digit',minute:'2-digit',hour12:false}} eventTimeFormat={{hour:'2-digit',minute:'2-digit',hour12:false}}
+      dayCellClassNames={cell=>view==='month' && beijingDay(cell.date.toISOString())===monthSelection ? ['sw-selected-day'] : []}
       fixedWeekCount={false} dayMaxEvents={3} moreLinkClick="popover" navLinks={view==='month'} navLinkDayClick={date=>guard(()=>onViewDay?.(beijingDay(date.toISOString())))}
       dayHeaderFormat={view==='month'?{weekday:'long'}:{weekday:'short',month:'numeric',day:'numeric'}} events={events} editable={view!=='month'} eventResizableFromStart eventOverlap slotEventOverlap={false}
       eventDragMinDistance={6} dragRevertDuration={reduce?0:DRAG_SETTLE_MS} dragScroll={!reduce} nowIndicator eventMinHeight={18} eventShortHeight={44} eventLongPressDelay={250}
@@ -369,6 +372,7 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       eventDragStart={startPointer} eventResizeStart={startPointer} eventDragStop={stopPointer} eventResizeStop={stopPointer} eventDrop={changed} eventResize={changed}
       eventClick={arg=>{lastBlankClick.current=null;arg.jsEvent.preventDefault();clickEvent(arg.event.id);}} dateClick={arg=>{
         if(arg.allDay&&view!=='month'){lastBlankClick.current=null;return;}
+        if(view==='month' && arg.allDay)setMonthSelection(arg.dateStr);
         lastBlankClick.current={start:arg.allDay?arg.dateStr+'T09:00:00+08:00':arg.date.toISOString(),at:arg.jsEvent.timeStamp};}}
       eventDidMount={arg=>{arg.el.dataset.weekEvent=arg.event.id;arg.el.setAttribute('role','button');arg.el.setAttribute('tabindex','0');const source=arg.event.extendedProps.source as CalendarEvent;
         // FullCalendar clones the source for its revert mirror. Keep its top/left ownership.
@@ -377,7 +381,13 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       eventContent={arg=>{const preview=arg.isMirror&&arg.event.start&&arg.event.end?pointerTimeDraft(arg.event.extendedProps.source as CalendarEvent,{start:arg.event.start.toISOString(),end:arg.event.end.toISOString()}):null;
         const source=arg.event.extendedProps.source as CalendarEvent;if(!source)return null;
         const content=<div className="sw-event-content"><b>{arg.event.extendedProps.pending?'保存中 · ':arg.event.extendedProps.unknown?'未核对 · ':arg.event.extendedProps.linked?'↗ ':''}{arg.event.title}</b><span className="sw-event-time">{preview?`${beijingStamp(preview.start).slice(11)} – ${beijingStamp(preview.end).slice(11)}`:view==='month'&&source.start.includes('T')?`${beijingStamp(source.start).slice(11)} – ${beijingStamp(source.end).slice(11)}`:arg.timeText}</span></div>;
-        return arg.isMirror||view==='month'?content:<CalendarDragContent event={source} enabled={(source.calendar_id==='tebb-draft'||timeEditable(source))&&!controller.blocked(calendarKey(source))&&!controller.checking.has(calendarKey(source))&&(!dirty||source.calendar_id==='tebb-draft')}>{content}</CalendarDragContent>;}}/>,[events,day,view,dirty,keyboard,pointerCancelled,controller,reduce,onViewDay]);
+        return arg.isMirror||view==='month'?content:<CalendarDragContent event={source} enabled={(source.calendar_id==='tebb-draft'||timeEditable(source))&&!controller.blocked(calendarKey(source))&&!controller.checking.has(calendarKey(source))&&(!dirty||source.calendar_id==='tebb-draft')}>{content}</CalendarDragContent>;}}/>,[events,day,view,monthSelection,dirty,keyboard,pointerCancelled,controller,reduce,onViewDay]);
+  const dayStart = Date.parse(monthSelection+'T00:00:00+08:00');
+  const dayEnd = dayStart + 86400000;
+  const selectedDayEvents = view==='month' ? visible.filter(row=>{
+    if (!row.start.includes('T')) return row.start===monthSelection || (row.start < monthSelection && row.end > monthSelection);
+    return Date.parse(row.start)<dayEnd && Date.parse(row.end)>dayStart;
+  }).sort((a,b)=>a.start.localeCompare(b.start)) : [];
   const periodText=view==='month'?`${day.slice(0,4)} 年 ${Number(day.slice(5,7))} 月`
     :view==='day'?`${day.slice(0,4)} 年 ${Number(day.slice(5,7))} 月 ${Number(day.slice(8,10))} 日`
     :`${monday.slice(0,4)} 年 ${Number(monday.slice(5,7))} 月 ${Number(monday.slice(8,10))} 日 — ${Number(addCalendarDays(monday,6).slice(8,10))} 日`;
@@ -486,6 +496,13 @@ export function ScheduleWeekPane({info,debug=false,transport,target,revision,onC
       {view!=='month'&&<CalendarItemSource items={controller.page.items} disabled={itemDraftBlocked} loading={controller.loading} onArrange={arrangeItem}/>}
       <div className={`sw-calendar sw-${view}`} role="region" aria-label="日程时间轴" tabIndex={0}>{calendarView}</div>
     </div></CalendarDragSurface>
+    {view==='month' && <section className="sw-month-agenda" aria-label="选中日期的日程">
+      <h3>{new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'long',day:'numeric',weekday:'long'}).format(dayStart)}</h3>
+      {selectedDayEvents.map(row=><button type="button" key={calendarKey(row)} onClick={()=>clickEvent(calendarKey(row))}>
+        <time>{row.start.includes('T') ? eventTime(row) : '全天'}</time><strong>{row.summary}</strong>
+      </button>)}
+      {!selectedDayEvents.length && <p>{controller.loading ? '正在读取日程…' : controller.page.events_valid ? '当天没有已读日程' : '日程尚未核对'}</p>}
+    </section>}
     <footer className="sw-statusbar">
       <div className="sw-live" role="status" aria-live="polite" title={announcement||controller.notice||syncHint||calendarHelp}><span className={`sw-status-dot${confirmItems.length?' sw-warn':''}`} aria-hidden="true"/><UiStableText reserve={statusSummary}>{announcement||controller.notice||syncHint||statusSummary}</UiStableText></div>
       <button type="button" className="sw-status-help" title={keyboardHelp} onClick={()=>setAnnouncement(keyboardHelp)}>双击空白处新建 · 拖动改期 · 快捷键说明</button>
