@@ -574,6 +574,37 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(results,[dict(mode='task',instructions=request['text'],strategy='direct')])
         self.assertFalse(any(k=='tool_start' for k,d in events))
 
+    def test_personal_note_edit_and_selected_content_reaches_model(self):
+        from types import SimpleNamespace
+        from desk_companion.local_api.bridge import Bridge
+        bridge = Bridge(SimpleNamespace(collaboration=self.service))
+        note_id = uuid.uuid4().hex
+        with patch('desk_companion.knowledge.index.public_view', return_value=dict(docs=[])):
+            def save(body):
+                return bridge.write_personal_note(note_id, '评审安排', body)
+            initial = save('旧稿 618')
+            self.assertTrue(initial['ok'])
+            sid = initial['session_id']
+            self.assertEqual(len(save('旧稿 618')['sessions'][0]['notes']), 1)
+            bridge.write_personal_note(uuid.uuid4().hex, '另一条', 'UNSELECTED-830')
+            bridge.write_personal_note(note_id, '评审安排', 'SELECTED-742', sid, dict(title='评审安排', body='旧稿 618'))
+            with self.assertRaisesRegex(ValueError, '已被修改'):
+                bridge.write_personal_note(note_id, '评审安排', '冲突', sid, dict(title='评审安排', body='旧稿 618'))
+            staged = bridge.prepare_notebook_source(sid, note_id)
+        self.action(type='send', text='已有草稿', mode='message', target='research', attachments=[staged['sources'][0]['id']])
+        self.service.tick()
+        request = next(iter(self.chat.requests.values()))
+        calls = []
+        class Transport:
+            def chat(_, messages, tools, on_delta):
+                calls.append(json.dumps(messages, ensure_ascii=False))
+                return dict(message=dict(content='已核对'), usage={})
+        execute(request, lambda *_: None, llm=Transport())
+        self.assertTrue(calls)
+        self.assertIn('SELECTED-742', calls[0])
+        self.assertIn('已有草稿', calls[0])
+        self.assertNotIn('UNSELECTED-830', calls[0])
+
     def test_chat_artifact_can_be_saved_once_as_note_and_read_as_full_attachment(self):
         from desk_companion.local_api.bridge import Bridge
         from desk_companion.knowledge import notebook

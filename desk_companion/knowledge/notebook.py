@@ -144,6 +144,40 @@ def save_note(session_id: str, question: str, answer: str, cites: list) -> dict:
     return page
 
 
+def write_personal_note(note_id, title, body, session_id='', previous=None):
+    """Create once with a client ID, or edit the exact saved version the user opened."""
+    note_id = str(uuid.UUID(note_id)).replace('-', '') if not session_id else note_id
+    title, body = title.strip(), body.strip()
+    if not title or not body:
+        raise ValueError('请填写标题和正文。')
+    with _LOCK:
+        book = _read_locked()
+        if session_id:
+            session = _find(book, session_id)
+            note = _find_note(session, note_id)
+            if (note['question'], note['answer']) != (title, body):
+                if previous != dict(title=note['question'], body=note['answer']):
+                    raise ValueError('这条笔记已被修改，请保留草稿并重新核对。')
+                note.update(question=title, answer=body, saved=_now())
+                session['updated'] = note['saved']
+                _write_change(book, session_id, note_id)
+        else:
+            session_id = 'personal-notes'
+            session = next((s for s in book['sessions'] if s['id'] == session_id), None)
+            if session is None:
+                session = dict(id=session_id, title='我的笔记', updated=_now(), turns=[], notes=[])
+                book['sessions'].insert(0, session)
+            existing = next((n for n in session['notes'] if n['id'] == note_id), None)
+            if existing and (existing['question'], existing['answer']) != (title, body):
+                raise ValueError('这次新增已经保存，内容不同，请重新核对。')
+            if not existing:
+                session['updated'] = _now()
+                session['notes'].insert(0, dict(id=note_id, question=title, answer=body, saved=session['updated'], cites=[], files=[]))
+                _write_change(book, session_id, note_id)
+    page = _changed_page(session_id, note_id)
+    return dict(page, session_id=session_id, note_id=note_id)
+
+
 def save_agent_artifact(conversation: str, run_id: str, title: str, question: str, answer: str, agent: str) -> dict:
     """Save a real chat result with explicit AI provenance, never as verified research."""
     session_id = uuid.uuid5(uuid.NAMESPACE_URL, 'tebb-notes:'+conversation).hex
@@ -422,7 +456,7 @@ def _session(item: object, path: Path) -> dict:
         "title": title.strip(),
         "updated": updated.strip(),
         "turns": [_turn(row, path) for row in turns],
-        "notes": [_note(row, path) for row in notes],
+        "notes": [_note(row, path, manual=session_id == "personal-notes") for row in notes],
     }
 
 
@@ -441,7 +475,7 @@ def _turn(item: object, path: Path) -> dict:
     return row
 
 
-def _note(item: object, path: Path) -> dict:
+def _note(item: object, path: Path, manual=False) -> dict:
     if not isinstance(item, dict):
         raise RuntimeError(f"{path} 的笔记不是对象。删掉该文件后重新打开笔记。")
     note_id = item.get("id")
@@ -458,7 +492,7 @@ def _note(item: object, path: Path) -> dict:
         "id": note_id.strip(),
         "question": question.strip(),
         "answer": answer.strip(),
-        "cites": _cites(item.get("cites")),
+        "cites": [] if manual and item.get("cites") == [] else _cites(item.get("cites")),
         "saved": saved.strip(),
         "files": _files(item.get("files"), path),
     }

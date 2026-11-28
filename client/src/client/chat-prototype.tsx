@@ -1,3 +1,4 @@
+import type {NoteDraftPort} from './saved-notes';
 import {WorkspaceDialog} from './workspace-dialog';
 import { useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
@@ -81,7 +82,7 @@ function GroupForm({ editing, agents, projects, projectId, onCreate, onClose, re
   </form></Modal>;
 }
 
-export function ChatPrototype({ standalone = false, live, composeRequest, sourceTarget, navigation, developerMode, onDeveloperMode, backend, onAttach, attachments: providedAttachments = [], onDetach, onProject, onFile, onCalendar }: { backend?: BackendInfo | null; onAttach?: () => void; attachments?: LocalSource[]; onDetach?: (id: string) => void; onProject?: () => void; onFile?: () => void; onCalendar?: () => void; standalone?: boolean; sourceTarget?: {conversation:string; run?:string}; composeRequest?: { id: number; text: string }; navigation?: ReactNode; developerMode?: boolean; onDeveloperMode?: (value: boolean) => void; live?: { state: DemoState; act: (action: DemoAction) => Promise<boolean>; confirmAction?: (id:string)=>void; busy: boolean; error: string } }) {
+export function ChatPrototype({ noteDraftPort, standalone = false, live, composeRequest, sourceTarget, navigation, developerMode, onDeveloperMode, backend, onAttach, attachments: providedAttachments = [], onDetach, onProject, onFile, onCalendar }: { noteDraftPort?:NoteDraftPort; backend?: BackendInfo | null; onAttach?: () => void; attachments?: LocalSource[]; onDetach?: (id: string) => void; onProject?: () => void; onFile?: () => void; onCalendar?: () => void; standalone?: boolean; sourceTarget?: {conversation:string; run?:string}; composeRequest?: { id: number; text: string }; navigation?: ReactNode; developerMode?: boolean; onDeveloperMode?: (value: boolean) => void; live?: { state: DemoState; act: (action: DemoAction) => Promise<boolean>; confirmAction?: (id:string)=>void; busy: boolean; error: string } }) {
   const [demoState, demoDispatch] = useReducer(demoReducer, undefined, () => {
     if (live) return initialDemo();
     try { return restoreDemo(accountStorage().getItem(DEMO_STORAGE)); } catch { return initialDemo(); }
@@ -174,6 +175,19 @@ export function ChatPrototype({ standalone = false, live, composeRequest, source
   const setDraft = (text: string) => setDrafts(previous => ({ ...previous, [conversation.id]: text }));
   const [attachmentMap, setAttachmentMap] = useState<Record<string, LocalSource[]>>({});
   const attachments = attachmentMap[conversation.id] || [];
+  useEffect(()=>{
+    if(!noteDraftPort)return;
+    const targets=state.conversations.map(c=>({id:c.id,title:c.title}));
+    if(editingDraft&&!draftLocked)targets.unshift({id:conversation.id,title:conversation.title});
+    noteDraftPort.current={targets,current:targets.some(t=>t.id===conversation.id)?conversation.id:'',
+      attach:(id,source)=>{
+        if(!targets.some(t=>t.id===id))throw Error('目标会话已移除');
+        const current=attachmentMap[id]||[];
+        if(current.length>=10)throw Error('当前草稿已选满 10 份资料');
+        setAttachmentMap(old=>({...old,[id]:[...(old[id]||[]).filter(a=>a.id!==source.id),source]}));
+      }};
+    return ()=>{noteDraftPort.current=null;};
+  },[noteDraftPort,state.conversations,conversation.id,editingDraft,draftLocked,attachmentMap]);
   useEffect(() => { if (providedAttachments.length&&!draftLocked) setAttachmentMap(old => ({ ...old, [conversation.id]: [...new Map([...(old[conversation.id] || []), ...providedAttachments].map(a => [a.id,a])).values()] })); }, [providedAttachments]);
   const removeAttachment = (id: string) => { if(draftLocked)return;setAttachmentMap(old => ({ ...old, [conversation.id]: attachments.filter(a => a.id!==id) })); onDetach?.(id); };
   const [cloudChoices,setCloudChoices]=useState<Record<string,boolean>>({});

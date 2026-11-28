@@ -56,7 +56,7 @@ RPC_METHODS = frozenset({
     "load_knowledge", "save_knowledge", "download_knowledge", "delete_model",
     "add_knowledge", "delete_knowledge", "rebuild_knowledge", "ask_knowledge", "material_operation",
     "pick_local_sources", "stage_local_sources", "read_local_source", "cancel_local_source_request",
-    "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
+    "load_notebook", "new_notebook", "save_notebook_note", "write_personal_note", "delete_notebook_note",
     "export_notebook_markdown", "export_notebook_feishu", "summarize_notebook",
     "open_notebook_file", "reveal_notebook_file", "delete_notebook_file",
     "new_chat_session", "switch_chat_session", "clear_chat",
@@ -185,7 +185,7 @@ def _dispatch(method: str, args: dict, preview=False) -> dict:
             with context(session=HOST.state.session_id, channel="backend",usage_channel="local"):
                 return target(**kwargs)
         if method.startswith(("account_","personalization_","terminal_","project_","calendar_reminder_","task_completion_")) or method in {"connection_status", "github_account_dialog", "load_personal_usage","load_onboarding", "complete_onboarding", "save_onboarding_progress", "tebb_operation", "workflow_authoring", "check_automation_execution","load_local_calendar", "change_local_calendar", "calendar_sync_step", "load_schedule", "change_schedule", "load_schedule_week", "load_schedule_month", "inspect_schedule_event", "load_work_board", "change_work_item", "compress_context", "load_chat_log", "load_memory",
-                      "load_notebook", "new_notebook", "save_notebook_note", "delete_notebook_note",
+                      "load_notebook", "new_notebook", "save_notebook_note", "write_personal_note", "delete_notebook_note",
                       "export_notebook_markdown", "export_notebook_feishu", "open_notebook_file",
                       "reveal_notebook_file", "delete_notebook_file",
                       "summarize_notebook",

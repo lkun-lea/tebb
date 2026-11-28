@@ -26,6 +26,7 @@ import {
 import { ContextCard, ContextSplit, modelVerbatim, splitIndex, type ContextView, type MemoryPayload } from "./memory";
 import { KnowledgePane, KnowledgeTraceView, mergeKnowledgePage, type FeishuDoc, type KnowledgePayload } from "./knowledge";
 import { MaterialsPane } from './materials';
+import {SavedNotes,type NoteDraftPort} from './saved-notes';
 import { NoteMode, type NotebookPage, type NoteDoc, type NoteSession } from "./note";
 import { NotebookSources } from "./notebook-sources";
 import { CalendarWorkspace } from "./calendar-workspace";
@@ -165,6 +166,7 @@ export function App() {
   const [useKnowledge, setUseKnowledge] = useState(false);
   const [noteSessionId, setNoteSessionId] = useState<string | null>(debugKind === "note" ? "note-1" : null);
   const [noteSessions, setNoteSessions] = useState<NoteSession[]>(debugKind === "note" ? NOTE_FIXTURE.sessions : []);
+  const noteDraftPort:NoteDraftPort=useRef(null);
   const recentSessions = [...noteSessions].sort((a,b)=>b.updated.localeCompare(a.updated));
   const [noteDocs, setNoteDocs] = useState<NoteDoc[]>(debugKind === "note" ? NOTE_FIXTURE.docs : []);
   const [noteChecked, setNoteChecked] = useState<string[]>(debugKind === "note" ? NOTE_FIXTURE.docs.map((doc) => doc.id) : []);
@@ -1091,8 +1093,7 @@ export function App() {
     }
   }
 
-  async function manageNoteFile(action: "open" | "reveal" | "delete", id: string, name: string) {
-    const sessionId = noteSessionId;
+  async function manageNoteFile(action: "open" | "reveal" | "delete", id: string, name: string, sessionId = noteSessionId) {
     if (!sessionId) {
       setNoteSaveBad(true);
       setNoteSave("没有打开笔记会话。恢复：从侧边栏重新打开。");
@@ -1513,7 +1514,7 @@ export function App() {
           onRequest={() => {}}>
         <div className="tebb-content-slot" data-content-slot data-sky={dark ? "moon" : "sun"} data-split={!debugKind || undefined} data-chat-focused={coreChat || undefined} data-today-open={pane==="today" || undefined}>
         <div className="tebb-core-chat" hidden={!!debugKind && !coreChat} style={{flexDirection:"column",flex:1,minHeight:0,minWidth:0}}>
-          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
+          {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration noteDraftPort={noteDraftPort} sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page">
             <WindowTitleBar>{workspaceNavigation}</WindowTitleBar>
@@ -1576,6 +1577,9 @@ export function App() {
                 }}
               />
             </section>
+          ) : !debugKind && pane === "chat" && (chatFace === "notebooks" || noteSessionId) ? (
+            <SavedNotes key={info?.token} info={info} sessions={noteSessions} error={noteListError} accept={takeNotebook}
+              refresh={refreshNotebooks} onFile={manageNoteFile} port={noteDraftPort} initialSession={chatFace==="thread"?noteSessionId:null}/>
           ) : pane === "chat" && chatFace === "notebooks" ? (
             <section key="notebooks" data-notebook-empty className="workspace-record-page">
               <header><div><small>我的笔记</small><h1>笔记</h1></div><button disabled={notebookCreating||notebookNeedsCheck||busy||noteBusy} onClick={()=>void newNotebook()}>＋ 新建笔记</button></header>

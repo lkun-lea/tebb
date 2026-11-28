@@ -518,6 +518,10 @@ class Bridge:
     def save_notebook_note(self, session_id: str, question: str, answer: str, cites: list) -> dict:
         return self._host.notebooks.save_notebook_note(session_id, question, answer, cites)
 
+    def write_personal_note(self, note_id, title, body, session_id='', previous=None):
+        from desk_companion.knowledge.notebook import write_personal_note
+        return write_personal_note(note_id, title, body, session_id, previous)
+
     def delete_notebook_note(self, session_id: str, note_id: str) -> dict:
         return self._host.notebooks.delete_notebook_note(session_id, note_id)
 
