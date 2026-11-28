@@ -23,7 +23,9 @@ def parse_time(text):
     return sum(float(v) * 60 ** i for i, v in enumerate(reversed(parts)))
 
 
-def parse_subtitles(text, ext):
+def parse_subtitles(text, ext, *, publisher_cues=False):
+    if publisher_cues and not re.match(r"^WEBVTT(?:[ \t][^\r\n]*)?(?:\r?\n|$)", text):
+        return [], False
     rows = []
     if ext in {"json3", "json"}:
         data = json.loads(text)
@@ -36,10 +38,18 @@ def parse_subtitles(text, ext):
     elif ext in {"vtt", "srt"}:
         for block in re.split(r"\n\s*\n", text.replace("\r", "")):
             lines = block.splitlines()
+            if publisher_cues and lines and lines[0].startswith(("NOTE", "STYLE", "REGION")):
+                continue
             for i, line in enumerate(lines):
                 match = re.match(r"\s*((?:\d+:)?\d{2}:\d{2}[.,]\d+)\s*-->", line)
                 if match:
-                    rows.append({"start": parse_time(match[1]), "text": " ".join(lines[i+1:])})
+                    row = {"start": parse_time(match[1]), "text": " ".join(lines[i+1:])}
+                    if publisher_cues:
+                        end = re.match(r"\s*((?:\d+:)?\d{2}:\d{2}\.\d{3})(?:\s|$)", line[match.end():])
+                        if not end or parse_time(end[1]) <= row["start"]:
+                            continue
+                        row.update(start_time=match[1], end=parse_time(end[1]), end_time=end[1])
+                    rows.append(row)
                     break
     result, chars, truncated = [], 0, False
     for row in rows:
@@ -51,12 +61,12 @@ def parse_subtitles(text, ext):
         if not content or not math.isfinite(start) or start < 0:
             continue
         # 自动字幕常重复一个滚动片段，合并完全相同的相邻文本。
-        if result and result[-1]["text"] == content:
+        if not publisher_cues and result and result[-1]["text"] == content:
             continue
         if len(result) >= MAX_SEGMENTS or chars + len(content) > MAX_TEXT:
             truncated = True
             break
-        result.append({"start": round(start, 3), "text": content})
+        result.append({**row, "start": round(start, 3), "text": content})
         chars += len(content)
     result.sort(key=lambda r: r["start"])
     return result, truncated
@@ -84,6 +94,8 @@ def safe_caption_url(url, platform):
     if p.scheme != "https" or p.username or p.password or p.port:
         return False
     host = p.hostname or ""
+    if platform == "MIT OpenCourseWare":
+        return host == "ocw.mit.edu" and p.path.startswith("/courses/")
     domains = ("youtube.com", "googlevideo.com") if platform == "YouTube" else ("hdslb.com", "bilibili.com")
     return any(host == d or host.endswith("." + d) for d in domains)
 
@@ -240,7 +252,13 @@ def retrieve(url, settings, emit):
                 discard=not row["expires"], comment=None, comment_url=None,
                 rest={"HttpOnly": None} if row["http_only"] else {}))
         try:
-            info = bilibili_metadata(ydl, url) if platform == "Bilibili" else ydl.extract_info(url, download=False)
+            if platform == "MIT OpenCourseWare":
+                from desk_companion.content.video.ocw import metadata
+                info = metadata(url, caption_bytes(url, platform, {}, None, settings.get("proxy", "")))
+            elif platform == "Bilibili":
+                info = bilibili_metadata(ydl, url)
+            else:
+                info = ydl.extract_info(url, download=False)
         except Exception as exc:
             raise RuntimeError(classify_error(exc)) from None
         if not isinstance(info, dict) or info.get("_type") in {"playlist", "multi_video"}:
@@ -273,7 +291,10 @@ def retrieve(url, settings, emit):
                     raw = caption_bytes(caption_url, platform, info.get("http_headers") or {}, ydl.cookiejar, settings.get("proxy", ""))
                 if len(raw) > 4_000_000:
                     raise RuntimeError("字幕文件过大。")
-                segments, truncated = parse_subtitles(raw, item["ext"])
+                publisher = platform == "MIT OpenCourseWare"
+                segments, truncated = parse_subtitles(raw, item["ext"], publisher_cues=publisher)
+                if segments and publisher:
+                    value.update(caption_url=item["url"], playback_url=info.get("playback_url", ""))
                 if segments:
                     value.update(segments=segments, truncated=truncated, subtitle_status="available",
                                  subtitle_language=language, automatic=automatic or language.startswith("ai-"))

@@ -4,6 +4,8 @@ from desk_companion.infrastructure import storage
 
 import hashlib
 import json
+import os
+from pathlib import Path
 import re
 import time
 import uuid
@@ -46,8 +48,8 @@ def chunks(source):
                 groups.append({"chapter": chapter, "items": items})
                 items, size = [], 0
             chapter = current
-            items.append({"index": index, "time": video.timestamp(row["start"]), "text": text,
-                          "url": video.at_time(source["url"], row["start"])})
+            items.append({"index": index, "time": row.get("start_time") or video.timestamp(row["start"]), "text": text,
+                          "url": video.at_time(source.get("playback_url") or source["url"], row["start"])})
             size += len(text)
     if items:
         groups.append({"chapter": chapter, "items": items})
@@ -104,6 +106,11 @@ def analyze(request, emit, llm, source):
     key = digest({"edition": EDITION, "model": llm.model, "focus": focus,
                   "segments": source["segments"], "chapters": source.get("chapters")})
     path = video.source_dir(request["session_id"]) / "analysis" / (source["source_id"] + "." + key[:24] + ".json")
+    # Windows account roots can put the atomic checkpoint temporary file past MAX_PATH.
+    if os.name == "nt":
+        absolute = os.path.abspath(path)
+        if not absolute.startswith("\\\\?\\"):
+            path = Path("\\\\?\\UNC\\" + absolute[2:] if absolute.startswith("\\\\") else "\\\\?\\" + absolute)
     saved = json.loads(path.read_text("utf-8")) if path.exists() else {}
     draft_path = path.with_suffix(".drafts.json")
     drafts = json.loads(draft_path.read_text("utf-8")) if draft_path.exists() else {}

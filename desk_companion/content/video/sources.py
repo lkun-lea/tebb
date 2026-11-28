@@ -30,6 +30,8 @@ def normalize_url(value: str) -> tuple[str, str]:
         raise ValueError("请提供标准的视频网页链接，不支持自定义端口或登录凭据。")
     host = (parsed.hostname or "").lower()
     query = parse_qs(parsed.query)
+    if host == "ocw.mit.edu" and re.fullmatch(r"/courses/[\w-]+/resources/[\w-]+/?", parsed.path, re.ASCII):
+        return "MIT OpenCourseWare", "https://ocw.mit.edu" + parsed.path.rstrip("/") + "/"
     if host in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}:
         parts = parsed.path.strip("/").split("/")
         vid = parts[0] if host == "youtu.be" else (query.get("v", [""])[0] if parsed.path == "/watch"
@@ -47,7 +49,7 @@ def normalize_url(value: str) -> tuple[str, str]:
         return "Bilibili", "https://www.bilibili.com/video/" + match[1] + ("?p=" + str(int(part)) if int(part) > 1 else "")
     if host == "b23.tv" and re.fullmatch(r"/[A-Za-z0-9]{4,20}/?", parsed.path):
         return "Bilibili", "https://b23.tv/" + parsed.path.strip("/")
-    raise ValueError("目前支持 Bilibili 和 YouTube 的单个视频链接。")
+    raise ValueError("目前支持 Bilibili、YouTube 单个视频及 MIT OpenCourseWare 课程视频资源页。")
 
 
 def settings_path():
@@ -125,6 +127,8 @@ def timestamp(seconds):
 
 def at_time(url, seconds):
     platform, url = normalize_url(url)
+    if platform == "MIT OpenCourseWare":
+        return url
     return url + ("&" if "?" in url else "?") + urlencode({"t": int(seconds)})
 
 
@@ -137,8 +141,10 @@ def transcript_page(value, offset=0, limit=PAGE_SIZE):
     result, size, index = [], 0, offset
     while index < len(rows):
         row = rows[index]
-        line = {"start": row["start"], "time": timestamp(row["start"]), "text": row["text"],
-                "url": at_time(value["url"], row["start"])}
+        line = {"start": row["start"], "time": row.get("start_time") or timestamp(row["start"]), "text": row["text"],
+                "url": at_time(value.get("playback_url") or value["url"], row["start"])}
+        if "end_time" in row:
+            line.update(end=row["end"], end_time=row["end_time"])
         length = len(row["text"])
         if result and size + length > limit:
             break
@@ -147,7 +153,8 @@ def transcript_page(value, offset=0, limit=PAGE_SIZE):
         index += 1
     return {"source_id": value["source_id"], "offset": offset, "items": result,
             "next_offset": index if index < len(rows) else None, "total_segments": len(rows),
-            "complete": index == len(rows) and not value.get("truncated", False)}
+            "subtitle_status": value.get("subtitle_status"), "subtitle_notice": value.get("subtitle_notice", ""),
+            "complete": bool(rows) and index == len(rows) and not value.get("truncated", False)}
 
 
 def extract(url, settings, on_status=None, timeout=75):
@@ -219,7 +226,9 @@ def _read_video(session, url, refresh=False, on_status=None):
     path = source_path(session, source_id)
     # 完整成功来源复用 7 天；缺字幕/登录要求 5 分钟，接口失败 30 秒；设置变化失效。
     cfg = load_settings()
-    if not cfg.get("cookie_file"):
+    if platform == "MIT OpenCourseWare":
+        cfg = {"proxy": cfg.get("proxy", "")}
+    elif not cfg.get("cookie_file"):
         from desk_companion.content.video.login import cookies
         cfg["cookie_rows"] = cookies(platform)
     config_key = hashlib.sha256(json.dumps({"reader_edition": 2, "settings": cfg}, sort_keys=True).encode()).hexdigest()

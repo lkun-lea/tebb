@@ -41,7 +41,7 @@ def specs(session_getter, on_status):
         return run
     return [
         {"name": "read_video", "func": result(lambda a: video.read_video(session_getter(), a.get("url"), a.get("refresh", False), on_status)),
-         "description": "读取 Bilibili 或 YouTube 单个视频的元数据、章节和实际字幕。字幕缺失时明确返回，不下载音视频。返回来源编号用于追问和保存；首次只给前页字幕。",
+         "description": "读取 Bilibili、YouTube 单个视频或 MIT OpenCourseWare 课程视频资源页的元数据、章节和实际字幕。字幕缺失时明确返回，不下载音视频。返回来源编号用于追问和保存；首次只给前页字幕。",
          "parameters": {"type": "object", "properties": {"url": {"type": "string", "description": "原视频链接，分 P 使用 ?p=2"},
              "refresh": {"type": "boolean", "description": "用户要求重试获取时为 true，否则使用本会话缓存"}}, "required": ["url"]},
          "isReadOnly": True, "retry_max": 0},
