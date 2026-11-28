@@ -4,7 +4,7 @@ import '../journal/journal.js';
 import '../journal/journal.css';
 import '../journal/buttons.css';
 import {rpc, type BackendInfo} from './api';
-import {WorkspaceDialog} from './workspace-dialog';
+import {BriefPreferences,type Preferences} from './brief-preferences';
 import {UiFeedback} from './ui-controls';
 import {usePageActive} from './page-stack';
 import './today-pane.css';
@@ -14,8 +14,6 @@ type JournalAction = {type:string; answers?:Record<string,ChoiceAnswer>; run?:st
 type JournalView = {update:(data:unknown)=>void};
 declare global { interface Window { TodayJournal:new(root:HTMLElement,action:(a:JournalAction)=>void)=>JournalView } }
 
-type Period = {time:string; focus:string; keywords?:string; frequency?:string};
-type Preferences = {version:number; project:string; morning:Period; evening:Period};
 type Source = {title:string; conversation:string; source:string; time?:number};
 type Board = {
   preferences:Preferences; projects:{id:string; name:string}[];
@@ -23,7 +21,7 @@ type Board = {
   events:Source[]; reports:{slot:string; date:string; generated:number; rows:Source[]}[];
 };
 const slots = {morning:'早报', evening:'晚报'} as const;
-const periods = ['morning','evening'] as const;
+
 
 
 type TodayProps = {info:BackendInfo|null; onOpen:(id:string,run?:string)=>Promise<void>; onProfiles?:()=>void; onChat?:()=>void};
@@ -33,7 +31,6 @@ export function TodayPane(props:TodayProps) {
 function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
   const [board,setBoard]=useState<Board|null>(null);
   const [draft,setDraft]=useState<Preferences|null>(null);
-  const [slot,setSlot]=useState<keyof typeof slots>('morning');
   const [busy,setBusy]=useState(false);
   const [actionError,setActionError]=useState('');
   const [error,setError]=useState('');
@@ -70,7 +67,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
     if(a.type==='layout')return setSolo(value=>!value);
     if(a.type==='profiles')return onProfiles?.();
     if(a.type==='settings' && board){
-      setSlot('morning'); setActionError(''); setDraft(board.preferences); return;
+      setActionError(''); setDraft(board.preferences); return;
     }
     if(a.type==='select')return setSelected(a.run || '');
     if(a.type==='chat' && onChat)return onChat();
@@ -101,27 +98,7 @@ function AccountJournal({info,onOpen,onProfiles,onChat}:TodayProps) {
   return <section className="journal-host">
     {!board&&<UiFeedback state={info?'loading':'unconfirmed'} title={error || (info?'正在读取今日手记…':'等待本地助手连接')}/>}
     <div ref={container} hidden={!board}/>
-    {draft&&<WorkspaceDialog title="编辑早晚报" hideHeader closeDisabled={busy} onClose={()=>setDraft(null)} className="brief-preferences glass-card">
-      <form onSubmit={event=>{event.preventDefault();void save();}}>
-        <header><h2>编辑早晚报</h2><button type="button" disabled={busy} aria-label="关闭编辑早晚报" onClick={()=>setDraft(null)}>×</button></header>
-        <fieldset disabled={busy}>
-          <div className="brief-switch" role="group" aria-label="简报时段">{periods.map(period=><button key={period} type="button" aria-pressed={slot===period} onClick={()=>setSlot(period)}>{period==='morning'?'早间简报':'晚间简报'}</button>)}</div>
-          <section aria-label={slots[slot]}>
-            <h3>内容偏好</h3>
-            <div className="brief-fields">
-              <label>关注项目<select value={draft.project} onChange={e=>setDraft({...draft,project:e.target.value})}><option value="">选择项目</option>{board?.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-              <label>关注内容<select value={draft[slot].focus} onChange={e=>setDraft({...draft,[slot]:{...draft[slot],focus:e.target.value}})}><option value="questions">待答任务</option><option value="project">项目进展</option><option value="both">任务与项目</option></select></label>
-            </div>
-            <div className="brief-keywords"><label>关注词（选填）<textarea maxLength={120} value={draft[slot].keywords||''} placeholder="多个词用空格分开" onChange={e=>setDraft({...draft,[slot]:{...draft[slot],keywords:e.target.value}})}/></label><small>{(draft[slot].keywords||'').length} / 120</small></div>
-          </section>
-          <section><h3>生成设置</h3><div className="brief-schedule">
-            <label>周期<select value={draft[slot].frequency||'daily'} onChange={e=>setDraft({...draft,[slot]:{...draft[slot],frequency:e.target.value}})}><option value="daily">每天</option><option value="weekdays">工作日</option><option value="weekends">周末</option><option value="off">关闭</option></select></label>
-            <label>生成时间<input type="time" required value={draft[slot].time} onChange={e=>setDraft({...draft,[slot]:{...draft[slot],time:e.target.value}})}/></label>
-          </div></section>
-        </fieldset>
-        {actionError&&<p role="alert">{actionError}</p>}
-        <footer><button type="button" disabled={busy} onClick={()=>setDraft(null)}>取消</button><button type="submit" disabled={busy}>{busy?'保存中…':'保存更改'}</button></footer>
-      </form>
-    </WorkspaceDialog>}
+    {draft&&<BriefPreferences draft={draft} projects={board?.projects||[]} busy={busy} error={actionError}
+      change={setDraft} cancel={()=>setDraft(null)} save={()=>void save()}/>}
   </section>;
 }

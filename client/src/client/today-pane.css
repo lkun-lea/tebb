@@ -4,27 +4,44 @@
 .tebb-content-slot[data-today-open]:has(.journal[data-solo=true])>.tebb-core-chat{display:none}
 
 
-.workspace-dialog.brief-preferences {width:min(488px,calc(100% - 24px));padding:18px;border-radius:26px;background:linear-gradient(145deg,hsl(var(--card)/.96),hsl(var(--secondary)/.9));border-color:hsl(var(--border)/.75);box-shadow:0 18px 65px hsl(var(--ui-shadow-tone)/.22)}
-.brief-preferences::backdrop {background:hsl(var(--ui-shadow-tone)/.19)}
-.brief-preferences form,.brief-preferences fieldset {display:grid;gap:16px;margin:0;min-width:0}
-.brief-preferences fieldset {border:0;padding:0}
-.brief-preferences header {position:relative;text-align:center;padding:3px 32px}
-.brief-preferences header h2 {font-size:17px;font-weight:600}
-.brief-preferences header button {position:absolute;right:0;top:0;border-radius:50%;background:hsl(var(--card));width:30px;height:30px;padding:0;font-size:20px}
-.brief-switch,.brief-preferences footer {display:flex;gap:6px}
-.brief-switch {padding:3px;border-radius:22px;background:hsl(var(--muted))}
-.brief-switch button,.brief-preferences footer button {flex:1;border-radius:24px}
-.brief-switch button[aria-pressed=true] {background:hsl(var(--card));box-shadow:0 1px 4px hsl(var(--ui-shadow-tone)/.2)}
-.brief-preferences h3 {font-size:14px;font-weight:600;margin:0 0 8px}
-.brief-fields,.brief-keywords,.brief-schedule {background:hsl(var(--card)/.88);border-radius:16px;padding:9px 14px}
-.brief-fields,.brief-schedule {display:grid;gap:4px}
-.brief-fields label,.brief-schedule label {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
-.brief-preferences label select,.brief-preferences input {max-width:65%;border:0;color:inherit;background:transparent}
-.brief-preferences option {color:hsl(var(--foreground));background:hsl(var(--card))}
-.brief-keywords {margin-top:8px}.brief-keywords label,.brief-keywords small {display:block;font-size:12px;color:hsl(var(--muted-foreground))}
-.brief-keywords textarea {display:block;width:100%;min-height:56px;resize:vertical;background:transparent;color:hsl(var(--foreground));padding:6px 0;font-size:14px}
-.brief-keywords small {text-align:right}
-.brief-schedule label+label {border-top:1px solid hsl(var(--border))}
-.brief-preferences footer button {min-height:38px;background:hsl(var(--muted-foreground)/.27);font-weight:600}
+.brief-preferences {--brief-panel:hsl(var(--card)/.93)}
+.workspace-dialog.brief-preferences {width:min(560px,calc(100% - 24px));padding:22px 22px 18px;max-height:calc(100dvh - 28px);border-radius:28px;background:linear-gradient(145deg,hsl(var(--card)/.97),hsl(var(--secondary)/.94));border-color:hsl(var(--border)/.65);box-shadow:0 18px 65px hsl(var(--ui-shadow-tone)/.2)}
+.brief-preferences::backdrop {background:hsl(var(--ui-shadow-tone)/.15)}
+.brief-preferences form,.brief-preferences fieldset {display:grid;margin:0;min-width:0}
+.brief-preferences fieldset {border:0;padding:0;gap:20px}
+.brief-preferences form>header {position:relative;text-align:center;margin-bottom:22px}
+.brief-preferences h2 {font-size:20px}
+.brief-preferences form>header button,.brief-time-dialog header button {border-radius:50%;background:hsl(var(--card));width:34px;height:34px;padding:0;font-size:20px}
+.brief-preferences form>header button {position:absolute;right:0;top:-4px}
+.brief-switch,.brief-preferences footer {display:flex;gap:8px}
+.brief-switch {padding:3px;border-radius:24px;background:hsl(var(--muted-foreground)/.13)}
+.brief-switch button,.brief-preferences footer button {flex:1;border-radius:24px;min-height:37px}
+.brief-switch button[aria-pressed=true] {background:hsl(var(--card));box-shadow:0 2px 5px hsl(var(--ui-shadow-tone)/.18)}
+.brief-preferences h3 {font-size:15px;margin:0 8px 8px}
+.brief-content p {font-size:13px;line-height:1.5;color:hsl(var(--muted-foreground));margin:0 8px 10px}
+.brief-keywords,.brief-schedule {background:var(--brief-panel);border-radius:20px;padding:12px 16px}
+:root .tebb-workspace .brief-keywords textarea,.brief-keywords textarea {display:block;width:100%;min-height:90px;resize:vertical;background:transparent;box-shadow:none;border:0;padding:4px;color:inherit;font:inherit}
+.brief-keywords small {display:block;text-align:right;color:hsl(var(--muted-foreground))}
+.brief-chips,.brief-options div {display:flex;flex-wrap:wrap;gap:8px}
+.brief-chips {margin:9px 2px 0}.brief-chips button,.brief-options button {border-radius:20px;padding:6px 10px;background:var(--brief-panel);font-size:13px}
+.brief-chips button[aria-pressed=true],.brief-options button[aria-pressed=true] {background:color-mix(in srgb,var(--tebb-action) 22%,hsl(var(--card)))}
+.brief-schedule {padding-block:0}
+.brief-schedule>div,.brief-schedule .brief-time-row {display:flex;justify-content:space-between;align-items:center;width:100%;min-height:52px;padding:0 2px}
+.brief-schedule .brief-time-row {border-top:1px solid hsl(var(--border));border-radius:0}
+.brief-time-row span+span,.brief-options summary {color:hsl(var(--muted-foreground))}
+.brief-schedule button[role=switch] {width:40px;height:23px;border-radius:20px;padding:3px;background:hsl(var(--muted-foreground)/.4)}
+.brief-schedule button[role=switch][aria-checked=true] {background:#087df5}
+.brief-schedule button i {display:block;background:white;width:17px;height:17px;border-radius:50%;transition:transform var(--tebb-feedback)}
+.brief-schedule [aria-checked=true] i {transform:translateX(17px)}
+.brief-options {font-size:13px}.brief-options summary {cursor:pointer}.brief-options label,.brief-options div {margin-top:10px}.brief-options label {display:flex;gap:12px;align-items:center}
+.brief-preferences footer {margin-top:22px}.brief-preferences footer button {min-height:42px;background:hsl(var(--muted-foreground)/.33)}
 .brief-preferences footer button[type=submit] {background:color-mix(in srgb,var(--tebb-action) 55%,white);color:#10364c}
-.brief-preferences footer button:hover {filter:brightness(.96)}
+.workspace-dialog.brief-time-dialog {inset:auto 0 max(10px,5vh);width:min(270px,calc(100vw - 22px));padding:12px 16px;border-radius:23px;background:hsl(var(--card)/.96);color:hsl(var(--foreground))}
+.brief-time-dialog::backdrop {background:transparent}
+.brief-time-dialog>header {display:flex;justify-content:space-between;align-items:center;margin:0}.brief-time-dialog h3 {margin:0;font-size:16px}.brief-time-dialog header button:last-child {background:hsl(var(--foreground));color:hsl(var(--background))}
+.brief-wheels {position:relative;display:flex;align-items:center;justify-content:center;height:180px;isolation:isolate}
+.brief-wheels::before {content:'';position:absolute;z-index:-1;inset:72px 0;height:36px;border-radius:22px;background:hsl(var(--muted-foreground)/.12)}
+.brief-wheel {width:62px;height:180px;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scrollbar-width:none;mask-image:linear-gradient(transparent,#000 39%,#000 61%,transparent)}
+.brief-wheel::before,.brief-wheel::after {display:block;content:'';height:72px}
+.brief-wheel>div {height:36px;line-height:36px;text-align:center;font-size:22px;scroll-snap-align:center;cursor:pointer;color:hsl(var(--muted-foreground))}
+.brief-wheel>div[data-current=true] {color:hsl(var(--foreground));font-weight:600}

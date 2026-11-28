@@ -40,7 +40,7 @@ def due_slots(board, now):
         key = day + '/' + slot
         frequency = config.get('frequency', 'daily')
         days = {'daily': range(7), 'weekdays': range(5), 'weekends': (5, 6), 'off': ()}
-        if now.weekday() not in days[frequency] or clock < config['time'] or key in reports:
+        if not config.get('enabled', True) or now.weekday() not in days[frequency] or clock < config['time'] or key in reports:
             continue
         yield slot, key
 
@@ -86,12 +86,15 @@ def project_board(state, questions, preferences, scheduled, now):
                 or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', str(period.get('time', '')))):
                 raise ValueError('请选择有效的简报时间和内容。')
             words = period.get('keywords', '')
-            if not isinstance(words, str) or len(words) > 120:
-                raise ValueError('关注词最多 120 个字符。')
+            if not isinstance(words, str) or len(words) > 2000:
+                raise ValueError('关注词最多 2000 个字符。')
             frequency = period.get('frequency', 'daily')
             if frequency not in ('daily', 'weekdays', 'weekends', 'off'):
                 raise ValueError('请选择有效的简报周期。')
-            next_config[slot] = dict(time=period['time'], focus=period['focus'], keywords=words.strip(),
+            enabled = period.get('enabled', frequency != 'off')
+            if not isinstance(enabled, bool):
+                raise ValueError('请选择有效的简报开关。')
+            next_config[slot] = dict(enabled=enabled, time=period['time'], focus=period['focus'], keywords=words.strip(),
                                      frequency=frequency)
         board['preferences'] = config = next_config
     events = timeline(state, config['project'])

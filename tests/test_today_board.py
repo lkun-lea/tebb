@@ -107,6 +107,19 @@ class TodayBoardTests(unittest.TestCase):
         tomorrow = self.service.today_board(now=self.start + timedelta(days=1))
         self.assertEqual(tomorrow['reports'], [])
 
+    def test_report_switch_remembers_schedule_and_long_preferences(self):
+        config = self.service.today_board(now=self.start)['preferences']
+        config['morning'].update(enabled=False, frequency='weekdays', time='08:45', keywords='测'*2000)
+        morning = self.start.replace(hour=9)
+        closed = self.service.today_board(config, now=morning)
+        self.assertEqual(closed['reports'], [])
+        saved = closed['preferences']
+        self.assertEqual(saved['morning']['time'], '08:45')
+        self.assertEqual(len(saved['morning']['keywords']), 2000)
+        saved['morning']['enabled'] = True
+        reopened = self.service.today_board(saved, now=morning)
+        self.assertEqual([r['slot'] for r in reopened['reports']], ['morning'])
+
     def test_weekend_schedule_and_disabled_slot(self):
         config = self.service.today_board(now=self.start)['preferences']
         config['morning'].update(time='00:00', frequency='weekends')
