@@ -66,6 +66,46 @@ def find_record(config, key):
     return _record_id(rows[0]) if rows else ''
 
 
+def _self_recipient(config):
+    target = config['chat_id']
+    if not target.startswith('ou_'):
+        return None
+    from desk_companion.integrations.feishu.feishu_auth import verified_user_identity
+    if config.get('profile'):
+        raise WriteRejected('本人私聊须使用当前空间已连接的默认飞书账户。')
+    identity = verified_user_identity()
+    if identity['open_id'] != target:
+        raise WriteRejected('收件人须为当前空间已核实的飞书用户本人。')
+    return identity
+
+
+def _wiki_parent(config):
+    target = config.get('parent_token', '')
+    if '://' not in target:
+        return None
+    from urllib.parse import urlsplit
+    from desk_companion.integrations.feishu.wiki_connection import load_settings, wiki_url
+    url = wiki_url(target)
+    binding = load_settings()
+    if (not binding.get('wiki_url') or not binding.get('space_id') or
+            urlsplit(url).hostname != urlsplit(binding['wiki_url']).hostname or
+            config.get('profile', '') != binding.get('profile', '')):
+        raise WriteRejected('请在当前 tebb 空间连接目标飞书知识库，并使用相同的 CLI 配置。')
+    node = cli(config, ['wiki', '+node-get', '--node-token', url])
+    if (not isinstance(node, dict) or node.get('space_id') != binding['space_id'] or
+            node.get('node_token') != url.rsplit('/', 1)[-1] or node.get('node_type') == 'shortcut'):
+        raise WriteRejected('父页面不属于已连接的知识库，或为快捷方式。请选择原始页面。')
+    return node
+
+
+def _check_wiki_document(config, parent, document_id):
+    child = cli(config, ['wiki', '+node-get', '--node-token', document_id, '--obj-type', 'docx'])
+    if (not isinstance(child, dict) or child.get('obj_type') != 'docx' or
+            child.get('obj_token') != document_id or child.get('space_id') != parent['space_id'] or
+            child.get('parent_node_token') != parent['node_token']):
+        raise RuntimeError('未能确认文档在指定知识库父页面下，须核对原回执。')
+
+
 def preflight(kind, config):
     from desk_companion.integrations.feishu.feishu_access import require_connection
     require_connection()
@@ -77,11 +117,17 @@ def preflight(kind, config):
             raise WriteRejected('多维表格的内容字段和去重字段必须是已存在的普通文本字段；不会自动建表或修改字段。')
         return dict(target=config['base_token'] + '/' + config['table_id'], fields=sorted(required))
     if kind == 'message':
+        recipient = _self_recipient(config)
+        if recipient:
+            return dict(target=recipient['open_id'], name='飞书私聊 · 本人', identity='bot')
         data = cli(config, ['im', 'chats', 'get', '--params', json.dumps({'chat_id': config['chat_id']})], bot=True)
         if data.get('chat_mode') not in {'group', 'topic'}:
             raise WriteRejected('消息节点只允许机器人已加入的群聊。')
         return dict(target=config['chat_id'], name=data.get('name', ''), identity='bot')
     if kind == 'document':
+        parent = _wiki_parent(config)
+        if parent:
+            return dict(target=config['parent_token'], name=parent.get('title', ''), identity='user')
         if config.get('parent_token'):
             cli(config, ['drive', '+permission-get-setting', '--token', config['parent_token'], '--type', 'folder'])
             return dict(target=config['parent_token'], identity='user')
@@ -166,6 +212,7 @@ def execute(kind, config, receipt_key, emit, request):
         finally:
             emit('llm_end', {})
     if kind == 'document':
+        parent = _wiki_parent(config)
         marker = 'tebb-workflow:' + receipt_key
         paragraphs = ''.join('<p>' + escape(line) + '</p>' for line in config['content'].splitlines() if line.strip())
         content = '<title>' + escape(config['title']) + '</title>' + paragraphs + '<p>' + marker + '</p>'
@@ -177,7 +224,7 @@ def execute(kind, config, receipt_key, emit, request):
         path.write_text(content, 'utf-8')
         arguments[-1] = '@./' + path.relative_to(data_root()).as_posix()
         if config['parent_token']:
-            arguments += ['--parent-token', config['parent_token']]
+            arguments += ['--parent-token', parent['node_token'] if parent else config['parent_token']]
         try:
             data = cli(config, arguments)
         finally:
@@ -185,6 +232,8 @@ def execute(kind, config, receipt_key, emit, request):
         document = data.get('document', {})
         if not document.get('document_id') or not document.get('url'):
             raise RuntimeError('文档回执缺少编号或地址，先核对原文档。')
+        if parent:
+            _check_wiki_document(config, parent, document['document_id'])
         return {k: document[k] for k in ('document_id', 'url')}
     if kind == 'base':
         found = find_record(config, receipt_key)
@@ -200,7 +249,9 @@ def execute(kind, config, receipt_key, emit, request):
         if re.search(r'<\s*at\b', config['text'], re.I):
             raise WriteRejected('群消息首版不支持 @ 提醒，请使用普通文本。')
         text = config['text'] + '\n\n自动化回执：' + receipt_key
-        data = cli(config, ['im', '+messages-send', '--chat-id', config['chat_id'], '--text', text,
+        recipient = _self_recipient(config)
+        address = ['--user-id', recipient['open_id']] if recipient else ['--chat-id', config['chat_id']]
+        data = cli(config, ['im', '+messages-send', *address, '--text', text,
                             '--idempotency-key', 'tebb-workflow-' + receipt_key], bot=True)
         ident = data.get('message_id') or data.get('data', {}).get('message_id')
         if not ident:
@@ -218,6 +269,9 @@ def reconcile(kind, config, receipt_key, remote_id=''):
     if not isinstance(remote_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{5,200}', remote_id):
         raise ValueError('请填写原文档或群消息编号以只读核对；未找到不代表未创建。')
     if kind == 'document':
+        parent = _wiki_parent(config)
+        if parent:
+            _check_wiki_document(config, parent, remote_id)
         data = cli(config, ['docs', '+fetch', '--doc', remote_id])
         raw = json.dumps(data, ensure_ascii=False)
         if 'tebb-workflow:' + receipt_key not in raw:
@@ -230,6 +284,32 @@ def reconcile(kind, config, receipt_key, remote_id=''):
             raise ValueError('文档核对未返回地址，请检查完整原始回执。')
         return dict(document_id=remote_id, url=url)
     if kind == 'message':
+        recipient = _self_recipient(config)
+        if recipient:
+            # Read as the recipient in their conversation with this bot. A copied marker in a group is insufficient.
+            info = cli(config, ['api', 'GET', '/open-apis/bot/v3/info/'], bot=True)
+            bot_id = (info.get('bot') or {}).get('open_id')
+            if not isinstance(bot_id, str) or not bot_id.startswith('ou_'):
+                raise ValueError('未能核实发件机器人，请保留原回执。')
+            page = cli(config, ['im', '+chat-messages-list', '--user-id', bot_id, '--order', 'desc', '--page-size', '1', '--no-reactions'])
+            messages = page.get('messages', [])
+            if not isinstance(messages, list) or len(messages) != 1 or not isinstance(messages[0], dict):
+                raise ValueError('未读到本人和此机器人的私聊，保留原回执。')
+            peer_message_id = messages[0].get('message_id')
+            if not isinstance(peer_message_id, str) or not peer_message_id.startswith('om_'):
+                raise ValueError('本人私聊回执无效。')
+            # Resolve both messages in one read so older deliveries remain verifiable.
+            ids = ','.join(dict.fromkeys([peer_message_id, remote_id]))
+            result = cli(config, ['im', '+messages-mget', '--message-ids', ids, '--no-reactions', '--format', 'json'])
+            rows = {r.get('message_id'): r for r in result.get('messages', []) if isinstance(r, dict)}
+            peer_chat = rows.get(peer_message_id, {}).get('chat_id')
+            original = rows.get(remote_id, {})
+            expected = config['text'] + '\n\n自动化回执：' + receipt_key
+            if (not peer_chat or original.get('chat_id') != peer_chat or original.get('deleted') or
+                    (original.get('sender') or {}).get('id') not in {bot_id, recipient['app_id']} or
+                    original.get('msg_type') != 'text' or original.get('content') != expected):
+                raise ValueError('本人私聊中的原消息、发件人或内容未核实，保留未知状态。')
+            return dict(message_id=remote_id)
         data = cli(config, ['im', '+messages-mget', '--message-ids', remote_id, '--no-reactions', '--format', 'json'], bot=True)
         rows = data.get('messages', [])
         if (not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict) or

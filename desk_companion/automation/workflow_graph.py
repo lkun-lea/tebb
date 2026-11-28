@@ -18,7 +18,7 @@ KINDS = {
     'news_report': ('整理资讯报告', {'candidates': '', 'day': ''}, ('text', 'report')),
     'document': ('创建飞书文档', {'title': '', 'content': '', 'parent_token': '', 'profile': ''}, ('document_id', 'url')),
     'base': ('写多维表格', {'base_token': '', 'table_id': '', 'fields': {}, 'key_field': '', 'profile': ''}, ('record_id',)),
-    'message': ('发送群消息', {'chat_id': '', 'text': '', 'profile': ''}, ('message_id',)),
+    'message': ('发送飞书消息', {'chat_id': '', 'text': '', 'profile': ''}, ('message_id',)),
 }
 WRITES = frozenset({'document', 'base', 'message'})
 IDENT = re.compile(r'[A-Za-z][A-Za-z0-9_-]{0,63}\Z')

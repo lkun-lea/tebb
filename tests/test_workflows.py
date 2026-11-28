@@ -320,6 +320,39 @@ class WorkflowTests(unittest.TestCase):
 
 
 class WorkflowAdapterTests(unittest.TestCase):
+    def test_wiki_document_uses_bound_parent_and_verifies_child_receipt(self):
+        parent_url = 'https://tenant.feishu.cn/wiki/parent'
+        config = dict(parent_token=parent_url, title='路线', content='练习', profile='')
+        binding = dict(wiki_url='https://tenant.feishu.cn/wiki/root', space_id='space', profile='')
+        parent = dict(space_id='space', node_token='parent', node_type='origin')
+        document = dict(document_id='child', url='https://tenant.feishu.cn/wiki/childnode')
+        child = dict(space_id='space', obj_type='docx', obj_token='child', parent_node_token='parent')
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, DESK_COMPANION_DATA_DIR=directory), \
+                patch('desk_companion.integrations.feishu.wiki_connection.load_settings', return_value=binding), \
+                patch.object(workflow_nodes, 'cli', side_effect=[parent, dict(document=document), child]) as cli:
+            self.assertEqual(workflow_nodes.execute('document', config, 'key', None, {}), document)
+            self.assertEqual(cli.call_args_list[1].args[1][-2:], ['--parent-token', 'parent'])
+            self.assertEqual(cli.call_args_list[2].args[1][-4:], ['--node-token', 'child', '--obj-type', 'docx'])
+
+    def test_wiki_foreign_parent_and_unconfirmed_child_do_not_pass(self):
+        url = 'https://tenant.feishu.cn/wiki/parent'
+        config = dict(parent_token=url, profile='')
+        binding = dict(wiki_url=url, space_id='bound')
+        with patch('desk_companion.integrations.feishu.wiki_connection.load_settings', return_value=binding), \
+                patch.object(workflow_nodes, 'cli', return_value=dict(space_id='other', node_token='parent')) as cli:
+            with self.assertRaises(workflow_nodes.WriteRejected):
+                workflow_nodes.execute('document', config, 'key', None, {})
+            self.assertEqual(cli.call_count, 1)
+            with self.assertRaises(workflow_nodes.WriteRejected):
+                workflow_nodes.execute('document', {**config, 'profile':'another'}, 'key', None, {})
+            self.assertEqual(cli.call_count, 1)
+        with patch('desk_companion.integrations.feishu.wiki_connection.load_settings', return_value=binding), \
+                patch.object(workflow_nodes, 'cli', side_effect=[dict(space_id='bound', node_token='parent'),
+                    dict(obj_type='docx', obj_token='child', space_id='bound', parent_node_token='wrong')]) as cli:
+            with self.assertRaisesRegex(RuntimeError, '指定知识库父页面'):
+                workflow_nodes.reconcile('document', config, 'key', 'child')
+            self.assertEqual(cli.call_count, 2)
+
     def test_base_v3_id_list_and_exact_filter_use_one_create(self):
         config=dict(base_token='b',table_id='t',key_field='回执',fields={'内容':'真实正文'},profile='')
         values=[dict(record_id_list=[],has_more=False),dict(record=dict(record_id_list=['rec123']))]
@@ -337,6 +370,41 @@ class WorkflowAdapterTests(unittest.TestCase):
                 workflow_nodes.reconcile('base',dict(base_token='b',table_id='t',key_field='回执'),'key')
         self.assertEqual(cli.call_count,1)
         self.assertNotIn('+record-upsert',cli.call_args.args[1])
+
+    def test_self_message_pins_recipient_and_reuses_the_run_receipt_key(self):
+        config = dict(chat_id='ou_owner', text='今日材料', profile='')
+        identity = dict(open_id='ou_owner', app_id='app')
+        with patch('desk_companion.integrations.feishu.feishu_auth.verified_user_identity', return_value=identity), \
+                patch.object(workflow_nodes, 'cli', return_value=dict(message_id='om_test')) as cli:
+            for _ in range(2):
+                workflow_nodes.execute('message', config, 'stable', None, {})
+            self.assertEqual(cli.call_args_list[0], cli.call_args_list[1])
+            self.assertEqual(cli.call_args.args[1][2:4], ['--user-id', 'ou_owner'])
+            self.assertTrue(cli.call_args.kwargs['bot'])
+            self.assertEqual(cli.call_args.args[1][-1], 'tebb-workflow-stable')
+            cli.reset_mock()
+            for invalid in ({**config, 'chat_id':'ou_someone'}, {**config, 'profile':'other'}):
+                with self.assertRaises(workflow_nodes.WriteRejected):
+                    workflow_nodes.execute('message', invalid, 'stable', None, {})
+            cli.assert_not_called()
+
+    def test_self_message_recovery_requires_receipt_from_bot_in_recipient_conversation(self):
+        config = dict(chat_id='ou_owner', text='材料', profile='')
+        row = dict(message_id='om_test', chat_id='oc_self', sender=dict(id='app'), msg_type='text', content='材料\n\n自动化回执：key')
+        identity = dict(open_id='ou_owner', app_id='app')
+        for candidate in (row, {**row, 'sender':dict(id='ou_owner')}, {**row, 'deleted':True}, {**row, 'chat_id':'oc_other'}):
+            with self.subTest(candidate=candidate), \
+                    patch('desk_companion.integrations.feishu.feishu_auth.verified_user_identity', return_value=identity), \
+                    patch.object(workflow_nodes, 'cli', side_effect=[dict(bot=dict(open_id='ou_bot')), dict(messages=[dict(message_id='om_latest')]),
+                        dict(messages=[dict(message_id='om_latest', chat_id='oc_self'), candidate])]) as cli:
+                if candidate == row:
+                    self.assertEqual(workflow_nodes.reconcile('message', config, 'key', 'om_test'), dict(message_id='om_test'))
+                else:
+                    with self.assertRaises(ValueError):
+                        workflow_nodes.reconcile('message', config, 'key', 'om_test')
+                self.assertEqual(cli.call_args_list[1].args[1][2:4], ['--user-id', 'ou_bot'])
+                self.assertIn('om_latest,om_test', cli.call_args.args[1])
+                self.assertFalse(cli.call_args.kwargs.get('bot'))
 
     def test_message_same_key_and_exact_remote_content_and_chat(self):
         config=dict(chat_id='oc_target',text='正文',profile='')
