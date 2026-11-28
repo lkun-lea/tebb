@@ -188,11 +188,11 @@ class AssistantSettingsService:
             model = str(payload.get("model") or "").strip()
             api_key = str(payload.get("api_key") or "").strip()
             entry_id = str(payload.get("id") or "").strip()
+            from desk_companion.models.model_catalog import require_item
+            item = require_item(entry_id) if entry_id else {}
+            mode = payload.get("network_mode", item.get("network_mode", "inherit"))
             if not api_key:
                 if entry_id:
-                    from desk_companion.models.model_catalog import require_item
-
-                    item = require_item(entry_id)
                     if item["base_url"].rstrip("/") != base_url.rstrip("/"):
                         raise RuntimeError("模型地址已更改，请填写该地址的 API Key。")
                     api_key = item["api_key"]
@@ -207,13 +207,18 @@ class AssistantSettingsService:
             from desk_companion.observability.usage_observer import ModelAttempt
             from desk_companion.models.model_generation import connection_probe_limit
             base_url = validate_base_url(base_url)
-            with openai_client(api_key=api_key, base_url=base_url, timeout=20) as client:
+            with openai_client(api_key=api_key, base_url=base_url, timeout=20, network_mode=mode) as client:
                 with ModelAttempt(model, entry_id, base_url, source='model_test') as observed:
                     response = client.chat.completions.create(
                         model=model,
                         messages=[{"role": "user", "content": "ping"}],
                         **connection_probe_limit(entry_id, model, base_url),
                     )
+                    if not response.choices:
+                        error = getattr(response, 'error', None)
+                        if isinstance(error, dict) and error.get('code') == 'invalid_api_key':
+                            raise RuntimeError("服务商拒绝当前 API Key，请核对该模型条目的密钥。")
+                        raise RuntimeError("服务商未返回有效的聊天结果，请核对模型名与服务地址。")
                     usage=getattr(response,'usage',None)
                     observed.returned(usage.model_dump()if hasattr(usage,'model_dump')else usage if isinstance(usage,dict)else None)
             text = (response.choices[0].message.content or "").strip()

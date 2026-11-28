@@ -29,6 +29,21 @@ class NetworkTests(unittest.TestCase):
         network.save(dict(mode='custom',proxy_url='http://localhost:7891'))
         self.assertFalse(network.public()['has_password'])
 
+    def test_catalog_legacy_edits_and_custom_override(self):
+        from desk_companion.models import model_catalog
+        row = dict(id='one', model='fixture', api_key='fixture', base_url='https://example.invalid/v1')
+        model_catalog.catalog_path().write_text(json.dumps(dict(active='one', items=[row])), 'utf-8')
+        self.assertEqual(model_catalog.public_catalog()['items'][0]['network_mode'], 'inherit')
+        model_catalog.upsert_entry({**row, 'network_mode': 'custom'})
+        model_catalog.upsert_entry(row)
+        self.assertEqual(model_catalog.require_item('one')['network_mode'], 'custom')
+        with self.assertRaisesRegex(ValueError, '自定义代理需要填写地址'):
+            network.effective_policy('custom')
+        network.save(dict(mode='direct', proxy_url='http://localhost:7890', username='fixture', password='private'))
+        self.assertEqual(network.effective_policy('custom')['password'], 'private')
+        self.assertFalse(network.effective_policy('system')['password'])
+        self.assertEqual(network.load()['mode'], 'direct')
+
     def test_direct_bypasses_environment_and_custom_proxy_is_really_used(self):
         seen=[]
         class Handler(BaseHTTPRequestHandler):
@@ -101,11 +116,12 @@ class NetworkTests(unittest.TestCase):
                         return httpx.Response(200, text='data: {"choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n')
                     return httpx.Response(200, json=dict(choices=[dict(index=0,finish_reason='stop',message=dict(role='assistant',content='ok'))]))
                 transport=httpx.Client(timeout=httpx.Timeout(37,connect=5),transport=httpx.MockTransport(handle))
-                model=dict(api_key='fixture',base_url='https://example.invalid/v1',model='fixture')
-                with patch.object(network,'http_client',return_value=transport):
+                model=dict(api_key='fixture',base_url='https://example.invalid/v1',model='fixture',network_mode='system')
+                with patch.object(network,'http_client',return_value=transport) as connect:
                     if collaboration:
                         with CollaborationLLM(model,dict(temperature=.5,top_p=1,reasoning_effort='low'),37) as llm:
                             llm.chat([])
+                            self.assertEqual(connect.call_args.args[1]["mode"], "system")
                     else:
                         with network.openai_client('fixture','https://example.invalid/v1',37) as sdk:
                             sdk.chat.completions.create(model='fixture',messages=[])

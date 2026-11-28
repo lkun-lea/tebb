@@ -11,6 +11,7 @@ export type ModelPublic = {
   base_url: string;
   model: string;
   has_key: boolean;
+  network_mode?: string;
   input_cny_per_mtok?: number | null;
   output_cny_per_mtok?: number | null;
   message?: string;
@@ -21,6 +22,7 @@ export type ModelEntry = {
   base_url: string;
   model: string;
   has_key: boolean;
+  network_mode?: string;
 };
 
 export type ModelList = {
@@ -185,14 +187,15 @@ export function SettingsPane(props: {
   onToggleTheme: () => void;
   onPickFile: (file: File) => void;
   onClearBackground: () => void;
-  onSave: (draft: { id: string; base_url: string; model: string; api_key: string }) => void;
-  onTest: (draft: { base_url: string; model: string; api_key: string }) => Promise<boolean>;
+  onSave: (draft: { id: string; base_url: string; model: string; api_key: string; network_mode: string }) => void;
+  onTest: (draft: { base_url: string; model: string; api_key: string; network_mode: string }) => Promise<boolean>;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSavePersona: (persona: string) => void;
 }) {
   const [baseUrl, setBaseUrl] = useState(props.model?.base_url || "");
   const [modelName, setModelName] = useState(props.model?.model || "");
+  const [networkMode, setNetworkMode] = useState(props.model?.network_mode || "inherit");
   const [apiKey, setApiKey] = useState("");
   const [assistantTab,setAssistantTab] = useState("model");
   const [persona, setPersona] = useState(props.persona);
@@ -200,14 +203,15 @@ export function SettingsPane(props: {
 
   useEffect(() => {
     setBaseUrl(props.model?.base_url || "");
+    setNetworkMode(props.model?.network_mode || "inherit");
     setModelName(props.model?.model || "");
-  }, [props.keyEpoch, props.model?.base_url, props.model?.model]);
+  }, [props.keyEpoch, props.model?.base_url, props.model?.model, props.model?.network_mode]);
 
   useEffect(() => {
     setApiKey("");
   }, [props.keyEpoch]);
 
-  function testConnection() { return props.onTest({ base_url: baseUrl, model: modelName, api_key: apiKey }); }
+  function testConnection() { return props.onTest({ base_url: baseUrl, model: modelName, api_key: apiKey, network_mode: networkMode }); }
 
   useEffect(() => {
     setPersona(props.persona);
@@ -273,6 +277,16 @@ export function SettingsPane(props: {
         </label>
         <p className="text-xs text-muted-foreground">照抄服务商控制台的模型 ID；调用工具还需模型支持 tool calling。</p>
         <label className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">模型网络</span>
+          <select data-model-network-mode value={networkMode} disabled={props.busy}
+            onChange={(ev) => setNetworkMode(ev.target.value)} className="border border-border bg-background px-3 py-2">
+            <option value="inherit">继承空间设置</option>
+            <option value="direct">直连</option>
+            <option value="system">系统代理</option>
+            <option value="custom">使用空间的自定义代理</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">API Key</span>
           <input
             data-model-key
@@ -301,7 +315,7 @@ export function SettingsPane(props: {
             disabled={props.busy}
             className="desk-btn desk-btn-lg desk-btn-solid"
             onClick={() =>
-              props.onSave({ id: props.editingId, base_url: baseUrl, model: modelName, api_key: apiKey })
+              props.onSave({ id: props.editingId, base_url: baseUrl, model: modelName, api_key: apiKey, network_mode: networkMode })
             }
           >
             {props.editingId ? `保存对 ${props.model?.model} 的修改` : "添加模型"}
@@ -318,7 +332,7 @@ export function SettingsPane(props: {
           </button>
           {props.editingId && <details className="model-more"><summary aria-label="更多模型操作">•••</summary><div>
           <button type="button" className="desk-btn desk-btn-lg" disabled={props.busy}
-            onClick={() => props.onSave({ id: "", base_url: baseUrl, model: modelName, api_key: apiKey })}>复制为新模型</button>
+            onClick={() => props.onSave({ id: "", base_url: baseUrl, model: modelName, api_key: apiKey, network_mode: networkMode })}>复制为新模型</button>
           <button
             type="button"
             data-model-delete

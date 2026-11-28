@@ -250,8 +250,8 @@ class SettingsTests(unittest.TestCase):
         one = self.first_model()
         before = self.snapshot()
         clients, seen, timeouts = [], [], []
-        def transport(timeout):
-            timeouts.append(timeout)
+        def transport(timeout, policy):
+            timeouts.append((timeout, policy["mode"]))
             def handle(request):
                 seen.append((request.headers['authorization'], json.loads(request.content)))
                 return httpx.Response(200, json=dict(choices=[dict(index=0, finish_reason='stop', message=dict(role='assistant', content='pong'))]))
@@ -260,15 +260,23 @@ class SettingsTests(unittest.TestCase):
             return client
         self.conversation.running = True  # Testing a connection does not alter a running Agent.
         with patch.object(model_network, 'http_client', side_effect=transport):
-            for extra, key in (({'api_key': 'EXPLICIT_KEY'}, 'EXPLICIT_KEY'), ({'id': one}, 'PRIVATE_MODEL_KEY'), ({}, 'PRIVATE_MODEL_KEY')):
+            for extra, key in (({'api_key': 'EXPLICIT_KEY', 'network_mode': 'system'}, 'EXPLICIT_KEY'), ({'id': one}, 'PRIVATE_MODEL_KEY'), ({}, 'PRIVATE_MODEL_KEY')):
                 result = self.service.test_model(dict(base_url='https://example.invalid/v1', model='probe', **extra))
                 self.assertEqual(result, dict(ok=True, message='连通正常。 回复：pong'))
                 self.assertEqual(seen[-1][0], 'Bearer ' + key)
                 self.assertEqual(seen[-1][1], dict(model='probe', messages=[dict(role='user', content='ping')], max_tokens=8))
-        self.assertEqual(timeouts, [20, 20, 20])
+        self.assertEqual(timeouts, [(20, 'system'), (20, 'direct'), (20, 'direct')])
         self.assertTrue(all(client.is_closed for client in clients))
         self.assertEqual(self.snapshot(), before)
         self.conversation.rebuild_agent.assert_not_called()
+
+    def test_provider_key_error_inside_successful_http_response(self):
+        def reject(request):
+            return httpx.Response(200, json={'error': {'code': 'invalid_api_key'}})
+        with httpx.Client(transport=httpx.MockTransport(reject)) as client, patch.object(model_network, 'http_client', return_value=client):
+            result = self.service.test_model(dict(model='probe', base_url='https://example.invalid/v1',
+                                                  api_key='fixture', network_mode='direct'))
+        self.assertEqual(result, dict(ok=False, error='服务商拒绝当前 API Key，请核对该模型条目的密钥。'))
 
     def test_probe_limit_follows_route_binding_and_official_luna_default(self):
         from desk_companion.models.model_generation import connection_probe_limit

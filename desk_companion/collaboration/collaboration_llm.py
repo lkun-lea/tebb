@@ -46,8 +46,8 @@ class CollaborationLLM:
                 raise ConfigurationChanged(ConfigurationChanged.public_message)
         if self._llm is None:
             if self.client is None:
-                from desk_companion.models.model_network import http_client
-                self.client = http_client(self.timeout)
+                from desk_companion.models.model_network import effective_policy, http_client
+                self.client = http_client(self.timeout, effective_policy(self.model.get('network_mode', 'inherit')))
             sdk = OpenAI(api_key=self.model['api_key'], base_url=self.model['base_url'],
                          timeout=self.client.timeout, max_retries=0, http_client=self.client)
             self._llm = ExecutionLLM(model=self.model['model'],client=sdk,context_model_id=self.model.get('id',''),
