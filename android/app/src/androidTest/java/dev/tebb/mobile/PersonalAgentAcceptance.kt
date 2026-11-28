@@ -192,7 +192,7 @@ class PersonalAgentAcceptance : Instrumentation() {
             tap("返回日程")
             tap("返回更多")
             tap("笔记")
-            tap("手动新增笔记")
+            tap("新增笔记")
             waitFor("正文")
             tap("返回笔记")
             tap("返回更多")

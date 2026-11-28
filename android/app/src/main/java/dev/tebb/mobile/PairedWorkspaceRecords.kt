@@ -15,7 +15,7 @@ import java.util.UUID
 
 /** 展示当前配对电脑允许读取的业务记录，离开页面后释放正文。 */
 @Composable
-internal fun PairedWorkspaceRecords(page: String, owner: String) {
+internal fun PairedWorkspaceRecords(page: String, owner: String, actions: @Composable () -> Unit) {
     val context = LocalContext.current
     val action = when (page) {
         "笔记" -> "note.list"
@@ -47,23 +47,38 @@ internal fun PairedWorkspaceRecords(page: String, owner: String) {
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { status = e.message ?: "读取失败" }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(heading, style = MaterialTheme.typography.caption)
-        TextButton({ revision++ }) { Text("刷新") }
-    }
-    if (status.isNotEmpty()) Text(status)
-    rows.filter { it.optString("kind") != "run" }.forEachIndexed { index, row ->
-        Column(Modifier.fillMaxWidth().clickable { selected = row }.padding(vertical = 8.dp)) {
-            Text(row.getString("title"), style = if (index == 0) MaterialTheme.typography.h6 else MaterialTheme.typography.subtitle1)
-            if (page == "自动化") Text(if (row.optBoolean("enabled")) "已启用" else "已暂停")
-            val detail = row.optString("detail")
-            if (detail.isNotBlank()) Text(detail, maxLines = 2, style = MaterialTheme.typography.body2)
+    val records = rows.filter { it.optString("kind") != "run" }
+    val first = records.firstOrNull()
+    WorkspaceGlassCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(heading, style = MaterialTheme.typography.subtitle2)
+            TextButton({ revision++ }) { Text("刷新") }
+        }
+        if (status.isNotEmpty()) Text(status)
+        if (first != null) Column(Modifier.fillMaxWidth().clickable { selected = first }) {
+            Text(first.getString("title"), style = MaterialTheme.typography.h5, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            val caption = when (page) {
+                "自动化" -> listOf(first.optString("detail"), if (first.optBoolean("enabled")) "已启用" else "已暂停", "Windows").joinToString(" · ")
+                "笔记" -> first.optString("stamp").take(10) + " 更新"
+                else -> first.optString("detail").takeIf { it.isNotBlank() }?.let { "版本 $it" } ?: first.optString("stamp").take(10)
+            }
+            Text(caption, style = MaterialTheme.typography.body2)
         }
     }
-    if (page == "自动化") {
+    WorkspaceGlassCard {
         val history = rows.filter { it.optString("result").isNotEmpty() }.sortedByDescending { it.optString("stamp") }
-        if (history.isNotEmpty()) Text("最近运行", style = MaterialTheme.typography.subtitle1)
-        history.forEach { row -> Text(listOf(row.optString("stamp"), row.getString("title"), row.optString("result")).filter { it.isNotBlank() }.joinToString(" · ")) }
+        if (page == "自动化") Text("最近运行", style = MaterialTheme.typography.h6)
+        val details = if (page == "自动化") history else records
+        details.forEach { row ->
+            Column(Modifier.fillMaxWidth().clickable { selected = row }.padding(vertical = 4.dp)) {
+                Text(row.getString("title"), style = MaterialTheme.typography.subtitle1)
+                val description = if (page == "自动化") listOf(row.optString("stamp"),row.optString("result")).joinToString(" · ") else row.optString("detail")
+                if (description.isNotBlank()) Text(description, maxLines = 2, style = MaterialTheme.typography.body2)
+            }
+            Divider()
+        }
+        actions()
     }
     selected?.let { row ->
         AlertDialog(onDismissRequest = { selected = null }, title = { Text(row.getString("title")) },

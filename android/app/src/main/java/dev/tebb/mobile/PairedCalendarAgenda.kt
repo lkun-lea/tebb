@@ -1,7 +1,7 @@
 package dev.tebb.mobile
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -26,7 +26,7 @@ import java.text.SimpleDateFormat
 
 /** 电脑只返回这台手机创建的记录，每次打开日程或从编辑返回时重新读取。 */
 @Composable
-internal fun PairedCalendarAgenda(onEdit: (JSONObject) -> Unit) {
+internal fun PairedCalendarAgenda(onEdit: (JSONObject) -> Unit, actions: @Composable () -> Unit) {
     val context = LocalContext.current
     var revision by remember { mutableIntStateOf(0) }
     var rows by remember { mutableStateOf(emptyList<JSONObject>()) }
@@ -53,30 +53,39 @@ internal fun PairedCalendarAgenda(onEdit: (JSONObject) -> Unit) {
     val isoDate = remember { SimpleDateFormat("yyyy-MM-dd", Locale.ROOT) }
     val dateText = remember { SimpleDateFormat("M月d日 E", Locale.CHINA) }
     val weekdays = listOf("周一","周二","周三","周四","周五","周六","周日")
-    Text(dateText.format(days[selected]), style = MaterialTheme.typography.caption)
-    Text("本周安排", style = MaterialTheme.typography.h6)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        TextButton({ offset-- }) { Text("上一周") }
-        TextButton({ offset++ }) { Text("下一周") }
-    }
-    Row(Modifier.horizontalScroll(rememberScrollState())) {
-        weekdays.forEachIndexed { index, label ->
-            TextButton({ selected = index }, enabled = selected != index) { Text(label) }
+    WorkspaceGlassCard {
+        Text(dateText.format(days[selected]), style = MaterialTheme.typography.caption)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text("本周安排", style = MaterialTheme.typography.h6)
+            Row {
+                TextButton({ offset-- }) { Text("上一周") }
+                TextButton({ offset++ }) { Text("下一周") }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            weekdays.forEachIndexed { index, label ->
+                Text(label, Modifier.clickable { selected = index }.padding(vertical = 8.dp),
+                    color = if (index == selected) MaterialTheme.colors.primary else androidx.compose.material.LocalContentColor.current,
+                    fontWeight = if (index == selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal)
+            }
         }
     }
-    val day = isoDate.format(days[selected])
-    val visible = rows.filter { it.getString("start").take(10) <= day && it.getString("end").take(10) >= day }
-    if (status.isNotEmpty()) Text(status)
-    else if (visible.isEmpty()) Text("当天没有日程")
-    visible.forEach { event ->
-        Column(Modifier.fillMaxWidth().clickable { onEdit(event) }.padding(vertical = 12.dp)) {
-            Text(event.getString("summary"), style = MaterialTheme.typography.subtitle1)
-            val start = event.getString("start")
-            val end = event.getString("end")
-            val sameDay = start.take(10) == end.take(10)
-            fun time(value: String) = if (sameDay) value.substring(11,16) else value.take(16).replace("T", " ")
-            Text(time(start) + " — " + time(end), style = MaterialTheme.typography.caption)
+    WorkspaceGlassCard {
+        val day = isoDate.format(days[selected])
+        val visible = rows.filter { it.getString("start").take(10) <= day && it.getString("end").take(10) >= day }
+        if (status.isNotEmpty()) Text(status)
+        else if (visible.isEmpty()) Text("当天没有日程")
+        visible.forEach { event ->
+            Column(Modifier.fillMaxWidth().clickable { onEdit(event) }.padding(vertical = 12.dp)) {
+                Text(event.getString("summary"), style = MaterialTheme.typography.subtitle1)
+                val start = event.getString("start")
+                val end = event.getString("end")
+                val sameDay = start.take(10) == end.take(10)
+                fun time(value: String) = if (sameDay) value.substring(11,16) else value.take(16).replace("T", " ")
+                Text(time(start) + " — " + time(end), style = MaterialTheme.typography.caption)
+            }
         }
+        actions()
+        TextButton({ revision++ }) { Text("刷新日程") }
     }
-    TextButton({ revision++ }) { Text("刷新日程") }
 }

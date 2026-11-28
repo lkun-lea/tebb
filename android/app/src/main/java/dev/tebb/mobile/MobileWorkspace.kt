@@ -22,6 +22,11 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /** 在聊天和工作区之间切换；低频目的地集中在「更多」，返回后沿用原会话草稿。 */
@@ -82,6 +87,29 @@ internal fun Modifier.glassSurface(radius: androidx.compose.ui.unit.Dp): Modifie
         .border(1.dp, Color.White.copy(alpha = if (night) .15f else .65f), shape)
 }
 
+@Composable
+internal fun WorkspaceGlassCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().glassSurface(22.dp).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+}
+
+@Composable
+private fun WorkspaceHeader(page: String, secondary: Boolean, parent: () -> Unit) {
+    Text("tebb.", style = MaterialTheme.typography.h5, fontWeight = FontWeight.Bold)
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val crumb = if (secondary) Modifier.clickable(onClick = parent).semantics { contentDescription = "返回更多" } else Modifier
+            Text(if (secondary) "更多 / $page" else "工作区 · $page", modifier = crumb, style = MaterialTheme.typography.caption)
+            Text(when (page) { "更多" -> "工作区"; "事项" -> "我的事项"; else -> page },
+                style = MaterialTheme.typography.h4, fontWeight = FontWeight.Bold)
+        }
+        Box(Modifier.size(56.dp)) {
+            val half = with(LocalDensity.current) { 28.dp.toPx() }
+            ChatPet(Offset(half, half), 56.dp, false, false, page, 0)
+        }
+    }
+}
+
 /** 同一层级切换手机工作区。待答引用沿用主聊的问题版本，主动修改须由已授权电脑接收。 */
 @Composable
 internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: ChatUiState, owner: String, paired: Boolean, back: () -> Unit,
@@ -105,12 +133,9 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
             } else Column(Modifier.fillMaxSize().background(paper)) {
 
                 if (page == "今日") JournalScreen(state, paired, back, reply)
-                else Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+                else Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (secondary) TextButton({ choose("更多") }) { Text("返回更多") }
-                    Text("tebb.", style = MaterialTheme.typography.h5)
-                    Text(if (secondary) "更多 / $page" else "工作区 · $page", style = MaterialTheme.typography.caption)
-                    Text(when (page) { "更多" -> "工作区"; "事项" -> "我的事项"; else -> page }, style = MaterialTheme.typography.h4)
+                    WorkspaceHeader(page, secondary) { choose("更多") }
                     if (page == "更多") {
                         Column(Modifier.fillMaxWidth().glassSurface(22.dp).clickable(onClick = connect).padding(20.dp)) {
                             Text("设备", style = MaterialTheme.typography.caption)
@@ -118,7 +143,25 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                             Text(if (paired) "Windows 已配对" else "连接 Windows", style = MaterialTheme.typography.body2)
                         }
                     }
-                    Box(Modifier.glassSurface(22.dp)) {
+                    if (paired && page in listOf("笔记", "知识库", "自动化")) {
+                        PairedWorkspaceRecords(page, owner) {
+                            if (page == "笔记") Button({ action = "note.create" }) { Text("新增笔记") }
+                            val prompt = when (page) {
+                                "笔记" -> "让伙伴整理笔记"
+                                "知识库" -> "让伙伴处理资料"
+                                else -> "让伙伴处理自动化"
+                            }
+                            TextButton({ action = "agent.request" }) { Text(prompt) }
+                        }
+                    } else if (paired && page == "日程") {
+                        PairedCalendarAgenda(onEdit = { row ->
+                            eventToEdit = row.toString()
+                            action = "calendar.create"
+                        }) {
+                            Button({ action = "calendar.create" }) { Text("新增日程") }
+                            TextButton({ action = "agent.request" }) { Text("让伙伴安排日程") }
+                        }
+                    } else Box(Modifier.glassSurface(22.dp)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             if (page == "更多") {
                                 listOf("日程", "笔记", "知识库", "自动化").forEach { target ->
@@ -131,12 +174,6 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
 
                             } else if (!paired) Button(connect) { Text("连接我的电脑") }
                             else {
-                                if (page == "日程") {
-                                    PairedCalendarAgenda { row ->
-                                        eventToEdit = row.toString()
-                                        action = "calendar.create"
-                                    }
-                                }
                                 if (page == "事项") {
                                     val questions = state.composer.pending.filter { it.deviceId.isNotEmpty() }
                                     if (questions.isEmpty()) Text("当前没有来自电脑的待答事项")
@@ -150,17 +187,7 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                                         }
                                     }
                                 }
-                                if (page in listOf("笔记", "知识库", "自动化")) PairedWorkspaceRecords(page, owner)
-                                val prompt = when (page) {
-                                    "日程" -> "让伙伴安排日程"
-                                    "笔记" -> "让伙伴整理笔记"
-                                    "知识库" -> "让伙伴处理资料"
-                                    "自动化" -> "让伙伴处理自动化"
-                                    else -> "让伙伴跟进事项"
-                                }
-                                Button({ action = "agent.request" }) { Text(prompt) }
-                                if (page == "日程") OutlinedButton({ action = "calendar.create" }) { Text("新增日程") }
-                                if (page == "笔记") OutlinedButton({ action = "note.create" }) { Text("手动新增笔记") }
+                                Button({ action = "agent.request" }) { Text("让伙伴跟进事项") }
                             }
                         }
                     }
