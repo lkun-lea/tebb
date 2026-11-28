@@ -2,8 +2,6 @@
 from datetime import datetime
 import re
 
-from desk_companion.collaboration.store import transaction
-
 
 def defaults():
     return dict(version=0, project='', morning=dict(time='08:00', focus='questions'),
@@ -34,9 +32,9 @@ def timeline(state, project):
     return sorted(events, key=lambda row: row['time'], reverse=True)[:30]
 
 
-def update_reports(board, now, questions, events):
+def due_slots(board, now):
     day, clock = now.strftime('%Y-%m-%d'), now.strftime('%H:%M')
-    reports = board.setdefault('reports', {})
+    reports = board.get('reports', {})
     for slot in ('morning', 'evening'):
         config = board['preferences'][slot]
         key = day + '/' + slot
@@ -44,6 +42,14 @@ def update_reports(board, now, questions, events):
         days = {'daily': range(7), 'weekdays': range(5), 'weekends': (5, 6), 'off': ()}
         if now.weekday() not in days[frequency] or clock < config['time'] or key in reports:
             continue
+        yield slot, key
+
+
+def update_reports(board, now, questions, events):
+    day = now.strftime('%Y-%m-%d')
+    reports = board.setdefault('reports', {})
+    for slot, key in due_slots(board, now):
+        config = board['preferences'][slot]
         pending = [dict(title=q['prompt'], conversation=q['conversation'], source=q['run']) for q in questions]
         recent = [event for event in events if 0 <= now.timestamp() - event['time'] < 86400]
         rows = {'questions': pending, 'project': recent, 'both': pending + recent}[config['focus']]
@@ -63,48 +69,43 @@ def latest_receipt(state, conversation=None):
         return dict(latest, day=datetime.fromtimestamp(latest['accepted']).date().isoformat())
 
 
-def today_board(service, preferences=None, *, scheduled=False, now=None):
-    now = now or datetime.now().astimezone()
-    with service.lock, transaction(service.path) as (state, _):
-        if scheduled and 'today_board' not in state:
-            return
-        board = state.setdefault('today_board', dict(preferences=defaults()))
-        config = board['preferences']
-        projects = [dict(id=p['id'], name=p['name']) for p in state['projects']]
-        if preferences is not None:
-            if not isinstance(preferences, dict) or preferences.get('version') != config['version']:
-                raise ValueError('看板设置已更新，请刷新后再保存。')
-            selected = preferences.get('project', '')
-            if selected and selected not in {p['id'] for p in projects}:
-                raise ValueError('所选项目已移除。')
-            next_config = dict(version=config['version'] + 1, project=selected)
-            for slot in ('morning', 'evening'):
-                period = preferences.get(slot) or {}
-                if (not isinstance(period, dict) or period.get('focus') not in ('questions', 'project', 'both')
-                    or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', str(period.get('time', '')))):
-                    raise ValueError('请选择有效的简报时间和内容。')
-                words = period.get('keywords', '')
-                if not isinstance(words, str) or len(words) > 120:
-                    raise ValueError('关注词最多 120 个字符。')
-                frequency = period.get('frequency', 'daily')
-                if frequency not in ('daily', 'weekdays', 'weekends', 'off'):
-                    raise ValueError('请选择有效的简报周期。')
-                next_config[slot] = dict(time=period['time'], focus=period['focus'], keywords=words.strip(),
-                                         frequency=frequency)
-            board['preferences'] = config = next_config
-        events = timeline(state, config['project'])
-        questions = service._mobile_questions(state)
-        if not scheduled:
-            forms = {run['id']: run['clarification_form'] for run in state['runs'] if run.get('clarification_form')}
-            for question in questions:
-                form = forms.get(question['run'])
-                if form and form['version'] == question['version']:
-                    question['form'] = form
-        update_reports(board, now, questions, events)
-        if not scheduled:
-            day = now.strftime('%Y-%m-%d')
-            return dict(day=day, receipt=latest_receipt(state), preferences=config, projects=projects, questions=questions, events=events,
-                        reports=[r for r in board['reports'].values() if r['date'] == day])
+def project_board(state, questions, preferences, scheduled, now):
+    board = state.setdefault('today_board', dict(preferences=defaults()))
+    config = board['preferences']
+    projects = [dict(id=p['id'], name=p['name']) for p in state['projects']]
+    if preferences is not None:
+        if not isinstance(preferences, dict) or preferences.get('version') != config['version']:
+            raise ValueError('看板设置已更新，请刷新后再保存。')
+        selected = preferences.get('project', '')
+        if selected and selected not in {p['id'] for p in projects}:
+            raise ValueError('所选项目已移除。')
+        next_config = dict(version=config['version'] + 1, project=selected)
+        for slot in ('morning', 'evening'):
+            period = preferences.get(slot) or {}
+            if (not isinstance(period, dict) or period.get('focus') not in ('questions', 'project', 'both')
+                or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', str(period.get('time', '')))):
+                raise ValueError('请选择有效的简报时间和内容。')
+            words = period.get('keywords', '')
+            if not isinstance(words, str) or len(words) > 120:
+                raise ValueError('关注词最多 120 个字符。')
+            frequency = period.get('frequency', 'daily')
+            if frequency not in ('daily', 'weekdays', 'weekends', 'off'):
+                raise ValueError('请选择有效的简报周期。')
+            next_config[slot] = dict(time=period['time'], focus=period['focus'], keywords=words.strip(),
+                                     frequency=frequency)
+        board['preferences'] = config = next_config
+    events = timeline(state, config['project'])
+    if not scheduled:
+        forms = {run['id']: run['clarification_form'] for run in state['runs'] if run.get('clarification_form')}
+        for question in questions:
+            form = forms.get(question['run'])
+            if form and form['version'] == question['version']:
+                question['form'] = form
+    update_reports(board, now, questions, events)
+    if not scheduled:
+        day = now.strftime('%Y-%m-%d')
+        return dict(day=day, receipt=latest_receipt(state), preferences=config, projects=projects, questions=questions, events=events,
+                    reports=[r for r in board['reports'].values() if r['date'] == day])
 
 
 def attach_mobile_board(state, history, now=None):

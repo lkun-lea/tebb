@@ -13,7 +13,7 @@ import time
 import uuid
 from pathlib import Path
 
-from desk_companion.collaboration.store import workspace_path, transaction
+from desk_companion.collaboration.store import workspace_path, transaction, read_snapshot
 from desk_companion.infrastructure.paths import data_root
 from desk_companion.tasks.settings import read_settings, settings_path
 from desk_companion.tasks.manager import TaskManager, TERMINAL
@@ -1333,15 +1333,33 @@ class Collaboration:
                 if children:
                     plan['delivery_state']='running' if any(c['state'] in ACTIVE for c in children) else 'succeeded' if all(c['state']=='succeeded' for c in children) else 'failed'
 
+    def today_board(self, preferences=None, *, scheduled=False, now=None):
+        from desk_companion.planning.today import due_slots, project_board
+
+        now = now or datetime.now().astimezone()
+        if preferences is None:
+            state = read_snapshot(self.path)
+            board = state.get('today_board')
+            if board is None and scheduled:
+                return None
+            if board is not None and not any(due_slots(board, now)):
+                if scheduled:
+                    return None
+                return project_board(state, self._mobile_questions(state), None, False, now)
+
+        with self.lock, transaction(self.path) as (state, _):
+            if scheduled and 'today_board' not in state:
+                return None
+            return project_board(state, self._mobile_questions(state), preferences, scheduled, now)
+
     def _loop(self):
-        from desk_companion.planning.today import today_board
         next_brief = 0
         while not self.stop.wait(.3):
             try:
                 self.tick()
                 if time.monotonic() >= next_brief:
                     next_brief = time.monotonic() + 30
-                    today_board(self, scheduled=True)
+                    self.today_board(scheduled=True)
             except Exception as exc:
                 from desk_companion.observability.logutil import log
                 log("collaboration scheduler: " + type(exc).__name__)

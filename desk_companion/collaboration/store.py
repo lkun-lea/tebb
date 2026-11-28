@@ -1,5 +1,5 @@
 """Workspace identity and atomic transactions; collaboration owns schema initialization."""
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import json
 import sqlite3
 
@@ -9,6 +9,14 @@ from desk_companion.infrastructure.paths import data_root
 def workspace_path():
     return data_root() / "memory" / "collaboration" / "workspace.sqlite3"
 
+
+
+def read_snapshot(path):
+    with closing(sqlite3.connect(path, timeout=10)) as db:
+        raw = db.execute("SELECT data FROM workspace WHERE id=1").fetchone()[0]
+    state = json.loads(raw)
+    state.setdefault("projects", [])
+    return state
 
 
 @contextmanager

@@ -12,7 +12,7 @@ from desk_companion.accounts.account_store import AccountRuntime, AccountStore, 
 from desk_companion.accounts.service import AccountService
 from desk_companion.local_api.mobile_pairing import MobilePairing
 from desk_companion.local_api.paired_workspace import exchange
-from desk_companion.planning.today import today_board, defaults
+from desk_companion.planning.today import defaults
 from desk_companion.collaboration.store import transaction
 from tests.test_execution_flow import ExecutionFlowTests
 
@@ -41,12 +41,12 @@ def main():
             next(c for c in state['conversations'] if c['id'] == question['conversation'])['project_id'] = 'today-demo'
         prefs = defaults()
         prefs.update(project='today-demo', morning=dict(time='00:00', focus='both'))
-        today_board(flow.service, prefs)
+        flow.service.today_board(prefs)
         if args.observation:
             args.observation.mkdir(exist_ok=False)
         def observe():
             if args.observation:
-                state = dict(board=today_board(flow.service), history=flow.service.shared_history([question['conversation']]))
+                state = dict(board=flow.service.today_board(), history=flow.service.shared_history([question['conversation']]))
                 staged = args.observation / 'view.tmp'
                 staged.write_text(json.dumps(state, ensure_ascii=False), encoding='utf-8')
                 staged.replace(args.observation / 'view.json')

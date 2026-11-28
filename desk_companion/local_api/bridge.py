@@ -89,8 +89,7 @@ class Bridge:
         return save(skin, size)
 
     def today_board(self, preferences=None) -> dict:
-        from desk_companion.planning.today import today_board
-        return today_board(self._host.collaboration, preferences)
+        return self._host.collaboration.today_board(preferences)
 
     def load_collaboration(self, since="") -> dict:
         return self._host.collaboration.snapshot(since=since)

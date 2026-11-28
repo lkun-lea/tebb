@@ -28,3 +28,6 @@ uv run --locked python -m unittest tests.test_today_board tests.test_mobile_stat
 ```
 
 Android 原生仪器测试 `PersonalAgentAcceptance` 另用合成快照核对看板、早报、定位原会话和引用草稿；构建与运行方法见 [移动端验收](MOBILE_AGENT_ROADMAP.md)。
+
+
+本地工作区事务由协作服务管理。普通看板访问读取 SQLite 快照，设置保存和到期简报生成在写事务中重新读取状态并核对版本或时段。上面的 test_today_board 也会用第二个连接占用写锁，验证已生成简报仍然可读。
