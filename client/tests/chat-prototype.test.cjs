@@ -595,6 +595,7 @@ test('workspace opens today beside chat and keeps its draft mounted under modal 
     './window-chrome': load('window-chrome', { '@tauri-apps/api/core': { isTauri: () => false } }),
     './workspace-navigation': load('workspace-navigation'),
     './page-stack': load('page-stack'),
+    './note-draft-port': load('note-draft-port'),
     './saved-notes': load('saved-notes',{'./api':{},'./Markdown':{Markdown:Empty},'./recent-focus':load('recent-focus'),'./page-stack':load('page-stack'),'./workspace-dialog':{WorkspaceDialog:Empty}}),
     './live-collaboration': { LiveCollaboration: LiveStub },
     './debug': { debugPane: () => null, debugRequested: () => false, installDeskDebug() {} },

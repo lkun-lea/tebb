@@ -8,19 +8,20 @@
 .sn-focus {display:flex;align-items:baseline;gap:12px;margin:12px 0;color:hsl(var(--muted-foreground));font-size:var(--ui-text-sm)}
 .sn-focus>span {flex:none;font-weight:var(--ui-weight-600)}
 .sn-focus p {margin:0;overflow-wrap:anywhere}
-.sn-list,.saved-notes article {background:hsl(var(--card)/.88);border-radius:var(--ui-radius);margin-top:14px;padding:4px clamp(12px,2vw,24px);overflow-wrap:anywhere}
-.saved-notes .sn-row {width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:4px 12px;text-align:left;padding:16px 6px;background:transparent}
-.sn-row+.sn-row {border-top:1px solid hsl(var(--border)/.65)}
-.sn-row :is(strong,small,.sn-excerpt) {grid-column:1}
-.sn-row strong {font-size:var(--ui-text-body);font-weight:var(--ui-weight-600)}
-.sn-row>svg {grid-column:2;grid-row:1/4;align-self:center;color:hsl(var(--muted-foreground))}
-.sn-row:hover {background:hsl(var(--secondary)/.68)}
-.sn-row:focus-visible {outline:2px solid hsl(var(--ring));outline-offset:-2px}
+.sn-list {display:grid;gap:12px;margin-top:14px}
+.sn-card {padding:clamp(14px,2vw,22px);background:hsl(var(--card)/.9);border-radius:var(--ui-radius);overflow-wrap:anywhere}
+.sn-card-head {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
+.sn-card-read {min-width:0;display:grid;gap:5px;width:100%;text-align:left;background:transparent;color:inherit}
+.sn-card-read strong {font-size:var(--ui-text-body);font-weight:var(--ui-weight-600)}
+.sn-card-read svg {display:inline;vertical-align:middle;margin-left:5px;color:hsl(var(--muted-foreground))}
+.sn-card-read[aria-expanded=true] svg {transform:rotate(180deg)}
+.sn-card-read:hover strong {text-decoration:underline;text-underline-offset:.2em}
+.sn-card-read:focus-visible {outline:2px solid hsl(var(--ring));outline-offset:3px}
+.sn-add {min-width:6em}
 .sn-excerpt {overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:var(--ui-text-body);line-height:1.55}
 .sn-excerpt:empty {display:none}
 .saved-notes small,.sn-excerpt {color:hsl(var(--muted-foreground))}
-.saved-notes article {padding:20px}
-.saved-notes article h2 {margin:14px 0 4px;font-size:22px}
+.sn-card>div:not(.sn-card-head):not([hidden]) {margin-top:14px}
 .saved-notes footer {justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
 .saved-notes label:not(.sn-search) {display:block;margin:12px 0}
 .saved-notes :is(textarea,select,input:not([type=search])) {display:block;width:100%;padding:9px 12px;border-radius:var(--ui-radius)}

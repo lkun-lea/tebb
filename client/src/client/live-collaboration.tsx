@@ -1,4 +1,4 @@
-import type {NoteDraftPort} from './saved-notes';
+import type {NoteDraftPort} from './note-draft-port';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { backendInfo, rpc, type BackendInfo } from "./api";
 import type { LocalSource } from "./local-sources";

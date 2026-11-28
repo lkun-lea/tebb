@@ -35,6 +35,15 @@ class LocalSourceTests(unittest.TestCase):
         path = self.root/name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(body.encode('utf-8'))
         return path
 
+    def test_note_receipt_identifies_only_frozen_note_material(self):
+        path = str(self.file(body='unique-private-note-marker'))
+        note = sources.stage([path], note_title='Test note')['sources'][0]
+        ordinary = sources.stage([path])['sources'][0]
+        receipts = []
+        block = sources.turn_block([ordinary['id'], note['id']], note_refs=receipts)
+        self.assertIn('unique-private-note-marker', block)
+        self.assertEqual(receipts, [dict(id=note['id'], title='Test note')])
+
     def test_nested_folder_inventory_skips_dependencies_and_reports_unreadable_files(self):
         folder = self.root/'资料'; folder.mkdir()
         self.file('资料/a.md'); self.file('资料/子目录/b.py', 'print("hello")')

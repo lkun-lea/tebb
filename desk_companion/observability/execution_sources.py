@@ -7,13 +7,24 @@ def owner_nodes(root,profile=None,collaboration_paths=None):
     from pathlib import Path
     directory=Path(profile)if profile is not None else data_root()
     nodes=[];edges=[];bindings={}
+    note_refs=[]
     if root.startswith('collab:'):
         fields=['id','parent','task','agent','stage','round','state','created','finished','model_id']
         selected=','.join("json_extract(j.value,'$."+k+"') AS "+k for k in fields)
         rows=[]
         for path in collaboration_paths or [directory/'memory/collaboration/workspace.sqlite3']:
             found=read_rows(path,'SELECT '+selected+" FROM workspace,json_each(workspace.data,'$.runs') j WHERE workspace.id=1")
-            if any(r['id']==root.removeprefix('collab:')for r in found):rows=found;break
+            if any(r['id']==root.removeprefix('collab:')for r in found):
+                rows=found
+                note_refs=read_rows(path, """
+                    SELECT DISTINCT json_extract(ref.value, '$.id') AS id,
+                                    json_extract(ref.value, '$.title') AS title
+                    FROM workspace, json_each(workspace.data, '$.messages') AS msg,
+                         json_each(msg.value, '$.note_refs') AS ref
+                    WHERE workspace.id=1 AND json_extract(msg.value, '$.run')=?
+                      AND json_extract(msg.value, '$.sender')='user'
+                """, (root.removeprefix('collab:'),))
+                break
         owners={root.removeprefix('collab:')};pending=list(rows)
         while pending:
             ready=[r for r in pending if r['parent'] in owners]
@@ -33,7 +44,7 @@ def owner_nodes(root,profile=None,collaboration_paths=None):
             nid=root+':node:'+row['node'];nodes.append(dict(id=nid,kind='workflow_node',label=row['node']+' · '+row['kind'],
                 state=row['state'],started=row['started'],ended=row['ended'],receipt_key=row['receipt_key']))
             edges.append(dict(id=root+'>'+nid,source=root,target=nid,relation='workflow_receipt'))
-    return dict(nodes=nodes,edges=edges,task_bindings=bindings)
+    return dict(nodes=nodes,edges=edges,task_bindings=bindings,note_refs=note_refs)
 
 
 def task_checks(tasks,profile=None):

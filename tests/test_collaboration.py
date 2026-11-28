@@ -37,6 +37,24 @@ class Queue:
 
 
 class CollaborationTests(unittest.TestCase):
+    def test_note_snapshot_receipt_is_bound_once_to_message_and_execution(self):
+        from desk_companion.knowledge.local_sources import stage
+        from desk_companion.observability.execution_sources import owner_nodes
+        document = Path(self.temp.name) / 'note.md'
+        document.write_text('unique note body', encoding='utf-8')
+        source = stage([str(document)], note_title='Receipt note')['sources'][0]
+        action = dict(type='send', conversation='group-research', text='read this',
+                      attachments=[source['id']], request_id=uuid.uuid4().hex)
+        self.service.action(action)
+        state = self.service.action(action)['state']
+        run = state['runs'][-1]['id']
+        messages = [m for m in state['messages'] if m.get('run') == run and m['sender'] == 'user']
+        expected = [dict(id=source['id'], title='Receipt note')]
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['text'], 'read this')
+        self.assertEqual(messages[0]['note_refs'], expected)
+        self.assertEqual(owner_nodes('collab:'+run, collaboration_paths=[self.service.path])['note_refs'], expected)
+
     def test_explicit_delegation_overrides_direct_suggestion_in_same_root(self):
         result=self.service.action(dict(type='send',conversation='group-research',text='两位伙伴独立核对资料',mode='task',strategy='delegate',request_id=uuid.uuid4().hex))
         root=result['state']['runs'][-1];self.assertEqual(root['requested_strategy'],'delegate')

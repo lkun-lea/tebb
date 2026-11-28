@@ -177,7 +177,7 @@ class Bridge:
         with TemporaryDirectory(prefix='tebb-note-') as folder:
             path = Path(folder) / '笔记资料.md'
             path.write_text(document['markdown'], encoding='utf-8')
-            return stage([str(path)], 'file')
+            return stage([str(path)], 'file', note_title=document['title'])
 
     def project_workspace(self, operation="load", **args):
         from desk_companion.projects import project_workspace as project

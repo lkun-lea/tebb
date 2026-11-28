@@ -104,6 +104,7 @@ class ExecutionCenter:
             owner=dict(state='unknown',owner_missing=True,created=first['started'],model=first.get('model'),purpose=first.get('purpose'))
         nodes={root:{'id':root,'kind':'task'if root.startswith(('task:','collab:','workflow:'))else'operation','label':root,**(owner or dict(state='unknown',owner_missing=True))}};edges=[]
         owned=self.owner_source(root)
+        if owned.get("note_refs"): nodes[root]["note_refs"] = owned["note_refs"]
         nodes.update({n['id']:n for n in owned['nodes']});edges.extend(owned['edges'])
         def add(value,parent,relation):
             nodes[value['id']]=value

@@ -1,4 +1,4 @@
-import type {NoteDraftPort} from './saved-notes';
+import type {NoteDraftPort} from './note-draft-port';
 import {WorkspaceDialog} from './workspace-dialog';
 import { useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
@@ -177,18 +177,21 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
   const attachments = attachmentMap[conversation.id] || [];
   useEffect(()=>{
     if(!noteDraftPort)return;
-    const targets=state.conversations.map(c=>({id:c.id,title:c.title}));
-    if(editingDraft&&!draftLocked)targets.unshift({id:conversation.id,title:conversation.title});
-    noteDraftPort.current={owner:backend?.token||'',targets,current:targets.some(t=>t.id===conversation.id)?conversation.id:'',
-      attach:(id,source)=>{
-        if(!targets.some(t=>t.id===id))throw Error('目标会话已移除');
-        const keep=(a:LocalSource)=>a.id!==source.id&&(!source.noteKey||source.noteKey!==a.noteKey);
-        const current=(attachmentMap[id]||[]).filter(keep);
-        if(current.length>=10)throw Error('当前草稿已选满 10 份资料');
-        setAttachmentMap(old=>({...old,[id]:[...(old[id]||[]).filter(keep),source]}));
-      }};
-    return ()=>{noteDraftPort.current=null;};
-  },[noteDraftPort,backend?.token,state.conversations,conversation.id,editingDraft,draftLocked,attachmentMap]);
+    const id=conversation.id, files=attachmentMap[id]||[];
+    noteDraftPort.publish(draftLocked ? null : {
+      id,title:conversation.title,owner:backend?.token||'',
+      noteKeys:new Set(files.flatMap(file=>file.noteKey?[file.noteKey]:[])),
+      attach(source){
+        if(files.some(file=>file.noteKey===source.noteKey))return;
+        if(files.length>=10)throw Error('当前草稿已选满 10 份资料');
+        setAttachmentMap(old=>{
+          const previous=old[id]||[];
+          return previous.some(file=>file.noteKey===source.noteKey)?old:{...old,[id]:[...previous,source]};
+        });
+      },
+    });
+    return ()=>noteDraftPort.publish(null);
+  },[noteDraftPort,backend?.token,conversation.id,conversation.title,draftLocked,attachmentMap]);
   useEffect(() => { if (providedAttachments.length&&!draftLocked) setAttachmentMap(old => ({ ...old, [conversation.id]: [...new Map([...(old[conversation.id] || []), ...providedAttachments].map(a => [a.id,a])).values()] })); }, [providedAttachments]);
   const removeAttachment = (id: string) => { if(draftLocked)return;setAttachmentMap(old => ({ ...old, [conversation.id]: attachments.filter(a => a.id!==id) })); onDetach?.(id); };
   const [cloudChoices,setCloudChoices]=useState<Record<string,boolean>>({});
@@ -355,9 +358,12 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
       return;
     }
     if (!draft.trim()) return;
+    // The same visible request is persisted with the run. The source IDs below bind its actual contents.
+    const names=attachments.filter(file=>file.noteKey && !file.note_title).map(file=>file.name.replace(/^笔记 · /,'').replace(/\s+/g,' '));
+    const text=names.length ? draft.trimEnd()+'\n\n引用笔记：'+names.join('、') : draft;
     const action:FirstMessage=editingDraft?.attempt||{type:'send',conversation:selectedRun?.conversation||conversation.id,
       ...(editingDraft?{new_chat:{agent_id:editingDraft.agent_id,project_id:editingDraft.project_id}}:{}),
-      text:draft,target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})};
+      text,target,mode,run:updateRun||undefined,skills,attachments:attachments.map(a=>a.id),model_id:modelPick,...(developer?{sampling}:{})};
     if(editingDraft){
       if(!editingDraft.attempt&&(!state.agents.some(a=>a.id===editingDraft.agent_id)||(editingDraft.project_id&&!projects.some(p=>p.id===editingDraft.project_id)))){setStorageError('伙伴或项目已移除，请重新选择后发送。');return;}
       newConversation.freeze(action);if(!await sendAction(action))newConversation.failed(editingDraft.id);
@@ -394,7 +400,10 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
     const owner = member(run.agent)!;
     const displayState=run.chain?.state || run.delivery_state || run.state;
     const chainLabel=run.chain ? ({running:'执行中',succeeded:'已完成',failed:'未完成',needs_input:'待补充',cancelled:'已停止'} as Record<string,string>)[run.chain.state] : run.delivery_state ? ({running:'协作进行中',succeeded:'协作已交付',failed:'协作未完成'} as const)[run.delivery_state] : '';
+    const noteReceipts=messages.filter(message=>message.sender==='user'&&message.run===run.id)
+      .flatMap(message=>(message.note_refs||[]).map(ref=>'引用笔记：'+ref.title));
     return <article key={run.id} id={`cp-run-${run.id}`} className={`cp-task ${focusedRun === run.id ? "cp-task-focused" : ""}`} data-demo-run={run.id}>
+      {[...new Set(noteReceipts)].map(receipt=><p key={receipt}>{receipt}</p>)}
       <div className="cp-task-meta"><span className={`cp-state cp-state-${displayState}`}><i />{real ? chainLabel || ({ running: "执行中", succeeded: "已完成", cancelled: "已停止" } as Record<string, string>)[run.state] || RUN_LABELS[run.state] : RUN_LABELS[run.state]}</span><span>{owner.name}</span></div>
       <h3>{run.title}</h3>
       {!real && <div className="cp-progress" aria-label={`演示进度 ${Math.min(100, Math.round(run.step / 3 * 100))}%`}><span style={{ width: `${run.step / 3 * 100}%` }} /></div>}
@@ -458,6 +467,7 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
             <div className="cp-message-content"><div className="cp-message-author"><strong>{item.sender === "user" ? "你" : member(item.sender)?.name}</strong>{real && (showCloud || cloud.turns.length > 0) && <small>{item.origin === 'cloud' ? '云端' : '本地'}</small>}{item.kind === "result" && <span className="cp-result-tag">成果</span>}</div>
               {item.sender !== 'user' && <>{runs.find(r=>r.id===item.run)?.state==='needs_input'&&!runs.find(r=>r.id===item.run)?.question_deferred&&<ClarificationCard key={item.run+':'+runs.find(r=>r.id===item.run)?.clarification_version} run={runs.find(r=>r.id===item.run)!} busy={!!live?.busy} onAction={action=>sendAction(action)} onText={()=>void supplement(runs.find(r=>r.id===item.run)!)} />}{real && progress && progress.trim() !== executionMessage(item, runs).trim() && <p className="cp-muted">{progress}</p>}{!real&&runs.find(r=>r.id===item.run)&&<ExecutionTree run={runs.find(r=>r.id===item.run)!} runs={runs} agents={state.agents}/>}{onCalendar&&hasCalendarContext(runs.find(r=>r.id===item.run))&&<button type="button" className="cp-message-reference" onClick={onCalendar}>查看相关日程 →</button>}</>}
               {item.sender!=='user' && <DraftNotice run={runs.find(r=>r.id===item.run)}/>}
+              {item.note_refs?.map(ref=><p key={ref.id}>引用笔记：{ref.title}</p>)}
               {(item.sender==='user'||runs.find(r=>r.id===item.run)?.state!=='needs_input') && (item.text || runs.find(r=>r.id===item.run)?.chain?.answer || !real) && <div className="cp-markdown"><StreamText text={executionMessage(item,runs)} active={!!item.run && runs.some(r=>r.id===item.run && runActive(r))} externalLinks={standalone} copyable={item.sender!=='user'} /></div>}
               {real&&item.sender!=='user'&&<CalendarProposalCards info={backend} proposals={proposalTree(runs.find(run=>run.id===item.run),runs)}/>}
               {real && item.run && lastMessage.get(rootByRun.get(item.run)!)===item.id && <>

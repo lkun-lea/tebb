@@ -28,7 +28,7 @@ function traceLabel(node:ExecutionNode){
  if(/^[a-f0-9]{16,}$/i.test(label))return String(node.tool||node.agent||({task:'任务',operation:'调用',agent:'伙伴执行'} as Record<string,string>)[node.kind]||'执行记录');
  return label.split(' · ').map(part=>names[part]||part).join(' · ');
 }
-export type ExecutionNode = {id:string;kind:string;label:string;state:string;started?:number;created?:number;ended?:number;[key:string]:unknown};
+export type ExecutionNode = {note_refs?:{id:string;title:string}[];id:string;kind:string;label:string;state:string;started?:number;created?:number;ended?:number;[key:string]:unknown};
 export type ExecutionGraph = {ok:boolean;root:string;nodes:ExecutionNode[];edges:{id:string;source:string;target:string;relation:string}[];timeline:string[];acceptance:{state:string;feedback_ok?:boolean};coverage:Record<string,unknown>};
 export const executionState:Record<string,string>={queued:'排队中',running:'执行中',needs_input:'待补充',needs_confirmation:'待确认',succeeded:'执行完成',returned:'已返回',failed:'失败',rejected:'已拦截',timed_out:'超时',cancelled:'已停止',interrupted:'运行中断',unknown:'结果未知',loaded:'已加载',offered:'本次允许',effective:'定义已生效',recorded:'已记录',cached:'缓存命中',replayed:'已有回执',unverified:'待核验',checked:'已核验',incomplete:'核验未完成'};
 
@@ -155,6 +155,7 @@ export function ExecutionTrace({info,root,task,evaluation}:{info:BackendInfo|nul
   {!graph&&unlinkedKey===traceKey&&<UiFeedback state="empty" title="这项任务暂无执行记录"/>}
   {!graph&&unlinkedKey!==traceKey&&!error&&<UiFeedback state={info?'loading':'unconfirmed'} title={info?'正在读取真实执行过程':'尚未连接本地后端'}/>}
   {graph&&<><header className="run-heading" data-failed={failedStates.has(graph.nodes.find(n=>n.id===graph.root)?.state||'')}><h2>{runTitle(rootNode||{id:graph.root,label:graph.root,kind:'task',state:'unknown'})}</h2><span className="run-badge">{executionState[graph.nodes.find(n=>n.id===graph.root)?.state||'unknown']}</span></header>
+   {rootNode?.note_refs?.map(ref=><p key={ref.id}>引用笔记：{ref.title}</p>)}
    <p className="run-meta">开始 {graph.nodes[0]?.created?new Date(graph.nodes[0].created*1000).toLocaleTimeString():'—'}　·　{rootNode?.created&&lastEnd>=rootNode.created&&<>记录跨度 {(lastEnd-rootNode.created).toFixed(2)} s　·　</>}验收 {executionState[graph.acceptance.state]||graph.acceptance.state}</p>
    {dependency&&graph.nodes.some(definitionEvent)&&<UiButton aria-pressed={showDefinitions} onClick={()=>setShowDefinitions(v=>!v)}>{showDefinitions?'收起请求工具定义事件':'展开请求工具定义事件'}</UiButton>}
    <div className="execution-toolbar"><UiButton aria-pressed={!dependency} onClick={()=>setDependency(false)}>时间瀑布</UiButton><UiButton aria-pressed={dependency} onClick={()=>setDependency(true)}>依赖图</UiButton></div>

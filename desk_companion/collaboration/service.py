@@ -516,9 +516,10 @@ class Collaboration:
     def _id():
         return uuid.uuid4().hex
 
-    def _message(self, state, conversation, sender, text="", run=None, kind=None):
+    def _message(self, state, conversation, sender, text="", run=None, kind=None, *, note_refs=None):
         row = dict(id=self._id(), conversation=conversation, sender=sender, text=text, created=time.time())
         if run: row["run"] = run
+        if note_refs: row["note_refs"] = note_refs
         if kind: row["kind"] = kind
         state["messages"].append(row)
         return row
@@ -800,6 +801,7 @@ class Collaboration:
             if not isinstance(text, str) or not text.strip() or len(text) > 4000: raise ValueError("消息须为1至4000字")
             text = text.strip()
             if conversation["title"] == "新对话": conversation["title"] = text.replace("\n", " ")[:40]
+            note_refs = []
             if action.get("run"):
                 run = next((r for r in state["runs"] if r["id"] == action["run"] and r["conversation"] == conversation["id"]), None)
                 if 'question_version' in action:
@@ -814,12 +816,12 @@ class Collaboration:
                 from desk_companion.integrations.skill_catalog import skill_turn_block
                 from desk_companion.knowledge.local_sources import turn_block
                 if selection['skills']: text += '\n\n'+skill_turn_block(selection['skills'])
-                if selection['attachments']: text += '\n\n'+turn_block(selection['attachments'])
+                if selection['attachments']: text += '\n\n'+turn_block(selection['attachments'], note_refs=note_refs)
                 previous = run.setdefault('selection', {})
                 for key, values in selection.items(): previous[key] = list(dict.fromkeys(previous.get(key, [])+values))
                 if any(len(v)>10 for v in previous.values()): raise ValueError('单项任务最多10个技能或附件')
                 run["updates"].append(text); run["events"].append("补充要求已接收，等待调用边界应用")
-                self._message(state, conversation["id"], "user", text, run["id"])
+                self._message(state, conversation["id"], "user", text, run["id"], note_refs=note_refs)
                 if run['state']=='needs_input':
                     from desk_companion.collaboration.clarification import stop_options
                     if sum(r['state'] in ACTIVE for r in state['runs'])>=12:raise ValueError('已有较多任务，请稍后补充。')
@@ -871,7 +873,7 @@ class Collaboration:
             from desk_companion.knowledge.local_sources import turn_block
             additions = []
             if selection['skills']: additions.append(skill_turn_block(selection['skills']))
-            if selection['attachments']: additions.append(turn_block(selection['attachments']))
+            if selection['attachments']: additions.append(turn_block(selection['attachments'], note_refs=note_refs))
             if additions: history.append(dict(sender="user_selected_materials", text="\n\n".join(additions)))
             mode = action.get("mode", "auto")
             # Literal greetings need no tool-routing envelope. Retain the full
@@ -909,7 +911,7 @@ class Collaboration:
                 if action['preview_revision'] != run_revision(run):
                     raise ValueError('记忆、会话或参数已变化，请重新生成预览；未发送。')
             reply = state["messages"].pop()
-            self._message(state, conversation["id"], "user", text, run["id"])
+            self._message(state, conversation["id"], "user", text, run["id"], note_refs=note_refs)
             state["messages"].append(reply)
         elif kind == "cancel":
             run = next((r for r in state["runs"] if r["id"] == action.get("id")), None)
