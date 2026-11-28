@@ -9,6 +9,12 @@ function brief(value:string,limit:number){
   return words.length>limit?words.slice(0,limit-1).join('')+'…':words.join('');
 }
 
+function failureReason(error?:string){
+  if(!error)return '';
+  const known:Record<string,string>={AuthenticationError:'模型服务认证失败',PermissionDeniedError:'模型服务拒绝访问',RateLimitError:'模型服务限流',APITimeoutError:'模型请求超时',APIConnectionError:'模型连接失败',InternalServerError:'模型服务返回内部错误'};
+  const kind=/协作执行失败（([A-Za-z]+)）/.exec(error)?.[1];
+  return kind&&known[kind]?known[kind]:error.split(/[。\n]/).find(Boolean)||error;
+}
 export class PetFeedback {
   private seen = new Set<string>();
   private eligible = new Set<string>();
@@ -27,8 +33,8 @@ export class PetFeedback {
       const chain=runs.filter(run=>root(run).id===ancestor.id);
       const failed=chain.find(run=>['failed','timed_out','interrupted'].includes(run.state));
       const waiting=chain.find(run=>run.state==='needs_input');
-      const state=ancestor.chain?.state || (waiting?'needs_input':chain.some(active)?'running':failed?.state || (chain.some(run=>run.state==='cancelled')?'cancelled':ancestor.state));
-      const current=waiting||((state==='running')?chain.filter(active).at(-1):failed)||ancestor;
+      const state=ancestor.chain?.state || (failed?.state || (waiting?'needs_input':chain.some(active)?'running':chain.some(run=>run.state==='cancelled')?'cancelled':ancestor.state));
+      const current=(state==='needs_input'?waiting:state==='running'?chain.filter(active).at(-1):failed)||ancestor;
       const run={...ancestor,events:current.events,status:current.status,clarification:current.clarification,state,error:ancestor.chain?.error||failed?.error||ancestor.error,answer:ancestor.chain?.answer||ancestor.answer};
       return {run,key:'collab:'+ancestor.id,order:ancestor.created||runs.indexOf(ancestor),step:runs.indexOf(ancestor)};
     });
@@ -50,7 +56,7 @@ export class PetFeedback {
     const modelEvent=history.filter(e=>e.startsWith('调用模型：')).at(-1);
     const model=run.observed_model||modelEvent?.slice('调用模型：'.length);
     const step=history.filter(e=>e!==run.error&&!e.startsWith('调用模型：')).at(-1)||run.status;
-    const detail=error?run.error:run.state==='needs_input'?run.clarification:working?step:answer;
+    const detail=error?failureReason(run.error):run.state==='needs_input'?run.clarification:working?step:answer;
     const lines=[brief(run.title||'任务',19),[labels[run.state]||run.state,model?brief(model,25):''].filter(Boolean).join(' · ')];
     if(detail)lines.push(brief(detail,42));
     this.current={key,working,error,text:lines.join('\n')};

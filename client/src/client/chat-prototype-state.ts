@@ -317,3 +317,17 @@ export function restoreDemo(raw: string | null): DemoState {
     return { ...state, notice: "" };
   } catch { return initialDemo(); }
 }
+
+export function orderChatTimeline(timeline:DemoMessage[]){
+  // Older local turns reserve their reply before inserting the triggering user message.
+  // Preserve that causal order when interleaving cloud rows, without inventing display timestamps.
+  const userTime=new Map<string,number>();
+  const orderTime=new Map<string,number>();
+  for(const row of timeline){
+    const stamp=row.created??0;
+    if(row.run&&row.sender==='user')userTime.set(row.run,stamp);
+    orderTime.set(row.id,row.run&&row.sender!=='user'?Math.max(stamp,userTime.get(row.run)??0):stamp);
+  }
+  timeline.sort((a,b)=>orderTime.get(a.id)!-orderTime.get(b.id)!);
+  return timeline;
+}

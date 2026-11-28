@@ -52,6 +52,7 @@ function refreshFeedback() {
   if(value){
     // Asset/runtime errors have their own explicit recovery instructions.
     if(bubble.open && bubble.error && !feedbackBubble)return;
+    if(feedbackBubble&&bubble.open&&bubble.text===value.text&&bubbleEl.dataset.trace===value.key)return;
     feedbackBubble=true;
     bubble={open:true,text:value.text,error:value.error,until:0,index:-1};renderBubble();
   } else if(feedbackBubble){feedbackBubble=false;bubble=dismissBubble(bubble);renderBubble();}
@@ -79,6 +80,7 @@ function renderBubble(): void {
   bubbleEl.classList.toggle("hidden", !bubble.open);
   bubbleEl.dataset.kind = reminderBubble?'reminder':bubble.error ? "error" : "line";
   bubbleEl.dataset.execution=String(feedbackBubble);
+  bubbleEl.dataset.trace=feedbackBubble?feedback.current?.key||'':'';
   bubbleEl.textContent = bubble.text;
   if(feedbackBubble&&feedback.current){
     const key=feedback.current.key;
@@ -381,7 +383,7 @@ async function main(): Promise<void> {
     const info = backend;
     void rpc<{runtime:{key:string}}>(info,'account_session').then(({runtime})=>{
       initializeAccountStorage(runtime.key);
-      const apply=()=>document.documentElement.classList.toggle('dark',accountStorage().getItem('tebb.theme')!=='light');
+      const apply=()=>document.documentElement.classList.toggle('dark',accountStorage().getItem('tebb.theme')==='dark');
       apply();
       window.addEventListener('storage',event=>{if(event.key===accountStorageKey('tebb.theme'))apply()});
     }).catch(()=>{});
@@ -400,7 +402,7 @@ async function main(): Promise<void> {
           rpc<{ state: { runs: FeedbackRun[] } }>(info, "load_collaboration"),
         ]);
         lastProgress=progress;lastRuns=collaboration.state.runs;hasFeedbackSnapshot=true;refreshFeedback();
-        setPetWorking(!!progress.enabled && ((!!progress.task && ['running','queued','cancelling'].includes(progress.task.state)) || collaboration.state.runs.some(run=>['running','queued','waiting','pending','cancelling'].includes(run.state))));
+        setPetWorking(!!progress.enabled && ((!!progress.task && ['running','queued','cancelling'].includes(progress.task.state)) || collaboration.state.runs.some(run=>!run.parent&&['running','queued','waiting','pending','cancelling'].includes(run.chain?.state||run.state))));
       } catch { /* 接口重连期间保留现有形象，不反复弹出错误。 */ }
       finally { polling = false; }
     }, 2000);

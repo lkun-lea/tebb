@@ -1,4 +1,5 @@
 import type {NoteDraftPort} from './note-draft-port';
+import {orderChatTimeline} from './chat-prototype-state';
 import {WorkspaceDialog} from './workspace-dialog';
 import { useCloudChat } from './cloud-chat';
 import { InspectorDisclosure } from './inspector-disclosure';
@@ -212,7 +213,7 @@ export function ChatPrototype({ noteDraftPort, standalone = false, live, compose
       {sender:'tebb', text:turn.answer || turn.error || ({queued:'等待执行',running:'正在回答'}[turn.state] || turn.state)}
     ].map(row => ({...row, origin:'cloud' as const, id:'cloud:'+turn.id+':'+row.sender, conversation:conversation.id, created:turn.created})))
   ] as import('./chat-prototype-state').DemoMessage[];
-  timeline.sort((a,b) => (a.created ?? 0) - (b.created ?? 0));
+  orderChatTimeline(timeline);
   const lastActivity = timeline.at(-1)?.created;
   const executionPicker = cloudAvailable && (
     <label title={localOnly ? '当前上下文仅限本地执行' : '选择这段会话的执行位置'}>

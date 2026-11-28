@@ -80,3 +80,31 @@ test('pet board ranks pending answer, near appointment and selected project, ded
  assert.deepEqual(petRows(b,[e],now).map(r=>r.id),['q','calendar:c:e','r']);b.preferences.project='';
  assert.equal(petRows(b,[e],now).length,2);b.questions=[];assert.deepEqual(petRows(b,[],now),[]);
 });
+
+test('historical reply reserved before the request follows its own user message alongside other turns',()=>{
+ const {orderChatTimeline}=load('chat-prototype-state');
+ const messages=[{id:'u1',run:'a',sender:'user',created:20},{id:'fail',run:'a',sender:'tebb',created:19},{id:'u2',run:'b',sender:'user',created:22},{id:'cloud',origin:'cloud',sender:'user',created:18}];
+ assert.deepEqual(orderChatTimeline(messages).map(m=>m.id),['cloud','u1','fail','u2']);
+ assert.equal(messages[2].created,19);
+});
+test('visible pet reads the account board and calendar, opens the original day, and closes without sending',async()=>{
+ global.window={setTimeout:()=>1,clearTimeout(){}};
+ const called=[],native=[],sent=[];
+ const pref={time:'08:30',focus:'both'};
+ const {PetChat}=load('pet-chat',{
+   './api':{rpc:async(_,method,args)=>{called.push([method,args]);return method==='today_board'?{day:'2026-11-29',preferences:{project:'',morning:pref,evening:pref},projects:[],events:[],questions:[{run:'abc',title:'评审日期',prompt:'周二还是周三？'}]}:{events_valid:true,events:[]}}},
+   '@tauri-apps/api/core':{isTauri:()=>true,invoke:async(name,args)=>{native.push([name,args]);return name==='get_pet_chat_state'?{visible:true,pinned:false}:undefined}},
+   '@tauri-apps/api/event':{listen:async()=>()=>{},emitTo:async(...args)=>sent.push(args)}
+ });
+ let view;await act(async()=>{view=create(React.createElement(PetChat,{backend:{port:1234,token:'isolated'}}))});
+ assert.deepEqual(called.map(c=>c[0]),['today_board','load_schedule']);
+ assert.equal(called[1][1].day,'2026-11-29');
+ const row=view.root.findByProps({className:'pet-today-row'});
+ assert.match(text(row),/等你答复周二还是周三/);
+ await act(async()=>{row.props.onClick()});
+ assert.deepEqual(sent[0],['main','pet-open-journal',{}]);
+ assert.equal(view.root.findAllByType('textarea').length,0);
+ await act(async()=>{view.root.findByProps({'aria-label':'关闭今日看板'}).props.onClick()});
+ assert(native.some(([n,a])=>n==='set_pet_chat_visible'&&a.visible===false));
+ act(()=>view.unmount());
+});

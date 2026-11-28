@@ -835,7 +835,9 @@ class Collaboration:
                     # Keep its identity and task link, rather than duplicating it.
                     reply=next((m for m in state['messages'] if m.get('run')==run['id'] and m['sender']==run['agent']),None)
                     if reply:
-                        state['messages'].remove(reply);state['messages'].append(reply)
+                        state['messages'].remove(reply)
+                        reply['created'] = time.time()
+                        state['messages'].append(reply)
                     run['input'] += '\n用户补充目标：'+text
                     run['title'] = text[:160]
                     advance(run,'route',status='已收到目标补充，重新核对后执行')
@@ -912,6 +914,7 @@ class Collaboration:
                     raise ValueError('记忆、会话或参数已变化，请重新生成预览；未发送。')
             reply = state["messages"].pop()
             self._message(state, conversation["id"], "user", text, run["id"], note_refs=note_refs)
+            reply["created"] = time.time()
             state["messages"].append(reply)
         elif kind == "cancel":
             run = next((r for r in state["runs"] if r["id"] == action.get("id")), None)

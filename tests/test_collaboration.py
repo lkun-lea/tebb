@@ -55,6 +55,13 @@ class CollaborationTests(unittest.TestCase):
         self.assertEqual(messages[0]['note_refs'], expected)
         self.assertEqual(owner_nodes('collab:'+run, collaboration_paths=[self.service.path])['note_refs'], expected)
 
+    def test_reply_timestamp_follows_the_triggering_user_message(self):
+        state = self.action(type='send', text='核对评审议程', mode='message', target='research')
+        run_id = state['runs'][-1]['id']
+        messages = [row for row in state['messages'] if row.get('run') == run_id]
+        self.assertEqual(messages[0]['sender'], 'user')
+        self.assertGreaterEqual(messages[1]['created'], messages[0]['created'])
+
     def test_explicit_delegation_overrides_direct_suggestion_in_same_root(self):
         result=self.service.action(dict(type='send',conversation='group-research',text='两位伙伴独立核对资料',mode='task',strategy='delegate',request_id=uuid.uuid4().hex))
         root=result['state']['runs'][-1];self.assertEqual(root['requested_strategy'],'delegate')
