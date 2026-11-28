@@ -58,6 +58,17 @@ class AutomationFixture(unittest.TestCase):
 
 
 class AutomationServiceTests(AutomationFixture):
+    def test_next_run_follows_scheduler_timezone_and_weekday(self):
+        job = dict(enabled=True, cadence='weekly', weekdays=[NOW.weekday()],
+                   hour=12, minute=0, last_run_slot='')
+        self.assertEqual(a._next_run(job, NOW), '2026-10-28T12:00')
+        job.update(cadence='once', date='2026-11-20')
+        self.assertEqual(a._next_run(job, NOW), '2026-11-20T12:00')
+        job['last_run_slot'] = '2026-11-20T12:00'
+        self.assertEqual(a._next_run(job, NOW), '')
+        job.update(enabled=False, cadence='daily')
+        self.assertEqual(a._next_run(job, NOW), '')
+
     def test_four_contracts_disable_manual_execution_and_delete_only_configuration(self):
         jid = self.save()
         artifact = self.root/'keep.md'; artifact.write_text('keep')

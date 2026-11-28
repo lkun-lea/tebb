@@ -146,8 +146,10 @@ def list_snapshot(*, queued: dict[str, str] | None = None) -> dict:
     queued_ids = set(waiting.values())
     items = []
     alert = False
+    now = _now()
     for job in store["jobs"]:
         row = dict(job)
+        row["next_run"] = _next_run(job, now)
         row["label"] = ACTION_LABELS[job["action"]]
         row["schedule_text"] = _schedule_text(job)
         row["queued"] = job["id"] in queued_ids
@@ -480,6 +482,20 @@ def _slot_key(day: datetime, job: dict) -> str:
 
 def _slot_dt(day: datetime, job: dict) -> datetime:
     return day.replace(hour=job["hour"], minute=job["minute"], second=0, microsecond=0)
+
+
+def _next_run(job: dict, now: datetime) -> str:
+    if not job['enabled']:
+        return ''
+    if job['cadence'] == 'once':
+        days = [datetime.fromisoformat(job['date']).replace(tzinfo=now.tzinfo)]
+    else:
+        days = (now + timedelta(days=i) for i in range(8))
+    for day in days:
+        slot = _slot_dt(day, job)
+        if _runs_on(job, day) and slot > now and _slot_key(day, job) != job['last_run_slot']:
+            return _slot_key(day, job)
+    return ''
 
 
 def _schedule_text(job: dict) -> str:

@@ -166,3 +166,22 @@
 .tebb-route-page [data-knowledge-doc] {border-width:0 0 1px}
 .tebb-route-page .sw-month .fc-daygrid-day-frame {min-height:clamp(42px,6vh,68px)}
 .wb-waiting {max-height:32vh;overflow:auto;flex-shrink:0}
+
+.tebb-route-page .workflow-workbench:has(.workflow-overview),
+.tebb-route-page .workflow-overview {background:transparent}
+.tebb-route-page .workflow-overview .workspace-feature-card,
+.tebb-route-page .workflow-overview .workflow-history {background:hsl(var(--card)/.78);border:1px solid hsl(var(--border)/.65);border-radius:20px}
+.tebb-route-page .workflow-overview .workflow-history {padding:20px}
+.tebb-route-page .workflow-overview .workflow-history > button {background:transparent;border:0;border-bottom:1px solid hsl(var(--border)/.7);border-radius:0}
+
+.knowledge-workspace-heading {display:flex;align-items:center;justify-content:space-between;gap:16px}
+.knowledge-workspace-heading h1 {font-size:clamp(26px,3vw,38px);font-weight:650}
+.knowledge-import {position:relative}
+.knowledge-import summary {cursor:pointer;list-style:none;color:white;background:#076c9c;border-radius:14px;padding:10px 18px}
+.knowledge-import > div {position:absolute;right:0;z-index:2;min-width:120px;background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:14px;padding:6px}
+.knowledge-import button,.knowledge-recent button {display:block;width:100%;padding:8px;text-align:left}
+.knowledge-recent {margin-block:18px;padding:20px;background:hsl(var(--card)/.75);border-radius:20px}
+.knowledge-recent h2 {font-size:18px;font-weight:600}
+.knowledge-recent small {display:block;color:hsl(var(--muted-foreground))}
+
+.workspace-identity {display:block;padding:8px;overflow-wrap:anywhere;color:hsl(var(--foreground))}

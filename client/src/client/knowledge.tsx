@@ -224,6 +224,8 @@ function HitList(props: { mark: "candidate" | "kept"; rows: KnowledgeHit[] }) {
 }
 
 export function KnowledgePane(props: {
+  recentNotes?: {sessionId:string; title:string; saved:string}[];
+  onOpenNote?: (sessionId:string)=>void;
   settings?: ReactNode;
   materials?: ReactNode;
   data: KnowledgePayload | null;
@@ -242,7 +244,7 @@ export function KnowledgePane(props: {
 }) {
   const data = props.data;
   const failed = !data || data.ok === false;
-  const [section, setSection] = useState(props.materials ? 'materials' : 'docs');
+  const [section, setSection] = useState('docs');
   const [query, setQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -319,10 +321,12 @@ export function KnowledgePane(props: {
   }
   return (
     <div data-knowledge="" data-knowledge-ok={data ? (failed ? "0" : "1") : ""}>
-      <small>本地资料</small><h1 className="text-xl font-semibold">知识库</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        管理飞书与本地资料，在笔记中基于来源检索；笔记可以作为资料带回伙伴聊天，伙伴回答也能收藏为笔记。
-      </p>
+      <header className="knowledge-workspace-heading"><div><small>本地资料</small><h1>知识库</h1></div>
+        {props.onLocal && <details className="knowledge-import"><summary>导入资料</summary><div>
+          <button disabled={props.busy} onClick={()=>props.onLocal?.("file")}>本地文件</button>
+          <button disabled={props.busy} onClick={()=>props.onLocal?.("folder")}>本地文件夹</button>
+        </div></details>}
+      </header>
       <nav className="workspace-tabs mt-5" aria-label="知识库功能">{[...(props.materials ? [['materials','资料工作区']] : []),['docs','已索引资料'],['check','检索检查'],['index','索引设置']].map(([id,label])=><button type="button" key={id} aria-pressed={section===id} onClick={()=>setSection(id)}>{label}</button>)}</nav>
       {props.materials && <div hidden={section !== 'materials'}>{props.materials}</div>}
       {data?.error ? <p data-knowledge-error="" className="mt-3 text-sm text-destructive">{data.error}</p> : null}
@@ -415,16 +419,14 @@ export function KnowledgePane(props: {
       ) : null}
       <div hidden={section!=="index"}>{props.settings}</div>
       <section hidden={section!=="docs"} className="mt-6">
-        <div className="flex items-center gap-2"><h2 className="mr-auto text-sm font-semibold">资料来源 · {docs.length} 篇</h2>
-          <button className="desk-btn" disabled={props.busy} onClick={() => props.onLocal?.("file")}>本地文件</button>
-          <button className="desk-btn" disabled={props.busy} onClick={() => props.onLocal?.("folder")}>本地文件夹</button></div>
         <input
           data-knowledge-query=""
           value={query}
           onChange={(ev) => setQuery(ev.target.value)}
-          placeholder="按标题模糊查找已入库的文档"
+          placeholder="搜索资料标题或关键词"
           className="mt-2 w-full border border-border bg-card px-3 py-2 text-sm"
         />
+        <h2 className="mt-4 text-lg font-semibold">资料来源 · {docs.length} 篇</h2>
         <div className="mt-3 space-y-2">
           {shown.length === 0 ? <p className="text-sm text-muted-foreground">库里没有匹配的文档。</p> : null}
           {groupSources(shown).map(group => <details key={group.id} data-knowledge-group={group.id} open className="rounded-lg border border-border p-3">
@@ -445,6 +447,11 @@ export function KnowledgePane(props: {
           ) : null}
         </div>
       </section>
+      {section==="docs" && !!props.recentNotes?.length && <section className="knowledge-recent">
+        <h2>最近引用</h2>{props.recentNotes.map(note=><button key={note.sessionId} onClick={()=>props.onOpenNote?.(note.sessionId)}>
+          <strong>{note.title}</strong><small>来自笔记 · {note.saved.slice(0,10)}</small>
+        </button>)}
+      </section>}
       <details hidden={section!=="docs"} className="mt-6">
         <summary>从飞书添加</summary><div className="flex items-center justify-end">
           <button className="desk-btn" disabled={props.busy} onClick={props.onRefresh}>刷新目录</button></div>

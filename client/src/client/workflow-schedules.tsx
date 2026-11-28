@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {rpc,type BackendInfo} from './api';
 import {usePageActive} from './page-stack';
 
-export type WorkflowSchedule={id:string;name:string;action:string;enabled:boolean;active?:boolean;schedule_text?:string;last_result?:string;last_error?:string;workflow_id?:string;workflow_version?:string;cadence:string;hour:number;minute:number;date?:string;weekdays:number[];[key:string]:unknown};
+export type WorkflowSchedule={id:string;name:string;action:string;enabled:boolean;active?:boolean;schedule_text?:string;next_run?:string;last_result?:string;last_error?:string;workflow_id?:string;workflow_version?:string;cadence:string;hour:number;minute:number;date?:string;weekdays:number[];[key:string]:unknown};
 // One owner for schedule status on both the overview and the design page.
 export function useWorkflowSchedules(info:BackendInfo|null,debug=false,disabled=false){
   const active=usePageActive(),[jobs,setJobs]=useState<WorkflowSchedule[]>([]),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState('');

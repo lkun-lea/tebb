@@ -39,7 +39,7 @@ function OriginalPlanCard({job,known,error,disabled,onOpen}:{job:WorkflowSchedul
 
 type OverviewProps={definitions:WorkflowSummary[];templates:WorkflowTemplate[];history:RunSummary[];catalog:CatalogNode[];schedules:WorkflowScheduleState;loading:boolean;loaded:boolean;error:string;disabled:boolean;debug:boolean;draft:string;onOpen:(id:string)=>void;onConfigure:(template:WorkflowTemplate)=>void;onResume:()=>void;onNew:()=>void;onTemplate:()=>void;onRun:(id:string)=>void;onRefresh:()=>void;onSchedules:()=>void};
 export function WorkflowOverview({definitions,templates,history,catalog,schedules,loading,loaded,error,disabled,debug,draft,onOpen,onConfigure,onResume,onNew,onTemplate,onRun,onRefresh,onSchedules}:OverviewProps){
-  const [tab,setTab]=useState<'workflows'|'runs'>('workflows'),[query,setQuery]=useState(''),[source,setSource]=useState('all');
+  const [selectedTab,setTab]=useState<'workflows'|'runs'|null>(null),[query,setQuery]=useState(''),[source,setSource]=useState('all');
   const matches=(name:string)=>name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
   const originals=schedules.jobs.filter(j=>j.action!=='workflow');
   const saved=source==='all'||source==='saved'?definitions.filter(d=>matches(d.name)):[];
@@ -47,11 +47,14 @@ export function WorkflowOverview({definitions,templates,history,catalog,schedule
   const plans=source==='all'||source==='plan'?originals.filter(j=>matches(j.name)):[];
   const total=definitions.length+templates.length+originals.length,visible=saved.length+builtins.length+plans.length;
   const known=schedules.loaded&&!schedules.error,originalActive=originals.filter(j=>j.enabled).length;
+  const tab = selectedTab ?? (history.length ? 'runs' : 'workflows');
   const activePlan = known && schedules.jobs.find(job=>job.enabled);
   return <section className="workflow-overview" aria-label="自动化工作流首页">
     <header className="workflow-home-heading"><div><small>例行工作</small><h2>自动化</h2></div><div className="workflow-home-actions"><button disabled={disabled||!loaded} onClick={onTemplate}><Sparkles size={15}/>从示例创建</button><button disabled={disabled} onClick={onSchedules}><Clock3 size={15}/>触发计划</button><button className="workflow-primary" disabled={disabled||!loaded} onClick={onNew}><Plus size={16}/>新建工作流</button></div></header>
     {debug&&<p className="workflow-info">设计预览不读取配置，也不会执行任务。真实工作流请在已连接的客户端中查看。</p>}
-    {activePlan && <section className="workspace-feature-card"><small>已启用 · {activePlan.schedule_text || activePlan.cadence}</small><h3>{activePlan.name}</h3><p>{activePlan.last_error || activePlan.last_result}</p><button disabled={disabled} onClick={()=>setTab('runs')}>查看运行记录</button></section>}
+    {activePlan && <section className="workspace-feature-card"><small>已启用 · {activePlan.schedule_text || activePlan.cadence}</small><h3>{activePlan.name}</h3>{activePlan.last_error && <p>{activePlan.last_error}</p>}
+      {activePlan.next_run && <p>下次运行 <time dateTime={activePlan.next_run}>{activePlan.next_run.replace('T',' ')}</time></p>}
+      <button disabled={disabled} onClick={onSchedules}>查看触发计划</button></section>}
     {!!originalActive&&known&&<p className="workflow-info">还有 {originalActive} 个原有计划仍启用。<button disabled={disabled} onClick={onSchedules}>查看触发计划</button></p>}
     {!!draft&&<div className="workflow-draft"><div><strong>继续编辑</strong><span>{draft}</span></div><button disabled={disabled} onClick={onResume}>返回当前画布<ArrowRight size={14}/></button></div>}
     <div className="workflow-home-toolbar"><div className="workflow-home-tabs" role="tablist" aria-label="自动化视图"><button role="tab" aria-selected={tab==='workflows'} onClick={()=>setTab('workflows')}><LayoutGrid size={15}/>工作流 <span>{total}</span></button><button role="tab" aria-selected={tab==='runs'} onClick={()=>setTab('runs')}><History size={15}/>运行记录</button></div><div className="workflow-home-actions">{tab==='workflows'&&<><select aria-label="筛选流程来源" value={source} onChange={e=>setSource(e.target.value)}><option value="all">全部来源</option><option value="saved">已保存</option><option value="builtin">内置工作流</option><option value="plan">原有计划</option></select><input aria-label="搜索工作流" type="search" placeholder="搜索名称…" value={query} onChange={e=>setQuery(e.target.value)}/></>}<button aria-label="刷新工作流" disabled={disabled||loading||debug} onClick={onRefresh}><RefreshCw size={15}/></button></div></div>

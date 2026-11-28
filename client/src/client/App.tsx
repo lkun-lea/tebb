@@ -132,6 +132,15 @@ export function App() {
         : debugKind ? "chat" : "today",
   );
   const [info, setInfo] = useState<BackendInfo | null>(null);
+  const [workspaceEmail,setWorkspaceEmail] = useState("");
+  useEffect(()=>{
+    let active=true;
+    setWorkspaceEmail("");
+    if(info) void rpc<{runtime?:{email?:string}}>(info,"account_session",{}).then(page=>{
+      if(active)setWorkspaceEmail(page.runtime?.email || "");
+    }).catch(()=>{});
+    return ()=>{active=false;};
+  },[info?.port,info?.token]);
   const [thread, setThread] = useState<Thread | null>(null);
   useEffect(()=>setChatProposals([]),[thread?.sessionId]);
   const [draft, setDraft] = useState("");
@@ -157,6 +166,7 @@ export function App() {
   const [useKnowledge, setUseKnowledge] = useState(false);
   const [noteSessionId, setNoteSessionId] = useState<string | null>(debugKind === "note" ? "note-1" : null);
   const [noteSessions, setNoteSessions] = useState<NoteSession[]>(debugKind === "note" ? NOTE_FIXTURE.sessions : []);
+  const recentSessions = [...noteSessions].sort((a,b)=>b.updated.localeCompare(a.updated));
   const [noteDocs, setNoteDocs] = useState<NoteDoc[]>(debugKind === "note" ? NOTE_FIXTURE.docs : []);
   const [noteChecked, setNoteChecked] = useState<string[]>(debugKind === "note" ? NOTE_FIXTURE.docs.map((doc) => doc.id) : []);
   const [noteBusy, setNoteBusy] = useState(false);
@@ -1167,6 +1177,7 @@ export function App() {
       setKnowledge({ ok: false, error: "还没有连上本地后端。恢复：重启客户端。" });
       return;
     }
+    void loadNotebooks(info);
     setKnowledgeBusy(true);
     try {
       const [page, docs] = await Promise.all([
@@ -1476,7 +1487,9 @@ export function App() {
       >
         {bgUrl ? <div className="desk-bg-scrim" data-bg-scrim /> : null}
       </div>
-      <div className="workspace-account"><details><summary aria-label="工作区菜单">tebb</summary><div>
+      <div className="workspace-account"><details><summary aria-label="工作区菜单" title={workspaceEmail||"本机空间"}>{workspaceEmail ? workspaceEmail.slice(0,2).toUpperCase() : "tebb"}</summary><div>
+        <strong className="workspace-identity">{workspaceEmail||"本机空间"}</strong>
+        <button onClick={e=>{e.currentTarget.closest("details")!.open=false;openSettings("account");}}>账号与设备</button>
         <button disabled={!sidebarState.available} onClick={()=>togglePreview()}>{sidebarState.open?'收起资料栏':'显示资料栏'}</button>
         <button type="button" onClick={()=>setDark(value=>!value)}>{dark ? "切换到浅色模式" : "切换到深色模式"}</button>
         <button onClick={()=>openProjectFolder()}>打开项目文件夹</button>
@@ -1524,6 +1537,11 @@ export function App() {
               className="flex-1 overflow-y-auto px-8 py-6"
             >
               <KnowledgePane
+                recentNotes={noteSessions.flatMap(session=>{
+                  const cited=session.notes.find(note=>note.cites.length>0);
+                  return cited ? [{sessionId:session.id,title:cited.question,saved:cited.saved}] : [];
+                }).sort((a,b)=>b.saved.localeCompare(a.saved)).slice(0,5)}
+                onOpenNote={openNoteSession}
                 materials={<MaterialsPane info={info} debug={!!debugPane()} onIndexed={() => void openKnowledge()} />}
                 settings={<WikiConnectionSettings info={info} debug={!!debugPane()} onSaved={() => void openKnowledge()} />}
                 data={knowledge}
@@ -1566,9 +1584,9 @@ export function App() {
             <section key="notebooks" data-notebook-empty className="workspace-record-page">
               <header><div><small>我的笔记</small><h1>笔记</h1></div><button disabled={notebookCreating||notebookNeedsCheck||busy||noteBusy} onClick={()=>void newNotebook()}>＋ 新建笔记</button></header>
               {noteListError&&<p role="alert">{noteListError}</p>}
-              {noteSessions.length > 0 && <article><small>最近编辑 · {noteSessions[0].updated}</small><h2>{noteSessions[0].title || "未命名笔记"}</h2><p>{noteSessions[0].notes.at(-1)?.answer.slice(0,180)}</p><button onClick={()=>openNoteSession(noteSessions[0].id)}>继续编辑</button></article>}
-              {noteSessions.length > 1 && <h2>其他笔记</h2>}
-              {noteSessions.slice(1).map(session=><button key={session.id} onClick={()=>openNoteSession(session.id)}>{session.title||"未命名笔记"} <small>{session.updated}</small></button>)}
+              {recentSessions.length > 0 && <article><small>最近编辑 · {recentSessions[0].updated}</small><h2>{recentSessions[0].title || "未命名笔记"}</h2><p>{recentSessions[0].notes[0]?.answer.slice(0,180)}</p><button onClick={()=>openNoteSession(recentSessions[0].id)}>继续编辑</button></article>}
+              {recentSessions.length > 1 && <h2>其他笔记</h2>}
+              {recentSessions.slice(1).map(session=><button key={session.id} onClick={()=>openNoteSession(session.id)}>{session.title||"未命名笔记"} <small>{session.updated}</small></button>)}
               {!noteSessions.length&&!noteListError&&<p>暂无笔记</p>}
               <button onClick={()=>void refreshNotebooks()}>读取核对</button>
             </section>
