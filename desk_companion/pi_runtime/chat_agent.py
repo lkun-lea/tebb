@@ -13,7 +13,8 @@ from atlas.llm import ChatOptions, ChatCancelledError, IncompleteResponseError
 
 from desk_companion.observability.pi_observer import PiObserver
 from desk_companion.pi_runtime.bridge import PiBridge, PiCancelled, PiTimeout, PiProcessError
-from desk_companion.pi_runtime.model_mapping import apply_chat_parameters, payload_for
+from desk_companion.models.model_generation import apply_chat_parameters
+from desk_companion.pi_runtime.model_mapping import payload_for
 
 
 def legacy_message(message):

@@ -192,6 +192,10 @@ class FeedbackWorkerTests(unittest.TestCase):
         payload=dict(questions=[dict(question='第一个数？',options=['1','2']),dict(question='第二个数？',options=['3','4'])])
         model=ScriptedModel([dict(tool_calls=[dict(id='ask',function=dict(name='request_clarification',arguments=json.dumps(payload)))])])
         self.run_model(model)
+        schema = next(t['function']['parameters'] for t in model.calls[0]['tools']
+                      if t['function']['name'] == 'request_clarification')
+        self.assertEqual(schema['type'], 'object')
+        self.assertTrue({'oneOf', 'anyOf', 'allOf', 'enum', 'const', 'not'}.isdisjoint(schema))
         value=json.loads(next(data for kind,data in self.events if kind=='result'))
         self.assertEqual(value['mode'],'clarify');self.assertEqual(value['text'],'第一个数？\n第二个数？')
         self.assertEqual([q['id']for q in value['questions']],['q1','q2'])

@@ -1,6 +1,5 @@
 """Map existing model identity/sampling/network policy to pinned Pi AI."""
 from desk_companion.models import model_capacity, model_network
-from desk_companion.models.model_generation import official_luna
 
 
 def payload_for(item, sampling):
@@ -20,15 +19,3 @@ def payload_for(item, sampling):
         options={**({'reasoningEffort':sampling['reasoning_effort']}if 'reasoning_effort'in sampling else{}),
                  **({'temperature':sampling['temperature']}if 'temperature'in sampling else{}),
                  **({'samplingParams':{'top_p':sampling['top_p']}}if 'top_p'in sampling else{})})
-
-
-def apply_chat_parameters(body, base_url):
-    """Apply route-specific restrictions after the final tool set is known."""
-    if not official_luna(body.get('model'), base_url):
-        return
-    body.pop('thinking', None)
-    if body.get('tools'):
-        body['reasoning_effort'] = 'none'
-    elif body.get('reasoning_effort') != 'none':
-        body.pop('temperature', None)
-        body.pop('top_p', None)

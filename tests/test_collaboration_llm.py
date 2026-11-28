@@ -11,6 +11,24 @@ SAMPLING = dict(reasoning_effort='low', temperature=.5, top_p=1)
 
 
 class StreamingTests(unittest.TestCase):
+    def test_luna_normalizes_final_atlas_requests(self):
+        seen = []
+        def handle(request):
+            seen.append(json.loads(request.content))
+            return httpx.Response(200, text='data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
+        model = {**MODEL, 'model': 'gpt-6-luna', 'base_url': 'https://api.openai.com/v1'}
+        with httpx.Client(transport=httpx.MockTransport(handle)) as client:
+            with CollaborationLLM(model, SAMPLING, 20, client) as llm:
+                llm.chat([])
+                llm.chat([], tools=[dict(type='function', function=dict(name='read_sample'))])
+        plain, tool = seen
+        self.assertEqual(plain['reasoning_effort'], 'low')
+        for field in ('thinking', 'temperature', 'top_p'):
+            self.assertNotIn(field, plain)
+        self.assertEqual(tool['reasoning_effort'], 'none')
+        self.assertNotIn('thinking', tool)
+        self.assertEqual(tool['tools'][0]['function']['name'], 'read_sample')
+
     def test_mimo_review_explicitly_disables_thinking_without_changing_business_turns(self):
         from desk_companion.collaboration.review_limits import ReviewWindow
         seen=[]

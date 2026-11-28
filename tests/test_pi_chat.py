@@ -13,7 +13,7 @@ from tests.test_pi_inference import PiInferenceFixture
 
 class PiChatTests(PiInferenceFixture):
     def test_luna_parameters_follow_final_tools_and_endpoint(self):
-        from desk_companion.pi_runtime.model_mapping import apply_chat_parameters
+        from desk_companion.models.model_generation import apply_chat_parameters
         base = dict(model='gpt-6-luna', reasoning_effort='low', temperature=.5, top_p=.9,
                     thinking={'type':'enabled'}, max_completion_tokens=128)
         text = base.copy()

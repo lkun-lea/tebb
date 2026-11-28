@@ -34,6 +34,18 @@ def official_luna(model, base_url):
     return model == 'gpt-6-luna' and base_url.rstrip('/') == 'https://api.openai.com/v1'
 
 
+def apply_chat_parameters(body, base_url):
+    """Apply route-specific restrictions after the final tool set is known."""
+    if not official_luna(body.get('model'), base_url):
+        return
+    body.pop('thinking', None)
+    if body.get('tools'):
+        body['reasoning_effort'] = 'none'
+    elif body.get('reasoning_effort') != 'none':
+        body.pop('temperature', None)
+        body.pop('top_p', None)
+
+
 def connection_probe_limit(model_id, model, base_url):
     saved = binding(model_id, model, base_url.rstrip('/') + '/chat/completions')
     if saved and not saved.get('invalidated'):

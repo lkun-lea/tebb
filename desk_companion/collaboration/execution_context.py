@@ -279,6 +279,20 @@ class ExecutionLLM(LLM):
 
     def _transport_chat(self,messages,tools,on_delta,*,options,callbacks):
         """Transport seam; admission, accounting and settlement remain above it."""
+        from atlas.llm import ChatOptions
+        from desk_companion.models.model_generation import apply_chat_parameters, official_luna
+        base_url = str(self.client.base_url)
+        if official_luna(self.model, base_url):
+            options = options or ChatOptions(sampling=self.sampling)
+            sampling = options.sampling or {}
+            supported = {k: sampling[k] for k in ('reasoning_effort', 'temperature', 'top_p') if k in sampling}
+            body = {**supported, **(options.extra_body or {}),
+                    'model': self.model, 'tools': tools}
+            apply_chat_parameters(body, base_url)
+            # Atlas expands sampling.reasoning_effort into a provider-specific thinking object.
+            # Supply normalized wire fields as extra_body to avoid that expansion.
+            del body['model'], body['tools']
+            options = replace(options, sampling={}, extra_body=body)
         return super().chat(messages,tools,on_delta,options=options,callbacks=callbacks)
 
     def _context_notice(self):
