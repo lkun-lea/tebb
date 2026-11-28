@@ -17,3 +17,7 @@ tauri = { version = "2", features = ["unstable"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = "2"
+
+# Windows keyboard lookahead must run outside the key-event builder mutex (tao #1215).
+[patch.crates-io]
+tao = { git = "https://github.com/tauri-apps/tao", rev = "c704261c519c58cfdd0bc2d58ba24e06a0b71c92" }
