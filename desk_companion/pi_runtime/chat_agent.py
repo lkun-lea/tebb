@@ -312,7 +312,8 @@ class PiChatAgent:
         self.last_result=SimpleNamespace(status='running')
         sampling=self.llm.sampling or {}
         client=self.llm.client
-        item=dict(id=self.llm.context_model_id,model=self.llm.model,api_key=client.api_key,base_url=str(client.base_url))
+        item=dict(id=self.llm.context_model_id,model=self.llm.model,api_key=client.api_key,base_url=str(client.base_url),
+                  network_mode=getattr(self.llm, 'network_mode', 'inherit'))
         payload=payload_for(item,sampling)
         from desk_companion.pi_runtime.tool_loading import ToolLoading
         from desk_companion.observability.usage_observer import _metadata

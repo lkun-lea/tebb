@@ -67,6 +67,32 @@ class PiNetworkTests(PiInferenceFixture):
         self.assertEqual(seen, [None, 'Basic '+base64.b64encode(b'fixture:password').decode()])
         self.assertEqual(len(self.requests), 3)
 
+    def test_simultaneous_entries_keep_their_own_route(self):
+        from concurrent.futures import ThreadPoolExecutor
+        proxy_requests = []
+        class Proxy(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def do_POST(self):
+                proxy_requests.append(self.path)
+                self.send_error(503)
+
+        address = f'http://127.0.0.1:{self.start_proxy(Proxy)}'
+        barrier = threading.Barrier(2)
+        def send(mode):
+            with self.llm() as llm:
+                llm.item['network_mode'] = mode
+                barrier.wait(timeout=10)
+                return llm.chat(self.messages)['message']['content']
+
+        with patch('desk_companion.models.model_network.load', return_value=dict(mode='direct', proxy_url=address)), ThreadPoolExecutor(2) as pool:
+            direct = pool.submit(send, 'direct')
+            proxied = pool.submit(send, 'custom')
+            self.assertEqual(direct.result(), '40')
+            with self.assertRaises(IncompleteResponseError):
+                proxied.result()
+        self.assertTrue(proxy_requests)
+        self.assertEqual(len(self.requests), 1)
+
     def test_authenticated_socks5h_resolves_hostname_at_proxy(self):
         targets, credentials = [], []
         provider_port = self.http.server_port

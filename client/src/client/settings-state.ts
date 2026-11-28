@@ -34,7 +34,7 @@ export function useModelSettings(props: {
   const [keyEpoch, setKeyEpoch] = useState(0);
 
   function formFromEntry(item: ModelEntry): ModelPublic {
-    return { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key };
+    return { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key, network_mode: item.network_mode };
   }
 
   function rememberModels(data: ModelList) {
@@ -85,7 +85,7 @@ export function useModelSettings(props: {
     };
   }, [info, debug, active]);
 
-  function settingsPayload(draft: { base_url: string; model: string; api_key: string }) {
+  function settingsPayload(draft: { base_url: string; model: string; api_key: string; network_mode: string }) {
     const base_url = draft.base_url.trim();
     const model = draft.model.trim();
     const api_key = draft.api_key.trim();
@@ -147,7 +147,7 @@ export function useModelSettings(props: {
     return false;
   }
 
-  async function saveSettings(draft: { id: string; base_url: string; model: string; api_key: string }) {
+  async function saveSettings(draft: { id: string; base_url: string; model: string; api_key: string; network_mode: string }) {
     const { base_url, model, api_key } = settingsPayload(draft);
     const sourceId = draft.id || editingModelId;
     const editing = modelItems.find((row) => row.id === sourceId);
@@ -169,7 +169,7 @@ export function useModelSettings(props: {
     }
     if (debug) {
       const id = draft.id || `local-${Date.now()}`;
-      const nextItem = { id, base_url, model, has_key: true };
+      const nextItem = { id, base_url, model, has_key: true, network_mode: draft.network_mode };
       const items = draft.id
         ? modelItems.map((row) => (row.id === draft.id ? nextItem : row))
         : [...modelItems, nextItem];
@@ -192,7 +192,7 @@ export function useModelSettings(props: {
     setSettingsNotice("");
     try {
       const data = await rpc<ModelList>(info, "save_model_entry", {
-        payload: { id: draft.id, base_url, model, api_key, copy_key_from: draft.id ? "" : sourceId },
+        payload: { id: draft.id, base_url, model, api_key, network_mode: draft.network_mode, copy_key_from: draft.id ? "" : sourceId },
       });
       if (!data.ok) throw new Error(data.error || "模型保存失败。");
       rememberModels(data);
@@ -247,7 +247,7 @@ export function useModelSettings(props: {
     }
   }
 
-  async function testSettings(draft: { base_url: string; model: string; api_key: string }): Promise<boolean> {
+  async function testSettings(draft: { base_url: string; model: string; api_key: string; network_mode: string }): Promise<boolean> {
     const { base_url, model, api_key } = settingsPayload(draft);
     const editing = modelItems.find((row) => row.id === editingModelId);
     if (!checkKeyEndpoint(editing, base_url, api_key)) return false;
@@ -270,7 +270,7 @@ export function useModelSettings(props: {
     setSettingsNotice("");
     try {
       const data = await rpc<ModelPublic>(info, "test_model", {
-        payload: { id: editingModelId, base_url, model, api_key },
+        payload: { id: editingModelId, base_url, model, api_key, network_mode: draft.network_mode },
       });
       if (!data.ok) throw new Error(data.error || "连通测试失败。");
       setSettingsNotice(data.message || "连通正常。");

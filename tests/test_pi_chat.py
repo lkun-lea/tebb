@@ -29,6 +29,16 @@ class PiChatTests(PiInferenceFixture):
             apply_chat_parameters(other, url)
             self.assertEqual(other, dict(base, model=model))
 
+    def test_chat_uses_bound_entry_when_space_proxy_is_unreachable(self):
+        from desk_companion.models.model_catalog import bind_llm
+        agent = self.agent()
+        bind_llm(agent.llm, {**agent.llm.item, 'network_mode': 'direct'}, timeout=10)
+        self.addCleanup(agent.llm.close)
+        with patch('desk_companion.models.model_network.load',
+                   return_value=dict(mode='custom', proxy_url='http://127.0.0.1:1')):
+            self.assertEqual(agent.run('Reply with 40.'), '40')
+        self.assertEqual(len(self.requests), 1)
+
     def test_demand_loading_updates_actual_sdk_payload_before_execution(self):
         agent=self.agent('discover-tool');agent.tool_loading='demand'
         self.assertEqual(agent.run('Discover and use the calculator.'),'40')

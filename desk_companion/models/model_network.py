@@ -38,11 +38,26 @@ def load():
     return validate({**DEFAULT, **json.loads(path().read_text('utf-8'))}) if path().exists() else DEFAULT.copy()
 
 
-def pi_policy():
+def entry_mode(value):
+    if value not in ('inherit', 'direct', 'system', 'custom'):
+        raise ValueError('请选择有效的模型网络方式。')
+    return value
+
+
+def effective_policy(mode='inherit'):
+    mode = entry_mode(mode)
+    if mode == 'inherit':
+        return load()
+    if mode == 'custom':
+        return validate({**load(), 'mode': mode})
+    return {**DEFAULT, 'mode': mode}
+
+
+def pi_policy(mode='inherit'):
     """Private Node transport receives the same configured trust roots as HTTPX."""
     import certifi
     from urllib.request import getproxies
-    config = load()
+    config = effective_policy(mode)
     return {**config, 'ca_file': os.getenv('SSL_CERT_FILE') or certifi.where(),
             'ca_dir': os.getenv('SSL_CERT_DIR'),
             'system_proxies': getproxies() if config['mode'] == 'system' else {}}
@@ -94,7 +109,7 @@ def async_model_client(timeout):
     return httpx.AsyncClient(timeout=timeout, follow_redirects=False, **_transport_options(load()))
 
 
-def openai_client(api_key, base_url, timeout=90):
+def openai_client(api_key, base_url, timeout=90, network_mode='inherit'):
     from openai import OpenAI
-    client = http_client(timeout)
+    client = http_client(timeout, effective_policy(network_mode))
     return OpenAI(api_key=api_key, base_url=base_url, timeout=client.timeout, max_retries=0, http_client=client)

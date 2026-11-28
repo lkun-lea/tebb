@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from desk_companion.infrastructure.envconf import LLM_KEYS, parse_env_file, write_llm_env
+from desk_companion.models.model_network import entry_mode
 from desk_companion.models.model_validation import validate_base_url
 
 NAME = "models.json"
@@ -41,6 +42,7 @@ def public_catalog(cat: dict | None = None) -> dict:
                 "base_url": item["base_url"],
                 "model": item["model"],
                 "has_key": bool(item["api_key"]),
+                "network_mode": item.get("network_mode", "inherit"),
             }
             for item in data["items"]
         ],
@@ -127,6 +129,7 @@ def upsert_entry(payload: dict) -> dict:
         cat["items"].append(item)
         if not cat["active"]:
             cat["active"] = item["id"]
+    item["network_mode"] = entry_mode(payload.get("network_mode", item.get("network_mode", "inherit")))
     _write(cat)
     if cat["active"] == item["id"]:
         write_llm_env(api_key=item["api_key"], base_url=item["base_url"], model=item["model"])
@@ -157,8 +160,10 @@ def delete_entry(model_id: str) -> dict:
 def bind_llm(llm, item: dict, timeout=90) -> None:
     from desk_companion.models.model_network import openai_client
 
-    client = openai_client(api_key=item["api_key"], base_url=item["base_url"], timeout=timeout)
+    client = openai_client(api_key=item["api_key"], base_url=item["base_url"], timeout=timeout,
+                           network_mode=item.get("network_mode", "inherit"))
     llm.bind_client(client, model=item["model"], owned=True)
+    llm.network_mode = item.get('network_mode', 'inherit')
     if hasattr(llm,'context_model_id'):llm.context_model_id=item.get('id','')
 
 
@@ -221,6 +226,7 @@ def _validate(raw, path: Path) -> dict:
                 "base_url": base_url.strip(),
                 "model": model.strip(),
                 "api_key": api_key.strip(),
+                "network_mode": entry_mode(item.get("network_mode", "inherit")),
             }
         )
     if active and active not in seen:
