@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from desk_companion.infrastructure.paths import data_root
 
-DEFAULT = dict(mode='system', proxy_url='', username='', password='')
+DEFAULT = dict(mode='direct', proxy_url='', username='', password='')
 
 
 def path():
@@ -66,22 +66,32 @@ def save(payload):
     return dict(ok=True, **public(cfg))
 
 
-def http_client(timeout=90, policy=None):
-    from desk_companion.observability.agent_debug import install
-    install()
+def _transport_options(cfg):
     import certifi
     import httpx
-    cfg = validate(policy) if policy is not None else load()
-    kwargs = dict(timeout=httpx.Timeout(timeout, connect=min(5, timeout)), trust_env=cfg['mode']=='system')
+    kwargs = dict(trust_env=cfg['mode']=='system')
     if cfg['mode'] != 'system':
         # trust_env=False also disables CA environment variables in HTTPX. Preserve
         # explicitly configured trust roots while disabling only proxy discovery.
         kwargs['verify'] = ssl.create_default_context(cafile=os.getenv('SSL_CERT_FILE') or certifi.where(), capath=os.getenv('SSL_CERT_DIR'))
     if cfg['mode'] == 'custom':
         kwargs['proxy'] = httpx.Proxy(cfg['proxy_url'], auth=(cfg['username'], cfg['password']) if cfg['username'] else None)
-    client = httpx.Client(**kwargs)
+    return kwargs
+
+
+def http_client(timeout=90, policy=None):
+    from desk_companion.observability.agent_debug import install
+    import httpx
+    install()
+    cfg = validate(policy) if policy is not None else load()
+    client = httpx.Client(timeout=httpx.Timeout(timeout, connect=min(5, timeout)), **_transport_options(cfg))
     client._tebb_network_mode = cfg['mode']
     return client
+
+
+def async_model_client(timeout):
+    import httpx
+    return httpx.AsyncClient(timeout=timeout, follow_redirects=False, **_transport_options(load()))
 
 
 def openai_client(api_key, base_url, timeout=90):

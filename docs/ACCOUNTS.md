@@ -73,3 +73,5 @@ Auth 测试通过 httpx.MockTransport 执行实际官方 SDK；运行时测试�
 参考：[Supabase Python OTP](https://supabase.com/docs/reference/python/auth-signinwithotp)、[会话](https://supabase.com/docs/guides/auth/sessions)、[Windows DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)。
 
 新账号首次打开工具目录即可查看内置日程、任务工具。点击「浏览云端工具」时，桌面使用当前账号读取云端列表。点击某项的「添加」才登记本机匹配的定义。显示名称、用途、移除状态和本机调用开关随账号空间保存。飞书等外部连接沿用当前空间的配置。
+
+桌面端从当前空间读取模型网络策略。尚未保存策略时，本机模型和连接云端聊天服务的 HTTPS 请求默认直连。已保存的系统代理、自定义代理或直连选择继续生效。账号验证使用账号服务自己的网络配置。免费云端聊天在 ECS 上通过回环地址调用 Ollama，电脑的代理配置仅用于桌面端发起的请求。

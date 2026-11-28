@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import tempfile
@@ -15,7 +16,7 @@ class NetworkTests(unittest.TestCase):
         self.env=patch.dict(os.environ,{'DESK_COMPANION_DATA_DIR':self.folder.name});self.env.start();self.addCleanup(self.env.stop)
 
     def test_save_modes_and_auth_redaction_and_validation(self):
-        self.assertEqual(network.public()['mode'],'system')
+        self.assertEqual(network.public()['mode'],'direct')
         value=network.save(dict(mode='custom',proxy_url='http://localhost:7890',username='test',password='PRIVATE_PROXY_SECRET'))
         self.assertNotIn('PRIVATE_PROXY_SECRET',json.dumps(value));self.assertTrue(value['has_password'])
         network.save(dict(mode='direct',password=''))
@@ -41,13 +42,42 @@ class NetworkTests(unittest.TestCase):
         base=f'http://127.0.0.1:{server.server_port}'
         env={'HTTP_PROXY':'http://127.0.0.1:1','HTTPS_PROXY':'http://127.0.0.1:1','ALL_PROXY':'http://127.0.0.1:1','NO_PROXY':''}
         with patch.dict(os.environ,env):
-            network.save(dict(mode='direct'))
+            self.assertFalse(network.path().exists())
             with network.http_client(2) as client:self.assertEqual(client.get(base+'/direct').text,'ok')
             network.save(dict(mode='custom',proxy_url=base,username='proxy-user',password='private-password'))
             with network.http_client(2) as client:self.assertEqual(client.get('http://example.invalid/custom').text,'ok')
         self.assertEqual(seen[0],('/direct',None))
         self.assertEqual(seen[1][0],'http://example.invalid/custom');self.assertTrue(seen[1][1].startswith('Basic '))
         self.assertNotIn('private-password',json.dumps(network.public()))
+
+    def test_cloud_transport_uses_saved_policy_and_preserves_existing_files(self):
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(self.path.encode())
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        address = f'http://127.0.0.1:{server.server_port}'
+
+        async def fetch(target):
+            async with network.async_model_client(3) as client:
+                return (await client.get(target)).text
+
+        with patch.dict(os.environ, http_proxy=address, no_proxy='', NO_PROXY=''):
+            self.assertEqual(asyncio.run(fetch(address + '/direct')), '/direct')
+            self.assertFalse(network.path().exists())
+            for mode in ('system', 'custom', 'direct'):
+                with self.subTest(mode=mode):
+                    raw = json.dumps(dict(mode=mode, proxy_url=address))
+                    network.path().write_text(raw, 'utf-8')
+                    target = address + '/direct' if mode == 'direct' else 'http://example.invalid/probe'
+                    expected = '/direct' if mode == 'direct' else target
+                    self.assertEqual(asyncio.run(fetch(target)), expected)
+                    self.assertEqual(network.path().read_text('utf-8'), raw)
 
     def test_tls_verification_and_ca_environment_remain_enabled_in_direct_mode(self):
         import httpx

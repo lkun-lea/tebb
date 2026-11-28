@@ -47,8 +47,8 @@ async function transport(policy, baseUrl) {
   }
   const tls = ca.length ? { ca } : {};
   const options = { connect: tls, requestTls: tls, connectTimeout: 5000 };
-  if (policy?.mode === 'direct') return new HttpAgent(options);
-  if (!policy || policy.mode === 'system') {
+  if (!policy || policy.mode === 'direct') return new HttpAgent(options);
+  if (policy.mode === 'system') {
     const proxies = policy?.system_proxies;
     const httpProxy = proxyUrl(proxies ? proxies.http ?? proxies.all : process.env.http_proxy ?? process.env.HTTP_PROXY ?? process.env.all_proxy ?? process.env.ALL_PROXY);
     const httpsProxy = proxyUrl(proxies ? proxies.https ?? proxies.all : process.env.https_proxy ?? process.env.HTTPS_PROXY ?? process.env.all_proxy ?? process.env.ALL_PROXY);

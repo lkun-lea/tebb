@@ -42,7 +42,8 @@ def install_desktop(app, backend, authorize):
         import httpx
         authorize(request)
         headers = await asyncio.to_thread(credentials)
-        client = httpx.AsyncClient(timeout=httpx.Timeout(20, connect=6), follow_redirects=False)
+        from desk_companion.models.model_network import async_model_client
+        client = async_model_client(httpx.Timeout(20, connect=6))
         try:
             upstream = await client.send(client.build_request(method or request.method, ORIGIN + '/cloud/v1/' + path,
                 headers=headers, json=message), stream=True)
