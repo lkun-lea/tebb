@@ -78,6 +78,12 @@ def activate(model_id: str) -> dict:
     return item
 
 
+def saved_key_for_endpoint(item: dict, base_url: str) -> str:
+    if validate_base_url(item["base_url"]) != validate_base_url(base_url):
+        raise RuntimeError("API 地址已更改，请填写该地址对应的 API Key。")
+    return item["api_key"]
+
+
 def upsert_entry(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise RuntimeError("模型保存参数必须是对象。")
@@ -97,7 +103,7 @@ def upsert_entry(payload: dict) -> dict:
         if current is None:
             raise RuntimeError("没有这个模型。打开设置重新选一条。")
         if not api_key:
-            api_key = current["api_key"]
+            api_key = saved_key_for_endpoint(current, base_url)
         if not api_key:
             raise RuntimeError("API Key 不能为空。")
         current["base_url"] = base_url
@@ -110,7 +116,7 @@ def upsert_entry(payload: dict) -> dict:
             source = _find(cat, source_id) if source_id else None
             if source is None or not source["api_key"]:
                 raise RuntimeError("API Key 不能为空。要沿用已有 Key，先在列表里点一条。")
-            api_key = source["api_key"]
+            api_key = saved_key_for_endpoint(source, base_url)
             _reject_newline(api_key)
         item = {
             "id": str(uuid.uuid4()),
@@ -182,7 +188,8 @@ def _reject_newline(*values: str) -> None:
 
 
 def _write(cat: dict) -> None:
-    catalog_path().write_text(json.dumps(cat, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    from desk_companion.infrastructure.storage import atomic_write
+    atomic_write(catalog_path(), cat)
 
 
 def _validate(raw, path: Path) -> dict:

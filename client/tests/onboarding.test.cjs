@@ -76,3 +76,36 @@ test('actual settings produce a secret-free guide snapshot and invalidate succes
   await act(async()=>{releaseTest(true);});assert.equal(snapshot.tested,false);assert.equal(snapshot.saved,false);
   act(()=>view.unmount());
 });
+
+test('model settings open in create mode and only explicit edits reuse an entry ID',async()=>{
+  const settings=load('settings.tsx');
+  const info={url:'fixture',token:'fixture'};
+  const rows=[{id:'first',model:'deepseek-flash',base_url:'https://deepseek.invalid',has_key:true}];
+  const submitted=[];
+  const rpc=async(_info,method,args)=>{
+    if(method==='load_persona')return {ok:true};
+    if(method==='save_model_entry'){
+      submitted.push(args.payload);
+      const {id,model,base_url}=args.payload;
+      if(id)Object.assign(rows.find(row=>row.id===id),{model,base_url});
+      else rows.push({id:'second',model,base_url,has_key:true});
+    }
+    return {ok:true,active:'first',items:rows.slice()};
+  };
+  const {useModelSettings}=load('settings-state.ts',{'./api':{rpc},'./settings':settings,'./debug':{},'./feishu':{}});
+  let controller;
+  function Harness(){controller=useModelSettings({info,debug:false,active:true});return null;}
+  let view;
+  await act(async()=>{view=create(React.createElement(Harness));});
+  assert.equal(controller.editingModelId,'');
+  assert.equal(controller.modelForm,null);
+  await act(async()=>controller.saveSettings({id:controller.editingModelId,model:'gpt-6-luna',base_url:'https://luna.invalid',api_key:'fixture'}));
+  assert.deepEqual(rows.map(row=>row.model),['deepseek-flash','gpt-6-luna']);
+  assert.equal(submitted[0].id,'');
+  assert.equal(submitted[0].copy_key_from,'');
+  act(()=>controller.editModel('second'));
+  assert.equal(controller.editingModelId,'second');
+  act(()=>controller.editModel(''));
+  assert.equal(controller.modelForm,null);
+  act(()=>view.unmount());
+});

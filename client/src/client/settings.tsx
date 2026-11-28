@@ -201,7 +201,7 @@ export function SettingsPane(props: {
   useEffect(() => {
     setBaseUrl(props.model?.base_url || "");
     setModelName(props.model?.model || "");
-  }, [props.model?.base_url, props.model?.model]);
+  }, [props.keyEpoch, props.model?.base_url, props.model?.model]);
 
   useEffect(() => {
     setApiKey("");
@@ -220,6 +220,8 @@ export function SettingsPane(props: {
       <section hidden={props.section==='appearance'||assistantTab!=="model"} className="settings-card">
         <h2 className="text-sm font-semibold text-primary">模型</h2>
         <div className="flex flex-col gap-1">
+          <button type="button" data-model-create className="desk-btn" disabled={props.busy}
+            aria-pressed={!props.editingId} onClick={() => props.onEdit("")}>新增模型</button>
           {props.models.length === 0 ? (
             <p className="text-sm text-muted-foreground">还没有模型。在下面填一条再添加。</p>
           ) : null}
@@ -227,6 +229,8 @@ export function SettingsPane(props: {
             <button
               key={item.id}
               type="button"
+              disabled={props.busy}
+              aria-label={`编辑模型 ${item.model}`}
               data-model-entry={item.id}
               data-selected={props.editingId === item.id ? "1" : "0"}
               className={`rounded-[10px] border px-3 py-2 text-left text-sm ${
@@ -239,6 +243,7 @@ export function SettingsPane(props: {
             </button>
           ))}
         </div>
+        <h3>{props.editingId ? `编辑模型 · ${props.model?.model}` : "新增模型"}</h3>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">API 地址</span>
           <input
@@ -285,7 +290,7 @@ export function SettingsPane(props: {
         </label>
         <p className="text-xs text-muted-foreground">
           {props.editingId && props.model?.has_key
-            ? "Key 留空时，保存这条会保持原来的 Key，添加为新模型会沿用这把 Key。页面不显示原文。"
+            ? "使用原 API 地址时可留空保留 Key。更换地址请填写对应的 Key。"
             : "填写 Key。页面不显示原文。"}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -299,7 +304,7 @@ export function SettingsPane(props: {
               props.onSave({ id: props.editingId, base_url: baseUrl, model: modelName, api_key: apiKey })
             }
           >
-            {props.editingId ? "保存这条" : "添加模型"}
+            {props.editingId ? `保存对 ${props.model?.model} 的修改` : "添加模型"}
           </button>
           <button
             type="button"
@@ -311,15 +316,9 @@ export function SettingsPane(props: {
           >
             测试连通
           </button>
-          <details className="model-more"><summary aria-label="更多模型操作">•••</summary><div>          <button
-            type="button"
-            data-model-create
-            disabled={props.busy}
-            className="desk-btn desk-btn-lg"
-            onClick={() => props.onSave({ id: "", base_url: baseUrl, model: modelName, api_key: apiKey })}
-          >
-            添加为新模型
-          </button>
+          {props.editingId && <details className="model-more"><summary aria-label="更多模型操作">•••</summary><div>
+          <button type="button" className="desk-btn desk-btn-lg" disabled={props.busy}
+            onClick={() => props.onSave({ id: "", base_url: baseUrl, model: modelName, api_key: apiKey })}>复制为新模型</button>
           <button
             type="button"
             data-model-delete
@@ -329,7 +328,7 @@ export function SettingsPane(props: {
           >
             删除这条
           </button>
-</div></details>
+</div></details>}
         </div>
         <p className="text-xs text-muted-foreground">测试发送 1 次请求，可能计费。</p>
         <ReceiptNotice text={props.notice}/>

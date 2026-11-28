@@ -65,6 +65,33 @@ class SettingsTests(unittest.TestCase):
                 self.assertEqual(self.snapshot(), before)
         self.conversation.rebuild_agent.assert_not_called()
 
+    def test_add_switch_reopen_preserves_two_provider_records(self):
+        for name, host in [('deepseek-flash', 'deepseek.invalid'), ('gpt-6-luna', 'luna.invalid')]:
+            saved = self.service.save_model_entry(dict(id='', model=name, base_url='https://'+host,
+                                                       api_key='fixture-'+host))
+            self.assertTrue(saved['ok'])
+        first, second = saved['items']
+        self.assertNotEqual(first['id'], second['id'])
+        for selected in (second, first):
+            self.assertTrue(self.service.use_model(selected['id'])['ok'])
+            reopened = model_catalog.load_catalog()
+            self.assertEqual(reopened['active'], selected['id'])
+            self.assertEqual([(r['model'], r['api_key']) for r in reopened['items']],
+                             [('deepseek-flash', 'fixture-deepseek.invalid'), ('gpt-6-luna', 'fixture-luna.invalid')])
+
+    def test_blank_key_cannot_cross_endpoint_on_edit_copy_or_connection_test(self):
+        original = self.first_model()
+        before = self.snapshot()
+        other = dict(base_url='https://other.invalid/v1', model='other')
+        for operation, extra in ((self.service.save_model_entry, dict(id=original)),
+                                 (self.service.save_model_entry, dict(copy_key_from=original)),
+                                 (self.service.test_model, dict(id=original)),
+                                 (self.service.test_model, {})):
+            result = operation(dict(other, **extra))
+            self.assertFalse(result['ok'])
+            self.assertIn('Key', result['error'])
+        self.assertEqual(self.snapshot(), before)
+
     def test_catalog_copy_edit_switch_delete_and_public_key_redaction(self):
         one = self.first_model()
         second = self.service.save_model_entry(dict(base_url='https://example.invalid/v1', model='two', copy_key_from=one))

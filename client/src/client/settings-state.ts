@@ -22,12 +22,8 @@ export function useModelSettings(props: {
   const { info, debug, active } = props;
   const [modelItems, setModelItems] = useState<ModelEntry[]>(() => (debug ? MODELS_FIXTURE.items : []));
   const [activeModelId, setActiveModelId] = useState(() => (debug ? MODELS_FIXTURE.active : ""));
-  const [editingModelId, setEditingModelId] = useState(() => (debug ? MODELS_FIXTURE.active : ""));
-  const [modelForm, setModelForm] = useState<ModelPublic | null>(() => {
-    if (!debug) return null;
-    const item = MODELS_FIXTURE.items.find((row) => row.id === MODELS_FIXTURE.active);
-    return item ? { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key } : null;
-  });
+  const [editingModelId, setEditingModelId] = useState("");
+  const [modelForm, setModelForm] = useState<ModelPublic | null>(null);
   const [personaForm, setPersonaForm] = useState<PersonaPublic | null>(debug ? PERSONA_FIXTURE : null);
   const [settingsError, setSettingsError] = useState("");
   const [settingsNotice, setSettingsNotice] = useState("");
@@ -41,13 +37,11 @@ export function useModelSettings(props: {
     return { ok: true, base_url: item.base_url, model: item.model, has_key: item.has_key };
   }
 
-  function rememberModels(data: ModelList, editId = "") {
+  function rememberModels(data: ModelList) {
     setModelItems(data.items);
     setActiveModelId(data.active);
-    const nextEdit = data.items.some((item) => item.id === editId) ? editId : data.active;
-    setEditingModelId(nextEdit);
-    const item = data.items.find((row) => row.id === nextEdit);
-    setModelForm(item ? formFromEntry(item) : null);
+    setEditingModelId("");
+    setModelForm(null);
     setKeyEpoch((n) => n + 1);
   }
 
@@ -100,9 +94,9 @@ export function useModelSettings(props: {
 
   function editModel(id: string) {
     const item = modelItems.find((row) => row.id === id);
-    if (!item) return;
+    if (id && !item) return;
     setEditingModelId(id);
-    setModelForm(formFromEntry(item));
+    setModelForm(item ? formFromEntry(item) : null);
     setKeyEpoch((n) => n + 1);
     setSettingsError("");
     setSettingsNotice("");
@@ -117,12 +111,10 @@ export function useModelSettings(props: {
     if (debug) {
       const items = modelItems.filter((row) => row.id !== id);
       const active = activeModelId === id ? items[0].id : activeModelId;
-      const edit = editingModelId === id ? active : editingModelId;
-      const next = items.find((row) => row.id === edit) || items[0];
       setModelItems(items);
       setActiveModelId(active);
-      setEditingModelId(next.id);
-      setModelForm(formFromEntry(next));
+      setEditingModelId("");
+      setModelForm(null);
       setKeyEpoch((n) => n + 1);
       setSettingsError("");
       setSettingsNotice("调试样本，未删除磁盘上的模型。");
@@ -138,7 +130,7 @@ export function useModelSettings(props: {
     try {
       const data = await rpc<ModelList>(info, "delete_model_entry", { model_id: id });
       if (!data.ok) throw new Error(data.error || "删除模型失败。");
-      rememberModels(data, data.active);
+      rememberModels(data);
       props.onChanged?.();
       setSettingsNotice(data.message || "模型已删除。");
     } catch (err) {
@@ -146,6 +138,13 @@ export function useModelSettings(props: {
     } finally {
       setSettingsBusy(false);
     }
+  }
+
+  function checkKeyEndpoint(entry: ModelEntry | undefined, url: string, key: string) {
+    if (key || !entry?.has_key || entry.base_url.replace(/\/+$/, "") === url.replace(/\/+$/, "")) return true;
+    setSettingsNotice("");
+    setSettingsError("API 地址已更改，请填写该地址对应的 API Key。");
+    return false;
   }
 
   async function saveSettings(draft: { id: string; base_url: string; model: string; api_key: string }) {
@@ -162,9 +161,10 @@ export function useModelSettings(props: {
       setSettingsError("模型名不能为空。");
       return;
     }
+    if (!checkKeyEndpoint(editing, base_url, api_key)) return;
     if (!api_key && !editing?.has_key) {
       setSettingsNotice("");
-      setSettingsError("API Key 不能为空。要沿用已有 Key，先在列表里点一条。");
+      setSettingsError("请填写这个模型对应的 API Key。");
       return;
     }
     if (debug) {
@@ -176,8 +176,8 @@ export function useModelSettings(props: {
       const active = activeModelId || id;
       setModelItems(items);
       setActiveModelId(active);
-      setEditingModelId(id);
-      setModelForm({ ok: true, base_url, model, has_key: true });
+      setEditingModelId("");
+      setModelForm(null);
       setSettingsError("");
       setSettingsNotice("调试样本，未写入模型。");
       setKeyEpoch((n) => n + 1);
@@ -195,8 +195,7 @@ export function useModelSettings(props: {
         payload: { id: draft.id, base_url, model, api_key, copy_key_from: draft.id ? "" : sourceId },
       });
       if (!data.ok) throw new Error(data.error || "模型保存失败。");
-      const created = data.items.find((row) => !modelItems.some((old) => old.id === row.id));
-      rememberModels(data, draft.id || created?.id || data.active);
+      rememberModels(data);
       props.onChanged?.();
       setSettingsNotice(data.message || "模型已保存。");
     } catch (err) {
@@ -251,6 +250,7 @@ export function useModelSettings(props: {
   async function testSettings(draft: { base_url: string; model: string; api_key: string }): Promise<boolean> {
     const { base_url, model, api_key } = settingsPayload(draft);
     const editing = modelItems.find((row) => row.id === editingModelId);
+    if (!checkKeyEndpoint(editing, base_url, api_key)) return false;
     if (!base_url || !model || (!api_key && !editing?.has_key)) {
       setSettingsNotice("");
       setSettingsError("测试前先填 API 地址、模型名和 Key。");
