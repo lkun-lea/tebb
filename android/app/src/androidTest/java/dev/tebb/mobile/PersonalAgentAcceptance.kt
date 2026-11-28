@@ -124,7 +124,7 @@ class PersonalAgentAcceptance : Instrumentation() {
             waitFor("刷新电脑状态")
             waitFor("扫码配对 Windows")
             waitFor("从图片识别配对码")
-            val review = PendingQuestion(QuestionKey(owner,"v1"), "评审安排", "评审多久？", "dm-tebb", "windows")
+            val review = PendingQuestion(QuestionKey(owner,"v1"), "评审安排", "评审多久？", "dm-tebb", "windows", choices = listOf("15 分钟", "30 分钟"))
             val received = java.util.concurrent.atomic.AtomicReference("")
             val submitted = java.util.concurrent.CountDownLatch(1)
             runOnMainSync {
@@ -140,7 +140,7 @@ class PersonalAgentAcceptance : Instrumentation() {
             tap("复核中转设计")
             waitFor("原文-中转设计")
             tap("返回手记")
-            tap("45 分钟")
+            tap("15 分钟")
             waitForIdleSync()
             runOnMainSync { screen.setContent { androidx.compose.material.Text("离开手记") } }
             waitFor("离开手记")
@@ -160,7 +160,7 @@ class PersonalAgentAcceptance : Instrumentation() {
             check(waitFor("回复原任务").isEnabled) { "选中时长后提交按钮仍未启用" }
             tap("回复原任务")
             waitForIdleSync()
-            check(submitted.await(5, java.util.concurrent.TimeUnit.SECONDS) && received.get() == "45 分钟") { "本地阅读器未提交选中的时长" }
+            check(submitted.await(5, java.util.concurrent.TimeUnit.SECONDS) && received.get() == "15 分钟") { "本地阅读器未提交选中的时长" }
             runOnMainSync { screen.setContent { WorkspaceEntry("agent.request", owner, saved.history) {} } }
             tap("选择已共享会话")
             tap("中转设计")

@@ -59,6 +59,7 @@ internal fun JournalScreen(state: ChatUiState, paired: Boolean, back: () -> Unit
         put("questions", JSONArray().apply {
             for (q in pending.sortedByDescending { it.key == selected }) put(JSONObject().apply {
                 put("conversation", q.conversation); put("run", q.key.runId); put("version", q.key.version)
+                put("choices", JSONArray(q.choices))
                 put("asked", q.asked); put("created", q.created); put("title", q.title); put("prompt", q.prompt)
                 drafts.getString(draftKey(q), null)?.let { put("draft", JSONObject(it)) }
             })

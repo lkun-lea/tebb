@@ -454,6 +454,10 @@ class Collaboration:
                              prompt=run.get('clarification') or run.get('answer', ''),
                              items=[dict(id=i['id'], owner=i.get('agent_id', 'tebb'), due=i.get('due', ''))
                                     for i in items if not i['archived'] and i['state'] != 'done']))
+            form = run.get('clarification_form') or {}
+            fields = form.get('questions') or []
+            if form.get('version') == rows[-1]['version'] and len(fields) == 1:
+                rows[-1]['choices'] = [option['label'] for option in fields[0]['options']]
         return rows
 
 

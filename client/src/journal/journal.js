@@ -124,8 +124,8 @@ class TodayJournal {
         button(actions,'查看上下文',open);
       } else {
         const choices=make(a,'div','jr-choices');
-        const durations = q.choices || (this.mode==='mobile' && /评审/.test(q.prompt) && /多少分钟|多长时间|多久|时长/.test(q.prompt)
-          ? ['30 分钟','45 分钟','60 分钟'] : []);
+        const durations = q.choices || [];
+        if (!durations.includes(draft.choice)) draft.choice = '';
         const chips=[];
         for(const value of durations){
           const chip=button(choices,value,()=>{
@@ -137,7 +137,7 @@ class TodayJournal {
           chip.setAttribute('aria-pressed',String(draft.choice===value));chips.push(chip);
         }
         const note=make(a,'textarea','jr-note');
-        note.placeholder=durations.length?'自行填写时长，或补充说明…':'填写答复…';
+        note.placeholder=durations.length?'自行填写，或补充说明…':'填写答复…';
         note.setAttribute('aria-label','自行补充');note.rows=2;note.maxLength=4000;note.value=draft.note;
         const actions=make(a,'div','jr-actions');
         const answer=()=>[draft.choice,draft.note.trim()].filter(Boolean).join('，');

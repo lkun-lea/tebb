@@ -89,7 +89,8 @@ internal class PairingClient(private val invite: JSONObject) {
                 row.optJSONArray("items")?.let { items -> (0 until items.length()).joinToString(" · ") { i ->
                     val item = items.getJSONObject(i)
                     listOf(item.optString("owner"),item.optString("due")).filter { it.isNotBlank() }.joinToString(" · ")
-                } } ?: row.optString("item_label"), row.optLong("asked"))
+                } } ?: row.optString("item_label"), row.optLong("asked"),
+                row.optJSONArray("choices")?.let { options -> List(options.length()) { options.getString(it) } }.orEmpty())
         }
     }
 
@@ -109,7 +110,7 @@ internal class PairingClient(private val invite: JSONObject) {
     fun cache(context: Context, snapshot: DeviceSnapshot) {
         val data = org.json.JSONArray()
         snapshot.rows.forEach { data.put(JSONObject().put("run", it.key.runId).put("version", it.key.version)
-            .put("asked", it.asked).put("item_label", it.items).put("created", it.created).put("title", it.title).put("prompt", it.prompt).put("conversation", it.conversation)) }
+            .put("choices", org.json.JSONArray(it.choices)).put("asked", it.asked).put("item_label", it.items).put("created", it.created).put("title", it.title).put("prompt", it.prompt).put("conversation", it.conversation)) }
         preferences(context).edit().putString("question_cache", JSONObject().put("owner", owner)
             .put("device", invite.getString("id")).put("time", snapshot.time).put("history",snapshot.history).put("rows", data).toString()).apply()
     }
