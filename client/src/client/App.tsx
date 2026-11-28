@@ -88,7 +88,23 @@ import {
 const LiveCollaboration = lazy(() => import("./live-collaboration").then(module => ({ default: module.LiveCollaboration })));
 type SettingsTarget = {section?:string;profile?:string;service?:string;trace?:string};
 const loadSettings = () => import('./settings-app');
-const EmbeddedSettings = lazy(() => loadSettings().then(module => ({default:module.SettingsApp})));
+function EmbeddedSettings(props: NonNullable<Parameters<typeof import('./settings-app').SettingsApp>[0]>) {
+  // Create a new loader on reopening so a rejected request cannot poison later opens.
+  const [Settings] = useState(() => lazy(async () => {
+    try {
+      return {default: (await loadSettings()).SettingsApp};
+    } catch {
+      return {default: ({onBack}: typeof props) => <section role="alert" className="p-6">
+        <p>设置页面未能加载。请返回工作台后重新打开设置。</p>
+        <button type="button" className="desk-btn" onClick={onBack}>返回工作台</button>
+      </section>};
+    }
+  }));
+  return <Suspense fallback={<section className="p-6"><LoadingText text="正在打开设置…"/>
+    <button type="button" className="desk-btn" onClick={props.onBack}>返回工作台</button></section>}>
+    <Settings {...props}/>
+  </Suspense>;
+}
 const TodayPane = lazy(() => import('./today-pane').then(module => ({default:module.TodayPane})));
 type Pane = "today" | "work" | "chat" | "board" | "automation" | "collaboration";
 
@@ -1499,7 +1515,7 @@ export function App() {
       <div className="tebb-workspace-body flex min-h-0 flex-1">
       <main className="main-workspace relative z-10 flex min-w-0 flex-1 flex-col">
         {settingsOpen && <WorkspaceDialog title="设置" hideHeader className="workspace-settings-modal" onClose={()=>setSettingsOpen(false)}>
-          <Suspense fallback={<LoadingText text="正在打开设置…"/>}><EmbeddedSettings workspaceBackend={info} onBack={()=>setSettingsOpen(false)} target={settingsTarget} onOpenChat={()=>{setSettingsOpen(false);setPane("collaboration");}}/></Suspense>
+          <EmbeddedSettings workspaceBackend={info} onBack={()=>setSettingsOpen(false)} target={settingsTarget} onOpenChat={()=>{setSettingsOpen(false);setPane("collaboration");}}/>
         </WorkspaceDialog>}
         {noteSourcesOpen&&<NotebookSources info={info} docs={noteDocs} checked={noteChecked} busy={noteBusy||knowledgeBusy} debug={!!debugKind} onCheck={(id,on)=>setNoteChecked(cur=>on?[...new Set([...cur,id])]:cur.filter(value=>value!==id))} onAdd={(doc_id,label,source)=>knowledgeCall('add_knowledge',{doc_id,label,source})} onLocal={()=>{setNoteSourcesOpen(false);setLocalDialog('file');}} onClose={()=>setNoteSourcesOpen(false)}/>}
         {localDialog && <LocalSourcesDialog info={info} initialKind={localDialog} debug={!!debugPane()} onClose={() => { setLocalDialog(null); setLocalDialogMinimized(false); }} onPreview={previewSource} onMinimizedChange={setLocalDialogMinimized}
