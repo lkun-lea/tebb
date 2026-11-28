@@ -87,6 +87,7 @@ internal fun Modifier.glassSurface(radius: androidx.compose.ui.unit.Dp): Modifie
 internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: ChatUiState, owner: String, paired: Boolean, back: () -> Unit,
                             reply: (QuestionKey, String) -> Unit, select: (QuestionKey) -> Unit,
                             connect: () -> Unit) {
+    var eventToEdit by rememberSaveable { mutableStateOf("") }
     var action by rememberSaveable { mutableStateOf("") }
     val secondary = page in listOf("日程", "笔记", "知识库", "自动化")
     BackHandler {
@@ -100,7 +101,7 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
     Column(Modifier.fillMaxSize().background(paper)) {
         Box(Modifier.weight(1f)) {
             if (action.isNotEmpty()) Box(Modifier.fillMaxSize().background(paper)) {
-                WorkspaceEntry(action, owner, state.historySnapshot, returnLabel = "返回$page") { action = "" }
+                WorkspaceEntry(action, owner, state.historySnapshot, returnLabel = "返回$page", eventJson = eventToEdit) { action = ""; eventToEdit = "" }
             } else Column(Modifier.fillMaxSize().background(paper)) {
 
                 if (page == "今日") JournalScreen(state, paired, back, reply)
@@ -130,6 +131,12 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
 
                             } else if (!paired) Button(connect) { Text("连接我的电脑") }
                             else {
+                                if (page == "日程") {
+                                    PairedCalendarAgenda { row ->
+                                        eventToEdit = row.toString()
+                                        action = "calendar.create"
+                                    }
+                                }
                                 if (page == "事项") {
                                     val questions = state.composer.pending.filter { it.deviceId.isNotEmpty() }
                                     if (questions.isEmpty()) Text("当前没有来自电脑的待答事项")
@@ -143,7 +150,7 @@ internal fun MobileWorkspace(page: String, choose: (String) -> Unit, state: Chat
                                     else -> "让伙伴跟进事项"
                                 }
                                 Button({ action = "agent.request" }) { Text(prompt) }
-                                if (page == "日程") OutlinedButton({ action = "calendar.create" }) { Text("手动安排或修改日程") }
+                                if (page == "日程") OutlinedButton({ action = "calendar.create" }) { Text("新增日程") }
                                 if (page == "笔记") OutlinedButton({ action = "note.create" }) { Text("手动新增笔记") }
                             }
                         }

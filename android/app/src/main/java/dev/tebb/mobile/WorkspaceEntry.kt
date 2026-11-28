@@ -25,29 +25,32 @@ import java.util.UUID
 
 /** 手动新增入口。每个账号和配对设备独立保存草稿，电脑确认后才清空。 */
 @Composable
-internal fun WorkspaceEntry(action: String, owner: String, history: String, returnLabel: String = "返回主聊", back: () -> Unit) {
+internal fun WorkspaceEntry(action: String, owner: String, history: String, returnLabel: String = "返回主聊", eventJson: String = "", back: () -> Unit) {
     val context = LocalContext.current
     val device = PairingClient.approved(context)?.pairedId
-    val prefs = remember(owner, device, action) {
-        context.getSharedPreferences("entry.$owner.$device.$action", Context.MODE_PRIVATE)
+    val event = remember(eventJson) { eventJson.takeIf { it.isNotEmpty() }?.let(::JSONObject) }
+    val suffix = event?.getString("id")?.let { ".$it" }.orEmpty()
+    val prefs = remember(owner, device, action, suffix) {
+        context.getSharedPreferences("entry.$owner.$device.$action$suffix", Context.MODE_PRIVATE)
     }
     val agent = action == "agent.request"
     val chats = remember(history) {
         val rows = org.json.JSONArray(history)
         List(rows.length()) { rows.getJSONObject(it) }.associate { it.getString("id") to it.getString("title") }
     }
-    var selectedEvent by remember(prefs) { mutableStateOf(prefs.getString("event", "").orEmpty()) }
-    var version by remember(prefs) { mutableStateOf(prefs.getInt("version", 0)) }
+    var selectedEvent by remember(prefs) { mutableStateOf(prefs.getString("event", event?.getString("id")).orEmpty()) }
+    var version by remember(prefs) { mutableStateOf(prefs.getInt("version", event?.getInt("version") ?: 0)) }
     var calendarRows by remember { mutableStateOf(emptyList<JSONObject>()) }
     var showEvents by remember { mutableStateOf(false) }
     var conversation by remember(prefs) { mutableStateOf(prefs.getString("conversation", "").orEmpty()) }
     var choosing by remember { mutableStateOf(false) }
     val calendar = action == "calendar.create"
     val scope = rememberCoroutineScope()
-    var title by remember(prefs) { mutableStateOf(prefs.getString("title", "").orEmpty()) }
+    var title by remember(prefs) { mutableStateOf(prefs.getString("title", event?.getString("summary")).orEmpty()) }
     var body by remember(prefs) { mutableStateOf(prefs.getString("body", "").orEmpty()) }
-    var start by remember(prefs) { mutableStateOf(prefs.getLong("start", System.currentTimeMillis() + 3600000)) }
-    var end by remember(prefs) { mutableStateOf(prefs.getLong("end", start + 1800000)) }
+    val eventTime = remember(eventJson) { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT) }
+    var start by remember(prefs) { mutableStateOf(prefs.getLong("start", event?.let { eventTime.parse(it.getString("start"))?.time } ?: (System.currentTimeMillis() + 3600000))) }
+    var end by remember(prefs) { mutableStateOf(prefs.getLong("end", event?.let { eventTime.parse(it.getString("end"))?.time } ?: (start + 1800000))) }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf("") }
     fun saveDraft() {
@@ -69,7 +72,7 @@ internal fun WorkspaceEntry(action: String, owner: String, history: String, retu
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = back, enabled = !busy) { Text(returnLabel) }
         Text(if (agent) "交给电脑伙伴" else if (calendar) "日程" else "新增笔记", style = MaterialTheme.typography.h4)
-        if (calendar) {
+        if (calendar && event == null) {
             TextButton(enabled = !busy, onClick = {
                 val client = PairingClient.approved(context) ?: return@TextButton
                 busy = true
@@ -143,6 +146,7 @@ internal fun WorkspaceEntry(action: String, owner: String, history: String, retu
                             client.create(if (editEvent) "calendar.update" else action, id, payload)
                         }
                         prefs.edit().clear().apply()
+                        if (event != null) { back(); return@launch }
                         selectedEvent = ""; version = 0; title = ""; body = ""; notice = if (agent) "已提交到原会话" else "已保存到电脑"
                     } catch (e: CancellationException) { throw e }
                     catch (e: Exception) { notice = (e.message ?: "尚未收到回执") + " · 草稿已保留" }
