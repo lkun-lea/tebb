@@ -5,31 +5,28 @@
   z-index: 20;
   display: flex;
   flex: 0 0 auto;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  height: 34px;
-  padding-left: 16px;
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--card));
-  color: hsl(var(--muted-foreground));
+  min-width: 0;
+  color: inherit;
   user-select: none;
 }
 
-.tebb-window-title {
-  font-size: var(--ui-text-sm);
-  font-weight: var(--ui-weight-500);
-  letter-spacing: 0.08em;
+.tebb-window-titlebar > nav {
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .tebb-window-controls {
   display: flex;
-  align-self: stretch;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .tebb-window-controls button {
   display: grid;
   place-items: center;
-  width: 44px;
+  width: clamp(26px, 3vw, 44px);
   align-self: stretch;
   border: 0;
   border-radius: 0;

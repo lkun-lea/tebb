@@ -1477,7 +1477,6 @@ export function App() {
       >
         {bgUrl ? <div className="desk-bg-scrim" data-bg-scrim /> : null}
       </div>
-      <WindowTitleBar />
       <div className="workspace-account"><details><summary aria-label="工作区菜单">tebb</summary><div>
         <button disabled={!sidebarState.available} onClick={()=>togglePreview()}>{sidebarState.open?'收起资料栏':'显示资料栏'}</button>
         <button type="button" onClick={()=>setDark(value=>!value)}>{dark ? "切换到浅色模式" : "切换到深色模式"}</button>
@@ -1509,7 +1508,7 @@ export function App() {
           {!debugKind && <Suspense fallback={<p className="p-6" role="status"><LoadingText text="正在连接伙伴…"/></p>}><LiveCollaboration sourceTarget={sourceTarget} onCalendar={()=>openCalendar()} attachments={pickedAttachments} onAttach={() => setLocalDialog("file")} onDetach={id => setPickedAttachments(old => old.filter(a => a.id!==id))} onProject={openProject} onFile={() => setLocalDialog("file")} onTerminal={openTerminal} composeRequest={composeRequest} info={info} developerMode={developerMode} onDeveloperMode={changeDeveloperMode} /></Suspense>}
         </div>
         <div className="tebb-route-page">
-            {workspaceNavigation}
+            <WindowTitleBar>{workspaceNavigation}</WindowTitleBar>
 
         <PageStack active={coreChat ? "today" : pane === "chat" ? chatFace : pane}>
           {pane === "today" || coreChat ? <section className="today-workspace" aria-label="今日">

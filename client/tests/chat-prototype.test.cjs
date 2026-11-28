@@ -592,6 +592,7 @@ test('workspace opens today beside chat and keeps its draft mounted under modal 
     './companion-ui': load('companion-ui'),
     './workspace-dialog': {WorkspaceDialog: ({children,title})=>React.createElement('dialog',{open:true,'aria-label':title},children)},
     './workspace-shell': load('workspace-shell'),
+    './window-chrome': load('window-chrome', { '@tauri-apps/api/core': { isTauri: () => false } }),
     './workspace-navigation': load('workspace-navigation'),
     './page-stack': load('page-stack'),
     './live-collaboration': { LiveCollaboration: LiveStub },

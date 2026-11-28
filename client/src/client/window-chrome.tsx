@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Copy, Minus, Square, X } from "lucide-react";
 import "./window-chrome.css";
 
 // 主窗自绘标题栏：背景、文字、边框和窗口按钮全部跟随当前主题变量。
-export function WindowTitleBar() {
+export function WindowTitleBar({ children }: { children: ReactNode }) {
   const tauri = isTauri();
   const [maximized, setMaximized] = useState(false);
 
@@ -27,7 +27,7 @@ export function WindowTitleBar() {
 
   return (
     <header className="tebb-window-titlebar" data-tauri-drag-region>
-      <span className="tebb-window-title" data-tauri-drag-region>tebb</span>
+      {children}
       {tauri ? (
         <div className="tebb-window-controls">
           <button type="button" aria-label="最小化窗口" title="最小化" onClick={() => void getCurrentWindow().minimize().catch(() => {})}>
