@@ -108,6 +108,8 @@ ssh tebb-ecs journalctl -u tebb-cloud --since today --no-pager -n 100
 
 ## UI 开发
 
+- 新建、重排或审查业务弹窗的信息层级和交互时，使用项目技能 [tebb-dialog-design](.agents/skills/tebb-dialog-design/SKILL.md)。
+
 - 新建或修改前端 UI 前阅读 `docs/UI_DEVELOPMENT.md`，按十条铁律实现；复用 `ui-foundations.css` 和 `ui-controls.tsx/css`，禁止页面另建主题。保留 `docs/UI_CONTRACT.md` 的状态、可访问性和业务控制器契约。深浅主题和实际页面效果分别验证；未迁移项不得记为已完成。
 
 ## Agent 自测能力入口（#320）

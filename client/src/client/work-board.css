@@ -81,3 +81,21 @@
   .sw-calendar{--fc-border-color:CanvasText}
   .wb-card:hover,.wb-card:focus-within{outline:1px solid Highlight;outline-offset:-1px}
 }
+
+.workspace-dialog.wb-reading {
+  background: color-mix(in srgb, hsl(var(--card)) 94%, transparent);
+  backdrop-filter: blur(16px);
+}
+.wb-reading .wb-detail-header { margin-bottom: 6px; }
+.wb-reading h2 { margin-bottom: 14px; }
+.wb-reading .wb-detail-info, .wb-reading .wb-detail-section {
+  border-radius: 12px;
+  background: hsl(var(--card));
+  padding: 12px 14px;
+}
+.wb-reading .wb-detail-section { margin-top: 8px; }
+.wb-reading .wb-section-heading h3 { margin: 0; }
+.wb-reading .wb-detail-actions { margin-top: 14px; }
+.wb-reading button.wb-read-primary { background: var(--tebb-action); color: #102531; font-weight: var(--ui-weight-500); }
+.wb-reading .wb-archive-tools { margin-top: 12px; font-size: var(--ui-text-caption, 12px); }
+.wb-archive-tools summary { cursor: pointer; }

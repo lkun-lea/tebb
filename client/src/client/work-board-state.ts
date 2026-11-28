@@ -36,7 +36,7 @@ export class WorkBoardController {
   rowErrors=new Map<string,string>(); private running=new Map<string,Promise<void>>(); private sequence=0;
   completed=new Map<string,WorkReceipt>();
   private readSequence=0; private listeners=new Set<()=>void>();
-  constructor(private transport:WorkTransport, private id=()=>crypto.randomUUID()) {}
+  constructor(private transport:WorkTransport, private id=()=>crypto.randomUUID(), private reportFeedback?:(text:string)=>void) {}
   subscribe=(listener:()=>void)=>{this.listeners.add(listener);return()=>{this.listeners.delete(listener);};};
   private emit(){this.listeners.forEach(listener=>listener());}
   get items(){return this.page.items.map(item=>this.intents.has(item.id)?{...item,state:this.intents.get(item.id)!.state}:item);}
@@ -102,6 +102,11 @@ export class WorkBoardController {
     try {
       const result=await this.transport('change_work_item',{action});
       if(result.ok){const latest=this.uncertain.get(key)?.desired;this.accept(result);if(result.receipt)this.completed.set(key,result.receipt);this.uncertain.delete(key);this.intents.delete(key);this.rowErrors.delete(key);this.notice=latest?'原操作已确认；后续未保存的移动请重新操作。':'事项操作已保存。';return true;}
+      if(action.type==='execute' && result.change_state==='not_changed' && result.error==='还没有可选模型。打开设置添加一个。' && this.reportFeedback){
+        this.uncertain.delete(key);this.intents.delete(key);this.rowErrors.delete(key);
+        this.reportFeedback(result.error);
+        return false;
+      }
       if(result.change_state==='unconfirmed'||result.change_state==='committed')this.markUncertain(key,action,result.error||'保存结果未确认。');
       else {this.uncertain.delete(key);this.intents.delete(key);this.rowErrors.set(key,result.error||'原操作未保存，请刷新后重新操作。');}
       this.error=result.error||'事项操作失败。';return false;

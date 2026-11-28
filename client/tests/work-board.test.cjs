@@ -173,3 +173,20 @@ test('real component creates, moves, archives, restores and preserves its edit f
     assert.equal(reads,2);
   }finally{global.fetch=originalFetch;}
 });
+
+test('missing model reports one toast per execution and leaves the card and its state intact',async()=>{
+  const feedback=[],page=fixture(),error='还没有可选模型。打开设置添加一个。';
+  const board=new state.WorkBoardController(async method=>method==='load_work_board'?page:
+    {ok:false,change_state:'not_changed',error},()=> 'request-id',text=>feedback.push(text));
+  await board.load();
+  const item=board.items[0];
+  for(let attempt=1;attempt<=2;attempt++){
+    assert.equal(await board.change({type:'execute',id:item.id}),false);
+    await board.load();
+    assert.equal(feedback.length,attempt);
+    assert.equal(feedback.at(-1),error);
+    assert.equal(board.error,'');
+    assert.equal(board.rowErrors.has(item.id),false);
+    assert.deepEqual(board.items[0],item);
+  }
+});
